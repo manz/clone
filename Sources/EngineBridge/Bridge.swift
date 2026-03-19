@@ -1,9 +1,9 @@
 import Foundation
-import DesktopKit
+import SwiftUI
 import CloneServer
 import CloneProtocol
 
-/// Converts DesktopKit FlatRenderCommand to UniFFI RenderCommand.
+/// Converts SwiftUI FlatRenderCommand to UniFFI RenderCommand.
 public enum Bridge {
     public static func toEngineCommands(_ flatCommands: [FlatRenderCommand]) -> [RenderCommand] {
         flatCommands.map { cmd in
@@ -64,7 +64,7 @@ public enum Bridge {
     }
 }
 
-extension DesktopColor {
+extension Color {
     func toEngine() -> RgbaColor {
         RgbaColor(r: r, g: g, b: b, a: a)
     }
@@ -76,7 +76,7 @@ extension IPCColor {
     }
 }
 
-extension DesktopKit.FontWeight {
+extension SwiftUI.FontWeight {
     func toEngine() -> FontWeight {
         switch self {
         case .regular: return .regular
@@ -318,12 +318,12 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             var windowCommands: [RenderCommand] = []
 
             // Title bar background
-            let tbColor: DesktopColor = isFocused
-                ? DesktopColor(r: 0.24, g: 0.22, b: 0.30)
-                : DesktopColor(r: 0.19, g: 0.17, b: 0.24)
-            let bgColor: DesktopColor = isFocused
+            let tbColor: Color = isFocused
+                ? Color(r: 0.24, g: 0.22, b: 0.30)
+                : Color(r: 0.19, g: 0.17, b: 0.24)
+            let bgColor: Color = isFocused
                 ? .surface
-                : DesktopColor(r: 0.16, g: 0.15, b: 0.21)
+                : Color(r: 0.16, g: 0.15, b: 0.21)
 
             // Window background (local coords)
             windowCommands.append(.roundedRect(
@@ -342,9 +342,9 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let btnSize = WindowChrome.buttonSize
             let btnStep = btnSize + WindowChrome.buttonSpacing
 
-            let closeColor: DesktopColor = isFocused ? .systemRed : .muted
-            let minColor: DesktopColor = isFocused ? .systemYellow : .muted
-            let zoomColor: DesktopColor = isFocused ? .systemGreen : .muted
+            let closeColor: Color = isFocused ? .systemRed : .muted
+            let minColor: Color = isFocused ? .systemYellow : .muted
+            let zoomColor: Color = isFocused ? .systemGreen : .muted
 
             windowCommands.append(.roundedRect(x: btnX, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: closeColor.toEngine()))
             windowCommands.append(.roundedRect(x: btnX + btnStep, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: minColor.toEngine()))
@@ -361,7 +361,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             }
 
             // Title text
-            let titleColor: DesktopColor = isFocused ? .text : .subtle
+            let titleColor: Color = isFocused ? .text : .subtle
             let titleX = window.width / 2 - Float(window.title.count) * 4
             let titleY = (WindowChrome.titleBarHeight - 13) / 2
             windowCommands.append(.text(

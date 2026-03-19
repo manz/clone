@@ -1,5 +1,5 @@
 import Testing
-@testable import DesktopKit
+@testable import SwiftUI
 
 @Test func noChangeProducesNoPatches() {
     let tree = ViewNode.text("Hello", fontSize: 16, color: .white)

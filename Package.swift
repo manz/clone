@@ -28,21 +28,21 @@ let package = Package(
         ),
         // UI DSL framework
         .target(
-            name: "DesktopKit",
+            name: "SwiftUI",
             dependencies: [],
-            path: "Sources/DesktopKit",
+            path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),
         // UniFFI bridge to Rust GPU engine
         .target(
             name: "EngineBridge",
-            dependencies: ["clone_engineFFI", "DesktopKit", "CloneServer", "CloneProtocol"],
+            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol"],
             path: "Sources/EngineBridge"
         ),
         // Compositor main binary
         .executableTarget(
             name: "CloneDesktop",
-            dependencies: ["DesktopKit", "EngineBridge", "CloneServer"],
+            dependencies: ["SwiftUI", "EngineBridge", "CloneServer"],
             path: "Sources/Apps",
             linkerSettings: [
                 .unsafeFlags([
@@ -77,9 +77,24 @@ let package = Package(
             path: "Sources/MenuBarApp"
         ),
         .testTarget(
-            name: "DesktopKitTests",
-            dependencies: ["DesktopKit"],
-            path: "Tests/DesktopKitTests"
+            name: "SwiftUITests",
+            dependencies: ["SwiftUI"],
+            path: "Tests/SwiftUITests"
+        ),
+        .systemLibrary(
+            name: "CSQLite",
+            path: "Sources/CSQLite",
+            pkgConfig: "sqlite3"
+        ),
+        .target(
+            name: "SwiftData",
+            dependencies: ["CSQLite"],
+            path: "Sources/SwiftData"
+        ),
+        .testTarget(
+            name: "SwiftDataTests",
+            dependencies: ["SwiftData"],
+            path: "Tests/SwiftDataTests"
         ),
     ]
 )

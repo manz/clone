@@ -7,16 +7,6 @@ public func Text(_ content: String) -> ViewNode {
     .text(content, fontSize: 14, color: .text)
 }
 
-/// `Color.red` / `Color(.systemBlue)` as a filled rect
-public struct Color {
-    let color: DesktopColor
-    public init(_ color: DesktopColor) { self.color = color }
-
-    public var body: ViewNode {
-        .rect(width: nil, height: nil, fill: color)
-    }
-}
-
 /// `Rectangle()` — solid filled rect
 public func Rectangle() -> ViewNode {
     .rect(width: nil, height: nil, fill: .white)
@@ -53,6 +43,88 @@ public func HStack(
 /// `ZStack { ... }`
 public func ZStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
     .zstack(children: content())
+}
+
+// MARK: - Button
+
+/// `Button("Tap") { action }` — label string variant
+public func Button(_ label: String, action: @escaping () -> Void) -> ViewNode {
+    Text(label)
+        .foregroundColor(.systemBlue)
+        .onTapGesture(action)
+}
+
+/// `Button(action: { }) { label }` — custom label variant
+public func Button(action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
+    let content = label()
+    let child = content.count == 1 ? content[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: content)
+    return child.onTapGesture(action)
+}
+
+// MARK: - ScrollView / List
+
+/// `ScrollView { ... }` — vertical by default. Renders as VStack until scrolling is implemented.
+public func ScrollView(
+    _ axis: Axis = .vertical,
+    @ViewBuilder content: () -> [ViewNode]
+) -> ViewNode {
+    .scrollView(axis: axis, children: content())
+}
+
+/// `List { ... }` — renders as VStack with dividers between children.
+public func List(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    .list(children: content())
+}
+
+// MARK: - Image
+
+/// `Image(systemName:)` — stub: renders as a colored placeholder rect.
+public func Image(systemName: String) -> ViewNode {
+    .image(name: systemName, width: nil, height: nil)
+}
+
+/// `Image(_:)` — named image stub.
+public func Image(_ name: String) -> ViewNode {
+    .image(name: name, width: nil, height: nil)
+}
+
+// MARK: - Form controls
+
+/// `Toggle(isOn:) { label }` — renders static representation.
+public func Toggle(isOn: Binding<Bool>, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
+    let labelNode = label().count == 1 ? label()[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: label())
+    return .toggle(isOn: isOn.wrappedValue, label: labelNode)
+}
+
+/// `Toggle("Label", isOn:)` — convenience.
+public func Toggle(_ title: String, isOn: Binding<Bool>) -> ViewNode {
+    .toggle(isOn: isOn.wrappedValue, label: Text(title))
+}
+
+/// `Slider(value:in:)` — renders static track + knob.
+public func Slider(value: Binding<Float>, in range: ClosedRange<Float> = 0...1) -> ViewNode {
+    .slider(value: value.wrappedValue, range: range, label: .empty)
+}
+
+/// `Picker(selection:) { options } label: { label }` — renders label + current value.
+public func Picker(
+    _ title: String,
+    selection: Binding<String>,
+    @ViewBuilder content: () -> [ViewNode]
+) -> ViewNode {
+    .picker(selection: selection.wrappedValue, label: Text(title), children: content())
+}
+
+/// `TextField("Placeholder", text:)` — text input box with placeholder.
+public func TextField(_ placeholder: String, text: Binding<String>) -> ViewNode {
+    .textField(placeholder: placeholder, text: text.wrappedValue)
+}
+
+// MARK: - Navigation
+
+/// `NavigationStack { ... }` — wraps children in a VStack (navigation state is window-managed).
+public func NavigationStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    .navigationStack(children: content())
 }
 
 // MARK: - Modifier chains on ViewNode
@@ -95,7 +167,7 @@ public extension ViewNode {
     }
 
     /// `.foregroundColor(.white)` — only meaningful for text nodes, wraps as-is for others
-    func foregroundColor(_ color: DesktopColor) -> ViewNode {
+    func foregroundColor(_ color: Color) -> ViewNode {
         switch self {
         case .text(let content, let fontSize, _, let weight):
             return .text(content, fontSize: fontSize, color: color, weight: weight)
@@ -135,7 +207,7 @@ public extension ViewNode {
     }
 
     /// `.fill(.systemBlue)` — sets the fill color on rect/roundedRect
-    func fill(_ color: DesktopColor) -> ViewNode {
+    func fill(_ color: Color) -> ViewNode {
         switch self {
         case .rect(let width, let height, _):
             return .rect(width: width, height: height, fill: color)
@@ -160,7 +232,7 @@ public extension ViewNode {
 
     /// `.shadow(color:radius:x:y:)` — like SwiftUI's shadow modifier
     func shadow(
-        color: DesktopColor = DesktopColor(r: 0, g: 0, b: 0, a: 0.3),
+        color: Color = Color(r: 0, g: 0, b: 0, a: 0.3),
         radius: Float = 10,
         x: Float = 0,
         y: Float = 2
@@ -178,13 +250,43 @@ public extension ViewNode {
     func onTapGesture(id: UInt64) -> ViewNode {
         .onTap(id: id, child: self)
     }
+
+    /// `.navigationTitle(_:)` — no-op for now (window title is set by the compositor).
+    func navigationTitle(_ title: String) -> ViewNode {
+        self
+    }
+
+    /// `.toolbar { }` — no-op for now (toolbar items are managed by window chrome).
+    func toolbar(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.resizable()` — no-op on image stubs, returns self.
+    func resizable() -> ViewNode {
+        self
+    }
+
+    /// `.scaledToFit()` — no-op on image stubs.
+    func scaledToFit() -> ViewNode {
+        self
+    }
+
+    /// `.scaledToFill()` — no-op on image stubs.
+    func scaledToFill() -> ViewNode {
+        self
+    }
+
+    /// `.clipShape(_:)` — no-op for now.
+    func clipShape(_ shape: ViewNode) -> ViewNode {
+        self
+    }
 }
 
 // MARK: - SwiftUI-compatible compound views
 
 /// `Label("Wi-Fi", systemImage: "wifi")` — icon rounded rect + text, like SwiftUI Label.
 /// Since we don't have SF Symbols, `systemImage` is ignored visually but the icon color is used.
-public func Label(_ title: String, systemImage: String, iconColor: DesktopColor = .systemBlue) -> ViewNode {
+public func Label(_ title: String, systemImage: String, iconColor: Color = .systemBlue) -> ViewNode {
     .hstack(alignment: .center, spacing: 8, children: [
         .roundedRect(width: 20, height: 20, radius: 5, fill: iconColor),
         .text(title, fontSize: 13, color: .text),
@@ -241,7 +343,7 @@ public func ForEach<T>(_ data: [T], @ViewBuilder content: (T) -> [ViewNode]) -> 
 
 /// `.background(_:)` — wraps content in a ZStack with a background color behind it.
 public extension ViewNode {
-    func background(_ color: DesktopColor) -> ViewNode {
+    func background(_ color: Color) -> ViewNode {
         .zstack(children: [
             .rect(width: nil, height: nil, fill: color),
             self,
@@ -249,7 +351,7 @@ public extension ViewNode {
     }
 
     /// `.listRowBackground(_:)` — alias for background, matches SwiftUI naming.
-    func listRowBackground(_ color: DesktopColor) -> ViewNode {
+    func listRowBackground(_ color: Color) -> ViewNode {
         background(color)
     }
 }

@@ -1,5 +1,5 @@
 import Testing
-@testable import DesktopKit
+@testable import SwiftUI
 
 @Test func emptyViewNode() {
     let node = ViewNode.empty
@@ -135,8 +135,8 @@ import Testing
 }
 
 @Test func colorEquality() {
-    #expect(DesktopColor.white == DesktopColor(r: 1, g: 1, b: 1, a: 1))
-    #expect(DesktopColor.black != DesktopColor.white)
+    #expect(Color.white == Color(r: 1, g: 1, b: 1, a: 1))
+    #expect(Color.black != Color.white)
 }
 
 @Test func edgeInsetsConvenience() {

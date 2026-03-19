@@ -395,7 +395,7 @@ public final class WindowManager {
         let windowBody = ZStack {
             // Window background
             RoundedRectangle(cornerRadius: radius)
-                .fill(isFocused ? .surface : DesktopColor(r: 0.16, g: 0.15, b: 0.21))
+                .fill(isFocused ? .surface : Color(r: 0.16, g: 0.15, b: 0.21))
                 .frame(width: window.width, height: window.height)
             // Content area
             VStack(alignment: .leading, spacing: 0) {
@@ -413,7 +413,7 @@ public final class WindowManager {
         } else {
             withShadow = windowBody
                 .shadow(
-                    color: DesktopColor(r: 0, g: 0, b: 0, a: isFocused ? 0.18 : 0.08),
+                    color: Color(r: 0, g: 0, b: 0, a: isFocused ? 0.18 : 0.08),
                     radius: isFocused ? 24 : 12,
                     x: 0,
                     y: isFocused ? 10 : 5
@@ -430,8 +430,8 @@ public final class WindowManager {
         let w = window.width
         let h = WindowChrome.titleBarHeight
         let bg = isFocused
-            ? DesktopColor(r: 0.24, g: 0.22, b: 0.30)
-            : DesktopColor(r: 0.19, g: 0.17, b: 0.24)
+            ? Color(r: 0.24, g: 0.22, b: 0.30)
+            : Color(r: 0.19, g: 0.17, b: 0.24)
 
         // Build the HStack content as a flat array — no spacers, manual positioning
         // This avoids layout issues with nested ZStack/HStack/Spacer
@@ -456,7 +456,7 @@ public final class WindowManager {
             .padding(.top, btnY).padding(.leading, btnX + btnStep * 2))
 
         // Title text — centered
-        let titleColor = isFocused ? DesktopColor.text : DesktopColor.subtle
+        let titleColor = isFocused ? Color.text : Color.subtle
         nodes.append(
             Text(window.title).fontSize(13).foregroundColor(titleColor)
                 .padding(.top, (h - 13) / 2)
@@ -466,7 +466,7 @@ public final class WindowManager {
         return ViewNode.zstack(children: nodes).frame(width: w, height: h)
     }
 
-    private func trafficLightButton(color: DesktopColor, symbol: String?) -> ViewNode {
+    private func trafficLightButton(color: Color, symbol: String?) -> ViewNode {
         let size = WindowChrome.buttonSize
         if let symbol {
             return ZStack {
@@ -476,7 +476,7 @@ public final class WindowManager {
                 Text(symbol)
                     .fontSize(size * 0.7)
                     .bold()
-                    .foregroundColor(DesktopColor(r: 0, g: 0, b: 0, a: 0.5))
+                    .foregroundColor(Color(r: 0, g: 0, b: 0, a: 0.5))
             }
             .frame(width: size, height: size)
         } else {

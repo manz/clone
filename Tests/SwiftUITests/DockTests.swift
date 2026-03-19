@@ -1,5 +1,5 @@
 import Testing
-@testable import DesktopKit
+@testable import SwiftUI
 
 let screenWidth: Float = 1280
 let screenHeight: Float = 800

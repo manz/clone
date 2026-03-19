@@ -145,6 +145,42 @@ public enum Layout {
         case .geometryReader:
             // GeometryReader fills the proposed space (like SwiftUI)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
+
+        case .scrollView(let axis, let children):
+            // Measure like a VStack/HStack depending on axis
+            if axis == .vertical {
+                return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+            } else {
+                return measureHStack(alignment: .top, spacing: 0, children: children, constraint: constraint)
+            }
+
+        case .list(let children):
+            return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+
+        case .image(_, let width, let height):
+            return MeasuredSize(
+                width: width ?? constraint.maxWidth,
+                height: height ?? constraint.maxHeight
+            )
+
+        case .toggle(_, let label):
+            let labelSize = measure(label, constraint: constraint)
+            return MeasuredSize(width: labelSize.width + 60, height: max(labelSize.height, 30))
+
+        case .slider(_, _, _):
+            return MeasuredSize(width: constraint.maxWidth, height: 30)
+
+        case .picker(_, let label, _):
+            let labelSize = measure(label, constraint: constraint)
+            return MeasuredSize(width: labelSize.width + 100, height: max(labelSize.height, 30))
+
+        case .textField(let placeholder, _):
+            let charWidth: Float = 14 * 0.6
+            let width = charWidth * Float(placeholder.count) + 16
+            return MeasuredSize(width: max(width, 200), height: 30)
+
+        case .navigationStack(let children):
+            return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
         }
     }
 
@@ -203,8 +239,25 @@ public enum Layout {
             let childLayout = layout(resolved, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
+        case .scrollView(let axis, let children):
+            if axis == .vertical {
+                return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+            } else {
+                return layoutHStack(alignment: .top, spacing: 0, children: children, in: frame)
+            }
+
+        case .list(let children):
+            return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+
+        case .navigationStack(let children):
+            return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+
+        case .toggle(_, let label):
+            let labelLayout = layout(label, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [labelLayout])
+
         default:
-            // Leaf nodes: text, rect, roundedRect, blur, spacer, empty
+            // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker, textField
             let size = measure(node, constraint: constraint)
             let leafFrame = LayoutFrame(x: frame.x, y: frame.y, width: size.width, height: size.height)
             return LayoutNode(frame: leafFrame, node: node)

@@ -1,5 +1,5 @@
 import Testing
-@testable import DesktopKit
+@testable import SwiftUI
 
 // MARK: - Measure tests
 

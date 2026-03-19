@@ -16,9 +16,9 @@ public struct Dock {
     public struct DockItem: Equatable {
         public let appId: String
         public let name: String
-        public let color: DesktopColor
+        public let color: Color
 
-        public init(appId: String, name: String, color: DesktopColor) {
+        public init(appId: String, name: String, color: Color) {
             self.appId = appId
             self.name = name
             self.color = color
@@ -79,7 +79,7 @@ public struct Dock {
 
         return .zstack(children: [
             RoundedRectangle(cornerRadius: 16)
-                .fill(DesktopColor(r: 0.2, g: 0.2, b: 0.2, a: 0.6))
+                .fill(Color(r: 0.2, g: 0.2, b: 0.2, a: 0.6))
                 .frame(width: totalWidth, height: dockBgHeight),
             ViewNode.hstack(alignment: .bottom, spacing: Self.padding, children: iconNodes),
         ])
@@ -90,7 +90,7 @@ public struct Dock {
         let height: Float = 26
         return ZStack {
             RoundedRectangle(cornerRadius: 6)
-                .fill(DesktopColor(r: 0.15, g: 0.14, b: 0.20, a: 0.95))
+                .fill(Color(r: 0.15, g: 0.14, b: 0.20, a: 0.95))
                 .frame(width: textWidth, height: height)
             Text(name)
                 .fontSize(12)

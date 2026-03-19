@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import DesktopKit
+@testable import SwiftUI
 
 @Test func geometryReaderReceivesProposedSize() {
     GeometryReaderRegistry.shared.clear()

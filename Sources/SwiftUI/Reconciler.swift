@@ -127,6 +127,14 @@ public enum Reconciler {
         case (.shadow, .shadow): return true
         case (.onTap, .onTap): return true
         case (.geometryReader, .geometryReader): return true
+        case (.scrollView, .scrollView): return true
+        case (.list, .list): return true
+        case (.image, .image): return true
+        case (.toggle, .toggle): return true
+        case (.slider, .slider): return true
+        case (.picker, .picker): return true
+        case (.textField, .textField): return true
+        case (.navigationStack, .navigationStack): return true
         default: return false
         }
     }
