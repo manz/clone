@@ -137,6 +137,7 @@ public enum Reconciler {
         case (.navigationStack, .navigationStack): return true
         case (.menu, .menu): return true
         case (.contextMenu, .contextMenu): return true
+        case (.clipped, .clipped): return true
         default: return false
         }
     }

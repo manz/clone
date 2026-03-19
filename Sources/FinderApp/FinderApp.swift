@@ -14,8 +14,8 @@ struct MenuItem {
 }
 
 struct ContextMenu {
-    let x: Float
-    let y: Float
+    let anchorX: Float      // leading edge of the menu
+    let anchorY: Float      // top of the row the menu is attached to
     let items: [MenuItem]
     let targetIndex: Int?   // nil = background right-click
     var hoveredItem: Int?
@@ -90,9 +90,20 @@ final class FinderState {
     // Sort
     var sortOrder: SortOrder = .name
 
+    // Get Info panel
+    var infoPanel: InfoPanel?
+
     // Cached window size for hit-testing
     var windowWidth: Float = 700
     var windowHeight: Float = 450
+
+    struct InfoPanel {
+        let name: String
+        let path: String
+        let kind: String
+        let size: String
+        let isDirectory: Bool
+    }
 
     struct FileEntry {
         let name: String
@@ -211,11 +222,17 @@ final class FinderState {
     // MARK: - Interaction
 
     func handleLeftClick(x: Float, y: Float, width: Float, height: Float) {
+        // Dismiss info panel on any click
+        if infoPanel != nil {
+            infoPanel = nil
+            return
+        }
+
         // If context menu open, hit-test it first
         if let menu = contextMenu {
             let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
-            let menuX = min(menu.x, width - contextMenuWidth - 4)
-            let menuY = min(menu.y, height - menuHeight - 4)
+            let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
+            let menuY = min(menu.anchorY, height - menuHeight - 4)
 
             if x >= menuX && x < menuX + contextMenuWidth &&
                y >= menuY && y < menuY + menuHeight {
@@ -289,12 +306,25 @@ final class FinderState {
         let listX = sidebarWidth
         let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
 
+        let bgMenu = ContextMenu(
+            anchorX: x, anchorY: y,
+            items: [
+                MenuItem(label: "New Folder", action: .newFolder),
+                MenuItem(label: "Sort by Name", action: .sortByName),
+                MenuItem(label: "Sort by Size", action: .sortBySize),
+                MenuItem(label: "Sort by Date", action: .sortByDate),
+            ],
+            targetIndex: nil
+        )
+
         if x >= listX && y >= listTop && y < listTop + listHeight {
             let rowIndex = Int((y - listTop) / rowHeight)
             if rowIndex >= 0 && rowIndex < entries.count {
+                // Anchor to the row: right side of the name area, top of the row
+                let rowY = listTop + Float(rowIndex) * rowHeight
                 selectedIndex = rowIndex
                 contextMenu = ContextMenu(
-                    x: x, y: y,
+                    anchorX: x, anchorY: rowY + rowHeight,
                     items: [
                         MenuItem(label: "Open", action: .open),
                         MenuItem(label: "Get Info", action: .getInfo),
@@ -304,36 +334,18 @@ final class FinderState {
                     targetIndex: rowIndex
                 )
             } else {
-                contextMenu = ContextMenu(
-                    x: x, y: y,
-                    items: [
-                        MenuItem(label: "New Folder", action: .newFolder),
-                        MenuItem(label: "Sort by Name", action: .sortByName),
-                        MenuItem(label: "Sort by Size", action: .sortBySize),
-                        MenuItem(label: "Sort by Date", action: .sortByDate),
-                    ],
-                    targetIndex: nil
-                )
+                contextMenu = bgMenu
             }
         } else {
-            contextMenu = ContextMenu(
-                x: x, y: y,
-                items: [
-                    MenuItem(label: "New Folder", action: .newFolder),
-                    MenuItem(label: "Sort by Name", action: .sortByName),
-                    MenuItem(label: "Sort by Size", action: .sortBySize),
-                    MenuItem(label: "Sort by Date", action: .sortByDate),
-                ],
-                targetIndex: nil
-            )
+            contextMenu = bgMenu
         }
     }
 
     func updateContextMenuHover(x: Float, y: Float, width: Float, height: Float) {
         guard var menu = contextMenu else { return }
         let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
-        let menuX = min(menu.x, width - contextMenuWidth - 4)
-        let menuY = min(menu.y, height - menuHeight - 4)
+        let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
+        let menuY = min(menu.anchorY, height - menuHeight - 4)
 
         if x >= menuX && x < menuX + contextMenuWidth &&
            y >= menuY && y < menuY + menuHeight {
@@ -355,6 +367,19 @@ final class FinderState {
             if let idx = targetIndex, idx < entries.count, entries[idx].isDirectory {
                 navigate(to: entries[idx].name)
             }
+        case .getInfo:
+            if let idx = targetIndex, idx < entries.count {
+                let entry = entries[idx]
+                let fullPath = (currentPath as NSString).appendingPathComponent(entry.name)
+                let (_, kind) = fileKind(entry.name)
+                infoPanel = InfoPanel(
+                    name: entry.name,
+                    path: fullPath,
+                    kind: kind,
+                    size: formatSize(entry),
+                    isDirectory: entry.isDirectory
+                )
+            }
         case .sortByName:
             sortOrder = .name
             reload()
@@ -364,7 +389,7 @@ final class FinderState {
         case .sortByDate:
             sortOrder = .date
             reload()
-        case .getInfo, .copy, .moveToTrash, .newFolder:
+        case .copy, .moveToTrash, .newFolder:
             break
         }
     }
@@ -576,19 +601,16 @@ func contextMenuItemView(item: MenuItem, isHovered: Bool) -> ViewNode {
 
 func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode {
     let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
-    let menuX = min(menu.x, width - contextMenuWidth - 4)
-    let menuY = min(menu.y, height - menuHeight - 4)
+    let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
+    let menuY = min(menu.anchorY, height - menuHeight - 4)
 
     let menuItems: [ViewNode] = menu.items.enumerated().map { (i, item) in
         contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
     }
 
-    var itemsWithPadding: [ViewNode] = [Spacer(minLength: 4)]
-    itemsWithPadding.append(contentsOf: menuItems)
-    itemsWithPadding.append(Spacer(minLength: 4))
-
-    let itemsStack: ViewNode = ViewNode.vstack(alignment: .leading, spacing: 0, children: itemsWithPadding)
-        .frame(width: contextMenuWidth, height: menuHeight)
+    let itemsStack: ViewNode = ViewNode.vstack(alignment: .leading, spacing: 0, children: menuItems)
+        .padding(.vertical, 6)
+        .frame(width: contextMenuWidth)
 
     let menuPanel: ViewNode = .zstack(children: [
         RoundedRectangle(cornerRadius: 8).fill(menuBgColor)
@@ -596,31 +618,92 @@ func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode
         itemsStack,
     ]).frame(width: contextMenuWidth, height: menuHeight)
 
-    // Position the menu using spacers in a full-size container
-    let positioned: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
-        Spacer(minLength: menuY),
-        .hstack(alignment: .top, spacing: 0, children: [
-            Spacer(minLength: menuX),
-            menuPanel,
-            Spacer(),
-        ]),
-        Spacer(),
-    ]).frame(width: width, height: height)
+    // Position absolutely with soft shadow
+    let panelWithShadow = menuPanel
+        .shadow(color: Color(r: 0, g: 0, b: 0, a: 0.2), radius: 12, x: 0, y: 4)
 
-    // Shadow offset by +2
-    let shadowPositioned: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
-        Spacer(minLength: menuY + 2),
-        .hstack(alignment: .top, spacing: 0, children: [
-            Spacer(minLength: menuX + 2),
-            RoundedRectangle(cornerRadius: 8).fill(shadowColor)
-                .frame(width: contextMenuWidth, height: menuHeight),
-            Spacer(),
-        ]),
-        Spacer(),
-    ]).frame(width: width, height: height)
+    let positioned: ViewNode = .padding(
+        EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0),
+        child: panelWithShadow
+    ).frame(width: width, height: height)
 
-    return .zstack(children: [shadowPositioned, positioned])
-        .frame(width: width, height: height)
+    return positioned
+}
+
+func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> ViewNode {
+    let panelW: Float = 280
+    let titleBarH: Float = 28
+    let contentH: Float = 180
+    let panelH = titleBarH + contentH
+    let panelX = (width - panelW) / 2
+    let panelY = (height - panelH) / 2
+    let cornerR: Float = 10
+
+    let iconColor: Color = info.isDirectory ? .systemBlue : .systemOrange
+
+    // Title bar with close dot
+    let titleBar: ViewNode = .zstack(children: [
+        Rectangle().fill(.titleBar).frame(width: panelW, height: titleBarH),
+        .hstack(alignment: .center, spacing: 0, children: [
+            .rect(width: 10, height: 1, fill: .clear),
+            RoundedRectangle(cornerRadius: 5)
+                .fill(.systemRed)
+                .frame(width: 10, height: 10),
+            Spacer(),
+            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.text),
+            Spacer(),
+            .rect(width: 20, height: 1, fill: .clear),
+        ]).frame(width: panelW, height: titleBarH),
+    ]).frame(width: panelW, height: titleBarH)
+
+    // Info content
+    let content: ViewNode = .vstack(alignment: .leading, spacing: 8, children: [
+        // Header: icon + name
+        .hstack(alignment: .center, spacing: 10, children: [
+            RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48),
+            .vstack(alignment: .leading, spacing: 2, children: [
+                Text(info.name).fontSize(14).bold().foregroundColor(.text),
+                Text(info.kind).fontSize(12).foregroundColor(.subtle),
+            ]),
+        ]),
+        Rectangle().fill(.separator).frame(height: 1),
+        infoRow("Kind:", info.kind),
+        infoRow("Size:", info.size),
+        infoRow("Where:", info.path),
+    ]).padding(12).frame(width: panelW)
+
+    // Window body
+    let windowBody: ViewNode = .zstack(children: [
+        RoundedRectangle(cornerRadius: cornerR).fill(.surface).frame(width: panelW, height: panelH),
+        .vstack(alignment: .leading, spacing: 0, children: [
+            titleBar,
+            Rectangle().fill(.separator).frame(width: panelW, height: 1),
+            content,
+        ]).frame(width: panelW, height: panelH),
+    ]).frame(width: panelW, height: panelH)
+
+    // Shadow
+    let shadow: ViewNode = RoundedRectangle(cornerRadius: cornerR)
+        .fill(Color(r: 0, g: 0, b: 0, a: 0.25))
+        .frame(width: panelW, height: panelH)
+
+    // Position with padding offsets
+    let positioned: ViewNode = .padding(
+        EdgeInsets(top: panelY, leading: panelX, bottom: 0, trailing: 0),
+        child: .zstack(children: [
+            .padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0), child: shadow),
+            windowBody,
+        ])
+    ).frame(width: width, height: height)
+
+    return positioned
+}
+
+private func infoRow(_ label: String, _ value: String) -> ViewNode {
+    .hstack(alignment: .top, spacing: 6, children: [
+        Text(label).fontSize(12).foregroundColor(.subtle).frame(width: 50),
+        Text(value).fontSize(12).foregroundColor(.text),
+    ])
 }
 
 func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
@@ -640,9 +723,12 @@ func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
         ]),
     ]).background(bgColor)
 
-    var layers: [ViewNode] = [mainContent]
+    var layers: [ViewNode] = [mainContent.clipped()]
     if let menu = state.contextMenu {
         layers.append(contextMenuView(menu: menu, width: width, height: height))
+    }
+    if let info = state.infoPanel {
+        layers.append(infoPanelView(info: info, width: width, height: height))
     }
 
     return ViewNode.zstack(children: layers).frame(width: width, height: height)
@@ -687,7 +773,8 @@ struct FinderApp: App {
             state.goBack()
             client.send(.setTitle(title: "Finder — \(state.shortenPath(state.currentPath))"))
         case 1:
-            state.contextMenu = nil
+            if state.infoPanel != nil { state.infoPanel = nil }
+            else { state.contextMenu = nil }
         default: break
         }
     }

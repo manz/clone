@@ -28,6 +28,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case navigationStack(children: [ViewNode])
     case menu(label: String, children: [ViewNode])
     case contextMenu(child: ViewNode, menuItems: [ViewNode])
+    case clipped(radius: Float, child: ViewNode)
 }
 
 /// Axis for ScrollView direction.

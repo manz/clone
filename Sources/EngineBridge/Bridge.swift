@@ -32,6 +32,13 @@ public enum Bridge {
                     radius: radius, blur: blur, color: color.toEngine(),
                     ox: offsetX, oy: offsetY
                 )
+            case .pushClip(let radius):
+                return .pushClip(
+                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
+                    radius: radius
+                )
+            case .popClip:
+                return .popClip
             }
         }
     }
@@ -47,6 +54,14 @@ public enum Bridge {
             case .text(let x, let y, let content, let fontSize, let color, let weight):
                 return .text(x: x + offsetX, y: y + offsetY, content: content, fontSize: fontSize,
                             color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
+            case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
+                return .shadow(x: x + offsetX, y: y + offsetY, w: w, h: h,
+                              radius: radius, blur: blur, color: color.toEngine(),
+                              ox: ox, oy: oy)
+            case .pushClip(let x, let y, let w, let h, let radius):
+                return .pushClip(x: x + offsetX, y: y + offsetY, w: w, h: h, radius: radius)
+            case .popClip:
+                return .popClip
             }
         }
     }
@@ -61,6 +76,14 @@ public enum Bridge {
         case .text(let x, let y, let content, let fontSize, let color, let weight):
             return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
                         color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
+        case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
+            return .shadow(x: x, y: y + dy, w: w, h: h,
+                          radius: radius, blur: blur, color: color.toEngine(),
+                          ox: ox, oy: oy)
+        case .pushClip(let x, let y, let w, let h, let radius):
+            return .pushClip(x: x, y: y + dy, w: w, h: h, radius: radius)
+        case .popClip:
+            return .popClip
         }
     }
 }

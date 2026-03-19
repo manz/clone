@@ -95,7 +95,7 @@ public struct Dock {
             Text(name)
                 .fontSize(12)
                 .fontWeight(.medium)
-                .foregroundColor(.white)
+                .foregroundColor(.text)
                 .frame(width: textWidth, height: height)
         }
         .frame(width: textWidth, height: height)

@@ -117,7 +117,9 @@ extension App {
             }
             app.client.onFrameRequest = { width, height in
                 TapRegistry.shared.clear()
+                // Default opaque background like real SwiftUI windows
                 let viewTree = windowGroup.buildViewNode()
+                    .background(config.role == .window ? .surface : .clear)
                 let layoutNode = Layout.layout(
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: width, height: height)
@@ -208,9 +210,14 @@ extension FlatRenderCommand {
         case .text(let content, let fontSize, let color, let weight, _):
             return .text(x: x, y: y, content: content, fontSize: fontSize,
                          color: color.toIPC(), weight: weight.toIPC())
-        case .shadow:
-            return .rect(x: 0, y: 0, w: 0, h: 0,
-                         color: IPCColor(r: 0, g: 0, b: 0, a: 0))
+        case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
+            return .shadow(x: x, y: y, w: width, h: height,
+                          radius: radius, blur: blur, color: color.toIPC(),
+                          ox: offsetX, oy: offsetY)
+        case .pushClip(let radius):
+            return .pushClip(x: x, y: y, w: width, h: height, radius: radius)
+        case .popClip:
+            return .popClip
         }
     }
 }

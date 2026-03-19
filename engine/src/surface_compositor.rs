@@ -57,7 +57,8 @@ struct CompositeInstance {
     rect: [f32; 4],
     corner_radius: f32,
     opacity: f32,
-    _pad: [f32; 2],
+    shadow_expand: f32,
+    _pad: f32,
 }
 
 /// Manages per-window offscreen textures and composites them onto the screen.
@@ -218,6 +219,7 @@ impl SurfaceCompositor {
         queue: &wgpu::Queue,
         commands: &[RenderCommand],
         scale: f32,
+        transparent_clear: bool,
     ) {
         let Some(surface) = self.surfaces.get(&surface_id) else { return };
 
@@ -225,10 +227,17 @@ impl SurfaceCompositor {
             label: Some("window_render"),
         });
 
-        renderer.render(
-            device, queue, &mut encoder, &surface.view,
-            commands, surface.width, surface.height, scale,
-        );
+        if transparent_clear {
+            renderer.render_transparent(
+                device, queue, &mut encoder, &surface.view,
+                commands, surface.width, surface.height, scale,
+            );
+        } else {
+            renderer.render(
+                device, queue, &mut encoder, &surface.view,
+                commands, surface.width, surface.height, scale,
+            );
+        }
 
         queue.submit([encoder.finish()]);
     }
@@ -270,11 +279,19 @@ impl SurfaceCompositor {
                 ],
             });
 
+            // Expand the quad to make room for the shadow
+            let shadow_expand: f32 = if win.corner_radius > 0.0 { 30.0 } else { 0.0 };
             let instance = CompositeInstance {
-                rect: [win.x, win.y, win.width, win.height],
+                rect: [
+                    win.x - shadow_expand,
+                    win.y - shadow_expand,
+                    win.width + shadow_expand * 2.0,
+                    win.height + shadow_expand * 2.0,
+                ],
                 corner_radius: win.corner_radius,
                 opacity: win.opacity,
-                _pad: [0.0; 2],
+                shadow_expand,
+                _pad: 0.0,
             };
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
 

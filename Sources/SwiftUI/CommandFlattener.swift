@@ -8,6 +8,8 @@ public struct FlatRenderCommand: Equatable, Sendable {
         case roundedRect(radius: Float, color: Color)
         case text(content: String, fontSize: Float, color: Color, weight: FontWeight = .regular, isIcon: Bool = false)
         case shadow(radius: Float, blur: Float, color: Color, offsetX: Float, offsetY: Float)
+        case pushClip(radius: Float)
+        case popClip
     }
 
     public let x: Float
@@ -88,6 +90,21 @@ public enum CommandFlattener {
             for child in layoutNode.children {
                 flattenNode(child, into: &commands, opacity: opacity)
             }
+            return
+
+        case .clipped(let radius, _):
+            // Emit clip boundary so the renderer flushes batches before and after
+            commands.append(FlatRenderCommand(
+                x: frame.x, y: frame.y, width: frame.width, height: frame.height,
+                kind: .pushClip(radius: radius)
+            ))
+            for child in layoutNode.children {
+                flattenNode(child, into: &commands, opacity: opacity)
+            }
+            commands.append(FlatRenderCommand(
+                x: 0, y: 0, width: 0, height: 0,
+                kind: .popClip
+            ))
             return
 
         case .image(let name, _, _):

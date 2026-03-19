@@ -22,7 +22,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
     children.append(
         Text("\u{F8FF}")
             .fontSize(14)
-            .foregroundColor(.white)
+            .foregroundColor(.text)
     )
 
     // Focused app name (bold)
@@ -30,7 +30,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
         Text(state.focusedAppName)
             .fontSize(13)
             .bold()
-            .foregroundColor(.white)
+            .foregroundColor(.text)
     )
 
     // Menu items
@@ -49,7 +49,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
     children.append(
         Text(clock)
             .fontSize(13)
-            .foregroundColor(.white)
+            .foregroundColor(.text)
     )
 
     return ViewNode.hstack(alignment: .center, spacing: 16, children: children)

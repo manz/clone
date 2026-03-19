@@ -258,6 +258,11 @@ public extension ViewNode {
         .onTap(id: id, child: self)
     }
 
+    /// `.clipped()` — clips content to this view's frame.
+    func clipped(radius: Float = 0) -> ViewNode {
+        .clipped(radius: radius, child: self)
+    }
+
     /// `.contextMenu { }` — attaches a context menu to this view.
     func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         .contextMenu(child: self, menuItems: content())

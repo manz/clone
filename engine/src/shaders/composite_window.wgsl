@@ -7,10 +7,10 @@ struct Uniforms {
 }
 
 struct WindowInstance {
-    @location(0) rect: vec4<f32>,       // x, y, w, h in screen pixels
+    @location(0) rect: vec4<f32>,       // x, y, w, h in screen pixels (expanded for shadow)
     @location(1) corner_radius: f32,
     @location(2) opacity: f32,
-    @location(3) _pad0: f32,
+    @location(3) shadow_expand: f32,
     @location(4) _pad1: f32,
 }
 
@@ -21,6 +21,7 @@ struct VertexOutput {
     @location(2) rect_size: vec2<f32>,
     @location(3) corner_radius: f32,
     @location(4) opacity: f32,
+    @location(5) shadow_expand: f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -49,13 +50,23 @@ fn vs_main(
         1.0 - pixel.y / uniforms.screen_size.y * 2.0,
     );
 
+    // Original window size (before shadow expansion)
+    let orig_size = vec2<f32>(
+        instance.rect.z - instance.shadow_expand * 2.0,
+        instance.rect.w - instance.shadow_expand * 2.0,
+    );
+
     var out: VertexOutput;
     out.position = vec4<f32>(ndc, 0.0, 1.0);
-    out.uv = quad;
-    out.local_pos = local;
-    out.rect_size = vec2<f32>(instance.rect.z, instance.rect.w);
+    // UV for texture sampling: map expanded quad back to original window
+    let tex_uv = (quad * vec2<f32>(instance.rect.z, instance.rect.w) - vec2<f32>(instance.shadow_expand)) / orig_size;
+    out.uv = tex_uv;
+    // local_pos relative to original window (not expanded)
+    out.local_pos = local - vec2<f32>(instance.shadow_expand);
+    out.rect_size = orig_size;
     out.corner_radius = instance.corner_radius;
     out.opacity = instance.opacity;
+    out.shadow_expand = instance.shadow_expand;
     return out;
 }
 
@@ -74,8 +85,27 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = sdf_rounded_rect(centered, half_size, r);
     let mask = 1.0 - smoothstep(-0.5, 0.5, dist);
 
-    // Sample window texture
-    let color = textureSample(window_texture, window_sampler, in.uv);
+    // Shadow: soft falloff outside the window bounds
+    let shadow_blur = 20.0;
+    let shadow_offset = vec2<f32>(0.0, 6.0);
+    let shadow_dist = sdf_rounded_rect(centered - shadow_offset, half_size, r);
+    let shadow_alpha = (1.0 - smoothstep(0.0, shadow_blur, shadow_dist)) * 0.18 * in.opacity;
 
-    return vec4<f32>(color.rgb, color.a * mask * in.opacity);
+    // Sample window texture — clamp UV to valid [0,1] range
+    let clamped_uv = clamp(in.uv, vec2<f32>(0.0), vec2<f32>(1.0));
+    let color = textureSample(window_texture, window_sampler, clamped_uv);
+
+    // Composite: shadow underneath, then window on top
+    let window_alpha = color.a * mask * in.opacity;
+    let combined_alpha = window_alpha + shadow_alpha * (1.0 - window_alpha);
+
+    // Avoid division by zero — if nothing visible, output transparent
+    if combined_alpha < 0.001 {
+        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    }
+
+    // Premultiplied alpha compositing
+    let combined_rgb = color.rgb * window_alpha + vec3<f32>(0.0) * shadow_alpha * (1.0 - window_alpha);
+
+    return vec4<f32>(combined_rgb / combined_alpha, combined_alpha);
 }

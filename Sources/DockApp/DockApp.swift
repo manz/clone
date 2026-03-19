@@ -129,7 +129,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
             children.append(
                 positioned(
                     RoundedRectangle(cornerRadius: dotSize / 2)
-                        .fill(.white)
+                        .fill(.text)
                         .frame(width: dotSize, height: dotSize),
                     x: dotX, y: dotY
                 )
@@ -155,7 +155,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
                 positioned(
                     Text(item.name)
                         .fontSize(12)
-                        .foregroundColor(.white)
+                        .foregroundColor(.text)
                         .fontWeight(.medium),
                     x: labelX + 10, y: labelY + 6
                 )

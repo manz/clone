@@ -152,6 +152,15 @@ impl App {
 
         // Render each surface's commands into its offscreen texture
         for sf in &surface_frames {
+            // Overlays (dock, menubar) have semi-transparent backgrounds
+            // and need transparent clear so they don't obscure content below.
+            let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
+                match cmd {
+                    crate::commands::RenderCommand::Rect { color, .. } |
+                    crate::commands::RenderCommand::RoundedRect { color, .. } => color.a < 1.0,
+                    _ => true,
+                }
+            });
             gpu.compositor.render_to_surface(
                 sf.desc.surface_id,
                 &mut gpu.renderer,
@@ -159,6 +168,7 @@ impl App {
                 &gpu.queue,
                 &sf.commands,
                 scale,
+                has_transparent_bg,
             );
         }
 

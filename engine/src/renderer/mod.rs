@@ -47,7 +47,39 @@ impl DesktopRenderer {
         height: u32,
         scale: f32,
     ) {
-        let clear_color = Self::extract_background(commands);
+        self.render_inner(device, queue, encoder, view, commands, width, height, scale, false);
+    }
+
+    pub fn render_transparent(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        commands: &[RenderCommand],
+        width: u32,
+        height: u32,
+        scale: f32,
+    ) {
+        self.render_inner(device, queue, encoder, view, commands, width, height, scale, true);
+    }
+
+    fn render_inner(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        commands: &[RenderCommand],
+        width: u32,
+        height: u32,
+        scale: f32,
+        transparent_clear: bool,
+    ) {
+        let mut clear_color = Self::extract_background(commands);
+        if transparent_clear {
+            clear_color.a = 0.0;
+        }
 
         // Clear
         {
@@ -74,13 +106,78 @@ impl DesktopRenderer {
             });
         }
 
-        // Collect all instances
+        // Process commands in draw groups separated by PushClip/PopClip.
+        // Each group flushes shadows → rects → text before the next group starts,
+        // ensuring that text from earlier groups doesn't overdraw later groups' backgrounds.
         let mut solid = Vec::new();
         let mut rounded = Vec::new();
         let mut shadows = Vec::new();
+        let mut glyphs = Vec::new();
+        let mut scissor: Option<(u32, u32, u32, u32)> = None;
+
+        let flush = |
+            device: &wgpu::Device,
+            queue: &wgpu::Queue,
+            encoder: &mut wgpu::CommandEncoder,
+            view: &wgpu::TextureView,
+            shadow_pipeline: &Option<ShadowPipeline>,
+            rect_pipeline: &mut Option<RectPipeline>,
+            text_renderer: &mut Option<TextRenderer>,
+            solid: &mut Vec<RectInstance>,
+            rounded: &mut Vec<RectInstance>,
+            shadows: &mut Vec<ShadowInstance>,
+            glyphs: &mut Vec<text::GlyphInstance>,
+            width: u32,
+            height: u32,
+            scissor: Option<(u32, u32, u32, u32)>,
+        | {
+            if solid.is_empty() && rounded.is_empty() && shadows.is_empty() && glyphs.is_empty() {
+                return;
+            }
+            if let Some(pipeline) = shadow_pipeline {
+                if !shadows.is_empty() {
+                    pipeline.draw(queue, encoder, view, width, height, shadows);
+                }
+            }
+            if let Some(pipeline) = rect_pipeline {
+                if !solid.is_empty() || !rounded.is_empty() {
+                    pipeline.draw_with_scissor(device, queue, encoder, view, width, height, solid, rounded, scissor);
+                }
+            }
+            if let Some(tr) = text_renderer {
+                if !glyphs.is_empty() {
+                    tr.draw_with_scissor(device, queue, encoder, view, width, height, glyphs, scissor);
+                }
+            }
+            solid.clear();
+            rounded.clear();
+            shadows.clear();
+            glyphs.clear();
+        };
 
         for cmd in commands {
             match cmd {
+                RenderCommand::PushClip { x, y, w, h, .. } => {
+                    // Flush everything accumulated so far (before the clip)
+                    flush(device, queue, encoder, view,
+                          &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+                          &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+                          width, height, scissor);
+                    // Clamp scissor to render target bounds
+                    let sx = (x * scale) as u32;
+                    let sy = (y * scale) as u32;
+                    let sw = ((w * scale) as u32).min(width.saturating_sub(sx));
+                    let sh = ((h * scale) as u32).min(height.saturating_sub(sy));
+                    scissor = Some((sx, sy, sw, sh));
+                }
+                RenderCommand::PopClip => {
+                    // Flush the clipped group
+                    flush(device, queue, encoder, view,
+                          &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+                          &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+                          width, height, scissor);
+                    scissor = None;
+                }
                 RenderCommand::Rect { x, y, w, h, color } => {
                     solid.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
@@ -104,46 +201,30 @@ impl DesktopRenderer {
                         params: [*radius, *blur, ox * scale, oy * scale],
                     });
                 }
+                RenderCommand::Text { x, y, content, font_size, color, weight, is_icon } => {
+                    if let Some(tr) = &mut self.text_renderer {
+                        let g = tr.shape_text(
+                            content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon,
+                        );
+                        glyphs.extend(g);
+                    }
+                }
                 _ => {}
             }
         }
 
-        // Draw: shadows → rects → text
-        if let Some(pipeline) = &self.shadow_pipeline {
-            if !shadows.is_empty() {
-                pipeline.draw(queue, encoder, view, width, height, &shadows);
-            }
-        }
-
-        if let Some(pipeline) = &mut self.rect_pipeline {
-            if !solid.is_empty() || !rounded.is_empty() {
-                pipeline.draw(device, queue, encoder, view, width, height, &solid, &rounded);
-            }
-        }
-
-        if let Some(text_renderer) = &mut self.text_renderer {
-            let mut all_glyphs = Vec::new();
-            for cmd in commands {
-                if let RenderCommand::Text { x, y, content, font_size, color, weight, is_icon } = cmd {
-                    let glyphs = text_renderer.shape_text(
-                        content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon,
-                    );
-                    all_glyphs.extend(glyphs);
-                }
-            }
-            if !all_glyphs.is_empty() {
-                text_renderer.draw(device, queue, encoder, view, width, height, &all_glyphs);
-            }
-        }
+        // Flush remaining
+        flush(device, queue, encoder, view,
+              &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+              &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+              width, height, scissor);
     }
 
     fn extract_background(commands: &[RenderCommand]) -> RgbaColor {
         for cmd in commands {
             match cmd {
                 RenderCommand::Rect { color, .. } | RenderCommand::RoundedRect { color, .. } => {
-                    // Force alpha to 0 so the surface composites cleanly.
-                    // Content is responsible for being opaque where needed.
-                    return RgbaColor { r: color.r, g: color.g, b: color.b, a: 0.0 };
+                    return color.clone();
                 }
                 _ => {}
             }
