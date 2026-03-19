@@ -1,3 +1,5 @@
+pub mod blur;
+pub mod compositor;
 pub mod rect;
 pub mod text;
 pub mod types;
