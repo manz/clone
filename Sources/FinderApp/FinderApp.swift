@@ -37,22 +37,33 @@ let contextMenuItemHeight: CGFloat = 26
 
 // MARK: - Semantic color aliases
 
+#if canImport(AppKit) && !canImport(CloneClient)
+import AppKit
+var bgColor: Color { Color(nsColor: .controlBackgroundColor) }
+var surfaceColor: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor) }
+var overlayColor: Color { Color(nsColor: .separatorColor) }
+var highlightColor: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor).opacity(0.5) }
+var selectionColor: Color { Color.accentColor.opacity(0.3) }
+var menuBgColor: Color { Color(nsColor: .windowBackgroundColor).opacity(0.95) }
+var sidebarBgColor: Color { Color(nsColor: .controlBackgroundColor) }
+#else
 let bgColor = Color(red: 1.0, green: 1.0, blue: 1.0)
 let surfaceColor = Color(red: 0.88, green: 0.88, blue: 0.88)
 let overlayColor = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
+let highlightColor = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
+let selectionColor = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
+let menuBgColor = Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95)
+let sidebarBgColor = Color(red: 0.96, green: 0.96, blue: 0.97)
+#endif
 var textColor: Color { .primary }
 var subtleColor: Color { .secondary }
 var mutedColor: Color { .gray }
-let highlightColor = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
-let selectionColor = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
 let folderColor: Color = .blue
 let codeColor: Color = .orange
 let imageColor: Color = .green
 var docColor: Color { .secondary }
-let menuBgColor = Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95)
 var menuHoverColor: Color { .blue }
 var disabledColor: Color { .gray }
-let sidebarBgColor = Color(red: 0.96, green: 0.96, blue: 0.97)
 let shadowColor = Color(red: 0, green: 0, blue: 0, opacity: 0.3)
 
 // MARK: - Sidebar favorites
@@ -640,7 +651,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
 
     // Title bar with close dot
     let titleBar = ZStack {
-        Rectangle().fill(Color(red: 0.90, green: 0.90, blue: 0.91)).frame(width: panelW, height: titleBarH)
+        Rectangle().fill(surfaceColor).frame(width: panelW, height: titleBarH)
         HStack(alignment: .center, spacing: 0) {
             Rectangle().fill(.clear).frame(width: 10, height: 1)
             RoundedRectangle(cornerRadius: 5)
@@ -663,7 +674,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
                 Text(info.kind).font(.system(size: 12)).foregroundColor(.secondary)
             }
         }
-        Rectangle().fill(Color(red: 0, green: 0, blue: 0, opacity: 0.1)).frame(height: 1)
+        Rectangle().fill(overlayColor).frame(height: 1)
         infoRow("Kind:", info.kind)
         infoRow("Size:", info.size)
         infoRow("Where:", info.path)
@@ -671,10 +682,10 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
 
     // Window body
     let windowBody = ZStack {
-        RoundedRectangle(cornerRadius: cornerR).fill(Color(red: 1.0, green: 1.0, blue: 1.0)).frame(width: panelW, height: panelH)
+        RoundedRectangle(cornerRadius: cornerR).fill(bgColor).frame(width: panelW, height: panelH)
         VStack(alignment: .leading, spacing: 0) {
             titleBar
-            Rectangle().fill(Color(red: 0, green: 0, blue: 0, opacity: 0.1)).frame(width: panelW, height: 1)
+            Rectangle().fill(overlayColor).frame(width: panelW, height: 1)
             content
         }.frame(width: panelW, height: panelH)
     }.frame(width: panelW, height: panelH)

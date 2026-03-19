@@ -3,9 +3,24 @@ import SwiftUI
 
 // MARK: - Semantic color aliases
 
+#if canImport(AppKit) && !canImport(CloneClient)
+import AppKit
+var rpBase: Color { Color(nsColor: .windowBackgroundColor) }
+var rpSurface: Color { Color(nsColor: .controlBackgroundColor) }
+var rpOverlay: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor) }
+var rpSelected: Color { Color.accentColor.opacity(0.3) }
+var hoverBg: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor).opacity(0.5) }
+var rowHoverBg: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor) }
+var rowDivider: Color { Color(nsColor: .separatorColor) }
+#else
 let rpBase = Color(red: 0.93, green: 0.93, blue: 0.94)
 let rpSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
 let rpOverlay = Color(red: 0.88, green: 0.88, blue: 0.88)
+let rpSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
+let hoverBg = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
+let rowHoverBg = Color(red: 0.88, green: 0.88, blue: 0.88)
+let rowDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
+#endif
 var rpText: Color { .primary }
 var rpSubtle: Color { .secondary }
 var rpMuted: Color { .gray }
@@ -16,10 +31,6 @@ let rpGreen: Color = .green
 let rpPurple: Color = .purple
 let rpTeal: Color = .teal
 let rpBlack: Color = .black
-let rpSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
-let hoverBg = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
-let rowHoverBg = Color(red: 0.88, green: 0.88, blue: 0.88)
-let rowDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
 
 // MARK: - Data model
 
