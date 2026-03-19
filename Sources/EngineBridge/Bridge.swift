@@ -182,11 +182,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
         for window in visibleWindows {
             // Render group boundary
-            engineCommands.append(.pushClip(
-                x: window.x, y: window.y, w: window.width, h: window.height, radius: 0
-            ))
-
-            // 1. Window chrome (shadow, background, title bar)
+            // Window chrome (shadow, background, title bar)
             let isFocused = window.id == windowManager.focusedWindowId
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
             let chromeNodes = windowManager.renderSingle(
@@ -196,7 +192,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let chromeLayout = Layout.layout(chromeNodes, in: screenFrame)
             engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(chromeLayout)))
 
-            // 2. Window content (external app IPC commands)
+            // Window content (external app IPC commands)
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 if !ipcCommands.isEmpty {
@@ -205,32 +201,22 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     engineCommands.append(contentsOf: translated)
                 }
             }
-
-            engineCommands.append(.popClip)
         }
 
-        // 3. Dock — always on top of windows (render group boundary)
-        engineCommands.append(.pushClip(x: 0, y: 0, w: w, h: h, radius: 0))
-        let dockNode = Dock(
-            mouseX: Float(mouseX), mouseY: Float(mouseY),
-            screenWidth: w, screenHeight: h
-        ).body()
-        // Dock sits at the bottom — wrap in a VStack with spacer
+        // Dock — always on top of windows
         let dockTree = VStack(spacing: 0) {
             Spacer()
-            dockNode
+            Dock(mouseX: Float(mouseX), mouseY: Float(mouseY),
+                 screenWidth: w, screenHeight: h).body()
         }
         let dockLayout = Layout.layout(dockTree, in: screenFrame)
         engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout)))
-        engineCommands.append(.popClip)
 
-        // 4. Menu bar — always topmost
-        engineCommands.append(.pushClip(x: 0, y: 0, w: w, h: h, radius: 0))
+        // Menu bar — always topmost
         let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
         let menuLayout = Layout.layout(menuBar.body(), in: screenFrame)
         lastLayoutResult = menuLayout
         engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout)))
-        engineCommands.append(.popClip)
 
         return engineCommands
     }

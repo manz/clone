@@ -72,53 +72,7 @@ impl DesktopRenderer {
             });
         }
 
-        // Split commands into groups at PushClip/PopClip boundaries.
-        // Each group is rendered completely (shadows, rects, text) before the next,
-        // so that window N's text doesn't draw on top of window N+1's background.
-        let groups = Self::split_into_groups(commands);
-        for group in &groups {
-            self.render_group(device, queue, encoder, view, group, width, height, scale);
-        }
-    }
-
-    /// Split commands into render groups. PushClip starts a new group, PopClip ends it.
-    /// Commands without clip markers form one big group.
-    fn split_into_groups(commands: &[RenderCommand]) -> Vec<Vec<&RenderCommand>> {
-        let mut groups: Vec<Vec<&RenderCommand>> = vec![vec![]];
-
-        for cmd in commands {
-            match cmd {
-                RenderCommand::PushClip { .. } => {
-                    // Start a new group
-                    groups.push(vec![]);
-                }
-                RenderCommand::PopClip => {
-                    // Close current group, start a new one
-                    groups.push(vec![]);
-                }
-                _ => {
-                    groups.last_mut().unwrap().push(cmd);
-                }
-            }
-        }
-
-        // Remove empty groups
-        groups.retain(|g| !g.is_empty());
-        groups
-    }
-
-    /// Render a single group: all shadows, then all rects, then all text.
-    fn render_group(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        encoder: &mut wgpu::CommandEncoder,
-        view: &wgpu::TextureView,
-        commands: &[&RenderCommand],
-        width: u32,
-        height: u32,
-        scale: f32,
-    ) {
+        // Single batch — collect all instances, draw shadows → rects → text
         let mut solid = Vec::new();
         let mut rounded = Vec::new();
         let mut shadows = Vec::new();
@@ -152,7 +106,6 @@ impl DesktopRenderer {
             }
         }
 
-        // Draw order: shadows → solid rects → rounded rects → text
         if let Some(pipeline) = &self.shadow_pipeline {
             if !shadows.is_empty() {
                 pipeline.draw(queue, encoder, view, width, height, &shadows);
@@ -201,39 +154,11 @@ mod tests {
         let commands = vec![RenderCommand::Rect {
             x: 0.0, y: 0.0, w: 1920.0, h: 1080.0, color: red.clone(),
         }];
-        let bg = DesktopRenderer::extract_background(&commands);
-        assert_eq!(bg, red);
+        assert_eq!(DesktopRenderer::extract_background(&commands), red);
     }
 
     #[test]
     fn extract_background_default_when_empty() {
-        let bg = DesktopRenderer::extract_background(&[]);
-        assert_eq!(bg.r, 0.15);
-    }
-
-    #[test]
-    fn split_groups_no_clips() {
-        let white = RgbaColor { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-        let commands = vec![
-            RenderCommand::Rect { x: 0.0, y: 0.0, w: 10.0, h: 10.0, color: white.clone() },
-            RenderCommand::Rect { x: 20.0, y: 0.0, w: 10.0, h: 10.0, color: white },
-        ];
-        let groups = DesktopRenderer::split_into_groups(&commands);
-        assert_eq!(groups.len(), 1);
-        assert_eq!(groups[0].len(), 2);
-    }
-
-    #[test]
-    fn split_groups_with_clips() {
-        let white = RgbaColor { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-        let commands = vec![
-            RenderCommand::Rect { x: 0.0, y: 0.0, w: 10.0, h: 10.0, color: white.clone() },
-            RenderCommand::PushClip { x: 0.0, y: 0.0, w: 100.0, h: 100.0, radius: 0.0 },
-            RenderCommand::Rect { x: 5.0, y: 5.0, w: 10.0, h: 10.0, color: white.clone() },
-            RenderCommand::PopClip,
-            RenderCommand::Rect { x: 50.0, y: 0.0, w: 10.0, h: 10.0, color: white },
-        ];
-        let groups = DesktopRenderer::split_into_groups(&commands);
-        assert_eq!(groups.len(), 3);
+        assert_eq!(DesktopRenderer::extract_background(&[]).r, 0.15);
     }
 }
