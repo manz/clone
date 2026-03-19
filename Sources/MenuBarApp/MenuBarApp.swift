@@ -7,7 +7,7 @@ final class MenuBarState {
 
 let menuItems = ["File", "Edit", "View", "Window", "Help"]
 
-func menuBarView(state: MenuBarState) -> ViewNode {
+func menuBarView(state: MenuBarState) -> some View {
     let menuTextColor: Color = .primary
 
     let formatter = DateFormatter()
@@ -51,7 +51,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
     )
 
     // Dynamic children — can't use ViewBuilder
-    return .hstack(alignment: .center, spacing: 16, children: children)
+    return ViewNode.hstack(alignment: .center, spacing: 16, children: children)
         .padding(.horizontal, 12)
         .frame(height: 24)
         .background(WindowChrome.menuBar)

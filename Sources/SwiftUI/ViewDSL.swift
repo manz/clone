@@ -170,6 +170,11 @@ public extension ViewNode {
         .padding(EdgeInsets(all: 8), child: self)
     }
 
+    /// `.padding(EdgeInsets(...))` — custom insets
+    func padding(_ insets: EdgeInsets) -> ViewNode {
+        .padding(insets, child: self)
+    }
+
     /// `.opacity(0.5)`
     func opacity(_ value: Float) -> ViewNode {
         .opacity(value, child: self)

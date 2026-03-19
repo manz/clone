@@ -414,17 +414,17 @@ final class FinderState {
 
 // MARK: - View builders
 
-func toolbarView(state: FinderState, width: Float) -> ViewNode {
+func toolbarView(state: FinderState, width: Float) -> some View {
     let backColor: Color = state.canGoBack ? textColor : disabledColor
     let fwdColor: Color = state.canGoForward ? textColor : disabledColor
     let pathText = state.shortenPath(state.currentPath)
 
-    let backBtn: ViewNode = ZStack {
+    let backBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
         Text("<").fontSize(13).fontWeight(.semibold).foregroundColor(backColor)
     }
 
-    let fwdBtn: ViewNode = ZStack {
+    let fwdBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
         Text(">").fontSize(13).fontWeight(.semibold).foregroundColor(fwdColor)
     }
@@ -451,7 +451,7 @@ func toolbarView(state: FinderState, width: Float) -> ViewNode {
 func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> ViewNode {
     let bgFill: Color = isActive ? selectionColor : (isHovered ? highlightColor : .clear)
 
-    let bg: ViewNode = RoundedRectangle(cornerRadius: 5).fill(bgFill)
+    let bg = RoundedRectangle(cornerRadius: 5).fill(bgFill)
         .frame(width: sidebarWidth - 12, height: 24)
 
     let content = HStack(alignment: .center, spacing: 6) {
@@ -469,7 +469,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
 }
 
 func sidebarView(state: FinderState, height: Float) -> ViewNode {
-    let header: ViewNode = Text("Favorites").fontSize(11).fontWeight(.semibold)
+    let header = Text("Favorites").fontSize(11).fontWeight(.semibold)
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)
 
@@ -491,7 +491,7 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
 
     let inner = VStack(alignment: .leading, spacing: 0) {
         header
-        ViewNode.rect(width: sidebarWidth, height: 6, fill: .clear)
+        Rectangle().fill(.clear).frame(width: sidebarWidth, height: 6)
         favList
         Spacer()
     }.frame(width: sidebarWidth, height: height)
@@ -502,13 +502,13 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
     }.frame(width: sidebarWidth, height: height)
 }
 
-func columnHeadersView(width: Float) -> ViewNode {
+func columnHeadersView(width: Float) -> some View {
     let labels = HStack(alignment: .center, spacing: 0) {
-        ViewNode.rect(width: 40, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 40, height: 1)
         Text("Name").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
         Spacer()
         Text("Size").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
-        ViewNode.rect(width: 20, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 20, height: 1)
     }.frame(width: width, height: headerHeight)
 
     let border = VStack(alignment: .center, spacing: 0) {
@@ -523,7 +523,7 @@ func columnHeadersView(width: Float) -> ViewNode {
     }.frame(width: width, height: headerHeight)
 }
 
-func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: Float, listTop: Float) -> ViewNode {
+func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: Float, listTop: Float) -> some View {
     let rowY = listTop + Float(index) * rowHeight
     let isSelected = state.selectedIndex == index
     let isHovered = state.mouseX >= sidebarWidth && state.mouseX < sidebarWidth + width &&
@@ -533,12 +533,12 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     let rowBg: Color = isSelected ? selectionColor : (isHovered ? highlightColor : .clear)
 
     let content = HStack(alignment: .center, spacing: 6) {
-        ViewNode.rect(width: 6, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 6, height: 1)
         RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20)
         Text(entry.name).fontSize(13).foregroundColor(textColor)
         Spacer()
         Text(sizeText).fontSize(11).foregroundColor(subtleColor)
-        ViewNode.rect(width: 14, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 14, height: 1)
     }.frame(width: width, height: rowHeight)
 
     return ZStack {
@@ -547,7 +547,7 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     }.frame(width: width, height: rowHeight)
 }
 
-func fileListView(state: FinderState, width: Float, height: Float) -> ViewNode {
+func fileListView(state: FinderState, width: Float, height: Float) -> some View {
     let maxRows = Int(height / rowHeight)
     let listTop = toolbarHeight + headerHeight
 
@@ -559,7 +559,7 @@ func fileListView(state: FinderState, width: Float, height: Float) -> ViewNode {
     }.frame(width: width, height: height)
 }
 
-func statusBarView(state: FinderState, width: Float) -> ViewNode {
+func statusBarView(state: FinderState, width: Float) -> some View {
     let itemCount = state.entries.count
     let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
 
@@ -569,7 +569,7 @@ func statusBarView(state: FinderState, width: Float) -> ViewNode {
     }.frame(width: width, height: statusBarHeight)
 
     let text = HStack(alignment: .center, spacing: 0) {
-        ViewNode.rect(width: 12, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 12, height: 1)
         Text(label).fontSize(11).foregroundColor(subtleColor)
         Spacer()
     }.frame(width: width, height: statusBarHeight)
@@ -581,11 +581,11 @@ func statusBarView(state: FinderState, width: Float) -> ViewNode {
     }.frame(width: width, height: statusBarHeight)
 }
 
-func contextMenuItemView(item: MenuItem, isHovered: Bool) -> ViewNode {
+func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
     let fill: Color = isHovered ? menuHoverColor : .clear
 
     let label = HStack(alignment: .center, spacing: 0) {
-        ViewNode.rect(width: 12, height: 1, fill: .clear)
+        Rectangle().fill(.clear).frame(width: 12, height: 1)
         Text(item.label).fontSize(13).foregroundColor(textColor)
         Spacer()
     }.frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
@@ -598,7 +598,7 @@ func contextMenuItemView(item: MenuItem, isHovered: Bool) -> ViewNode {
         .padding(.leading, 4)
 }
 
-func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode {
+func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> some View {
     let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
     let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
     let menuY = min(menu.anchorY, height - menuHeight - 4)
@@ -620,15 +620,14 @@ func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode
     let panelWithShadow = menuPanel
         .shadow(color: Color(r: 0, g: 0, b: 0, a: 0.2), radius: 12, x: 0, y: 4)
 
-    let positioned = ViewNode.padding(
-        EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0),
-        child: panelWithShadow
-    ).frame(width: width, height: height)
+    let positioned = panelWithShadow
+        .padding(EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0))
+        .frame(width: width, height: height)
 
     return positioned
 }
 
-func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> ViewNode {
+func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> some View {
     let panelW: Float = 280
     let titleBarH: Float = 28
     let contentH: Float = 180
@@ -643,14 +642,14 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
     let titleBar = ZStack {
         Rectangle().fill(WindowChrome.titleBar).frame(width: panelW, height: titleBarH)
         HStack(alignment: .center, spacing: 0) {
-            ViewNode.rect(width: 10, height: 1, fill: .clear)
+            Rectangle().fill(.clear).frame(width: 10, height: 1)
             RoundedRectangle(cornerRadius: 5)
                 .fill(.red)
                 .frame(width: 10, height: 10)
             Spacer()
             Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.primary)
             Spacer()
-            ViewNode.rect(width: 20, height: 1, fill: .clear)
+            Rectangle().fill(.clear).frame(width: 20, height: 1)
         }.frame(width: panelW, height: titleBarH)
     }.frame(width: panelW, height: titleBarH)
 
@@ -681,30 +680,29 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
     }.frame(width: panelW, height: panelH)
 
     // Shadow
-    let shadow: ViewNode = RoundedRectangle(cornerRadius: cornerR)
+    let shadow = RoundedRectangle(cornerRadius: cornerR)
         .fill(Color(r: 0, g: 0, b: 0, a: 0.25))
         .frame(width: panelW, height: panelH)
 
     // Position with padding offsets
-    let positioned = ViewNode.padding(
-        EdgeInsets(top: panelY, leading: panelX, bottom: 0, trailing: 0),
-        child: ZStack {
-            ViewNode.padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0), child: shadow)
+    let positioned = ZStack {
+            shadow.padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0))
             windowBody
         }
-    ).frame(width: width, height: height)
+        .padding(EdgeInsets(top: panelY, leading: panelX, bottom: 0, trailing: 0))
+        .frame(width: width, height: height)
 
     return positioned
 }
 
-private func infoRow(_ label: String, _ value: String) -> ViewNode {
+private func infoRow(_ label: String, _ value: String) -> some View {
     HStack(alignment: .top, spacing: 6) {
         Text(label).fontSize(12).foregroundColor(.secondary).frame(width: 50)
         Text(value).fontSize(12).foregroundColor(.primary)
     }
 }
 
-func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
+func finderView(state: FinderState, width: Float, height: Float) -> some View {
     let listWidth = width - sidebarWidth
     let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
     let sidebarH = height - toolbarHeight

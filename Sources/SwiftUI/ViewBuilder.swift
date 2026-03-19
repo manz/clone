@@ -10,6 +10,11 @@ public struct ViewBuilder {
         [expression]
     }
 
+    // Any View expression → resolve body to ViewNode.
+    public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
+        [expression.body as! ViewNode]
+    }
+
     // An array of ViewNodes (from ForEach) → pass through.
     public static func buildExpression(_ expression: [ViewNode]) -> [ViewNode] {
         expression

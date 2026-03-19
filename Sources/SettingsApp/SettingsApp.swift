@@ -376,7 +376,7 @@ private func settingGroupView(
 
 // MARK: - Detail view
 
-private func detailView(state: SettingsState, width: Float) -> ViewNode {
+private func detailView(state: SettingsState, width: Float) -> some View {
     let groups = paneData[state.selectedCategory]
     let detailWidth = width - 48
 
@@ -432,7 +432,7 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
 
 // MARK: - Root settings view
 
-func settingsView(state: SettingsState, width: Float, height: Float) -> ViewNode {
+func settingsView(state: SettingsState, width: Float, height: Float) -> some View {
     HStack(spacing: 0) {
         sidebarView(state: state, height: height)
             .frame(width: 220)

@@ -72,12 +72,12 @@ func hoveredIconIndex(mouseX: Float, mouseY: Float, iconCount: Int, screenWidth:
 
 /// Wraps a node with padding used as absolute position offsets within a ZStack.
 private func positioned(_ node: ViewNode, x: Float, y: Float) -> ViewNode {
-    .padding(EdgeInsets(top: y, leading: x, bottom: 0, trailing: 0), child: node)
+    node.padding(EdgeInsets(top: y, leading: x, bottom: 0, trailing: 0))
 }
 
 // MARK: - Declarative Dock View
 
-func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
+func dockView(state: DockState, width: Float, height: Float) -> some View {
     let sizes = magnifiedSizes(mouseX: state.mouseX, iconCount: items.count, screenWidth: width)
     let totalWidth = sizes.reduce(0, +) + Float(items.count - 1) * iconPadding + iconPadding * 2
     let bgHeight = dockHeight + iconPadding * 2
@@ -164,7 +164,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
     }
 
     // Dynamic children — can't use ViewBuilder
-    return .zstack(children: children)
+    return ViewNode.zstack(children: children)
         .frame(width: width, height: height)
 }
 
