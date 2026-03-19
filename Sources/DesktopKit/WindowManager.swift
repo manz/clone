@@ -237,7 +237,8 @@ public final class WindowManager {
         guard let id = dragWindowId,
               let idx = windows.firstIndex(where: { $0.id == id }) else { return }
         windows[idx].x = mouseX - dragOffsetX
-        windows[idx].y = mouseY - dragOffsetY
+        // Prevent dragging above the menubar
+        windows[idx].y = max(mouseY - dragOffsetY, WindowChrome.menuBarHeight)
     }
 
     public func endDrag() {
