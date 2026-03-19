@@ -110,7 +110,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     private var focusedAppName: String = "Finder"
     private var childProcesses: [Process] = []
     private var externalWindows: [UInt64: UInt64] = [:] // server windowId → wm windowId
-    private var lastLayoutResult: LayoutNode? = nil
+    private var lastLayoutResults: [LayoutNode] = []
 
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
@@ -233,7 +233,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         // Menu bar — always topmost
         let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
         let menuLayout = Layout.layout(menuBar.body(), in: screenFrame)
-        lastLayoutResult = menuLayout
+        lastLayoutResults = [menuLayout]
         engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout)))
 
         return engineCommands
@@ -258,6 +258,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         windowManager.screenHeight = h
         syncExternalApps()
         server.requestFrames()
+        lastLayoutResults = []
 
         // Tick animations — complete minimize by actually hiding the window
         for (windowId, wasMinimizing) in animationManager.tick() {
@@ -383,6 +384,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             Dock(mouseX: Float(mouseX), mouseY: Float(mouseY), screenWidth: w, screenHeight: h).body()
         }
         let dockLayout = Layout.layout(dockTree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        lastLayoutResults.append(dockLayout)
         frames.append(SurfaceFrame(
             desc: SurfaceDesc(surfaceId: dockSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
             commands: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout))
@@ -391,6 +393,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         // 4. Menu bar
         let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
         let menuLayout = Layout.layout(menuBar.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        lastLayoutResults.append(menuLayout)
         frames.append(SurfaceFrame(
             desc: SurfaceDesc(surfaceId: menubarSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
             commands: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout))
@@ -566,10 +569,11 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         externalWindows.first(where: { $0.value == wmWindowId })?.key
     }
 
-    /// Walk the layout tree for onTap nodes at the given point and fire them.
+    /// Walk all layout trees for onTap nodes at the given point and fire them.
     private func fireTapAt(x: Float, y: Float) {
-        guard let layout = lastLayoutResult else { return }
-        fireTapInNode(layout, x: x, y: y)
+        for layout in lastLayoutResults {
+            fireTapInNode(layout, x: x, y: y)
+        }
     }
 
     private func fireTapInNode(_ node: LayoutNode, x: Float, y: Float) {
