@@ -68,13 +68,6 @@ func hoveredIconIndex(mouseX: Float, mouseY: Float, iconCount: Int, screenWidth:
     return nil
 }
 
-// MARK: - Absolute Positioning Helper
-
-/// Wraps a node with padding used as absolute position offsets within a ZStack.
-private func positioned(_ node: ViewNode, x: Float, y: Float) -> ViewNode {
-    node.padding(EdgeInsets(top: y, leading: x, bottom: 0, trailing: 0))
-}
-
 // MARK: - Declarative Dock View
 
 func dockView(state: DockState, width: Float, height: Float) -> some View {
@@ -89,17 +82,13 @@ func dockView(state: DockState, width: Float, height: Float) -> some View {
         iconCount: items.count, screenWidth: width, screenHeight: height
     )
 
-    var children: [ViewNode] = []
-
     // Dock background pill
-    children.append(
-        positioned(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(WindowChrome.dock)
-                .frame(width: totalWidth, height: bgHeight),
-            x: bgX, y: bgY
-        )
-    )
+    var children = [
+        RoundedRectangle(cornerRadius: 16)
+            .fill(WindowChrome.dock)
+            .frame(width: totalWidth, height: bgHeight)
+            .padding(EdgeInsets(top: bgY, leading: bgX, bottom: 0, trailing: 0))
+    ]
 
     // Icons, dots, and hover labels
     var iconX = bgX + iconPadding
@@ -111,12 +100,10 @@ func dockView(state: DockState, width: Float, height: Float) -> some View {
 
         // Icon
         children.append(
-            positioned(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(item.color)
-                    .frame(width: size, height: size),
-                x: iconX, y: iconY
-            )
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(item.color)
+                .frame(width: size, height: size)
+                .padding(EdgeInsets(top: iconY, leading: iconX, bottom: 0, trailing: 0))
         )
 
         // Minimized indicator dot
@@ -125,12 +112,10 @@ func dockView(state: DockState, width: Float, height: Float) -> some View {
             let dotX = iconX + size / 2 - dotSize / 2
             let dotY = bgY + bgHeight - iconPadding / 2
             children.append(
-                positioned(
-                    RoundedRectangle(cornerRadius: dotSize / 2)
-                        .fill(.primary)
-                        .frame(width: dotSize, height: dotSize),
-                    x: dotX, y: dotY
-                )
+                RoundedRectangle(cornerRadius: dotSize / 2)
+                    .fill(.primary)
+                    .frame(width: dotSize, height: dotSize)
+                    .padding(EdgeInsets(top: dotY, leading: dotX, bottom: 0, trailing: 0))
             )
         }
 
@@ -142,28 +127,23 @@ func dockView(state: DockState, width: Float, height: Float) -> some View {
             let labelY = iconY - labelH - 6
 
             children.append(
-                positioned(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(WindowChrome.popover)
-                        .frame(width: textWidth, height: labelH),
-                    x: labelX, y: labelY
-                )
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(WindowChrome.popover)
+                    .frame(width: textWidth, height: labelH)
+                    .padding(EdgeInsets(top: labelY, leading: labelX, bottom: 0, trailing: 0))
             )
             children.append(
-                positioned(
-                    Text(item.name)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.primary),
-                    x: labelX + 10, y: labelY + 6
-                )
+                Text(item.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary)
+                    .padding(EdgeInsets(top: labelY + 6, leading: labelX + 10, bottom: 0, trailing: 0))
             )
         }
 
         iconX += size + iconPadding
     }
 
-    // Dynamic children — can't use ViewBuilder
-    return ViewNode.zstack(children: children)
+    return ZStack { children }
         .frame(width: width, height: height)
 }
 

@@ -448,7 +448,7 @@ func toolbarView(state: FinderState, width: Float) -> some View {
     }.frame(width: width, height: toolbarHeight)
 }
 
-func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> ViewNode {
+func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> some View {
     let bgFill: Color = isActive ? selectionColor : (isHovered ? highlightColor : .clear)
 
     let bg = RoundedRectangle(cornerRadius: 5).fill(bgFill)
@@ -468,7 +468,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
     return item.padding(.leading, 6)
 }
 
-func sidebarView(state: FinderState, height: Float) -> ViewNode {
+func sidebarView(state: FinderState, height: Float) -> some View {
     let header = Text("Favorites").font(.system(size: 11, weight: .semibold))
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)

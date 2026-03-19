@@ -14,46 +14,35 @@ func menuBarView(state: MenuBarState) -> some View {
     formatter.dateFormat = "HH:mm"
     let clock = formatter.string(from: Date())
 
-    var children: [ViewNode] = []
-
-    // Apple logo placeholder
-    children.append(
+    return HStack(alignment: .center, spacing: 16) {
+        // Apple logo placeholder
         Text("\u{F8FF}")
             .font(.system(size: 14))
             .foregroundColor(.primary)
-    )
 
-    // Focused app name (bold)
-    children.append(
+        // Focused app name (bold)
         Text(state.focusedAppName)
             .font(.system(size: 13, weight: .bold))
             .foregroundColor(.primary)
-    )
 
-    // Menu items
-    for item in menuItems {
-        children.append(
+        // Menu items
+        for item in menuItems {
             Text(item)
                 .font(.system(size: 13))
                 .foregroundColor(menuTextColor)
-        )
-    }
+        }
 
-    // Spacer pushes clock to the right
-    children.append(Spacer())
+        // Spacer pushes clock to the right
+        Spacer()
 
-    // Clock (right-aligned)
-    children.append(
+        // Clock (right-aligned)
         Text(clock)
             .font(.system(size: 13))
             .foregroundColor(.primary)
-    )
-
-    // Dynamic children — can't use ViewBuilder
-    return ViewNode.hstack(alignment: .center, spacing: 16, children: children)
-        .padding(.horizontal, 12)
-        .frame(height: 24)
-        .background(WindowChrome.menuBar)
+    }
+    .padding(.horizontal, 12)
+    .frame(height: 24)
+    .background(WindowChrome.menuBar)
 }
 
 @main
