@@ -111,13 +111,15 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     private var childProcesses: [Process] = []
     private var externalWindows: [UInt64: UInt64] = [:] // server windowId → wm windowId
     private var lastLayoutResults: [LayoutNode] = []
+    private var pendingLaunches: [String] = []
+    private var pendingRestores: [String] = []
 
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
         "com.clone.finder": "Finder",
-        // Add more as they become real binaries:
-        // "com.clone.terminal": "Terminal",
-        // "com.clone.settings": "Settings",
+        "com.clone.dock": "Dock",
+        "com.clone.menubar": "MenuBar",
+        "com.clone.settings": "Settings",
     ]
 
     public init() {
@@ -129,7 +131,17 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             fputs("Failed to start compositor server: \(error)\n", stderr)
         }
 
-        // Auto-launch Finder
+        // Wire dock→compositor commands (queued, processed in onCompositeFrame)
+        server.onLaunchApp = { [weak self] appId in
+            self?.pendingLaunches.append(appId)
+        }
+        server.onRestoreApp = { [weak self] appId in
+            self?.pendingRestores.append(appId)
+        }
+
+        // Auto-launch system apps
+        launchApp("Dock")
+        launchApp("MenuBar")
         launchApp("Finder")
     }
 
@@ -260,6 +272,21 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         server.requestFrames()
         lastLayoutResults = []
 
+        // Process queued dock commands
+        for appId in pendingLaunches {
+            if let name = appBinaries[appId] {
+                launchApp(name)
+            }
+        }
+        pendingLaunches.removeAll()
+
+        for appId in pendingRestores {
+            if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
+                animateRestore(windowId: window.id)
+            }
+        }
+        pendingRestores.removeAll()
+
         // Tick animations — complete minimize by actually hiding the window
         for (windowId, wasMinimizing) in animationManager.tick() {
             if wasMinimizing {
@@ -378,26 +405,27 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             ))
         }
 
-        // 3. Dock
-        let dockTree = VStack(spacing: 0) {
-            Spacer()
-            Dock(mouseX: Float(mouseX), mouseY: Float(mouseY), screenWidth: w, screenHeight: h).body()
+        // 3. Dock and MenuBar — external app surfaces at fixed z-order
+        for app in server.connectedApps {
+            guard app.role == .dock || app.role == .menubar else { continue }
+            let surfaceId = windowSurfaceBase + app.windowId + 10000 // avoid collision with window IDs
+            let ipcCommands = app.getCommands()
+            if !ipcCommands.isEmpty {
+                let engineCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: 0) }
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: surfaceId,
+                        x: 0, y: 0,
+                        width: w, height: h,
+                        cornerRadius: 0, opacity: 1
+                    ),
+                    commands: engineCommands
+                ))
+            }
         }
-        let dockLayout = Layout.layout(dockTree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
-        lastLayoutResults.append(dockLayout)
-        frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: dockSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
-            commands: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout))
-        ))
 
-        // 4. Menu bar
-        let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
-        let menuLayout = Layout.layout(menuBar.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
-        lastLayoutResults.append(menuLayout)
-        frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: menubarSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
-            commands: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout))
-        ))
+        // Send state updates to dock and menubar
+        notifyDockAndMenuBar()
 
         return frames
     }
@@ -537,13 +565,13 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
     // MARK: - External app sync
 
-    /// Create WindowManager windows for newly connected external apps.
+    /// Create WindowManager windows for newly connected window-role apps.
     private func syncExternalApps() {
         for app in server.connectedApps {
             if app.appId == "pending" { continue }
+            if app.role != .window { continue } // dock/menubar don't get managed windows
             if externalWindows[app.windowId] != nil { continue }
 
-            // New app connected — create a window for it
             let wmId = windowManager.open(
                 appId: app.appId,
                 title: app.title,
@@ -556,8 +584,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             updateFocusedAppName()
         }
 
-        // Sync titles from external apps
-        for app in server.connectedApps {
+        // Sync titles from window-role apps
+        for app in server.connectedApps where app.role == .window {
             if let wmId = externalWindows[app.windowId],
                let idx = windowManager.windows.firstIndex(where: { $0.id == wmId }) {
                 windowManager.windows[idx].title = app.title
@@ -653,6 +681,23 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             }
         } else {
             focusedAppName = "Finder"
+        }
+    }
+
+    /// Send state updates to dock and menubar apps.
+    private func notifyDockAndMenuBar() {
+        let minimizedIds = windowManager.minimizedWindows.map(\.appId)
+        for app in server.connectedApps {
+            switch app.role {
+            case .dock:
+                app.send(.minimizedApps(appIds: minimizedIds))
+                // Forward mouse position (screen coords) so dock can do hover
+                app.send(.pointerMove(x: Float(mouseX), y: Float(mouseY)))
+            case .menubar:
+                app.send(.focusedApp(name: focusedAppName))
+            case .window:
+                break
+            }
         }
     }
 

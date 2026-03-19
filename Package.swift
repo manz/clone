@@ -64,6 +64,18 @@ let package = Package(
             dependencies: ["CloneClient", "CloneProtocol"],
             path: "Sources/SettingsApp"
         ),
+        // Dock app (separate process)
+        .executableTarget(
+            name: "Dock",
+            dependencies: ["CloneClient", "CloneProtocol"],
+            path: "Sources/DockApp"
+        ),
+        // MenuBar app (separate process)
+        .executableTarget(
+            name: "MenuBar",
+            dependencies: ["CloneClient", "CloneProtocol"],
+            path: "Sources/MenuBarApp"
+        ),
         .testTarget(
             name: "DesktopKitTests",
             dependencies: ["DesktopKit"],

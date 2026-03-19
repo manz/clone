@@ -8,6 +8,7 @@ public final class ConnectedApp {
     public var title: String
     public var width: Float
     public var height: Float
+    public var role: SurfaceRole = .window
     public private(set) var lastCommands: [IPCRenderCommand] = []
 
     let fd: Int32
@@ -62,7 +63,7 @@ public final class ConnectedApp {
         lock.unlock()
     }
 
-    func send(_ message: CompositorMessage) {
+    public func send(_ message: CompositorMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
         data.withUnsafeBytes { ptr in
             _ = Darwin.write(fd, ptr.baseAddress!, data.count)
@@ -186,13 +187,19 @@ public final class CompositorServer {
     }
 
     /// Handle a message from an app. Called on the ioQueue.
+    /// Callback when dock requests an app launch.
+    public var onLaunchApp: ((String) -> Void)?
+    /// Callback when dock requests restoring a minimized app.
+    public var onRestoreApp: ((String) -> Void)?
+
     func handle(message: AppMessage, from app: ConnectedApp) {
         switch message {
-        case .register(let appId, let title, let width, let height):
+        case .register(let appId, let title, let width, let height, let role):
             app.appId = appId
             app.title = title
             app.width = width
             app.height = height
+            app.role = role
             app.send(.windowCreated(windowId: app.windowId, width: width, height: height))
             onAppConnected?(app)
 
@@ -207,6 +214,12 @@ public final class CompositorServer {
 
         case .tapHandled:
             break
+
+        case .launchApp(let appId):
+            onLaunchApp?(appId)
+
+        case .restoreApp(let appId):
+            onRestoreApp?(appId)
         }
     }
 

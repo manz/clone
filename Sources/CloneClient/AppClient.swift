@@ -20,11 +20,15 @@ public final class AppClient {
     public var onKey: ((UInt32, Bool) -> Void)?
     /// Callback when window is created.
     public var onWindowCreated: ((UInt64, Float, Float) -> Void)?
+    /// Callback when compositor reports focused app name (for menubar).
+    public var onFocusedApp: ((String) -> Void)?
+    /// Callback when compositor reports minimized app IDs (for dock).
+    public var onMinimizedApps: (([String]) -> Void)?
 
     public init() {}
 
     /// Connect to the compositor and register the app.
-    public func connect(appId: String, title: String, width: Float, height: Float) throws {
+    public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
         socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard socketFd >= 0 else {
             throw AppClientError.socketFailed
@@ -55,7 +59,7 @@ public final class AppClient {
         self.height = height
 
         // Send register message
-        send(.register(appId: appId, title: title, width: width, height: height))
+        send(.register(appId: appId, title: title, width: width, height: height, role: role))
     }
 
     /// Send a message to the compositor.
@@ -116,6 +120,12 @@ public final class AppClient {
 
         case .key(let keycode, let pressed):
             onKey?(keycode, pressed)
+
+        case .focusedApp(let name):
+            onFocusedApp?(name)
+
+        case .minimizedApps(let appIds):
+            onMinimizedApps?(appIds)
         }
     }
 
