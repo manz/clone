@@ -1,5 +1,24 @@
 /// Flat render commands — Swift builds these, Rust draws them at absolute coordinates.
 
+/// Describes a surface to composite onto the screen.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct SurfaceDesc {
+    pub surface_id: u64,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub corner_radius: f32,
+    pub opacity: f32,
+}
+
+/// A surface's render commands bundled with its layout.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct SurfaceFrame {
+    pub desc: SurfaceDesc,
+    pub commands: Vec<RenderCommand>,
+}
+
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct RgbaColor {
     pub r: f32,

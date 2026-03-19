@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use clone_engine::commands::{FontWeight, RenderCommand, RgbaColor};
+use clone_engine::commands::{FontWeight, RenderCommand, RgbaColor, SurfaceFrame, SurfaceDesc};
 use clone_engine::ffi::DesktopDelegate;
 
 /// Demo delegate that returns hardcoded render commands.
@@ -75,6 +75,19 @@ impl DesktopDelegate for DemoDelegate {
             dock_icon(w / 2.0 + 56.0, h - 72.0, 48.0, 0.96, 0.76, 0.29),   // yellow
             dock_icon(w / 2.0 + 112.0, h - 72.0, 48.0, 0.0, 0.0, 0.0),     // black
         ]
+    }
+
+    fn on_composite_frame(&self, width: u32, height: u32) -> Vec<SurfaceFrame> {
+        let commands = self.on_frame(0, width, height);
+        vec![SurfaceFrame {
+            desc: SurfaceDesc {
+                surface_id: 0,
+                x: 0.0, y: 0.0,
+                width: width as f32, height: height as f32,
+                corner_radius: 0.0, opacity: 1.0,
+            },
+            commands,
+        }]
     }
 
     fn on_pointer_move(&self, _surface_id: u64, _x: f64, _y: f64) {}

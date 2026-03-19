@@ -8,6 +8,7 @@ use winit::window::{Window, WindowId};
 
 use crate::ffi::{DesktopDelegate, EngineError};
 use crate::renderer::DesktopRenderer;
+use crate::surface_compositor::{CompositeWindow, SurfaceCompositor};
 
 struct GpuState {
     device: wgpu::Device,
@@ -15,12 +16,14 @@ struct GpuState {
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
     renderer: DesktopRenderer,
+    compositor: SurfaceCompositor,
 }
 
 struct App {
     delegate: Arc<dyn DesktopDelegate>,
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
+    dump_next_frame: bool,
 }
 
 impl App {
@@ -29,6 +32,7 @@ impl App {
             delegate: Arc::from(delegate),
             window: None,
             gpu: None,
+            dump_next_frame: false,
         }
     }
 
@@ -79,12 +83,15 @@ impl App {
         let mut renderer = DesktopRenderer::new(surface_format);
         renderer.init_pipelines(&device, &queue);
 
+        let compositor = SurfaceCompositor::new(&device, surface_format);
+
         self.gpu = Some(GpuState {
             device,
             queue,
             surface,
             surface_config,
             renderer,
+            compositor,
         });
         self.window = Some(window);
 
@@ -104,9 +111,58 @@ impl App {
         let logical_w = (physical_size.width as f32 / scale) as u32;
         let logical_h = (physical_size.height as f32 / scale) as u32;
 
-        // Swift gets logical pixels, Rust renders at physical resolution
-        let commands = self.delegate.on_frame(0, logical_w, logical_h);
+        // Ask Swift for per-surface frames
+        let surface_frames = self.delegate.on_composite_frame(logical_w, logical_h);
 
+        if self.dump_next_frame {
+            self.dump_next_frame = false;
+            let path = "/tmp/clone-frame-dump.txt";
+            let mut out = String::new();
+            out.push_str(&format!(
+                "Frame: {}x{} (physical {}x{}, scale {})\nSurfaces: {}\n\n",
+                logical_w, logical_h, physical_size.width, physical_size.height,
+                scale, surface_frames.len()
+            ));
+            for sf in &surface_frames {
+                out.push_str(&format!(
+                    "Surface {} @ ({}, {}) {}x{} r={} a={} — {} commands\n",
+                    sf.desc.surface_id, sf.desc.x, sf.desc.y,
+                    sf.desc.width, sf.desc.height,
+                    sf.desc.corner_radius, sf.desc.opacity,
+                    sf.commands.len()
+                ));
+                for (i, cmd) in sf.commands.iter().enumerate() {
+                    out.push_str(&format!("  [{:3}] {:?}\n", i, cmd));
+                }
+                out.push_str("\n");
+            }
+            let _ = std::fs::write(path, &out);
+            log::info!("Dumped {} surfaces to {}", surface_frames.len(), path);
+        }
+
+        // Ensure offscreen textures exist for each surface
+        let mut active_ids: Vec<u64> = Vec::new();
+        for sf in &surface_frames {
+            let phys_w = (sf.desc.width * scale) as u32;
+            let phys_h = (sf.desc.height * scale) as u32;
+            gpu.compositor.ensure_surface(&gpu.device, sf.desc.surface_id, phys_w, phys_h);
+            active_ids.push(sf.desc.surface_id);
+        }
+        gpu.compositor.gc(&active_ids);
+
+        // Render each surface's commands into its offscreen texture
+        for sf in &surface_frames {
+            gpu.compositor.render_to_surface(
+                sf.desc.surface_id,
+                &mut gpu.renderer,
+                &gpu.device,
+                &gpu.queue,
+                &sf.commands,
+                scale,
+            );
+        }
+
+        // Composite onto screen
         let surface_texture = match gpu.surface.get_current_texture() {
             Ok(t) => t,
             Err(e) => {
@@ -115,25 +171,60 @@ impl App {
             }
         };
 
-        let view = surface_texture
+        let screen_view = surface_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = gpu
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("frame"),
+                label: Some("composite"),
             });
 
-        gpu.renderer.render(
+        // Clear screen
+        {
+            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("screen_clear"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &screen_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.14, g: 0.13, b: 0.19, a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+        }
+
+        // Composite windows back-to-front
+        let composite_windows: Vec<CompositeWindow> = surface_frames
+            .iter()
+            .map(|sf| CompositeWindow {
+                surface_id: sf.desc.surface_id,
+                x: sf.desc.x * scale,
+                y: sf.desc.y * scale,
+                width: sf.desc.width * scale,
+                height: sf.desc.height * scale,
+                corner_radius: sf.desc.corner_radius * scale,
+                opacity: sf.desc.opacity,
+            })
+            .collect();
+
+        gpu.compositor.composite(
             &gpu.device,
             &gpu.queue,
             &mut encoder,
-            &view,
-            &commands,
+            &screen_view,
             physical_size.width,
             physical_size.height,
-            scale,
+            &composite_windows,
         );
 
         gpu.queue.submit([encoder.finish()]);
@@ -203,6 +294,10 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput { event, .. } => {
                 if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
                     let pressed = event.state == winit::event::ElementState::Pressed;
+                    if code == winit::keyboard::KeyCode::F12 && pressed {
+                        self.dump_next_frame = true;
+                        log::info!("Will dump next frame to /tmp/clone-frame-dump.txt");
+                    }
                     self.delegate.on_key(0, code as u32, pressed);
                     if let Some(w) = &self.window {
                         w.request_redraw();

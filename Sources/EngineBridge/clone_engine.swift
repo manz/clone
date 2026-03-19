@@ -664,9 +664,6 @@ public func FfiConverterTypeDesktopEngine_lower(_ value: DesktopEngine) -> Unsaf
     return FfiConverterTypeDesktopEngine.lower(value)
 }
 
-/**
- * Flat render commands — Swift builds these, Rust draws them at absolute coordinates.
- */
 public struct RgbaColor {
     public var r: Float
     public var g: Float
@@ -742,6 +739,175 @@ public func FfiConverterTypeRgbaColor_lift(_ buf: RustBuffer) throws -> RgbaColo
 #endif
 public func FfiConverterTypeRgbaColor_lower(_ value: RgbaColor) -> RustBuffer {
     return FfiConverterTypeRgbaColor.lower(value)
+}
+
+/**
+ * Flat render commands — Swift builds these, Rust draws them at absolute coordinates.
+ * Describes a surface to composite onto the screen.
+ */
+public struct SurfaceDesc {
+    public var surfaceId: UInt64
+    public var x: Float
+    public var y: Float
+    public var width: Float
+    public var height: Float
+    public var cornerRadius: Float
+    public var opacity: Float
+
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
+    public init(surfaceId: UInt64, x: Float, y: Float, width: Float, height: Float, cornerRadius: Float, opacity: Float) {
+        self.surfaceId = surfaceId
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.cornerRadius = cornerRadius
+        self.opacity = opacity
+    }
+}
+
+extension SurfaceDesc: Equatable, Hashable {
+    public static func == (lhs: SurfaceDesc, rhs: SurfaceDesc) -> Bool {
+        if lhs.surfaceId != rhs.surfaceId {
+            return false
+        }
+        if lhs.x != rhs.x {
+            return false
+        }
+        if lhs.y != rhs.y {
+            return false
+        }
+        if lhs.width != rhs.width {
+            return false
+        }
+        if lhs.height != rhs.height {
+            return false
+        }
+        if lhs.cornerRadius != rhs.cornerRadius {
+            return false
+        }
+        if lhs.opacity != rhs.opacity {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(surfaceId)
+        hasher.combine(x)
+        hasher.combine(y)
+        hasher.combine(width)
+        hasher.combine(height)
+        hasher.combine(cornerRadius)
+        hasher.combine(opacity)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSurfaceDesc: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SurfaceDesc {
+        return
+            try SurfaceDesc(
+                surfaceId: FfiConverterUInt64.read(from: &buf),
+                x: FfiConverterFloat.read(from: &buf),
+                y: FfiConverterFloat.read(from: &buf),
+                width: FfiConverterFloat.read(from: &buf),
+                height: FfiConverterFloat.read(from: &buf),
+                cornerRadius: FfiConverterFloat.read(from: &buf),
+                opacity: FfiConverterFloat.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: SurfaceDesc, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.surfaceId, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.width, into: &buf)
+        FfiConverterFloat.write(value.height, into: &buf)
+        FfiConverterFloat.write(value.cornerRadius, into: &buf)
+        FfiConverterFloat.write(value.opacity, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfaceDesc_lift(_ buf: RustBuffer) throws -> SurfaceDesc {
+    return try FfiConverterTypeSurfaceDesc.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfaceDesc_lower(_ value: SurfaceDesc) -> RustBuffer {
+    return FfiConverterTypeSurfaceDesc.lower(value)
+}
+
+/**
+ * A surface's render commands bundled with its layout.
+ */
+public struct SurfaceFrame {
+    public var desc: SurfaceDesc
+    public var commands: [RenderCommand]
+
+    /// Default memberwise initializers are never public by default, so we
+    /// declare one manually.
+    public init(desc: SurfaceDesc, commands: [RenderCommand]) {
+        self.desc = desc
+        self.commands = commands
+    }
+}
+
+extension SurfaceFrame: Equatable, Hashable {
+    public static func == (lhs: SurfaceFrame, rhs: SurfaceFrame) -> Bool {
+        if lhs.desc != rhs.desc {
+            return false
+        }
+        if lhs.commands != rhs.commands {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(desc)
+        hasher.combine(commands)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SurfaceFrame {
+        return
+            try SurfaceFrame(
+                desc: FfiConverterTypeSurfaceDesc.read(from: &buf),
+                commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: SurfaceFrame, into buf: inout [UInt8]) {
+        FfiConverterTypeSurfaceDesc.write(value.desc, into: &buf)
+        FfiConverterSequenceTypeRenderCommand.write(value.commands, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfaceFrame_lift(_ buf: RustBuffer) throws -> SurfaceFrame {
+    return try FfiConverterTypeSurfaceFrame.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuffer {
+    return FfiConverterTypeSurfaceFrame.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -1054,7 +1220,15 @@ public func FfiConverterTypeRenderCommand_lower(_ value: RenderCommand) -> RustB
 extension RenderCommand: Equatable, Hashable {}
 
 public protocol DesktopDelegate: AnyObject {
+    /**
+     * Old flat API — still used for backwards compat, returns ALL commands.
+     */
     func onFrame(surfaceId: UInt64, width: UInt32, height: UInt32) -> [RenderCommand]
+
+    /**
+     * New compositor API — returns per-surface commands for the compositor.
+     */
+    func onCompositeFrame(width: UInt32, height: UInt32) -> [SurfaceFrame]
 
     func onPointerMove(surfaceId: UInt64, x: Double, y: Double)
 
@@ -1097,6 +1271,31 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
             }
 
             let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeRenderCommand.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onCompositeFrame: { (
+            uniffiHandle: UInt64,
+            width: UInt32,
+            height: UInt32,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [SurfaceFrame] in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.onCompositeFrame(
+                    width: FfiConverterUInt32.lift(width),
+                    height: FfiConverterUInt32.lift(height)
+                )
+            }
+
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeSurfaceFrame.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
@@ -1245,6 +1444,31 @@ extension FfiConverterCallbackInterfaceDesktopDelegate: FfiConverter {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
+private struct FfiConverterSequenceTypeSurfaceFrame: FfiConverterRustBuffer {
+    typealias SwiftType = [SurfaceFrame]
+
+    static func write(_ value: [SurfaceFrame], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSurfaceFrame.write(item, into: &buf)
+        }
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SurfaceFrame] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SurfaceFrame]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            try seq.append(FfiConverterTypeSurfaceFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
 private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
     typealias SwiftType = [RenderCommand]
 
@@ -1306,16 +1530,19 @@ private var initializationResult: InitializationResult = {
     if uniffi_clone_engine_checksum_constructor_desktopengine_new() != 28100 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_frame() != 37586 {
+    if uniffi_clone_engine_checksum_method_desktopdelegate_on_frame() != 53352 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_move() != 37761 {
+    if uniffi_clone_engine_checksum_method_desktopdelegate_on_composite_frame() != 41677 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_button() != 56429 {
+    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_move() != 19377 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_key() != 26425 {
+    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_button() != 45088 {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if uniffi_clone_engine_checksum_method_desktopdelegate_on_key() != 31331 {
         return InitializationResult.apiChecksumMismatch
     }
 

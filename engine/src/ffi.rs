@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::commands::RenderCommand;
+use crate::commands::{RenderCommand, SurfaceFrame};
 use crate::renderer::DesktopRenderer;
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,10 @@ pub enum EngineError {
 
 #[uniffi::export(callback_interface)]
 pub trait DesktopDelegate: Send + Sync {
+    /// Old flat API — still used for backwards compat, returns ALL commands.
     fn on_frame(&self, surface_id: u64, width: u32, height: u32) -> Vec<RenderCommand>;
+    /// New compositor API — returns per-surface commands for the compositor.
+    fn on_composite_frame(&self, width: u32, height: u32) -> Vec<SurfaceFrame>;
     fn on_pointer_move(&self, surface_id: u64, x: f64, y: f64);
     fn on_pointer_button(&self, surface_id: u64, button: u32, pressed: bool);
     fn on_key(&self, surface_id: u64, keycode: u32, pressed: bool);

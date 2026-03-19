@@ -260,14 +260,14 @@ typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod0)(uint64_t, uint64_t
 #endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD1
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD1
-typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod1)(uint64_t, uint64_t, double, double, void* _Nonnull, 
+typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod1)(uint64_t, uint32_t, uint32_t, RustBuffer* _Nonnull, 
         RustCallStatus *_Nonnull uniffiCallStatus
     );
 
 #endif
 #ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD2
 #define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD2
-typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod2)(uint64_t, uint64_t, uint32_t, int8_t, void* _Nonnull, 
+typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod2)(uint64_t, uint64_t, double, double, void* _Nonnull, 
         RustCallStatus *_Nonnull uniffiCallStatus
     );
 
@@ -279,13 +279,21 @@ typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod3)(uint64_t, uint64_t
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD4
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD4
+typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod4)(uint64_t, uint64_t, uint32_t, int8_t, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DESKTOP_DELEGATE
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DESKTOP_DELEGATE
 typedef struct UniffiVTableCallbackInterfaceDesktopDelegate {
     UniffiCallbackInterfaceDesktopDelegateMethod0 _Nonnull onFrame;
-    UniffiCallbackInterfaceDesktopDelegateMethod1 _Nonnull onPointerMove;
-    UniffiCallbackInterfaceDesktopDelegateMethod2 _Nonnull onPointerButton;
-    UniffiCallbackInterfaceDesktopDelegateMethod3 _Nonnull onKey;
+    UniffiCallbackInterfaceDesktopDelegateMethod1 _Nonnull onCompositeFrame;
+    UniffiCallbackInterfaceDesktopDelegateMethod2 _Nonnull onPointerMove;
+    UniffiCallbackInterfaceDesktopDelegateMethod3 _Nonnull onPointerButton;
+    UniffiCallbackInterfaceDesktopDelegateMethod4 _Nonnull onKey;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceDesktopDelegate;
 
@@ -632,6 +640,12 @@ uint16_t uniffi_clone_engine_checksum_constructor_desktopengine_new(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_FRAME
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_FRAME
 uint16_t uniffi_clone_engine_checksum_method_desktopdelegate_on_frame(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_COMPOSITE_FRAME
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_COMPOSITE_FRAME
+uint16_t uniffi_clone_engine_checksum_method_desktopdelegate_on_composite_frame(void
     
 );
 #endif

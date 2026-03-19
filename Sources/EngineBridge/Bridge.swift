@@ -49,6 +49,19 @@ public enum Bridge {
             }
         }
     }
+
+    /// Offset a single IPC command by dy (for title bar offset in local coords).
+    public static func offsetIpcCommand(_ cmd: IPCRenderCommand, dy: Float) -> RenderCommand {
+        switch cmd {
+        case .rect(let x, let y, let w, let h, let color):
+            return .rect(x: x, y: y + dy, w: w, h: h, color: color.toEngine())
+        case .roundedRect(let x, let y, let w, let h, let radius, let color):
+            return .roundedRect(x: x, y: y + dy, w: w, h: h, radius: radius, color: color.toEngine())
+        case .text(let x, let y, let content, let fontSize, let color, let weight):
+            return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
+                        color: color.toEngine(), weight: weight.toEngine())
+        }
+    }
 }
 
 extension DesktopColor {
@@ -223,6 +236,143 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout)))
 
         return engineCommands
+    }
+
+    // MARK: - Compositor API (per-surface rendering)
+
+    /// Surface IDs: 0 = desktop, 1 = dock, 2 = menubar, 100+ = windows
+    private let desktopSurfaceId: UInt64 = 0
+    private let dockSurfaceId: UInt64 = 1
+    private let menubarSurfaceId: UInt64 = 2
+    private let windowSurfaceBase: UInt64 = 100
+
+    public func onCompositeFrame(width: UInt32, height: UInt32) -> [SurfaceFrame] {
+        GeometryReaderRegistry.shared.clear()
+        TapRegistry.shared.clear()
+
+        let w = Float(width)
+        let h = Float(height)
+
+        windowManager.screenWidth = w
+        windowManager.screenHeight = h
+        syncExternalApps()
+        server.requestFrames()
+
+        var frames: [SurfaceFrame] = []
+
+        // 1. Desktop background — fullscreen, no corner radius
+        let desktop = Desktop(screenWidth: w, screenHeight: h, mouseX: Float(mouseX), mouseY: Float(mouseY))
+        let desktopLayout = Layout.layout(desktop.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        frames.append(SurfaceFrame(
+            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
+            commands: Bridge.toEngineCommands(CommandFlattener.flatten(desktopLayout))
+        ))
+
+        // 2. Windows — each in its own surface, z-order preserved
+        let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
+        for window in visibleWindows {
+            let surfaceId = windowSurfaceBase + window.id
+            let isFocused = window.id == windowManager.focusedWindowId
+            let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
+            let radius = window.isMaximized ? Float(0) : WindowChrome.cornerRadius
+
+            // Build window chrome + content in LOCAL coordinates (0,0 = window top-left)
+            var windowCommands: [RenderCommand] = []
+
+            // Title bar background
+            let tbColor: DesktopColor = isFocused
+                ? DesktopColor(r: 0.24, g: 0.22, b: 0.30)
+                : DesktopColor(r: 0.19, g: 0.17, b: 0.24)
+            let bgColor: DesktopColor = isFocused
+                ? .surface
+                : DesktopColor(r: 0.16, g: 0.15, b: 0.21)
+
+            // Window background (local coords)
+            windowCommands.append(.roundedRect(
+                x: 0, y: 0, w: window.width, h: window.height,
+                radius: radius, color: bgColor.toEngine()
+            ))
+            // Title bar
+            windowCommands.append(.rect(
+                x: 0, y: 0, w: window.width, h: WindowChrome.titleBarHeight,
+                color: tbColor.toEngine()
+            ))
+
+            // Traffic lights
+            let btnY = WindowChrome.buttonInsetY
+            let btnX = WindowChrome.buttonInsetX
+            let btnSize = WindowChrome.buttonSize
+            let btnStep = btnSize + WindowChrome.buttonSpacing
+
+            let closeColor: DesktopColor = isFocused ? .systemRed : .muted
+            let minColor: DesktopColor = isFocused ? .systemYellow : .muted
+            let zoomColor: DesktopColor = isFocused ? .systemGreen : .muted
+
+            windowCommands.append(.roundedRect(x: btnX, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: closeColor.toEngine()))
+            windowCommands.append(.roundedRect(x: btnX + btnStep, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: minColor.toEngine()))
+            windowCommands.append(.roundedRect(x: btnX + btnStep * 2, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: zoomColor.toEngine()))
+
+            // Traffic light symbols on hover
+            if showSymbols {
+                let symY = btnY + (btnSize - 9) / 2
+                let symColor = RgbaColor(r: 0, g: 0, b: 0, a: 0.5)
+                windowCommands.append(.text(x: btnX + 2, y: symY, content: "×", fontSize: btnSize * 0.7, color: symColor, weight: .bold))
+                windowCommands.append(.text(x: btnX + btnStep + 2, y: symY, content: "−", fontSize: btnSize * 0.7, color: symColor, weight: .bold))
+                let zoomSym = window.isMaximized ? "↙" : "↗"
+                windowCommands.append(.text(x: btnX + btnStep * 2 + 2, y: symY, content: zoomSym, fontSize: btnSize * 0.7, color: symColor, weight: .bold))
+            }
+
+            // Title text
+            let titleColor: DesktopColor = isFocused ? .text : .subtle
+            let titleX = window.width / 2 - Float(window.title.count) * 4
+            let titleY = (WindowChrome.titleBarHeight - 13) / 2
+            windowCommands.append(.text(
+                x: titleX, y: titleY, content: window.title, fontSize: 13,
+                color: titleColor.toEngine(), weight: .regular
+            ))
+
+            // App content (IPC commands — already in local coords)
+            if let serverWid = externalWindowId(for: window.id) {
+                let ipcCommands = server.commands(for: serverWid)
+                for cmd in ipcCommands {
+                    // Offset by title bar height (IPC coords are relative to content area)
+                    windowCommands.append(Bridge.offsetIpcCommand(cmd, dy: WindowChrome.titleBarHeight))
+                }
+            }
+
+            // Shadow is a compositor concern — described by the SurfaceDesc, not in commands
+            frames.append(SurfaceFrame(
+                desc: SurfaceDesc(
+                    surfaceId: surfaceId,
+                    x: window.x, y: window.y,
+                    width: window.width, height: window.height,
+                    cornerRadius: radius,
+                    opacity: 1
+                ),
+                commands: windowCommands
+            ))
+        }
+
+        // 3. Dock
+        let dockTree = VStack(spacing: 0) {
+            Spacer()
+            Dock(mouseX: Float(mouseX), mouseY: Float(mouseY), screenWidth: w, screenHeight: h).body()
+        }
+        let dockLayout = Layout.layout(dockTree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        frames.append(SurfaceFrame(
+            desc: SurfaceDesc(surfaceId: dockSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
+            commands: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout))
+        ))
+
+        // 4. Menu bar
+        let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
+        let menuLayout = Layout.layout(menuBar.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        frames.append(SurfaceFrame(
+            desc: SurfaceDesc(surfaceId: menubarSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
+            commands: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout))
+        ))
+
+        return frames
     }
 
     public func onPointerMove(surfaceId: UInt64, x: Double, y: Double) {
