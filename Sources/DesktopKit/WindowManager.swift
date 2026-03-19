@@ -52,7 +52,7 @@ public enum WindowChrome {
 /// Manages all windows: z-ordering, focus, movement, lifecycle.
 public final class WindowManager {
     /// Windows in z-order (last = topmost).
-    public private(set) var windows: [ManagedWindow] = []
+    public var windows: [ManagedWindow] = []
     public private(set) var focusedWindowId: UInt64? = nil
     private var nextWindowId: UInt64 = 1
 
@@ -169,13 +169,12 @@ public final class WindowManager {
                 RoundedRectangle(cornerRadius: WindowChrome.cornerRadius)
                     .fill(isFocused ? .surface : DesktopColor(r: 0.16, g: 0.15, b: 0.21))
                     .frame(width: window.width, height: window.height)
-                // Content area
+                // Content area — constrained to window width
                 VStack(alignment: .leading, spacing: 0) {
-                    // Title bar
                     titleBar(window: window, isFocused: isFocused)
-                    // App content
-                    content
+                    content.frame(width: window.width)
                 }
+                .frame(width: window.width, height: window.height)
             }
         )
     }

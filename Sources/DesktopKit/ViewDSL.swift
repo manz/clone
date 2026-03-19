@@ -158,7 +158,13 @@ public extension ViewNode {
         }
     }
 
-    /// `.onTapGesture { }` — attaches a tap handler ID
+    /// `.onTapGesture { }` — registers a closure and attaches its ID
+    func onTapGesture(_ handler: @escaping () -> Void) -> ViewNode {
+        let id = TapRegistry.shared.register(handler)
+        return .onTap(id: id, child: self)
+    }
+
+    /// `.onTapGesture(id:)` — attaches a pre-existing tap ID
     func onTapGesture(id: UInt64) -> ViewNode {
         .onTap(id: id, child: self)
     }

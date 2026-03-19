@@ -9,20 +9,40 @@ let package = Package(
             name: "clone_engineFFI",
             path: "Sources/CEngine"
         ),
+        // Shared IPC protocol
+        .target(
+            name: "CloneProtocol",
+            path: "Sources/CloneProtocol"
+        ),
+        // Compositor-side server
+        .target(
+            name: "CloneServer",
+            dependencies: ["CloneProtocol"],
+            path: "Sources/CloneServer"
+        ),
+        // App-side client library
+        .target(
+            name: "CloneClient",
+            dependencies: ["CloneProtocol"],
+            path: "Sources/CloneClient"
+        ),
+        // UI DSL framework
         .target(
             name: "DesktopKit",
             dependencies: [],
             path: "Sources/DesktopKit",
             exclude: ["Generated"]
         ),
+        // UniFFI bridge to Rust GPU engine
         .target(
             name: "EngineBridge",
-            dependencies: ["clone_engineFFI", "DesktopKit"],
+            dependencies: ["clone_engineFFI", "DesktopKit", "CloneServer", "CloneProtocol"],
             path: "Sources/EngineBridge"
         ),
+        // Compositor main binary
         .executableTarget(
             name: "CloneDesktop",
-            dependencies: ["DesktopKit", "EngineBridge"],
+            dependencies: ["DesktopKit", "EngineBridge", "CloneServer"],
             path: "Sources/Apps",
             linkerSettings: [
                 .unsafeFlags([
@@ -31,6 +51,12 @@ let package = Package(
                     "-Xlinker", "-rpath", "-Xlinker", "target/debug",
                 ]),
             ]
+        ),
+        // Finder app (separate process)
+        .executableTarget(
+            name: "Finder",
+            dependencies: ["CloneClient", "CloneProtocol"],
+            path: "Sources/FinderApp"
         ),
         .testTarget(
             name: "DesktopKitTests",
