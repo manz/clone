@@ -106,12 +106,16 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         GeometryReaderRegistry.shared.clear()
         TapRegistry.shared.clear()
 
+        let w = Float(width)
+        let h = Float(height)
+
+        // Update screen dimensions for window manager (zoom needs this)
+        windowManager.screenWidth = w
+        windowManager.screenHeight = h
+
         // Sync external app windows (server I/O is async via GCD)
         syncExternalApps()
         server.requestFrames()
-
-        let w = Float(width)
-        let h = Float(height)
 
         // Desktop background + dock
         let desktop = Desktop(
@@ -167,17 +171,31 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     public func onPointerMove(surfaceId: UInt64, x: Double, y: Double) {
         mouseX = x
         mouseY = y
+        let mx = Float(x)
+        let my = Float(y)
+
         if windowManager.isDragging {
-            windowManager.updateDrag(mouseX: Float(x), mouseY: Float(y))
+            windowManager.updateDrag(mouseX: mx, mouseY: my)
             return
+        }
+
+        // Update traffic light hover state
+        if let window = windowManager.windowAt(x: mx, y: my) {
+            windowManager.hoveredWindowId = window.id
+            windowManager.hoveringTrafficLights = windowManager.isOverTrafficLights(
+                windowId: window.id, x: mx, y: my
+            )
+        } else {
+            windowManager.hoveredWindowId = nil
+            windowManager.hoveringTrafficLights = false
         }
 
         // Forward to focused external app
         if let focusedId = windowManager.focusedWindowId,
            let serverWid = externalWindowId(for: focusedId),
            let window = windowManager.windows.first(where: { $0.id == focusedId }) {
-            let localX = Float(x) - window.x
-            let localY = Float(y) - window.y - WindowChrome.titleBarHeight
+            let localX = mx - window.x
+            let localY = my - window.y - WindowChrome.titleBarHeight
             server.sendPointerMove(windowId: serverWid, x: localX, y: localY)
         }
     }
@@ -191,20 +209,27 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 mouseDown = true
 
                 if let window = windowManager.windowAt(x: mx, y: my) {
-                    if windowManager.hitsCloseButton(windowId: window.id, x: mx, y: my) {
-                        // If external, tell the app
-                        if let serverWid = externalWindowId(for: window.id) {
-                            externalWindows.removeValue(forKey: serverWid)
+                    // Traffic light buttons
+                    if let trafficLight = windowManager.hitTestTrafficLight(windowId: window.id, x: mx, y: my) {
+                        switch trafficLight {
+                        case .close:
+                            if let serverWid = externalWindowId(for: window.id) {
+                                externalWindows.removeValue(forKey: serverWid)
+                            }
+                            windowManager.close(id: window.id)
+                        case .minimize:
+                            windowManager.minimize(id: window.id)
+                        case .zoom:
+                            windowManager.zoom(id: window.id)
                         }
-                        windowManager.close(id: window.id)
                         updateFocusedAppName()
                         return
                     }
 
+                    // Title bar drag (but not on traffic lights)
                     if window.titleBarContains(px: mx, py: my) {
                         windowManager.beginDrag(windowId: window.id, mouseX: mx, mouseY: my)
                     } else if let serverWid = externalWindowId(for: window.id) {
-                        // Click inside external app content area
                         let localX = mx - window.x
                         let localY = my - window.y - WindowChrome.titleBarHeight
                         server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: localX, y: localY)
@@ -217,7 +242,6 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 mouseDown = false
                 windowManager.endDrag()
 
-                // Forward button release to external app
                 if let focusedId = windowManager.focusedWindowId,
                    let serverWid = externalWindowId(for: focusedId) {
                     server.sendPointerButton(windowId: serverWid, button: button, pressed: false, x: 0, y: 0)
