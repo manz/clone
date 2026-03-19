@@ -25,6 +25,12 @@ public enum Bridge {
                     color: color.toEngine(),
                     weight: weight.toEngine()
                 )
+            case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
+                return .shadow(
+                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
+                    radius: radius, blur: blur, color: color.toEngine(),
+                    ox: offsetX, oy: offsetY
+                )
             }
         }
     }
@@ -158,7 +164,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         syncExternalApps()
         server.requestFrames()
 
-        // Desktop background + dock
+        // Desktop background + dock + menubar (no windows)
         let desktop = Desktop(
             screenWidth: w,
             screenHeight: h,
@@ -168,35 +174,34 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
         let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
 
-        // Built-in window content
-        let windowNodes = windowManager.render { window in
-            // Check if this is an external app window
-            if let serverWid = self.externalWindowId(for: window.id) {
-                // External app — we'll overlay its commands separately
-                return Rectangle().fill(.clear)
-            }
-            // Built-in app
-            return Rectangle().fill(.surface)
-        }
-
-        var layers: [ViewNode] = [
-            desktop.body(),
+        let baseTree = ZStack {
+            desktop.body()
             VStack(alignment: .leading, spacing: 0) {
                 menuBar.body()
                 Spacer()
-            },
-        ]
-        layers.append(contentsOf: windowNodes)
+            }
+        }
 
-        let tree = ViewNode.zstack(children: layers)
+        let screenFrame = LayoutFrame(x: 0, y: 0, width: w, height: h)
+        let baseLayout = Layout.layout(baseTree, in: screenFrame)
+        lastLayoutResult = baseLayout
+        var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(baseLayout))
 
-        // Layout + flatten built-in UI
-        let layoutResult = Layout.layout(tree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
-        lastLayoutResult = layoutResult
-        var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(layoutResult))
+        // Render each window as a complete unit (chrome + content) in z-order.
+        // This ensures window 2's chrome covers window 1's content when overlapping.
+        let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
+        for window in visibleWindows {
+            // 1. Render window chrome
+            let isFocused = window.id == windowManager.focusedWindowId
+            let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
+            let chromeNodes = windowManager.renderSingle(
+                window: window, isFocused: isFocused,
+                showTrafficLightSymbols: showSymbols
+            )
+            let chromeLayout = Layout.layout(chromeNodes, in: screenFrame)
+            engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(chromeLayout)))
 
-        // Overlay external app render commands inside their window frames
-        for window in windowManager.windows {
+            // 2. Render window content (external app IPC commands or placeholder)
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 if !ipcCommands.isEmpty {

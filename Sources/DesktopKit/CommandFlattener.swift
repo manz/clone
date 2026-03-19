@@ -7,6 +7,7 @@ public struct FlatRenderCommand: Equatable, Sendable {
         case rect(color: DesktopColor)
         case roundedRect(radius: Float, color: DesktopColor)
         case text(content: String, fontSize: Float, color: DesktopColor, weight: FontWeight = .regular)
+        case shadow(radius: Float, blur: Float, color: DesktopColor, offsetX: Float, offsetY: Float)
     }
 
     public let x: Float
@@ -54,6 +55,20 @@ public enum CommandFlattener {
                 kind: .text(content: content, fontSize: fontSize, color: color.withAlpha(color.a * opacity), weight: weight)
             ))
 
+        case .shadow(let radius, let blur, let color, let offsetX, let offsetY, _):
+            // Emit shadow command for the child's frame, then recurse into children
+            commands.append(FlatRenderCommand(
+                x: frame.x, y: frame.y,
+                width: frame.width, height: frame.height,
+                kind: .shadow(radius: radius, blur: blur,
+                             color: color.withAlpha(color.a * opacity),
+                             offsetX: offsetX, offsetY: offsetY)
+            ))
+            for child in layoutNode.children {
+                flattenNode(child, into: &commands, opacity: opacity)
+            }
+            return
+
         case .opacity(let value, _):
             for child in layoutNode.children {
                 flattenNode(child, into: &commands, opacity: opacity * value)
@@ -66,6 +81,7 @@ public enum CommandFlattener {
 
         // Recurse into children (unless already handled above)
         if case .opacity = layoutNode.node { return }
+        if case .shadow = layoutNode.node { return }
         for child in layoutNode.children {
             flattenNode(child, into: &commands, opacity: opacity)
         }

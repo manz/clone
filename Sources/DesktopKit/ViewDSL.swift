@@ -158,6 +158,16 @@ public extension ViewNode {
         }
     }
 
+    /// `.shadow(color:radius:x:y:)` — like SwiftUI's shadow modifier
+    func shadow(
+        color: DesktopColor = DesktopColor(r: 0, g: 0, b: 0, a: 0.3),
+        radius: Float = 10,
+        x: Float = 0,
+        y: Float = 2
+    ) -> ViewNode {
+        .shadow(radius: radius, blur: radius, color: color, offsetX: x, offsetY: y, child: self)
+    }
+
     /// `.onTapGesture { }` — registers a closure and attaches its ID
     func onTapGesture(_ handler: @escaping () -> Void) -> ViewNode {
         let id = TapRegistry.shared.register(handler)

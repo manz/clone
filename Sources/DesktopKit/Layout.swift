@@ -136,6 +136,9 @@ public enum Layout {
         case .opacity(_, let child):
             return measure(child, constraint: constraint)
 
+        case .shadow(_, _, _, _, _, let child):
+            return measure(child, constraint: constraint)
+
         case .onTap(_, let child):
             return measure(child, constraint: constraint)
 
@@ -178,6 +181,10 @@ public enum Layout {
             return LayoutNode(frame: childFrame, node: node, children: [childLayout])
 
         case .opacity(_, let child):
+            let childLayout = layout(child, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [childLayout])
+
+        case .shadow(_, _, _, _, _, let child):
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 

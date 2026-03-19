@@ -253,6 +253,13 @@ public final class WindowManager {
 
     // MARK: - Rendering
 
+    /// Render a single window's chrome (no app content — content is overlaid by the compositor).
+    public func renderSingle(window: ManagedWindow, isFocused: Bool, showTrafficLightSymbols: Bool) -> ViewNode {
+        windowChrome(window: window, isFocused: isFocused,
+                    showTrafficLightSymbols: showTrafficLightSymbols,
+                    content: ViewNode.empty)
+    }
+
     public func render(contentProvider: (ManagedWindow) -> ViewNode) -> [ViewNode] {
         windows.filter({ $0.isVisible && !$0.isMinimized }).map { window in
             let content = contentProvider(window)
@@ -265,30 +272,39 @@ public final class WindowManager {
 
     private func windowChrome(window: ManagedWindow, isFocused: Bool,
                               showTrafficLightSymbols: Bool, content: ViewNode) -> ViewNode {
-        let shadowAlpha: Float = isFocused ? 0.4 : 0.2
         let radius = window.isMaximized ? Float(0) : WindowChrome.cornerRadius
+
+        let windowBody = ZStack {
+            // Window background
+            RoundedRectangle(cornerRadius: radius)
+                .fill(isFocused ? .surface : DesktopColor(r: 0.16, g: 0.15, b: 0.21))
+                .frame(width: window.width, height: window.height)
+            // Content area
+            VStack(alignment: .leading, spacing: 0) {
+                titleBar(window: window, isFocused: isFocused,
+                        showSymbols: showTrafficLightSymbols)
+                content.frame(width: window.width)
+            }
+            .frame(width: window.width, height: window.height)
+        }
+
+        // Apply shadow (GPU-rendered SDF blur) unless maximized
+        let withShadow: ViewNode
+        if window.isMaximized {
+            withShadow = windowBody
+        } else {
+            withShadow = windowBody
+                .shadow(
+                    color: DesktopColor(r: 0, g: 0, b: 0, a: isFocused ? 0.5 : 0.25),
+                    radius: isFocused ? 20 : 10,
+                    x: 0,
+                    y: isFocused ? 8 : 4
+                )
+        }
 
         return ViewNode.padding(
             EdgeInsets(top: window.y, leading: window.x, bottom: 0, trailing: 0),
-            child: ZStack {
-                // Shadow (hidden when maximized)
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(DesktopColor(r: 0, g: 0, b: 0, a: window.isMaximized ? 0 : shadowAlpha))
-                    .frame(width: window.width + 8, height: window.height + 8)
-                    .padding(.top, -4)
-                    .padding(.leading, -4)
-                // Window background
-                RoundedRectangle(cornerRadius: radius)
-                    .fill(isFocused ? .surface : DesktopColor(r: 0.16, g: 0.15, b: 0.21))
-                    .frame(width: window.width, height: window.height)
-                // Content area
-                VStack(alignment: .leading, spacing: 0) {
-                    titleBar(window: window, isFocused: isFocused,
-                            showSymbols: showTrafficLightSymbols)
-                    content.frame(width: window.width)
-                }
-                .frame(width: window.width, height: window.height)
-            }
+            child: withShadow
         )
     }
 

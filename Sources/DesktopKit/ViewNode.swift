@@ -13,6 +13,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case padding(EdgeInsets, child: ViewNode)
     case frame(width: Float?, height: Float?, child: ViewNode)
     case opacity(Float, child: ViewNode)
+    case shadow(radius: Float, blur: Float, color: DesktopColor, offsetX: Float, offsetY: Float, child: ViewNode)
     case onTap(id: UInt64, child: ViewNode)
     case geometryReader(id: UInt64)
 }

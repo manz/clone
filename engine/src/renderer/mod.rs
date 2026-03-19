@@ -1,17 +1,20 @@
 pub mod blur;
 pub mod compositor;
 pub mod rect;
+pub mod shadow;
 pub mod text;
 pub mod types;
 
 use crate::commands::{RenderCommand, RgbaColor};
 use crate::renderer::rect::RectPipeline;
+use crate::renderer::shadow::{ShadowInstance, ShadowPipeline};
 use crate::renderer::text::TextRenderer;
 use crate::renderer::types::RectInstance;
 
 pub struct DesktopRenderer {
     surface_format: wgpu::TextureFormat,
     rect_pipeline: Option<RectPipeline>,
+    shadow_pipeline: Option<ShadowPipeline>,
     text_renderer: Option<TextRenderer>,
 }
 
@@ -20,6 +23,7 @@ impl DesktopRenderer {
         Self {
             surface_format,
             rect_pipeline: None,
+            shadow_pipeline: None,
             text_renderer: None,
         }
     }
@@ -27,6 +31,7 @@ impl DesktopRenderer {
     /// Initialize GPU pipelines. Must be called after device is available.
     pub fn init_pipelines(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         self.rect_pipeline = Some(RectPipeline::new(device, self.surface_format));
+        self.shadow_pipeline = Some(ShadowPipeline::new(device, self.surface_format));
         self.text_renderer = Some(TextRenderer::new(device, queue, self.surface_format));
     }
 
@@ -68,8 +73,14 @@ impl DesktopRenderer {
             });
         }
 
-        // Dispatch commands to pipelines — scale logical coords to physical
-        let (solid, rounded) = Self::collect_instances(commands, scale);
+        // Collect and dispatch — shadows first, then rects on top
+        let (solid, rounded, shadows) = Self::collect_instances(commands, scale);
+
+        if let Some(pipeline) = &self.shadow_pipeline {
+            if !shadows.is_empty() {
+                pipeline.draw(queue, encoder, view, width, height, &shadows);
+            }
+        }
 
         if let Some(pipeline) = &mut self.rect_pipeline {
             if !solid.is_empty() || !rounded.is_empty() {
@@ -108,9 +119,13 @@ impl DesktopRenderer {
     }
 
     /// Collect RenderCommands into GPU instance arrays, scaling by DPI factor.
-    fn collect_instances(commands: &[RenderCommand], scale: f32) -> (Vec<RectInstance>, Vec<RectInstance>) {
+    fn collect_instances(
+        commands: &[RenderCommand],
+        scale: f32,
+    ) -> (Vec<RectInstance>, Vec<RectInstance>, Vec<ShadowInstance>) {
         let mut solid = Vec::new();
         let mut rounded = Vec::new();
+        let mut shadows = Vec::new();
 
         for cmd in commands {
             match cmd {
@@ -123,12 +138,7 @@ impl DesktopRenderer {
                     });
                 }
                 RenderCommand::RoundedRect {
-                    x,
-                    y,
-                    w,
-                    h,
-                    radius,
-                    color,
+                    x, y, w, h, radius, color,
                 } => {
                     rounded.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
@@ -137,11 +147,20 @@ impl DesktopRenderer {
                         _pad: [0.0; 3],
                     });
                 }
+                RenderCommand::Shadow {
+                    x, y, w, h, radius, blur, color, ox, oy,
+                } => {
+                    shadows.push(ShadowInstance {
+                        rect: [x * scale, y * scale, w * scale, h * scale],
+                        color: [color.r, color.g, color.b, color.a],
+                        params: [radius * scale, blur * scale, ox * scale, oy * scale],
+                    });
+                }
                 _ => {}
             }
         }
 
-        (solid, rounded)
+        (solid, rounded, shadows)
     }
 
     fn extract_background(commands: &[RenderCommand]) -> RgbaColor {
@@ -222,7 +241,7 @@ mod tests {
             RenderCommand::PopClip, // ignored
         ];
 
-        let (solid, rounded) = DesktopRenderer::collect_instances(&commands, 1.0);
+        let (solid, rounded, _) = DesktopRenderer::collect_instances(&commands, 1.0);
         assert_eq!(solid.len(), 2);
         assert_eq!(rounded.len(), 1);
         assert_eq!(rounded[0].radius, 8.0);
@@ -235,14 +254,15 @@ mod tests {
         let commands = vec![RenderCommand::Rect {
             x: 10.0, y: 20.0, w: 100.0, h: 50.0, color: white,
         }];
-        let (solid, _) = DesktopRenderer::collect_instances(&commands, 2.0);
+        let (solid, _, _) = DesktopRenderer::collect_instances(&commands, 2.0);
         assert_eq!(solid[0].rect, [20.0, 40.0, 200.0, 100.0]);
     }
 
     #[test]
     fn collect_instances_empty_commands() {
-        let (solid, rounded) = DesktopRenderer::collect_instances(&[], 1.0);
+        let (solid, rounded, shadows) = DesktopRenderer::collect_instances(&[], 1.0);
         assert!(solid.is_empty());
         assert!(rounded.is_empty());
+        assert!(shadows.is_empty());
     }
 }

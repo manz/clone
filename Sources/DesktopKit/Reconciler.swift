@@ -124,6 +124,7 @@ public enum Reconciler {
         case (.padding, .padding): return true
         case (.frame, .frame): return true
         case (.opacity, .opacity): return true
+        case (.shadow, .shadow): return true
         case (.onTap, .onTap): return true
         case (.geometryReader, .geometryReader): return true
         default: return false
