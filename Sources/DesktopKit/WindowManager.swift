@@ -321,20 +321,22 @@ public final class WindowManager {
     }
 
     private func trafficLightButton(color: DesktopColor, symbol: String?) -> ViewNode {
+        let size = WindowChrome.buttonSize
         if let symbol {
             return ZStack {
-                RoundedRectangle(cornerRadius: WindowChrome.buttonSize / 2)
+                RoundedRectangle(cornerRadius: size / 2)
                     .fill(color)
-                    .frame(width: WindowChrome.buttonSize, height: WindowChrome.buttonSize)
+                    .frame(width: size, height: size)
                 Text(symbol)
-                    .fontSize(9)
+                    .fontSize(size * 0.7)
                     .bold()
-                    .foregroundColor(DesktopColor(r: 0, g: 0, b: 0, a: 0.6))
+                    .foregroundColor(DesktopColor(r: 0, g: 0, b: 0, a: 0.5))
             }
+            .frame(width: size, height: size)
         } else {
-            return RoundedRectangle(cornerRadius: WindowChrome.buttonSize / 2)
+            return RoundedRectangle(cornerRadius: size / 2)
                 .fill(color)
-                .frame(width: WindowChrome.buttonSize, height: WindowChrome.buttonSize)
+                .frame(width: size, height: size)
         }
     }
 }

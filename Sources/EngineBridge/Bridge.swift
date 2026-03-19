@@ -88,9 +88,17 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     private let windowManager = WindowManager()
     private let server = CompositorServer()
     private var focusedAppName: String = "Finder"
-
-    // Map external app windowIds (from server) to our windowManager windowIds
+    private var childProcesses: [Process] = []
     private var externalWindows: [UInt64: UInt64] = [:] // server windowId → wm windowId
+    private var lastLayoutResult: LayoutNode? = nil
+
+    /// Map appId to binary name for launching.
+    private let appBinaries: [String: String] = [
+        "com.clone.finder": "Finder",
+        // Add more as they become real binaries:
+        // "com.clone.terminal": "Terminal",
+        // "com.clone.settings": "Settings",
+    ]
 
     public init() {
         // Start IPC server
@@ -99,6 +107,39 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             fputs("Compositor server listening on \(compositorSocketPath)\n", stderr)
         } catch {
             fputs("Failed to start compositor server: \(error)\n", stderr)
+        }
+
+        // Auto-launch Finder
+        launchApp("Finder")
+    }
+
+    /// Launch an app binary as a child process.
+    private func launchApp(_ name: String) {
+        // Find the binary next to our own executable, or in .build/debug
+        let fm = FileManager.default
+        let candidates = [
+            // Same directory as CloneDesktop
+            URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
+            // SPM build directory
+            ".build/debug/\(name)",
+            // Relative
+            "target/debug/\(name)",
+        ]
+
+        guard let path = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
+            fputs("Could not find \(name) binary\n", stderr)
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.standardError = FileHandle.standardError
+        do {
+            try process.run()
+            childProcesses.append(process)
+            fputs("Launched \(name) (pid \(process.processIdentifier))\n", stderr)
+        } catch {
+            fputs("Failed to launch \(name): \(error)\n", stderr)
         }
     }
 
@@ -151,6 +192,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
         // Layout + flatten built-in UI
         let layoutResult = Layout.layout(tree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        lastLayoutResult = layoutResult
         var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(layoutResult))
 
         // Overlay external app render commands inside their window frames
@@ -242,6 +284,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
                     windowManager.focus(id: window.id)
                     updateFocusedAppName()
+                } else {
+                    // No window hit — check for tap handlers (dock icons, etc.)
+                    fireTapAt(x: mx, y: my)
+                    handleDockAction()
                 }
             } else {
                 mouseDown = false
@@ -309,6 +355,32 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
     private func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
         externalWindows.first(where: { $0.value == wmWindowId })?.key
+    }
+
+    /// Walk the layout tree for onTap nodes at the given point and fire them.
+    private func fireTapAt(x: Float, y: Float) {
+        guard let layout = lastLayoutResult else { return }
+        fireTapInNode(layout, x: x, y: y)
+    }
+
+    private func fireTapInNode(_ node: LayoutNode, x: Float, y: Float) {
+        guard node.frame.contains(x: x, y: y) else { return }
+        if case .onTap(let id, _) = node.node {
+            TapRegistry.shared.fire(id: id)
+        }
+        for child in node.children.reversed() {
+            fireTapInNode(child, x: x, y: y)
+        }
+    }
+
+    /// Check if a dock icon was tapped and launch the app.
+    private func handleDockAction() {
+        guard let appId = DockActionRegistry.shared.consume() else { return }
+        if let binaryName = appBinaries[appId] {
+            launchApp(binaryName)
+        } else {
+            fputs("No binary registered for \(appId)\n", stderr)
+        }
     }
 
     /// Notify an external app that its window was resized (zoom/unmaximize).
