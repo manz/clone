@@ -45,26 +45,24 @@ extension DesktopKit.FontWeight {
     }
 }
 
-/// Swift-side delegate that builds the full DesktopKit UI and returns render commands to Rust.
+/// Swift-side delegate — compositor with window manager and app registry.
 public final class SwiftDesktopDelegate: DesktopDelegate {
     private var mouseX: Double = 0
     private var mouseY: Double = 0
-    private var showFinder: Bool = false
-    private let finderEntries: [Finder.FileEntry]
+    private var mouseDown: Bool = false
+
+    private let windowManager = WindowManager()
+    private let registry = AppRegistry.shared
+    private var focusedAppName: String = "Finder"
 
     public init() {
-        // Sample file entries for the Finder
-        self.finderEntries = [
-            Finder.FileEntry(name: "Applications", isDirectory: true),
-            Finder.FileEntry(name: "Documents", isDirectory: true),
-            Finder.FileEntry(name: "Downloads", isDirectory: true),
-            Finder.FileEntry(name: "Desktop", isDirectory: true),
-            Finder.FileEntry(name: "Music", isDirectory: true),
-            Finder.FileEntry(name: "Pictures", isDirectory: true),
-            Finder.FileEntry(name: "readme.txt", isDirectory: false, size: 1234),
-            Finder.FileEntry(name: "notes.md", isDirectory: false, size: 5678),
-            Finder.FileEntry(name: "photo.jpg", isDirectory: false, size: 2_500_000),
-        ]
+        // Register built-in apps
+        registry.register(FinderApp())
+        registry.register(TerminalApp())
+        registry.register(SettingsApp())
+
+        // Launch Finder by default
+        registry.launch("com.clone.finder", windowManager: windowManager, x: 200, y: 60)
     }
 
     public func onFrame(surfaceId: UInt64, width: UInt32, height: UInt32) -> [RenderCommand] {
@@ -73,7 +71,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         let w = Float(width)
         let h = Float(height)
 
-        // Build the desktop
+        // Desktop background + dock
         let desktop = Desktop(
             screenWidth: w,
             screenHeight: h,
@@ -81,35 +79,32 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             mouseY: Float(mouseY)
         )
 
-        // Menu bar
-        let menuBar = MenuBar(screenWidth: w, appName: "Finder", clock: currentTime())
+        // Menu bar — show focused window's app name
+        let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
 
-        // Build full scene
-        var tree: ViewNode = ZStack {
-            desktop.body()
+        // Build scene: desktop + menubar + windows
+        let windowNodes = windowManager.render { window in
+            guard let app = self.registry.get(window.appId) else {
+                return Rectangle().fill(.surface)
+            }
+            return app.body(
+                width: window.width,
+                height: window.height - WindowChrome.titleBarHeight
+            )
+        }
+
+        var layers: [ViewNode] = [
+            desktop.body(),
             VStack(alignment: .leading, spacing: 0) {
                 menuBar.body()
                 Spacer()
-            }
-        }
+            },
+        ]
+        layers.append(contentsOf: windowNodes)
 
-        // Add Finder if toggled
-        if showFinder {
-            let finder = Finder(
-                width: 600,
-                height: 400,
-                currentPath: "/Users/manz",
-                entries: finderEntries
-            )
-            tree = ZStack {
-                tree
-                finder.body()
-                    .padding(.top, 50)
-                    .padding(.leading, (w - 600) / 2)
-            }
-        }
+        let tree = ViewNode.zstack(children: layers)
 
-        // Layout pass
+        // Layout + flatten
         let layoutResult = Layout.layout(tree, in: LayoutFrame(x: 0, y: 0, width: w, height: h))
         let flatCommands = CommandFlattener.flatten(layoutResult)
 
@@ -119,19 +114,80 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     public func onPointerMove(surfaceId: UInt64, x: Double, y: Double) {
         mouseX = x
         mouseY = y
+        if windowManager.isDragging {
+            windowManager.updateDrag(mouseX: Float(x), mouseY: Float(y))
+        }
     }
 
     public func onPointerButton(surfaceId: UInt64, button: UInt32, pressed: Bool) {
-        // Left click toggles finder for demo
-        if button == 0 && pressed {
-            showFinder.toggle()
+        let mx = Float(mouseX)
+        let my = Float(mouseY)
+
+        if button == 0 { // left click
+            if pressed {
+                mouseDown = true
+
+                // Check if clicking a window
+                if let window = windowManager.windowAt(x: mx, y: my) {
+                    // Close button?
+                    if windowManager.hitsCloseButton(windowId: window.id, x: mx, y: my) {
+                        windowManager.close(id: window.id)
+                        updateFocusedAppName()
+                        return
+                    }
+
+                    // Title bar drag?
+                    if window.titleBarContains(px: mx, py: my) {
+                        windowManager.beginDrag(windowId: window.id, mouseX: mx, mouseY: my)
+                    }
+
+                    // Focus
+                    windowManager.focus(id: window.id)
+                    updateFocusedAppName()
+                }
+            } else {
+                mouseDown = false
+                windowManager.endDrag()
+            }
         }
     }
 
     public func onKey(surfaceId: UInt64, keycode: UInt32, pressed: Bool) {
-        // 'f' key (keycode varies) toggles finder
-        if keycode == 9 && pressed { // 'f' on most layouts
-            showFinder.toggle()
+        guard pressed else { return }
+
+        // Launch apps with number keys
+        // Key codes (winit KeyCode enum values):
+        // 1=30, 2=31, 3=32 on US layout
+        switch keycode {
+        case 18: // '1' key
+            registry.launch("com.clone.finder", windowManager: windowManager,
+                          x: 150 + Float.random(in: 0...100),
+                          y: 50 + Float.random(in: 0...100))
+        case 19: // '2' key
+            registry.launch("com.clone.terminal", windowManager: windowManager,
+                          x: 200 + Float.random(in: 0...100),
+                          y: 80 + Float.random(in: 0...100))
+        case 20: // '3' key
+            registry.launch("com.clone.settings", windowManager: windowManager,
+                          x: 250 + Float.random(in: 0...100),
+                          y: 60 + Float.random(in: 0...100))
+        case 53: // 'w' — close focused window (Cmd+W style)
+            if let id = windowManager.focusedWindowId {
+                windowManager.close(id: id)
+                updateFocusedAppName()
+            }
+        default:
+            break
+        }
+    }
+
+    private func updateFocusedAppName() {
+        if let id = windowManager.focusedWindowId,
+           let window = windowManager.windows.first(where: { $0.id == id }),
+           let app = registry.get(window.appId) {
+            focusedAppName = app.defaultTitle
+        } else {
+            focusedAppName = "Finder"
         }
     }
 
