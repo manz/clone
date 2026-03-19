@@ -37,29 +37,23 @@ let contextMenuItemHeight: CGFloat = 26
 
 // MARK: - Semantic color aliases
 
-var bgColor: Color { Color(nsColor: .controlBackgroundColor) }
-var surfaceColor: Color { Color(nsColor: .gridColor) }
-var overlayColor: Color { Color(nsColor: .separatorColor) }
+let bgColor = Color(red: 1.0, green: 1.0, blue: 1.0)
+let surfaceColor = Color(red: 0.88, green: 0.88, blue: 0.88)
+let overlayColor = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
 var textColor: Color { .primary }
 var subtleColor: Color { .secondary }
 var mutedColor: Color { .gray }
-var highlightColor: Color {
-    Color.adaptive(dark: Color(red: 1, green: 1, blue: 1, opacity: 0.06),
-                   light: Color(red: 0, green: 0, blue: 0, opacity: 0.04))
-}
-var selectionColor: Color { Color(nsColor: .selectedControlColor) }
+let highlightColor = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
+let selectionColor = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
 let folderColor: Color = .blue
 let codeColor: Color = .orange
 let imageColor: Color = .green
 var docColor: Color { .secondary }
-var menuBgColor: Color {
-    Color.adaptive(dark: Color(red: 0.15, green: 0.15, blue: 0.16, opacity: 0.95),
-                   light: Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95))
-}
+let menuBgColor = Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95)
 var menuHoverColor: Color { .blue }
 var disabledColor: Color { .gray }
-var sidebarBgColor: Color { Color(nsColor: .sidebarBackgroundColor) }
-let shadowColor = Color(r: 0, g: 0, b: 0, a: 0.3)
+let sidebarBgColor = Color(red: 0.96, green: 0.96, blue: 0.97)
+let shadowColor = Color(red: 0, green: 0, blue: 0, opacity: 0.3)
 
 // MARK: - Sidebar favorites
 
@@ -624,7 +618,7 @@ func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some
 
     // Position absolutely with soft shadow
     let panelWithShadow = menuPanel
-        .shadow(color: Color(r: 0, g: 0, b: 0, a: 0.2), radius: 12, x: 0, y: 4)
+        .shadow(color: Color(red: 0, green: 0, blue: 0, opacity: 0.2), radius: 12, x: 0, y: 4)
 
     let positioned = panelWithShadow
         .padding(EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0))
@@ -646,7 +640,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
 
     // Title bar with close dot
     let titleBar = ZStack {
-        Rectangle().fill(Color(nsColor: .controlColor)).frame(width: panelW, height: titleBarH)
+        Rectangle().fill(Color(red: 0.90, green: 0.90, blue: 0.91)).frame(width: panelW, height: titleBarH)
         HStack(alignment: .center, spacing: 0) {
             Rectangle().fill(.clear).frame(width: 10, height: 1)
             RoundedRectangle(cornerRadius: 5)
@@ -669,7 +663,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
                 Text(info.kind).font(.system(size: 12)).foregroundColor(.secondary)
             }
         }
-        Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
+        Rectangle().fill(Color(red: 0, green: 0, blue: 0, opacity: 0.1)).frame(height: 1)
         infoRow("Kind:", info.kind)
         infoRow("Size:", info.size)
         infoRow("Where:", info.path)
@@ -677,17 +671,17 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
 
     // Window body
     let windowBody = ZStack {
-        RoundedRectangle(cornerRadius: cornerR).fill(Color(nsColor: .controlBackgroundColor)).frame(width: panelW, height: panelH)
+        RoundedRectangle(cornerRadius: cornerR).fill(Color(red: 1.0, green: 1.0, blue: 1.0)).frame(width: panelW, height: panelH)
         VStack(alignment: .leading, spacing: 0) {
             titleBar
-            Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: panelW, height: 1)
+            Rectangle().fill(Color(red: 0, green: 0, blue: 0, opacity: 0.1)).frame(width: panelW, height: 1)
             content
         }.frame(width: panelW, height: panelH)
     }.frame(width: panelW, height: panelH)
 
     // Shadow
     let shadow = RoundedRectangle(cornerRadius: cornerR)
-        .fill(Color(r: 0, g: 0, b: 0, a: 0.25))
+        .fill(Color(red: 0, green: 0, blue: 0, opacity: 0.25))
         .frame(width: panelW, height: panelH)
 
     // Position with padding offsets
@@ -750,10 +744,17 @@ struct FinderApp: App {
 
     var body: some Scene {
         WindowGroup("Finder") {
+            #if canImport(AppKit) && !canImport(CloneClient)
+            GeometryReader { proxy in
+                finderView(state: state, width: proxy.size.width, height: proxy.size.height)
+            }
+            #else
             finderView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
+            #endif
         }
     }
 
+    #if canImport(CloneClient)
     var configuration: WindowConfiguration {
         WindowConfiguration(title: "Finder — ~/", width: 700, height: 450)
     }
@@ -784,4 +785,5 @@ struct FinderApp: App {
         default: break
         }
     }
+    #endif
 }
