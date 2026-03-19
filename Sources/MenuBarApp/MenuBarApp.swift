@@ -50,7 +50,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
             .foregroundColor(.primary)
     )
 
-    return ViewNode.hstack(alignment: .center, spacing: 16, children: children)
+    return .hstack(alignment: .center, spacing: 16, children: children)
         .padding(.horizontal, 12)
         .frame(height: 24)
         .background(WindowChrome.menuBar)

@@ -68,6 +68,12 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 `CloneDesktop` (compositor), `Finder`, `Settings`, `Dock`, `MenuBar` — each connects via `AppClient` and sends render commands over IPC.
 
+## Code Style
+
+- **Use DSL functions, not ViewNode constructors.** App code must use `VStack { }`, `HStack { }`, `ZStack { }`, `Text()`, `Rectangle()`, `Spacer()` etc. — never `ViewNode.vstack(...)`, `ViewNode.zstack(children: [...])`, or `.text(...)` directly. The `ViewNode` enum is an internal implementation detail. App code should read like real SwiftUI.
+- **Use standard Color names.** `.blue`, `.red`, `.primary`, `.secondary`, `.gray` — matching Apple's SwiftUI Color API. Clone-specific compositor colors live in `WindowChrome.*`. AppKit semantic colors use `NSColor.*`.
+- **No direct CloneClient/CloneProtocol in apps.** Use `WindowState.shared` for window size, `.navigationTitle()` for window title, `SystemActions.shared` for app launch/restore.
+
 ## Known Gotchas
 
 - **wgpu buffer overwrites**: Multiple render passes sharing an encoder overwrite `queue.write_buffer` data. Submit per-batch or use offsets.

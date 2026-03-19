@@ -497,7 +497,7 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
     return .zstack(children: [
         Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height),
         inner,
-    ]).frame(width: sidebarWidth, height: height).clipped()
+    ]).frame(width: sidebarWidth, height: height)
 }
 
 func columnHeadersView(width: Float) -> ViewNode {
@@ -556,7 +556,7 @@ func fileListView(state: FinderState, width: Float, height: Float) -> ViewNode {
     var children = rows
     children.append(Spacer())
 
-    return ViewNode.vstack(alignment: .leading, spacing: 0, children: children)
+    return .vstack(alignment: .leading, spacing: 0, children: children)
         .frame(width: width, height: height)
 }
 
@@ -608,7 +608,7 @@ func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode
         contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
     }
 
-    let itemsStack: ViewNode = ViewNode.vstack(alignment: .leading, spacing: 0, children: menuItems)
+    let itemsStack: ViewNode = .vstack(alignment: .leading, spacing: 0, children: menuItems)
         .padding(.vertical, 6)
         .frame(width: contextMenuWidth)
 
@@ -736,7 +736,7 @@ func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
         layers.append(infoPanelView(info: info, width: width, height: height))
     }
 
-    return ViewNode.zstack(children: layers)
+    return .zstack(children: layers)
         .frame(width: width, height: height)
         .navigationTitle("Finder — \(state.shortenPath(state.currentPath))")
 }

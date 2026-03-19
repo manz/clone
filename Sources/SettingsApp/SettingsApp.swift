@@ -258,10 +258,10 @@ private func categoryRow(
     }
     .padding(.horizontal, 8)
 
-    return ViewNode.zstack(children: [
-        RoundedRectangle(cornerRadius: 6).fill(bgColor).frame(height: state.rowHeight),
-        content,
-    ])
+    return ZStack {
+        RoundedRectangle(cornerRadius: 6).fill(bgColor).frame(height: state.rowHeight)
+        content
+    }
     .frame(height: state.rowHeight)
     .onTapGesture {
         state.selectedCategory = category.name
@@ -291,10 +291,11 @@ private func sidebarView(state: SettingsState, height: Float) -> ViewNode {
     }
     children.append(Spacer())
 
-    return ViewNode.zstack(children: [
-        Rectangle().fill(rpBase).frame(width: 220, height: height),
-        ViewNode.vstack(alignment: .leading, spacing: 0, children: children),
-    ]).frame(width: 220, height: height).clipped()
+    let sidebarContent: ViewNode = .vstack(alignment: .leading, spacing: 0, children: children)
+    return ZStack {
+        Rectangle().fill(rpBase).frame(width: 220, height: height)
+        sidebarContent
+    }.frame(width: 220, height: height)
 }
 
 // MARK: - Detail row
@@ -319,10 +320,10 @@ private func settingRowView(
     .padding(.horizontal, 12)
 
     if isHovered {
-        return ViewNode.zstack(children: [
-            RoundedRectangle(cornerRadius: 6).fill(rowHoverBg).frame(height: 32),
-            content,
-        ]).frame(height: 32)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 6).fill(rowHoverBg).frame(height: 32)
+            content
+        }.frame(height: 32)
     }
 
     return content.frame(height: 32)
@@ -356,14 +357,14 @@ private func settingGroupView(
         }
     }
 
-    let rowsStack = ViewNode.vstack(alignment: .leading, spacing: 0, children: rowNodes)
+    let rowsStack: ViewNode = .vstack(alignment: .leading, spacing: 0, children: rowNodes)
         .padding(.vertical, 2)
 
     let groupHeight = Float(rows.count) * 32 + 4
-    let groupBox = ViewNode.zstack(children: [
-        RoundedRectangle(cornerRadius: 10).fill(rpOverlay).frame(height: groupHeight),
-        rowsStack,
-    ]).frame(height: groupHeight)
+    let groupBox = ZStack {
+        RoundedRectangle(cornerRadius: 10).fill(rpOverlay).frame(height: groupHeight)
+        rowsStack
+    }.frame(height: groupHeight)
 
     var children: [ViewNode] = []
     if let header = header {
@@ -374,7 +375,7 @@ private func settingGroupView(
     }
     children.append(groupBox)
 
-    return ViewNode.vstack(alignment: .leading, spacing: 0, children: children)
+    return .vstack(alignment: .leading, spacing: 0, children: children)
 }
 
 // MARK: - Detail view
@@ -423,12 +424,12 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
 
     children.append(Spacer())
 
-    let content = ViewNode.vstack(alignment: .leading, spacing: 0, children: children)
+    let content: ViewNode = .vstack(alignment: .leading, spacing: 0, children: children)
         .padding(24)
-    return ViewNode.zstack(children: [
-        Rectangle().fill(rpSurface).frame(width: width),
-        content,
-    ]).frame(width: width)
+    return ZStack {
+        Rectangle().fill(rpSurface).frame(width: width)
+        content
+    }.frame(width: width)
 }
 
 // MARK: - Root settings view

@@ -163,7 +163,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
         iconX += size + iconPadding
     }
 
-    return ViewNode.zstack(children: children)
+    return .zstack(children: children)
         .frame(width: width, height: height)
 }
 
