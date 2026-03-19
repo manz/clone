@@ -42,7 +42,8 @@ func menuBarView(state: MenuBarState) -> some View {
     }
     .padding(.horizontal, 12)
     .frame(height: 24)
-    .background(WindowChrome.menuBar)
+    .background(Color.adaptive(dark: Color(red: 0.1, green: 0.1, blue: 0.1, opacity: 0.5),
+                               light: Color(red: 0.96, green: 0.96, blue: 0.96, opacity: 0.8)))
 }
 
 @main

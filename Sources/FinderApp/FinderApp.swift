@@ -43,13 +43,19 @@ var overlayColor: Color { Color(nsColor: .separatorColor) }
 var textColor: Color { .primary }
 var subtleColor: Color { .secondary }
 var mutedColor: Color { .gray }
-var highlightColor: Color { WindowChrome.highlight }
+var highlightColor: Color {
+    Color.adaptive(dark: Color(red: 1, green: 1, blue: 1, opacity: 0.06),
+                   light: Color(red: 0, green: 0, blue: 0, opacity: 0.04))
+}
 var selectionColor: Color { Color(nsColor: .selectedControlColor) }
 let folderColor: Color = .blue
 let codeColor: Color = .orange
 let imageColor: Color = .green
 var docColor: Color { .secondary }
-var menuBgColor: Color { WindowChrome.popover }
+var menuBgColor: Color {
+    Color.adaptive(dark: Color(red: 0.15, green: 0.15, blue: 0.16, opacity: 0.95),
+                   light: Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95))
+}
 var menuHoverColor: Color { .blue }
 var disabledColor: Color { .gray }
 var sidebarBgColor: Color { Color(nsColor: .sidebarBackgroundColor) }

@@ -85,7 +85,8 @@ func dockView(state: DockState, width: CGFloat, height: CGFloat) -> some View {
     // Dock background pill
     var children = [
         RoundedRectangle(cornerRadius: 16)
-            .fill(WindowChrome.dock)
+            .fill(Color.adaptive(dark: Color(red: 0.2, green: 0.2, blue: 0.2, opacity: 0.6),
+                                light: Color(red: 0.95, green: 0.95, blue: 0.95, opacity: 0.7)))
             .frame(width: totalWidth, height: bgHeight)
             .padding(EdgeInsets(top: bgY, leading: bgX, bottom: 0, trailing: 0))
     ]
@@ -128,7 +129,8 @@ func dockView(state: DockState, width: CGFloat, height: CGFloat) -> some View {
 
             children.append(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(WindowChrome.popover)
+                    .fill(Color.adaptive(dark: Color(red: 0.15, green: 0.15, blue: 0.16, opacity: 0.95),
+                                        light: Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95)))
                     .frame(width: textWidth, height: labelH)
                     .padding(EdgeInsets(top: labelY, leading: labelX, bottom: 0, trailing: 0))
             )

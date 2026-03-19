@@ -17,7 +17,10 @@ let rpPurple: Color = .purple
 let rpTeal: Color = .teal
 let rpBlack: Color = .black
 var rpSelected: Color { Color(nsColor: .selectedControlColor) }
-var hoverBg: Color { WindowChrome.highlight }
+var hoverBg: Color {
+    Color.adaptive(dark: Color(red: 1, green: 1, blue: 1, opacity: 0.06),
+                   light: Color(red: 0, green: 0, blue: 0, opacity: 0.04))
+}
 var rowHoverBg: Color { Color(nsColor: .gridColor) }
 var rowDivider: Color { Color(nsColor: .separatorColor) }
 
