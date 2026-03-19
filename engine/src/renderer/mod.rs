@@ -1,13 +1,16 @@
 pub mod rect;
+pub mod text;
 pub mod types;
 
 use crate::commands::{RenderCommand, RgbaColor};
 use crate::renderer::rect::RectPipeline;
+use crate::renderer::text::TextRenderer;
 use crate::renderer::types::RectInstance;
 
 pub struct DesktopRenderer {
     surface_format: wgpu::TextureFormat,
     rect_pipeline: Option<RectPipeline>,
+    text_renderer: Option<TextRenderer>,
 }
 
 impl DesktopRenderer {
@@ -15,12 +18,14 @@ impl DesktopRenderer {
         Self {
             surface_format,
             rect_pipeline: None,
+            text_renderer: None,
         }
     }
 
     /// Initialize GPU pipelines. Must be called after device is available.
-    pub fn init_pipelines(&mut self, device: &wgpu::Device) {
+    pub fn init_pipelines(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         self.rect_pipeline = Some(RectPipeline::new(device, self.surface_format));
+        self.text_renderer = Some(TextRenderer::new(device, queue, self.surface_format));
     }
 
     pub fn render(
@@ -66,6 +71,27 @@ impl DesktopRenderer {
         if let Some(pipeline) = &mut self.rect_pipeline {
             if !solid.is_empty() || !rounded.is_empty() {
                 pipeline.draw(device, queue, encoder, view, width, height, &solid, &rounded);
+            }
+        }
+
+        // Shape and draw text
+        if let Some(text_renderer) = &mut self.text_renderer {
+            let mut all_glyphs = Vec::new();
+            for cmd in commands {
+                if let RenderCommand::Text {
+                    x,
+                    y,
+                    content,
+                    font_size,
+                    color,
+                } = cmd
+                {
+                    let glyphs = text_renderer.shape_text(content, *x, *y, *font_size, color);
+                    all_glyphs.extend(glyphs);
+                }
+            }
+            if !all_glyphs.is_empty() {
+                text_renderer.draw(device, queue, encoder, view, width, height, &all_glyphs);
             }
         }
     }
