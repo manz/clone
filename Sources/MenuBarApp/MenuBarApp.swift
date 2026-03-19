@@ -26,7 +26,7 @@ func menuBarView(state: MenuBarState) -> some View {
             .foregroundColor(.primary)
 
         // Menu items
-        for item in menuItems {
+        ForEach(menuItems, id: \.self) { item in
             Text(item)
                 .font(.system(size: 13))
                 .foregroundColor(menuTextColor)

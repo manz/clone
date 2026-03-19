@@ -474,7 +474,7 @@ func sidebarView(state: FinderState, height: CGFloat) -> some View {
         .padding(.leading, 8).padding(.top, 10)
 
     let favList = VStack(alignment: .leading, spacing: 0) {
-        for (i, fav) in favorites.enumerated() {
+        ForEach(Array(favorites.enumerated()), id: \.offset) { i, fav in
             let favY = toolbarHeight + 30 + CGFloat(i) * 26
             let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
                 state.mouseY >= favY && state.mouseY < favY + 26
@@ -552,7 +552,7 @@ func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some V
     let listTop = toolbarHeight + headerHeight
 
     return VStack(alignment: .leading, spacing: 0) {
-        for (i, entry) in state.entries.prefix(maxRows).enumerated() {
+        ForEach(Array(state.entries.prefix(maxRows).enumerated()), id: \.offset) { i, entry in
             fileRowView(state: state, entry: entry, index: i, width: width, listTop: listTop)
         }
         Spacer()
@@ -604,7 +604,7 @@ func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some
     let menuY = min(menu.anchorY, height - menuHeight - 4)
 
     let itemsStack = VStack(alignment: .leading, spacing: 0) {
-        for (i, item) in menu.items.enumerated() {
+        ForEach(Array(menu.items.enumerated()), id: \.offset) { i, item in
             contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
         }
     }.padding(.vertical, 6)

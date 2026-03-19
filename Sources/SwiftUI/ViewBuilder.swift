@@ -17,9 +17,14 @@ public struct ViewBuilder {
         [expression.body as! ViewNode]
     }
 
-    // An array of ViewNodes (from ForEach) → pass through.
+    // An array of ViewNodes → pass through.
     public static func buildExpression(_ expression: [ViewNode]) -> [ViewNode] {
         expression
+    }
+
+    // ForEach expression → extract its nodes.
+    public static func buildExpression<D>(_ expression: ForEach<D>) -> [ViewNode] {
+        expression.nodes
     }
 
     // if let / if without else

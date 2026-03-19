@@ -288,9 +288,9 @@ private func sidebarView(state: SettingsState, height: CGFloat) -> some View {
     let sidebarContent = VStack(alignment: .leading, spacing: 0) {
         profileCard()
         Rectangle().fill(rpOverlay).frame(height: 1).padding(.horizontal, 16)
-        for entry in indexedSections {
-            for (cat, flatIndex) in entry.categories {
-                categoryRow(state: state, category: cat, flatIndex: flatIndex)
+        ForEach(Array(indexedSections.enumerated()), id: \.offset) { _, entry in
+            ForEach(Array(entry.categories.enumerated()), id: \.offset) { _, catPair in
+                categoryRow(state: state, category: catPair.category, flatIndex: catPair.flatIndex)
             }
             if entry.sectionIdx < sections.count - 1 {
                 Rectangle().fill(rpOverlay).frame(height: 1)
@@ -350,7 +350,7 @@ private func settingGroupView(
 
     // Build row nodes with interleaved dividers
     let rowsStack = VStack(alignment: .leading, spacing: 0) {
-        for (i, row) in rows.enumerated() {
+        ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
             let rowY = startY + headerOffset + 2 + CGFloat(i) * 32
             settingRowView(
                 state: state,
@@ -407,7 +407,7 @@ private func detailView(state: SettingsState, width: CGFloat) -> some View {
             .padding(.bottom, 12)
 
         if let groups = groups {
-            for (groupIdx, group) in groups.enumerated() {
+            ForEach(Array(groups.enumerated()), id: \.offset) { groupIdx, group in
                 settingGroupView(
                     state: state,
                     header: group.0,
