@@ -1,0 +1,4 @@
+module CEngine {
+    header "cloneFFI.h"
+    export *
+}
