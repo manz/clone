@@ -185,8 +185,10 @@ public enum Layout {
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
         case .shadow(_, _, _, _, _, let child):
-            let childLayout = layout(child, in: frame)
-            return LayoutNode(frame: frame, node: node, children: [childLayout])
+            let childSize = measure(child, constraint: constraint)
+            let childFrame = LayoutFrame(x: frame.x, y: frame.y, width: childSize.width, height: childSize.height)
+            let childLayout = layout(child, in: childFrame)
+            return LayoutNode(frame: childFrame, node: node, children: [childLayout])
 
         case .onTap(_, let child):
             let childLayout = layout(child, in: frame)

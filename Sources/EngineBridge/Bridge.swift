@@ -187,11 +187,17 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         lastLayoutResult = baseLayout
         var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(baseLayout))
 
-        // Render each window as a complete unit (chrome + content) in z-order.
-        // This ensures window 2's chrome covers window 1's content when overlapping.
+        // Render each window as a complete unit in z-order.
+        // PushClip/PopClip around each window creates a render group boundary,
+        // so the Rust renderer flushes all draw calls (rects + text) per window.
         let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
         for window in visibleWindows {
-            // 1. Render window chrome
+            // Render group boundary
+            engineCommands.append(.pushClip(
+                x: window.x, y: window.y, w: window.width, h: window.height, radius: 0
+            ))
+
+            // 1. Window chrome (shadow, background, title bar)
             let isFocused = window.id == windowManager.focusedWindowId
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
             let chromeNodes = windowManager.renderSingle(
@@ -201,7 +207,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let chromeLayout = Layout.layout(chromeNodes, in: screenFrame)
             engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(chromeLayout)))
 
-            // 2. Render window content (external app IPC commands or placeholder)
+            // 2. Window content (external app IPC commands)
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 if !ipcCommands.isEmpty {
@@ -210,6 +216,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     engineCommands.append(contentsOf: translated)
                 }
             }
+
+            engineCommands.append(.popClip)
         }
 
         return engineCommands
