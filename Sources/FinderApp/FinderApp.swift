@@ -433,12 +433,12 @@ func toolbarView(state: FinderState, width: CGFloat) -> some View {
     let backBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
         Text("<").font(.system(size: 13, weight: .semibold)).foregroundColor(backColor)
-    }
+    }.onTapGesture { if state.canGoBack { state.goBack() } }
 
     let fwdBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
         Text(">").font(.system(size: 13, weight: .semibold)).foregroundColor(fwdColor)
-    }
+    }.onTapGesture { if state.canGoForward { state.goForward() } }
 
     let bar = HStack(alignment: .center, spacing: 6) {
         backBtn
@@ -556,6 +556,12 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
         Rectangle().fill(rowBg).frame(width: width, height: rowHeight)
         content
     }.frame(width: width, height: rowHeight)
+    .onTapGesture {
+        state.selectedIndex = index
+        if entry.isDirectory {
+            state.navigate(to: entry.name)
+        }
+    }
 }
 
 func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
