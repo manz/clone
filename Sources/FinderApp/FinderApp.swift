@@ -497,7 +497,7 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
     return .zstack(children: [
         Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height),
         inner,
-    ]).frame(width: sidebarWidth, height: height)
+    ]).frame(width: sidebarWidth, height: height).clipped()
 }
 
 func columnHeadersView(width: Float) -> ViewNode {

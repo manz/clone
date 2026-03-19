@@ -294,7 +294,7 @@ private func sidebarView(state: SettingsState, height: Float) -> ViewNode {
     return ViewNode.zstack(children: [
         Rectangle().fill(rpBase).frame(width: 220, height: height),
         ViewNode.vstack(alignment: .leading, spacing: 0, children: children),
-    ]).frame(width: 220, height: height)
+    ]).frame(width: 220, height: height).clipped()
 }
 
 // MARK: - Detail row
