@@ -18,6 +18,40 @@ pub struct DesktopRenderer {
     text_renderer: Option<TextRenderer>,
 }
 
+/// Scissor state for clipping.
+#[derive(Clone, Copy)]
+struct Scissor {
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+}
+
+/// Accumulated batch to flush.
+struct Batch {
+    solid: Vec<RectInstance>,
+    rounded: Vec<RectInstance>,
+    shadows: Vec<ShadowInstance>,
+    glyphs: Vec<text::GlyphInstance>,
+    scissor: Option<Scissor>,
+}
+
+impl Batch {
+    fn new(scissor: Option<Scissor>) -> Self {
+        Self {
+            solid: Vec::new(),
+            rounded: Vec::new(),
+            shadows: Vec::new(),
+            glyphs: Vec::new(),
+            scissor,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.solid.is_empty() && self.rounded.is_empty() && self.shadows.is_empty() && self.glyphs.is_empty()
+    }
+}
+
 impl DesktopRenderer {
     pub fn new(surface_format: wgpu::TextureFormat) -> Self {
         Self {
@@ -72,15 +106,33 @@ impl DesktopRenderer {
             });
         }
 
-        // Single batch — collect all instances, draw shadows → rects → text
-        let mut solid = Vec::new();
-        let mut rounded = Vec::new();
-        let mut shadows = Vec::new();
+        // Process commands linearly. PushClip/PopClip flush the current batch
+        // and set scissor state so each window's content is fully rendered
+        // (shadows + rects + text) before the next window starts.
+        let mut current_scissor: Option<Scissor> = None;
+        let mut batch = Batch::new(None);
 
         for cmd in commands {
             match cmd {
+                RenderCommand::PushClip { x, y, w, h, .. } => {
+                    // Flush current batch before changing scissor
+                    self.flush_batch(&batch, device, queue, encoder, view, width, height);
+                    current_scissor = Some(Scissor {
+                        x: (x * scale) as u32,
+                        y: (y * scale) as u32,
+                        w: (w * scale) as u32,
+                        h: (h * scale) as u32,
+                    });
+                    batch = Batch::new(current_scissor);
+                }
+                RenderCommand::PopClip => {
+                    // Flush clipped batch, restore full viewport
+                    self.flush_batch(&batch, device, queue, encoder, view, width, height);
+                    current_scissor = None;
+                    batch = Batch::new(None);
+                }
                 RenderCommand::Rect { x, y, w, h, color } => {
-                    solid.push(RectInstance {
+                    batch.solid.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         radius: 0.0,
@@ -88,7 +140,7 @@ impl DesktopRenderer {
                     });
                 }
                 RenderCommand::RoundedRect { x, y, w, h, radius, color } => {
-                    rounded.push(RectInstance {
+                    batch.rounded.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         radius: radius * scale,
@@ -96,40 +148,64 @@ impl DesktopRenderer {
                     });
                 }
                 RenderCommand::Shadow { x, y, w, h, radius, blur, color, ox, oy } => {
-                    shadows.push(ShadowInstance {
+                    batch.shadows.push(ShadowInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         params: [*radius, *blur, ox * scale, oy * scale],
                     });
                 }
+                RenderCommand::Text { x, y, content, font_size, color, weight } => {
+                    if let Some(text_renderer) = &mut self.text_renderer {
+                        let glyphs = text_renderer.shape_text(
+                            content, *x * scale, *y * scale, *font_size * scale, color, weight,
+                        );
+                        batch.glyphs.extend(glyphs);
+                    }
+                }
                 _ => {}
             }
         }
 
+        // Flush remaining
+        self.flush_batch(&batch, device, queue, encoder, view, width, height);
+    }
+
+    fn flush_batch(
+        &mut self,
+        batch: &Batch,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        width: u32,
+        height: u32,
+    ) {
+        if batch.is_empty() {
+            return;
+        }
+
+        // Shadows don't get clipped (they extend beyond the window)
         if let Some(pipeline) = &self.shadow_pipeline {
-            if !shadows.is_empty() {
-                pipeline.draw(queue, encoder, view, width, height, &shadows);
+            if !batch.shadows.is_empty() {
+                pipeline.draw(queue, encoder, view, width, height, &batch.shadows);
             }
         }
 
         if let Some(pipeline) = &mut self.rect_pipeline {
-            if !solid.is_empty() || !rounded.is_empty() {
-                pipeline.draw(device, queue, encoder, view, width, height, &solid, &rounded);
+            if !batch.solid.is_empty() || !batch.rounded.is_empty() {
+                pipeline.draw_with_scissor(
+                    device, queue, encoder, view, width, height,
+                    &batch.solid, &batch.rounded, batch.scissor.map(|s| (s.x, s.y, s.w, s.h)),
+                );
             }
         }
 
         if let Some(text_renderer) = &mut self.text_renderer {
-            let mut all_glyphs = Vec::new();
-            for cmd in commands {
-                if let RenderCommand::Text { x, y, content, font_size, color, weight } = cmd {
-                    let glyphs = text_renderer.shape_text(
-                        content, *x * scale, *y * scale, *font_size * scale, color, weight,
-                    );
-                    all_glyphs.extend(glyphs);
-                }
-            }
-            if !all_glyphs.is_empty() {
-                text_renderer.draw(device, queue, encoder, view, width, height, &all_glyphs);
+            if !batch.glyphs.is_empty() {
+                text_renderer.draw_with_scissor(
+                    device, queue, encoder, view, width, height, &batch.glyphs,
+                    batch.scissor.map(|s| (s.x, s.y, s.w, s.h)),
+                );
             }
         }
     }

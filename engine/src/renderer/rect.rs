@@ -162,7 +162,6 @@ impl RectPipeline {
         })
     }
 
-    /// Upload uniforms and instances, then draw.
     pub fn draw(
         &mut self,
         device: &wgpu::Device,
@@ -174,69 +173,67 @@ impl RectPipeline {
         solid_instances: &[RectInstance],
         rounded_instances: &[RectInstance],
     ) {
-        // Update uniforms
+        self.draw_with_scissor(device, queue, encoder, view, width, height, solid_instances, rounded_instances, None);
+    }
+
+    pub fn draw_with_scissor(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        width: u32,
+        height: u32,
+        solid_instances: &[RectInstance],
+        rounded_instances: &[RectInstance],
+        scissor: Option<(u32, u32, u32, u32)>,
+    ) {
         let uniforms = Uniforms {
             screen_size: [width as f32, height as f32],
             _pad: [0.0; 2],
         };
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::bytes_of(&uniforms));
 
-        // Draw solid rects
         if !solid_instances.is_empty() {
             self.ensure_instance_capacity(device, solid_instances.len());
-            queue.write_buffer(
-                &self.instance_buffer,
-                0,
-                bytemuck::cast_slice(solid_instances),
-            );
+            queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(solid_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("solid_rect_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
+                    view, resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
+                depth_stencil_attachment: None, timestamp_writes: None,
+                occlusion_query_set: None, multiview_mask: None,
             });
+            if let Some((sx, sy, sw, sh)) = scissor {
+                pass.set_scissor_rect(sx, sy, sw, sh);
+            }
             pass.set_pipeline(&self.solid_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
             pass.draw(0..6, 0..solid_instances.len() as u32);
         }
 
-        // Draw rounded rects
         if !rounded_instances.is_empty() {
             self.ensure_instance_capacity(device, rounded_instances.len());
-            queue.write_buffer(
-                &self.instance_buffer,
-                0,
-                bytemuck::cast_slice(rounded_instances),
-            );
+            queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(rounded_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("rounded_rect_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
+                    view, resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
+                depth_stencil_attachment: None, timestamp_writes: None,
+                occlusion_query_set: None, multiview_mask: None,
             });
+            if let Some((sx, sy, sw, sh)) = scissor {
+                pass.set_scissor_rect(sx, sy, sw, sh);
+            }
             pass.set_pipeline(&self.sdf_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             pass.set_vertex_buffer(0, self.instance_buffer.slice(..));

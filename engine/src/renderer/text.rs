@@ -424,6 +424,72 @@ impl TextRenderer {
         pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
         pass.draw(0..6, 0..count as u32);
     }
+
+    pub fn draw_with_scissor(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        width: u32,
+        height: u32,
+        instances: &[GlyphInstance],
+        scissor: Option<(u32, u32, u32, u32)>,
+    ) {
+        if instances.is_empty() {
+            return;
+        }
+
+        // Upload atlas if dirty
+        if self.atlas_dirty {
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &self.atlas_texture, mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+                },
+                &self.atlas_data,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0, bytes_per_row: Some(ATLAS_SIZE), rows_per_image: Some(ATLAS_SIZE),
+                },
+                wgpu::Extent3d { width: ATLAS_SIZE, height: ATLAS_SIZE, depth_or_array_layers: 1 },
+            );
+            let atlas_view = self.atlas_texture.create_view(&Default::default());
+            self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("text_bind_group"),
+                layout: &self.bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: self.uniform_buffer.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::TextureView(&atlas_view) },
+                    wgpu::BindGroupEntry { binding: 2, resource: wgpu::BindingResource::Sampler(&self.sampler) },
+                ],
+            });
+            self.atlas_dirty = false;
+        }
+
+        let uniforms: [f32; 4] = [width as f32, height as f32, 0.0, 0.0];
+        queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&uniforms));
+
+        let count = instances.len().min(MAX_GLYPH_INSTANCES);
+        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances[..count]));
+
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("text_pass_scissor"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view, resolve_target: None,
+                ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None, timestamp_writes: None,
+            occlusion_query_set: None, multiview_mask: None,
+        });
+        if let Some((sx, sy, sw, sh)) = scissor {
+            pass.set_scissor_rect(sx, sy, sw, sh);
+        }
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+        pass.draw(0..6, 0..count as u32);
+    }
 }
 
 /// Magnification scale for dock icons — pure math, easily testable.

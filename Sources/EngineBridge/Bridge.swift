@@ -181,8 +181,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         // so the Rust renderer flushes all draw calls (rects + text) per window.
         let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
         for window in visibleWindows {
-            // Render group boundary
-            // Window chrome (shadow, background, title bar)
+            // Window chrome (shadow, background, title bar) — no clipping, shadow extends beyond
             let isFocused = window.id == windowManager.focusedWindowId
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
             let chromeNodes = windowManager.renderSingle(
@@ -192,7 +191,11 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let chromeLayout = Layout.layout(chromeNodes, in: screenFrame)
             engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(chromeLayout)))
 
-            // Window content (external app IPC commands)
+            // Window content — clipped to window bounds so text doesn't leak
+            engineCommands.append(.pushClip(
+                x: window.x, y: window.y,
+                w: window.width, h: window.height, radius: 0
+            ))
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 if !ipcCommands.isEmpty {
@@ -201,6 +204,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     engineCommands.append(contentsOf: translated)
                 }
             }
+            engineCommands.append(.popClip)
         }
 
         // Dock — always on top of windows
