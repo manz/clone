@@ -93,8 +93,7 @@ public struct Dock {
                 .fill(WindowChrome.popover)
                 .frame(width: textWidth, height: height)
             Text(name)
-                .fontSize(12)
-                .fontWeight(.medium)
+                .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.primary)
                 .frame(width: textWidth, height: height)
         }

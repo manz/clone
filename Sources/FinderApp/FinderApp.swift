@@ -421,18 +421,18 @@ func toolbarView(state: FinderState, width: Float) -> some View {
 
     let backBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
-        Text("<").fontSize(13).fontWeight(.semibold).foregroundColor(backColor)
+        Text("<").font(.system(size: 13, weight: .semibold)).foregroundColor(backColor)
     }
 
     let fwdBtn = ZStack {
         RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
-        Text(">").fontSize(13).fontWeight(.semibold).foregroundColor(fwdColor)
+        Text(">").font(.system(size: 13, weight: .semibold)).foregroundColor(fwdColor)
     }
 
     let bar = HStack(alignment: .center, spacing: 6) {
         backBtn
         fwdBtn
-        Text(pathText).fontSize(12).foregroundColor(subtleColor)
+        Text(pathText).font(.system(size: 12)).foregroundColor(subtleColor)
         Spacer()
     }.padding(.leading, 12)
 
@@ -456,7 +456,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
 
     let content = HStack(alignment: .center, spacing: 6) {
         RoundedRectangle(cornerRadius: 4).fill(icon).frame(width: 18, height: 18)
-        Text(name).fontSize(13).foregroundColor(textColor)
+        Text(name).font(.system(size: 13)).foregroundColor(textColor)
         Spacer()
     }.padding(.leading, 8)
 
@@ -469,7 +469,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
 }
 
 func sidebarView(state: FinderState, height: Float) -> ViewNode {
-    let header = Text("Favorites").fontSize(11).fontWeight(.semibold)
+    let header = Text("Favorites").font(.system(size: 11, weight: .semibold))
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)
 
@@ -505,9 +505,9 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
 func columnHeadersView(width: Float) -> some View {
     let labels = HStack(alignment: .center, spacing: 0) {
         Rectangle().fill(.clear).frame(width: 40, height: 1)
-        Text("Name").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
+        Text("Name").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
         Spacer()
-        Text("Size").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
+        Text("Size").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
         Rectangle().fill(.clear).frame(width: 20, height: 1)
     }.frame(width: width, height: headerHeight)
 
@@ -535,9 +535,9 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     let content = HStack(alignment: .center, spacing: 6) {
         Rectangle().fill(.clear).frame(width: 6, height: 1)
         RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20)
-        Text(entry.name).fontSize(13).foregroundColor(textColor)
+        Text(entry.name).font(.system(size: 13)).foregroundColor(textColor)
         Spacer()
-        Text(sizeText).fontSize(11).foregroundColor(subtleColor)
+        Text(sizeText).font(.system(size: 11)).foregroundColor(subtleColor)
         Rectangle().fill(.clear).frame(width: 14, height: 1)
     }.frame(width: width, height: rowHeight)
 
@@ -570,7 +570,7 @@ func statusBarView(state: FinderState, width: Float) -> some View {
 
     let text = HStack(alignment: .center, spacing: 0) {
         Rectangle().fill(.clear).frame(width: 12, height: 1)
-        Text(label).fontSize(11).foregroundColor(subtleColor)
+        Text(label).font(.system(size: 11)).foregroundColor(subtleColor)
         Spacer()
     }.frame(width: width, height: statusBarHeight)
 
@@ -586,7 +586,7 @@ func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
 
     let label = HStack(alignment: .center, spacing: 0) {
         Rectangle().fill(.clear).frame(width: 12, height: 1)
-        Text(item.label).fontSize(13).foregroundColor(textColor)
+        Text(item.label).font(.system(size: 13)).foregroundColor(textColor)
         Spacer()
     }.frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
 
@@ -647,7 +647,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
                 .fill(.red)
                 .frame(width: 10, height: 10)
             Spacer()
-            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.primary)
+            Text("\(info.name) Info").font(.system(size: 12, weight: .bold)).foregroundColor(.primary)
             Spacer()
             Rectangle().fill(.clear).frame(width: 20, height: 1)
         }.frame(width: panelW, height: titleBarH)
@@ -659,8 +659,8 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
         HStack(alignment: .center, spacing: 10) {
             RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 2) {
-                Text(info.name).fontSize(14).bold().foregroundColor(.primary)
-                Text(info.kind).fontSize(12).foregroundColor(.secondary)
+                Text(info.name).font(.system(size: 14, weight: .bold)).foregroundColor(.primary)
+                Text(info.kind).font(.system(size: 12)).foregroundColor(.secondary)
             }
         }
         Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
@@ -697,8 +697,8 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
 
 private func infoRow(_ label: String, _ value: String) -> some View {
     HStack(alignment: .top, spacing: 6) {
-        Text(label).fontSize(12).foregroundColor(.secondary).frame(width: 50)
-        Text(value).fontSize(12).foregroundColor(.primary)
+        Text(label).font(.system(size: 12)).foregroundColor(.secondary).frame(width: 50)
+        Text(value).font(.system(size: 12)).foregroundColor(.primary)
     }
 }
 

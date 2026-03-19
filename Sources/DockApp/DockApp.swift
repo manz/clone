@@ -152,9 +152,8 @@ func dockView(state: DockState, width: Float, height: Float) -> some View {
             children.append(
                 positioned(
                     Text(item.name)
-                        .fontSize(12)
-                        .foregroundColor(.primary)
-                        .fontWeight(.medium),
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary),
                     x: labelX + 10, y: labelY + 6
                 )
             )

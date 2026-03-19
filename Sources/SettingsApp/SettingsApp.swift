@@ -226,8 +226,8 @@ private func profileCard() -> ViewNode {
             .fill(rpMuted)
             .frame(width: 32, height: 32)
         VStack(alignment: .leading, spacing: 2) {
-            Text("manz").bold().fontSize(13)
-            Text("Apple Account").fontSize(11).foregroundColor(rpSubtle)
+            Text("manz").font(.system(size: 13, weight: .bold))
+            Text("Apple Account").font(.system(size: 11)).foregroundColor(rpSubtle)
         }
     }
     .padding(.leading, 12)
@@ -254,7 +254,7 @@ private func categoryRow(
         RoundedRectangle(cornerRadius: 5)
             .fill(category.color)
             .frame(width: 20, height: 20)
-        Text(category.name).fontSize(13).foregroundColor(textColor)
+        Text(category.name).font(.system(size: 13)).foregroundColor(textColor)
     }
     .padding(.horizontal, 8)
 
@@ -313,10 +313,10 @@ private func settingRowView(
         && state.mouseY < rowY + 32
 
     let content = HStack(spacing: 0) {
-        Text(row.label).fontSize(13).foregroundColor(rpText)
+        Text(row.label).font(.system(size: 13)).foregroundColor(rpText)
         Spacer()
         if !row.value.isEmpty {
-            Text(row.value).fontSize(13).foregroundColor(rpSubtle)
+            Text(row.value).font(.system(size: 13)).foregroundColor(rpSubtle)
         }
     }
     .padding(.horizontal, 12)
@@ -367,7 +367,7 @@ private func settingGroupView(
 
     return VStack(alignment: .leading, spacing: 0) {
         if let header = header {
-            Text(header).fontSize(12).foregroundColor(rpSubtle).fontWeight(.semibold)
+            Text(header).font(.system(size: 12, weight: .semibold)).foregroundColor(rpSubtle)
                 .padding(.bottom, 4)
         }
         groupBox
@@ -383,8 +383,7 @@ private func detailView(state: SettingsState, width: Float) -> some View {
     // Build detail children imperatively (runningY mutation needed for hover Y tracking)
     var detailChildren: [ViewNode] = [
         Text(state.selectedCategory)
-            .bold()
-            .fontSize(20)
+            .font(.system(size: 20, weight: .bold))
             .foregroundColor(rpText)
             .padding(.bottom, 12)
     ]
@@ -413,7 +412,7 @@ private func detailView(state: SettingsState, width: Float) -> some View {
     } else {
         detailChildren.append(
             Text("Settings for \(state.selectedCategory) will appear here.")
-                .fontSize(13)
+                .font(.system(size: 13))
                 .foregroundColor(rpSubtle)
         )
     }

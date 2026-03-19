@@ -190,34 +190,40 @@ public extension ViewNode {
         }
     }
 
-    /// `.fontSize(24)`
-    func fontSize(_ size: Float) -> ViewNode {
+    /// `.font(.headline)` / `.font(.system(size: 14, weight: .semibold))`
+    func font(_ font: Font) -> ViewNode {
         switch self {
-        case .text(let content, _, let color, let weight):
-            return .text(content, fontSize: size, color: color, weight: weight)
+        case .text(let content, _, let color, _):
+            return .text(content, fontSize: font.size, color: color, weight: font.internalWeight)
         default:
             return self
         }
     }
 
-    /// `.bold()`
+    /// `.bold()` — sets font weight to bold.
     func bold() -> ViewNode {
-        fontWeight(.bold)
-    }
-
-    /// `.fontWeight(.semibold)`
-    func fontWeight(_ weight: FontWeight) -> ViewNode {
         switch self {
         case .text(let content, let fontSize, let color, _):
-            return .text(content, fontSize: fontSize, color: color, weight: weight)
+            return .text(content, fontSize: fontSize, color: color, weight: .bold)
         default:
             return self
         }
     }
 
-    /// `.font(.system(size:))` — SwiftUI-ish
-    func font(size: Float) -> ViewNode {
-        fontSize(size)
+    /// `.italic()` — no-op for now (no italic support in renderer yet).
+    func italic() -> ViewNode {
+        self
+    }
+
+    /// `.fontWeight(.semibold)` — sets text weight. Matches Apple's SwiftUI.
+    func fontWeight(_ weight: Font.Weight) -> ViewNode {
+        switch self {
+        case .text(let content, let fontSize, let color, _):
+            let fw = Font(size: fontSize, weight: weight).internalWeight
+            return .text(content, fontSize: fontSize, color: color, weight: fw)
+        default:
+            return self
+        }
     }
 
     /// `.fill(.blue)` — sets the fill color on rect/roundedRect

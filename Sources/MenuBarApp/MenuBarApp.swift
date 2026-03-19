@@ -19,15 +19,14 @@ func menuBarView(state: MenuBarState) -> some View {
     // Apple logo placeholder
     children.append(
         Text("\u{F8FF}")
-            .fontSize(14)
+            .font(.system(size: 14))
             .foregroundColor(.primary)
     )
 
     // Focused app name (bold)
     children.append(
         Text(state.focusedAppName)
-            .fontSize(13)
-            .bold()
+            .font(.system(size: 13, weight: .bold))
             .foregroundColor(.primary)
     )
 
@@ -35,7 +34,7 @@ func menuBarView(state: MenuBarState) -> some View {
     for item in menuItems {
         children.append(
             Text(item)
-                .fontSize(13)
+                .font(.system(size: 13))
                 .foregroundColor(menuTextColor)
         )
     }
@@ -46,7 +45,7 @@ func menuBarView(state: MenuBarState) -> some View {
     // Clock (right-aligned)
     children.append(
         Text(clock)
-            .fontSize(13)
+            .font(.system(size: 13))
             .foregroundColor(.primary)
     )
 

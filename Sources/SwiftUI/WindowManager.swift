@@ -456,7 +456,7 @@ public final class WindowManager {
         // Title text — centered
         let titleColor = isFocused ? Color.primary : Color.secondary
         nodes.append(
-            Text(window.title).fontSize(13).foregroundColor(titleColor)
+            Text(window.title).font(.system(size: 13)).foregroundColor(titleColor)
                 .padding(.top, (h - 13) / 2)
                 .padding(.leading, w / 2 - Float(window.title.count) * 4)
         )
@@ -472,8 +472,7 @@ public final class WindowManager {
                     .fill(color)
                     .frame(width: size, height: size)
                 Text(symbol)
-                    .fontSize(size * 0.7)
-                    .bold()
+                    .font(.system(size: size * 0.7, weight: .bold))
                     .foregroundColor(Color(r: 0, g: 0, b: 0, a: 0.5))
             }
             .frame(width: size, height: size)
