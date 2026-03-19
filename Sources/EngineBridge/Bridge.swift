@@ -106,12 +106,9 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         GeometryReaderRegistry.shared.clear()
         TapRegistry.shared.clear()
 
-        // Poll for external app connections and messages
-        server.poll()
+        // Sync external app windows (server I/O is async via GCD)
         syncExternalApps()
         server.requestFrames()
-        // Give apps a moment to respond (non-blocking poll again)
-        server.poll()
 
         let w = Float(width)
         let h = Float(height)

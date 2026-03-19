@@ -10,80 +10,126 @@ public final class ConnectedApp {
     public var height: Float
     public private(set) var lastCommands: [IPCRenderCommand] = []
 
-    let fileHandle: FileHandle
+    let fd: Int32
     var readBuffer = Data()
+    var readSource: DispatchSourceRead?
 
-    init(windowId: UInt64, appId: String, title: String, width: Float, height: Float, fileHandle: FileHandle) {
+    private let lock = NSLock()
+    weak var server: CompositorServer?
+
+    init(windowId: UInt64, appId: String, title: String, width: Float, height: Float, fd: Int32) {
         self.windowId = windowId
         self.appId = appId
         self.title = title
         self.width = width
         self.height = height
-        self.fileHandle = fileHandle
+        self.fd = fd
+    }
+
+    func startReading(on queue: DispatchQueue, server: CompositorServer) {
+        self.server = server
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
+        source.setEventHandler { [weak self] in
+            self?.handleReadable()
+        }
+        source.setCancelHandler { [fd] in
+            Darwin.close(fd)
+        }
+        source.resume()
+        readSource = source
+    }
+
+    private func handleReadable() {
+        var buf = [UInt8](repeating: 0, count: 65536)
+        let bytesRead = Darwin.read(fd, &buf, buf.count)
+        guard bytesRead > 0 else {
+            // Disconnected
+            readSource?.cancel()
+            readSource = nil
+            server?.handleDisconnect(windowId: windowId)
+            return
+        }
+
+        lock.lock()
+        readBuffer.append(contentsOf: buf[0..<bytesRead])
+
+        while let (msg, consumed) = WireProtocol.decode(AppMessage.self, from: readBuffer) {
+            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+            lock.unlock()
+            server?.handle(message: msg, from: self)
+            lock.lock()
+        }
+        lock.unlock()
     }
 
     func send(_ message: CompositorMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
-        try? fileHandle.write(contentsOf: data)
-    }
-
-    func processIncoming() -> [AppMessage] {
-        guard let available = try? fileHandle.availableData, !available.isEmpty else {
-            return []
+        data.withUnsafeBytes { ptr in
+            _ = Darwin.write(fd, ptr.baseAddress!, data.count)
         }
-        readBuffer.append(available)
-
-        var messages: [AppMessage] = []
-        while let (msg, consumed) = WireProtocol.decode(AppMessage.self, from: readBuffer) {
-            messages.append(msg)
-            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-        }
-        return messages
     }
 
     public func updateCommands(_ commands: [IPCRenderCommand]) {
+        lock.lock()
         lastCommands = commands
+        lock.unlock()
+    }
+
+    public func getCommands() -> [IPCRenderCommand] {
+        lock.lock()
+        defer { lock.unlock() }
+        return lastCommands
+    }
+
+    func stop() {
+        readSource?.cancel()
+        readSource = nil
     }
 }
 
-/// The compositor's IPC server. Listens on a Unix domain socket for app connections.
+/// Async compositor IPC server using GCD dispatch sources.
 public final class CompositorServer {
     private var serverSocket: Int32 = -1
+    private var acceptSource: DispatchSourceRead?
+    private let ioQueue = DispatchQueue(label: "clone.compositor.io", attributes: .concurrent)
+    private let lock = NSLock()
+
     private var apps: [UInt64: ConnectedApp] = [:]
-    private var clientSockets: [Int32: UInt64] = [:] // fd → windowId
     private var nextWindowId: UInt64 = 1
     private let socketPath: String
 
+    /// Callback when a new app connects (called on ioQueue).
+    public var onAppConnected: ((ConnectedApp) -> Void)?
+    /// Callback when an app disconnects.
+    public var onAppDisconnected: ((UInt64) -> Void)?
+
     public var connectedApps: [ConnectedApp] {
-        Array(apps.values)
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(apps.values)
     }
 
     public init(socketPath: String = compositorSocketPath) {
         self.socketPath = socketPath
     }
 
-    /// Start listening. Non-blocking.
+    /// Start listening. Returns immediately — I/O is async via GCD.
     public func start() throws {
-        // Remove stale socket
         unlink(socketPath)
 
         serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard serverSocket >= 0 else {
-            throw CompositorError.socketFailed
-        }
+        guard serverSocket >= 0 else { throw CompositorError.socketFailed }
 
-        // Set non-blocking
         let flags = fcntl(serverSocket, F_GETFL)
-        fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK)
+        _ = fcntl(serverSocket, F_SETFL, flags | O_NONBLOCK)
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
         socketPath.withCString { ptr in
             withUnsafeMutablePointer(to: &addr.sun_path) { pathPtr in
-                let bound = pathPtr.withMemoryRebound(to: CChar.self, capacity: 104) { dest in
-                    strlcpy(dest, ptr, 104)
+                pathPtr.withMemoryRebound(to: CChar.self, capacity: 104) { dest in
+                    _ = strlcpy(dest, ptr, 104)
                 }
-                _ = bound
             }
         }
 
@@ -101,12 +147,14 @@ public final class CompositorServer {
             Darwin.close(serverSocket)
             throw CompositorError.listenFailed
         }
-    }
 
-    /// Poll for new connections and incoming messages. Call each frame.
-    public func poll() {
-        acceptNewConnections()
-        processMessages()
+        // Async accept via GCD
+        let source = DispatchSource.makeReadSource(fileDescriptor: serverSocket, queue: ioQueue)
+        source.setEventHandler { [weak self] in
+            self?.acceptNewConnections()
+        }
+        source.resume()
+        acceptSource = source
     }
 
     private func acceptNewConnections() {
@@ -120,36 +168,25 @@ public final class CompositorServer {
             }
             guard clientFd >= 0 else { break }
 
-            // Set non-blocking
             let flags = fcntl(clientFd, F_GETFL)
-            fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
+            _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
 
-            // Read the register message synchronously (first message must be register)
-            // We'll handle it in processMessages on next poll
-            let handle = FileHandle(fileDescriptor: clientFd, closeOnDealloc: true)
-
-            // Temporarily store — will be promoted to ConnectedApp on Register
-            let tempId = nextWindowId
+            lock.lock()
+            let id = nextWindowId
             nextWindowId += 1
             let app = ConnectedApp(
-                windowId: tempId, appId: "pending", title: "Loading...",
-                width: 600, height: 400, fileHandle: handle
+                windowId: id, appId: "pending", title: "Loading...",
+                width: 600, height: 400, fd: clientFd
             )
-            apps[tempId] = app
-            clientSockets[clientFd] = tempId
+            apps[id] = app
+            lock.unlock()
+
+            app.startReading(on: ioQueue, server: self)
         }
     }
 
-    private func processMessages() {
-        for (_, app) in apps {
-            let messages = app.processIncoming()
-            for msg in messages {
-                handle(message: msg, from: app)
-            }
-        }
-    }
-
-    private func handle(message: AppMessage, from app: ConnectedApp) {
+    /// Handle a message from an app. Called on the ioQueue.
+    func handle(message: AppMessage, from app: ConnectedApp) {
         switch message {
         case .register(let appId, let title, let width, let height):
             app.appId = appId
@@ -157,6 +194,7 @@ public final class CompositorServer {
             app.width = width
             app.height = height
             app.send(.windowCreated(windowId: app.windowId, width: width, height: height))
+            onAppConnected?(app)
 
         case .frame(let commands):
             app.updateCommands(commands)
@@ -165,43 +203,73 @@ public final class CompositorServer {
             app.title = title
 
         case .close:
-            apps.removeValue(forKey: app.windowId)
+            handleDisconnect(windowId: app.windowId)
 
         case .tapHandled:
             break
         }
     }
 
+    func handleDisconnect(windowId: UInt64) {
+        lock.lock()
+        if let app = apps.removeValue(forKey: windowId) {
+            app.stop()
+        }
+        lock.unlock()
+        onAppDisconnected?(windowId)
+    }
+
     /// Request all connected apps to render a frame.
     public func requestFrames() {
-        for (_, app) in apps {
+        lock.lock()
+        let snapshot = Array(apps.values)
+        lock.unlock()
+        for app in snapshot {
             app.send(.requestFrame(width: app.width, height: app.height))
         }
     }
 
-    /// Send input to a specific app.
     public func sendPointerMove(windowId: UInt64, x: Float, y: Float) {
-        apps[windowId]?.send(.pointerMove(x: x, y: y))
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.pointerMove(x: x, y: y))
     }
 
     public func sendPointerButton(windowId: UInt64, button: UInt32, pressed: Bool, x: Float, y: Float) {
-        apps[windowId]?.send(.pointerButton(button: button, pressed: pressed, x: x, y: y))
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.pointerButton(button: button, pressed: pressed, x: x, y: y))
     }
 
     public func sendKey(windowId: UInt64, keycode: UInt32, pressed: Bool) {
-        apps[windowId]?.send(.key(keycode: keycode, pressed: pressed))
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.key(keycode: keycode, pressed: pressed))
     }
 
-    /// Get the last render commands from an app.
     public func commands(for windowId: UInt64) -> [IPCRenderCommand] {
-        apps[windowId]?.lastCommands ?? []
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        return app?.getCommands() ?? []
     }
 
     public func app(for windowId: UInt64) -> ConnectedApp? {
-        apps[windowId]
+        lock.lock()
+        defer { lock.unlock() }
+        return apps[windowId]
     }
 
     public func stop() {
+        acceptSource?.cancel()
+        acceptSource = nil
+        lock.lock()
+        for (_, app) in apps { app.stop() }
+        apps.removeAll()
+        lock.unlock()
         if serverSocket >= 0 {
             Darwin.close(serverSocket)
             serverSocket = -1
@@ -209,9 +277,7 @@ public final class CompositorServer {
         unlink(socketPath)
     }
 
-    deinit {
-        stop()
-    }
+    deinit { stop() }
 }
 
 public enum CompositorError: Error {
