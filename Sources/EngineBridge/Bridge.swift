@@ -381,6 +381,11 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         let mx = Float(x)
         let my = Float(y)
 
+        if windowManager.isResizing {
+            windowManager.updateResize(mouseX: mx, mouseY: my)
+            return
+        }
+
         if windowManager.isDragging {
             windowManager.updateDrag(mouseX: mx, mouseY: my)
             return
@@ -414,6 +419,14 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         if button == 0 {
             if pressed {
                 mouseDown = true
+
+                // Check resize edges first (works even outside the window rect)
+                for window in windowManager.windows.reversed() where window.isVisible && !window.isMinimized {
+                    if let edge = windowManager.hitTestResizeEdge(windowId: window.id, x: mx, y: my) {
+                        windowManager.beginResize(windowId: window.id, edge: edge, mouseX: mx, mouseY: my)
+                        return
+                    }
+                }
 
                 if let window = windowManager.windowAt(x: mx, y: my) {
                     // Traffic light buttons
@@ -456,6 +469,13 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 }
             } else {
                 mouseDown = false
+
+                if windowManager.isResizing {
+                    if let wid = windowManager.resizingWindowId {
+                        notifyExternalAppResize(wmWindowId: wid)
+                    }
+                    windowManager.endResize()
+                }
                 windowManager.endDrag()
 
                 if let focusedId = windowManager.focusedWindowId,

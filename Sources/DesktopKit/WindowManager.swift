@@ -62,6 +62,16 @@ public enum WindowChrome {
     public static let buttonInsetY: Float = 13
     public static let cornerRadius: Float = 12
     public static let menuBarHeight: Float = 24
+    public static let resizeHandleSize: Float = 6
+    public static let minWindowWidth: Float = 200
+    public static let minWindowHeight: Float = 150
+}
+
+/// Which edge/corner is being resized.
+public enum ResizeEdge: Equatable {
+    case topLeft, top, topRight
+    case left, right
+    case bottomLeft, bottom, bottomRight
 }
 
 /// Which traffic light button was hit.
@@ -89,6 +99,16 @@ public final class WindowManager {
     // Hover state for traffic lights
     public var hoveredWindowId: UInt64? = nil
     public var hoveringTrafficLights: Bool = false
+
+    // Resize state
+    private var resizeWindowId: UInt64? = nil
+    private var resizeEdge: ResizeEdge? = nil
+    private var resizeStartMouseX: Float = 0
+    private var resizeStartMouseY: Float = 0
+    private var resizeStartX: Float = 0
+    private var resizeStartY: Float = 0
+    private var resizeStartW: Float = 0
+    private var resizeStartH: Float = 0
 
     public init() {}
 
@@ -246,6 +266,103 @@ public final class WindowManager {
     }
 
     public var isDragging: Bool { dragWindowId != nil }
+
+    // MARK: - Resizing
+
+    /// Hit-test the edges/corners of a window. Returns the resize edge or nil.
+    public func hitTestResizeEdge(windowId: UInt64, x: Float, y: Float) -> ResizeEdge? {
+        guard let window = windows.first(where: { $0.id == windowId }) else { return nil }
+        guard !window.isMaximized else { return nil }
+
+        let r = WindowChrome.resizeHandleSize
+        let left = x >= window.x - r && x <= window.x + r
+        let right = x >= window.x + window.width - r && x <= window.x + window.width + r
+        let top = y >= window.y - r && y <= window.y + r
+        let bottom = y >= window.y + window.height - r && y <= window.y + window.height + r
+        let inX = x >= window.x - r && x <= window.x + window.width + r
+        let inY = y >= window.y - r && y <= window.y + window.height + r
+
+        if top && left { return .topLeft }
+        if top && right { return .topRight }
+        if bottom && left { return .bottomLeft }
+        if bottom && right { return .bottomRight }
+        if top && inX { return .top }
+        if bottom && inX { return .bottom }
+        if left && inY { return .left }
+        if right && inY { return .right }
+        return nil
+    }
+
+    /// Begin resizing a window from the given edge.
+    public func beginResize(windowId: UInt64, edge: ResizeEdge, mouseX: Float, mouseY: Float) {
+        guard let window = windows.first(where: { $0.id == windowId }) else { return }
+        resizeWindowId = windowId
+        resizeEdge = edge
+        resizeStartMouseX = mouseX
+        resizeStartMouseY = mouseY
+        resizeStartX = window.x
+        resizeStartY = window.y
+        resizeStartW = window.width
+        resizeStartH = window.height
+        focus(id: windowId)
+    }
+
+    /// Update the resize drag.
+    public func updateResize(mouseX: Float, mouseY: Float) {
+        guard let id = resizeWindowId, let edge = resizeEdge,
+              let idx = windows.firstIndex(where: { $0.id == id }) else { return }
+
+        let dx = mouseX - resizeStartMouseX
+        let dy = mouseY - resizeStartMouseY
+        let minW = WindowChrome.minWindowWidth
+        let minH = WindowChrome.minWindowHeight
+
+        switch edge {
+        case .bottomRight:
+            windows[idx].width = max(resizeStartW + dx, minW)
+            windows[idx].height = max(resizeStartH + dy, minH)
+        case .bottomLeft:
+            let newW = max(resizeStartW - dx, minW)
+            windows[idx].x = resizeStartX + resizeStartW - newW
+            windows[idx].width = newW
+            windows[idx].height = max(resizeStartH + dy, minH)
+        case .topRight:
+            windows[idx].width = max(resizeStartW + dx, minW)
+            let newH = max(resizeStartH - dy, minH)
+            windows[idx].y = max(resizeStartY + resizeStartH - newH, WindowChrome.menuBarHeight)
+            windows[idx].height = newH
+        case .topLeft:
+            let newW = max(resizeStartW - dx, minW)
+            windows[idx].x = resizeStartX + resizeStartW - newW
+            windows[idx].width = newW
+            let newH = max(resizeStartH - dy, minH)
+            windows[idx].y = max(resizeStartY + resizeStartH - newH, WindowChrome.menuBarHeight)
+            windows[idx].height = newH
+        case .right:
+            windows[idx].width = max(resizeStartW + dx, minW)
+        case .left:
+            let newW = max(resizeStartW - dx, minW)
+            windows[idx].x = resizeStartX + resizeStartW - newW
+            windows[idx].width = newW
+        case .bottom:
+            windows[idx].height = max(resizeStartH + dy, minH)
+        case .top:
+            let newH = max(resizeStartH - dy, minH)
+            windows[idx].y = max(resizeStartY + resizeStartH - newH, WindowChrome.menuBarHeight)
+            windows[idx].height = newH
+        }
+    }
+
+    /// End resizing.
+    public func endResize() {
+        resizeWindowId = nil
+        resizeEdge = nil
+    }
+
+    public var isResizing: Bool { resizeWindowId != nil }
+
+    /// The window ID currently being resized (for resize notification).
+    public var resizingWindowId: UInt64? { resizeWindowId }
 
     /// Minimized windows (for dock display).
     public var minimizedWindows: [ManagedWindow] {
