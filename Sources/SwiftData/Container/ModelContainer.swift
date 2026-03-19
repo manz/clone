@@ -1,0 +1,39 @@
+import Foundation
+
+/// Creates a database and tables from model schemas. Manages the SQLite connection.
+@objc(Clone_ModelContainer)
+public final class ModelContainer: NSObject {
+    public let connection: SQLiteConnection
+    public let schemas: [ModelSchema]
+    private let configuration: ModelConfiguration
+    private var _mainContext: ModelContext?
+
+    public init(for models: [any PersistentModel.Type], configuration: ModelConfiguration = ModelConfiguration(isStoredInMemoryOnly: true)) throws {
+        self.configuration = configuration
+        self.schemas = models.map { $0.schema }
+        self.connection = try SQLiteConnection(path: configuration.resolvedPath())
+        super.init()
+        try createTables()
+    }
+
+    /// The shared main context.
+    public func mainContext() -> ModelContext {
+        if let ctx = _mainContext { return ctx }
+        let ctx = ModelContext(container: self)
+        _mainContext = ctx
+        return ctx
+    }
+
+    /// Create a new independent context.
+    public func newContext() -> ModelContext {
+        ModelContext(container: self)
+    }
+
+    // MARK: - Private
+
+    private func createTables() throws {
+        for schema in schemas {
+            try connection.execute(schema.createTableSQL())
+        }
+    }
+}
