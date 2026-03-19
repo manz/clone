@@ -3,9 +3,9 @@ import SwiftUI
 
 // MARK: - Semantic color aliases
 
-var rpBase: Color { Color(nsColor: .windowBackgroundColor) }
-var rpSurface: Color { Color(nsColor: .controlBackgroundColor) }
-var rpOverlay: Color { Color(nsColor: .gridColor) }
+let rpBase = Color(red: 0.93, green: 0.93, blue: 0.94)
+let rpSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
+let rpOverlay = Color(red: 0.88, green: 0.88, blue: 0.88)
 var rpText: Color { .primary }
 var rpSubtle: Color { .secondary }
 var rpMuted: Color { .gray }
@@ -16,13 +16,10 @@ let rpGreen: Color = .green
 let rpPurple: Color = .purple
 let rpTeal: Color = .teal
 let rpBlack: Color = .black
-var rpSelected: Color { Color(nsColor: .selectedControlColor) }
-var hoverBg: Color {
-    Color.adaptive(dark: Color(red: 1, green: 1, blue: 1, opacity: 0.06),
-                   light: Color(red: 0, green: 0, blue: 0, opacity: 0.04))
-}
-var rowHoverBg: Color { Color(nsColor: .gridColor) }
-var rowDivider: Color { Color(nsColor: .separatorColor) }
+let rpSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
+let hoverBg = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
+let rowHoverBg = Color(red: 0.88, green: 0.88, blue: 0.88)
+let rowDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
 
 // MARK: - Data model
 
@@ -330,14 +327,11 @@ private func settingRowView(
     }
     .padding(.horizontal, 12)
 
-    if isHovered {
-        return ZStack {
-            RoundedRectangle(cornerRadius: 6).fill(rowHoverBg).frame(height: 32)
-            content
-        }.frame(height: 32)
-    }
-
-    return content.frame(height: 32)
+    let bg: Color = isHovered ? rowHoverBg : .clear
+    return ZStack {
+        RoundedRectangle(cornerRadius: 6).fill(bg).frame(height: 32)
+        content
+    }.frame(height: 32)
 }
 
 // MARK: - Detail group
@@ -460,10 +454,18 @@ struct SettingsApp: App {
 
     var body: some Scene {
         WindowGroup("System Settings") {
+            #if canImport(AppKit) && !canImport(CloneClient)
+            // Real macOS — GeometryReader provides window size
+            GeometryReader { proxy in
+                settingsView(state: state, width: proxy.size.width, height: proxy.size.height)
+            }
+            #else
             settingsView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
+            #endif
         }
     }
 
+    #if canImport(CloneClient)
     var configuration: WindowConfiguration {
         WindowConfiguration(title: "System Settings", width: 700, height: 500)
     }
@@ -472,4 +474,5 @@ struct SettingsApp: App {
         state.mouseX = x
         state.mouseY = y
     }
+    #endif
 }
