@@ -229,6 +229,15 @@ public final class CompositorServer {
         }
     }
 
+    public func sendResize(windowId: UInt64, width: Float, height: Float) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.width = width
+        app?.height = height
+        app?.send(.resize(width: width, height: height))
+    }
+
     public func sendPointerMove(windowId: UInt64, x: Float, y: Float) {
         lock.lock()
         let app = apps[windowId]

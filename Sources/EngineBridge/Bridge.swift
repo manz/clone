@@ -221,6 +221,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                             windowManager.minimize(id: window.id)
                         case .zoom:
                             windowManager.zoom(id: window.id)
+                            notifyExternalAppResize(wmWindowId: window.id)
                         }
                         updateFocusedAppName()
                         return
@@ -228,7 +229,11 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
                     // Title bar drag (but not on traffic lights)
                     if window.titleBarContains(px: mx, py: my) {
+                        let wasMaximized = windowManager.windows.first(where: { $0.id == window.id })?.isMaximized ?? false
                         windowManager.beginDrag(windowId: window.id, mouseX: mx, mouseY: my)
+                        if wasMaximized {
+                            notifyExternalAppResize(wmWindowId: window.id)
+                        }
                     } else if let serverWid = externalWindowId(for: window.id) {
                         let localX = mx - window.x
                         let localY = my - window.y - WindowChrome.titleBarHeight
@@ -304,6 +309,15 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
     private func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
         externalWindows.first(where: { $0.value == wmWindowId })?.key
+    }
+
+    /// Notify an external app that its window was resized (zoom/unmaximize).
+    private func notifyExternalAppResize(wmWindowId: UInt64) {
+        guard let serverWid = externalWindowId(for: wmWindowId),
+              let window = windowManager.windows.first(where: { $0.id == wmWindowId }) else { return }
+        let contentWidth = window.width
+        let contentHeight = window.height - WindowChrome.titleBarHeight
+        server.sendResize(windowId: serverWid, width: contentWidth, height: contentHeight)
     }
 
     private func updateFocusedAppName() {
