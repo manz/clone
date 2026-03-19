@@ -37,7 +37,7 @@ fn vs_main(
     instance: ShadowInstance,
 ) -> VertexOutput {
     let quad = QUAD_POS[vertex_index];
-    let blur_expand = instance.params.y * 3.0; // expand quad to cover blur spread
+    let blur_expand = instance.params.y * 1.5; // expand quad to cover blur spread
 
     let expanded_size = vec2<f32>(
         instance.rect.z + blur_expand * 2.0,

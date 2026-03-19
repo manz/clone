@@ -295,10 +295,10 @@ public final class WindowManager {
         } else {
             withShadow = windowBody
                 .shadow(
-                    color: DesktopColor(r: 0, g: 0, b: 0, a: isFocused ? 0.5 : 0.25),
-                    radius: isFocused ? 20 : 10,
+                    color: DesktopColor(r: 0, g: 0, b: 0, a: isFocused ? 0.35 : 0.15),
+                    radius: isFocused ? 12 : 6,
                     x: 0,
-                    y: isFocused ? 8 : 4
+                    y: isFocused ? 4 : 2
                 )
         }
 
