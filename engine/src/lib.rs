@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod commands;
 pub mod ffi;
 pub mod renderer;
