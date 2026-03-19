@@ -26,6 +26,8 @@ public indirect enum ViewNode: Equatable, Sendable {
     case picker(selection: String, label: ViewNode, children: [ViewNode])
     case textField(placeholder: String, text: String)
     case navigationStack(children: [ViewNode])
+    case menu(label: String, children: [ViewNode])
+    case contextMenu(child: ViewNode, menuItems: [ViewNode])
 }
 
 /// Axis for ScrollView direction.

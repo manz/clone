@@ -6,7 +6,7 @@ public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: Color)
         case roundedRect(radius: Float, color: Color)
-        case text(content: String, fontSize: Float, color: Color, weight: FontWeight = .regular)
+        case text(content: String, fontSize: Float, color: Color, weight: FontWeight = .regular, isIcon: Bool = false)
         case shadow(radius: Float, blur: Float, color: Color, offsetX: Float, offsetY: Float)
     }
 
@@ -75,13 +75,40 @@ public enum CommandFlattener {
             }
             return
 
-        case .image(_, _, _):
-            // Placeholder rect until image loading is implemented
+        case .menu(let label, _):
+            // Render just the label text (collapsed state)
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y,
                 width: frame.width, height: frame.height,
-                kind: .rect(color: Color.muted.withAlpha(0.3 * opacity))
+                kind: .text(content: label, fontSize: 14, color: Color.text.withAlpha(opacity))
             ))
+
+        case .contextMenu(_, _):
+            // Flatten the child; menu items are rendered on demand by the app
+            for child in layoutNode.children {
+                flattenNode(child, into: &commands, opacity: opacity)
+            }
+            return
+
+        case .image(let name, _, _):
+            // Try Phosphor icon font, fall back to placeholder rect
+            if let char = PhosphorIcons.character(forName: name) {
+                let iconSize = min(frame.width, frame.height)
+                let iconX = frame.x + (frame.width - iconSize) / 2
+                let iconY = frame.y + (frame.height - iconSize) / 2
+                commands.append(FlatRenderCommand(
+                    x: iconX, y: iconY,
+                    width: iconSize, height: iconSize,
+                    kind: .text(content: String(char), fontSize: iconSize,
+                               color: Color.text.withAlpha(opacity), isIcon: true)
+                ))
+            } else {
+                commands.append(FlatRenderCommand(
+                    x: frame.x, y: frame.y,
+                    width: frame.width, height: frame.height,
+                    kind: .rect(color: Color.muted.withAlpha(0.3 * opacity))
+                ))
+            }
 
         case .toggle(let isOn, _):
             // Track background

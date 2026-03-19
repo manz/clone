@@ -12,68 +12,37 @@ impl DesktopDelegate for DemoDelegate {
         let h = height as f32;
 
         vec![
-            // Desktop background (Rose Pine base)
+            // Desktop background
             RenderCommand::Rect {
-                x: 0.0,
-                y: 0.0,
-                w,
-                h,
-                color: RgbaColor {
-                    r: 0.14,
-                    g: 0.13,
-                    b: 0.19,
-                    a: 1.0,
-                },
+                x: 0.0, y: 0.0, w, h,
+                color: RgbaColor { r: 0.93, g: 0.93, b: 0.94, a: 1.0 },
             },
             // Centered card
             RenderCommand::RoundedRect {
-                x: w / 2.0 - 200.0,
-                y: h / 2.0 - 150.0,
-                w: 400.0,
-                h: 300.0,
+                x: w / 2.0 - 200.0, y: h / 2.0 - 150.0, w: 400.0, h: 300.0,
                 radius: 16.0,
-                color: RgbaColor {
-                    r: 0.18,
-                    g: 0.16,
-                    b: 0.24,
-                    a: 1.0,
-                },
+                color: RgbaColor { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
             },
             // Title text
             RenderCommand::Text {
-                x: w / 2.0 - 80.0,
-                y: h / 2.0 - 20.0,
-                content: "Clone Desktop".into(),
-                font_size: 24.0,
-                color: RgbaColor {
-                    r: 0.88,
-                    g: 0.85,
-                    b: 0.91,
-                    a: 1.0,
-                },
-                weight: FontWeight::Regular,
+                x: w / 2.0 - 80.0, y: h / 2.0 - 20.0,
+                content: "Clone Desktop".into(), font_size: 24.0,
+                color: RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                weight: FontWeight::Regular, is_icon: false,
             },
             // Dock background
             RenderCommand::RoundedRect {
-                x: w / 2.0 - 200.0,
-                y: h - 80.0,
-                w: 400.0,
-                h: 64.0,
+                x: w / 2.0 - 200.0, y: h - 80.0, w: 400.0, h: 64.0,
                 radius: 16.0,
-                color: RgbaColor {
-                    r: 0.2,
-                    g: 0.2,
-                    b: 0.2,
-                    a: 0.6,
-                },
+                color: RgbaColor { r: 0.2, g: 0.2, b: 0.2, a: 0.6 },
             },
             // Dock icons
-            dock_icon(w / 2.0 - 168.0, h - 72.0, 48.0, 0.19, 0.55, 0.91), // blue
-            dock_icon(w / 2.0 - 112.0, h - 72.0, 48.0, 0.19, 0.55, 0.91),
-            dock_icon(w / 2.0 - 56.0, h - 72.0, 48.0, 0.92, 0.29, 0.35),  // red
-            dock_icon(w / 2.0, h - 72.0, 48.0, 0.18, 0.75, 0.49),          // green
-            dock_icon(w / 2.0 + 56.0, h - 72.0, 48.0, 0.96, 0.76, 0.29),   // yellow
-            dock_icon(w / 2.0 + 112.0, h - 72.0, 48.0, 0.0, 0.0, 0.0),     // black
+            dock_icon(w / 2.0 - 168.0, h - 72.0, 48.0, 0.04, 0.52, 1.0),  // blue
+            dock_icon(w / 2.0 - 112.0, h - 72.0, 48.0, 0.04, 0.52, 1.0),
+            dock_icon(w / 2.0 - 56.0, h - 72.0, 48.0, 1.0, 0.27, 0.23),   // red
+            dock_icon(w / 2.0, h - 72.0, 48.0, 0.19, 0.82, 0.35),          // green
+            dock_icon(w / 2.0 + 56.0, h - 72.0, 48.0, 1.0, 0.84, 0.04),   // yellow
+            dock_icon(w / 2.0 + 112.0, h - 72.0, 48.0, 0.0, 0.0, 0.0),    // black
         ]
     }
 

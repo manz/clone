@@ -127,6 +127,13 @@ public func NavigationStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode 
     .navigationStack(children: content())
 }
 
+// MARK: - Menu
+
+/// `Menu("Label") { ... }` — collapsed menu with children.
+public func Menu(_ label: String, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    .menu(label: label, children: content())
+}
+
 // MARK: - Modifier chains on ViewNode
 
 public extension ViewNode {
@@ -249,6 +256,11 @@ public extension ViewNode {
     /// `.onTapGesture(id:)` — attaches a pre-existing tap ID
     func onTapGesture(id: UInt64) -> ViewNode {
         .onTap(id: id, child: self)
+    }
+
+    /// `.contextMenu { }` — attaches a context menu to this view.
+    func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        .contextMenu(child: self, menuItems: content())
     }
 
     /// `.navigationTitle(_:)` — no-op for now (window title is set by the compositor).

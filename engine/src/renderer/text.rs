@@ -48,7 +48,11 @@ pub struct TextRenderer {
 
 impl TextRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, surface_format: wgpu::TextureFormat) -> Self {
-        let font_system = FontSystem::new();
+        let mut font_system = FontSystem::new();
+        // Load bundled Phosphor icon font
+        font_system
+            .db_mut()
+            .load_font_data(include_bytes!("../../assets/Phosphor.ttf").to_vec());
         let swash_cache = SwashCache::new();
 
         let atlas_data = vec![0u8; (ATLAS_SIZE * ATLAS_SIZE) as usize];
@@ -219,6 +223,7 @@ impl TextRenderer {
         font_size: f32,
         color: &RgbaColor,
         weight: &crate::commands::FontWeight,
+        is_icon: bool,
     ) -> Vec<GlyphInstance> {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(&mut self.font_system, metrics);
@@ -229,7 +234,12 @@ impl TextRenderer {
             crate::commands::FontWeight::Semibold => Weight::SEMIBOLD,
             crate::commands::FontWeight::Bold => Weight::BOLD,
         };
-        let attrs = Attrs::new().family(Family::SansSerif).weight(cosmic_weight);
+        let family = if is_icon {
+            Family::Name("Phosphor")
+        } else {
+            Family::SansSerif
+        };
+        let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);
 

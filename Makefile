@@ -1,4 +1,7 @@
-.PHONY: engine bindings swift build test clean
+.PHONY: all engine bindings swift apps build test clean
+
+# Build everything: engine → bindings → libs + apps
+all: bindings swift apps
 
 # Rust engine
 engine:
@@ -7,31 +10,34 @@ engine:
 engine-release:
 	cargo build --release
 
-# Run Rust tests
-test-rust:
-	cargo test
-
 # Generate UniFFI Swift bindings
 bindings: engine
 	cargo run --bin uniffi-bindgen generate \
 		--library target/debug/libclone_engine.dylib \
 		--language swift \
-		--out-dir Sources/DesktopKit/Generated
-	@# Copy header to CEngine module
-	@if [ -f Sources/DesktopKit/Generated/clone_engineFFI.h ]; then \
-		cp Sources/DesktopKit/Generated/clone_engineFFI.h Sources/CEngine/include/cloneFFI.h; \
-	fi
+		--out-dir Sources/EngineBridge
 
-# Swift package
+# Swift package (libs + compositor)
 swift:
 	swift build
+
+# App processes
+apps: swift
+	swift build --target Finder
+	swift build --target Settings
+	swift build --target Dock
+	swift build --target MenuBar
+
+# Alias
+build: all
+
+# Run Rust tests
+test-rust:
+	cargo test --lib
 
 # Run Swift tests
 test-swift:
 	swift test
-
-# Build everything
-build: engine swift
 
 # Run all tests
 test: test-rust test-swift

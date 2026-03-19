@@ -181,6 +181,15 @@ public enum Layout {
 
         case .navigationStack(let children):
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+
+        case .menu(let label, _):
+            // Collapsed state: measure the label text only
+            let charWidth: Float = 14 * 0.6
+            return MeasuredSize(width: charWidth * Float(label.count), height: 14)
+
+        case .contextMenu(let child, _):
+            // Menu invisible until triggered — measure the child only
+            return measure(child, constraint: constraint)
         }
     }
 
@@ -255,6 +264,17 @@ public enum Layout {
         case .toggle(_, let label):
             let labelLayout = layout(label, in: frame)
             return LayoutNode(frame: frame, node: node, children: [labelLayout])
+
+        case .menu(let label, _):
+            // Collapsed: layout as a text label
+            let labelNode = ViewNode.text(label, fontSize: 14, color: .text)
+            let labelLayout = layout(labelNode, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [labelLayout])
+
+        case .contextMenu(let child, _):
+            // Layout the child; menu items are not laid out until triggered
+            let childLayout = layout(child, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [childLayout])
 
         default:
             // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker, textField

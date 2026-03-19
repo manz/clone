@@ -18,12 +18,13 @@ public enum Bridge {
                     x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
                     radius: radius, color: color.toEngine()
                 )
-            case .text(let content, let fontSize, let color, let weight):
+            case .text(let content, let fontSize, let color, let weight, let isIcon):
                 return .text(
                     x: cmd.x, y: cmd.y,
                     content: content, fontSize: fontSize,
                     color: color.toEngine(),
-                    weight: weight.toEngine()
+                    weight: weight.toEngine(),
+                    isIcon: isIcon
                 )
             case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
                 return .shadow(
@@ -45,7 +46,7 @@ public enum Bridge {
                 return .roundedRect(x: x + offsetX, y: y + offsetY, w: w, h: h, radius: radius, color: color.toEngine())
             case .text(let x, let y, let content, let fontSize, let color, let weight):
                 return .text(x: x + offsetX, y: y + offsetY, content: content, fontSize: fontSize,
-                            color: color.toEngine(), weight: weight.toEngine())
+                            color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
             }
         }
     }
@@ -59,7 +60,7 @@ public enum Bridge {
             return .roundedRect(x: x, y: y + dy, w: w, h: h, radius: radius, color: color.toEngine())
         case .text(let x, let y, let content, let fontSize, let color, let weight):
             return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
-                        color: color.toEngine(), weight: weight.toEngine())
+                        color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
         }
     }
 }
@@ -318,12 +319,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             var windowCommands: [RenderCommand] = []
 
             // Title bar background
-            let tbColor: Color = isFocused
-                ? Color(r: 0.24, g: 0.22, b: 0.30)
-                : Color(r: 0.19, g: 0.17, b: 0.24)
-            let bgColor: Color = isFocused
-                ? .surface
-                : Color(r: 0.16, g: 0.15, b: 0.21)
+            let tbColor: Color = isFocused ? .titleBar : .titleBarUnfocused
+            let bgColor: Color = isFocused ? .surface : .windowBackground
 
             // Window background (local coords)
             windowCommands.append(.roundedRect(
@@ -354,10 +351,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             if showSymbols {
                 let symY = btnY + (btnSize - 9) / 2
                 let symColor = RgbaColor(r: 0, g: 0, b: 0, a: 0.5)
-                windowCommands.append(.text(x: btnX + 2, y: symY, content: "×", fontSize: btnSize * 0.7, color: symColor, weight: .bold))
-                windowCommands.append(.text(x: btnX + btnStep + 2, y: symY, content: "−", fontSize: btnSize * 0.7, color: symColor, weight: .bold))
+                windowCommands.append(.text(x: btnX + 2, y: symY, content: "×", fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
+                windowCommands.append(.text(x: btnX + btnStep + 2, y: symY, content: "−", fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
                 let zoomSym = window.isMaximized ? "↙" : "↗"
-                windowCommands.append(.text(x: btnX + btnStep * 2 + 2, y: symY, content: zoomSym, fontSize: btnSize * 0.7, color: symColor, weight: .bold))
+                windowCommands.append(.text(x: btnX + btnStep * 2 + 2, y: symY, content: zoomSym, fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
             }
 
             // Title text
@@ -366,7 +363,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let titleY = (WindowChrome.titleBarHeight - 13) / 2
             windowCommands.append(.text(
                 x: titleX, y: titleY, content: window.title, fontSize: 13,
-                color: titleColor.toEngine(), weight: .regular
+                color: titleColor.toEngine(), weight: .regular, isIcon: false
             ))
 
             // App content (IPC commands — already in local coords)
@@ -533,6 +530,25 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 }
                 windowManager.endDrag()
 
+                if let focusedId = windowManager.focusedWindowId,
+                   let serverWid = externalWindowId(for: focusedId) {
+                    server.sendPointerButton(windowId: serverWid, button: button, pressed: false, x: 0, y: 0)
+                }
+            }
+        } else {
+            // Non-left buttons (right-click = button 1, etc.)
+            // Forward to app without drag/resize/traffic-light logic
+            if pressed {
+                if let window = windowManager.windowAt(x: mx, y: my) {
+                    windowManager.focus(id: window.id)
+                    updateFocusedAppName()
+                    if let serverWid = externalWindowId(for: window.id) {
+                        let localX = mx - window.x
+                        let localY = my - window.y - WindowChrome.titleBarHeight
+                        server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: localX, y: localY)
+                    }
+                }
+            } else {
                 if let focusedId = windowManager.focusedWindowId,
                    let serverWid = externalWindowId(for: focusedId) {
                     server.sendPointerButton(windowId: serverWid, button: button, pressed: false, x: 0, y: 0)

@@ -124,9 +124,9 @@ impl DesktopRenderer {
         if let Some(text_renderer) = &mut self.text_renderer {
             let mut all_glyphs = Vec::new();
             for cmd in commands {
-                if let RenderCommand::Text { x, y, content, font_size, color, weight } = cmd {
+                if let RenderCommand::Text { x, y, content, font_size, color, weight, is_icon } = cmd {
                     let glyphs = text_renderer.shape_text(
-                        content, *x * scale, *y * scale, *font_size * scale, color, weight,
+                        content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon,
                     );
                     all_glyphs.extend(glyphs);
                 }
@@ -139,8 +139,13 @@ impl DesktopRenderer {
 
     fn extract_background(commands: &[RenderCommand]) -> RgbaColor {
         for cmd in commands {
-            if let RenderCommand::Rect { color, .. } = cmd {
-                return color.clone();
+            match cmd {
+                RenderCommand::Rect { color, .. } | RenderCommand::RoundedRect { color, .. } => {
+                    // Force alpha to 0 so the surface composites cleanly.
+                    // Content is responsible for being opaque where needed.
+                    return RgbaColor { r: color.r, g: color.g, b: color.b, a: 0.0 };
+                }
+                _ => {}
             }
         }
         RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 0.0 }

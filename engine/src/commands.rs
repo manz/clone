@@ -59,6 +59,7 @@ pub enum RenderCommand {
         font_size: f32,
         color: RgbaColor,
         weight: FontWeight,
+        is_icon: bool,
     },
     Shadow {
         x: f32,
@@ -165,6 +166,7 @@ mod tests {
                 font_size: 14.0,
                 color: color.clone(),
                 weight: FontWeight::Regular,
+                is_icon: false,
             },
             RenderCommand::PushClip {
                 x: 0.0,

@@ -1098,7 +1098,7 @@ extension FontWeight: Equatable, Hashable {}
 public enum RenderCommand {
     case rect(x: Float, y: Float, w: Float, h: Float, color: RgbaColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float)
     case blurRect(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, tint: RgbaColor)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
@@ -1119,7 +1119,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
 
         case 2: return try .roundedRect(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf))
 
-        case 3: return try .text(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), content: FfiConverterString.read(from: &buf), fontSize: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf), weight: FfiConverterTypeFontWeight.read(from: &buf))
+        case 3: return try .text(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), content: FfiConverterString.read(from: &buf), fontSize: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf), weight: FfiConverterTypeFontWeight.read(from: &buf), isIcon: FfiConverterBool.read(from: &buf))
 
         case 4: return try .shadow(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf), blur: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf), ox: FfiConverterFloat.read(from: &buf), oy: FfiConverterFloat.read(from: &buf))
 
@@ -1154,7 +1154,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(radius, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
 
-        case let .text(x, y, content, fontSize, color, weight):
+        case let .text(x, y, content, fontSize, color, weight, isIcon):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1162,6 +1162,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(fontSize, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
+            FfiConverterBool.write(isIcon, into: &buf)
 
         case let .shadow(x, y, w, h, radius, blur, color, ox, oy):
             writeInt(&buf, Int32(4))

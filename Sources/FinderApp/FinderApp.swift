@@ -1,0 +1,694 @@
+import Foundation
+import SwiftUI
+
+// MARK: - Context menu model
+
+enum MenuAction {
+    case open, getInfo, copy, moveToTrash
+    case newFolder, sortByName, sortBySize, sortByDate
+}
+
+struct MenuItem {
+    let label: String
+    let action: MenuAction
+}
+
+struct ContextMenu {
+    let x: Float
+    let y: Float
+    let items: [MenuItem]
+    let targetIndex: Int?   // nil = background right-click
+    var hoveredItem: Int?
+}
+
+enum SortOrder {
+    case name, size, date
+}
+
+// MARK: - Layout constants
+
+let sidebarWidth: Float = 180
+let toolbarHeight: Float = 38
+let headerHeight: Float = 24
+let rowHeight: Float = 28
+let statusBarHeight: Float = 22
+let contextMenuWidth: Float = 200
+let contextMenuItemHeight: Float = 26
+
+// MARK: - Semantic color aliases
+
+var bgColor: Color { .surface }
+var surfaceColor: Color { .overlay }
+var overlayColor: Color { .separator }
+var textColor: Color { .text }
+var subtleColor: Color { .subtle }
+var mutedColor: Color { .muted }
+var highlightColor: Color { .highlight }
+var selectionColor: Color { .selection }
+let folderColor: Color = .systemBlue
+let codeColor: Color = .systemOrange
+let imageColor: Color = .systemGreen
+var docColor: Color { .subtle }
+var menuBgColor: Color { .popoverBackground }
+var menuHoverColor: Color { .systemBlue }
+var disabledColor: Color { .muted }
+var sidebarBgColor: Color { .sidebarBackground }
+let shadowColor = Color(r: 0, g: 0, b: 0, a: 0.3)
+
+// MARK: - Sidebar favorites
+
+let favorites: [(name: String, path: String, icon: Color)] = [
+    ("Home", NSHomeDirectory(), folderColor),
+    ("Desktop", (NSHomeDirectory() as NSString).appendingPathComponent("Desktop"), folderColor),
+    ("Documents", (NSHomeDirectory() as NSString).appendingPathComponent("Documents"), folderColor),
+    ("Downloads", (NSHomeDirectory() as NSString).appendingPathComponent("Downloads"), folderColor),
+    ("Applications", "/Applications", Color.systemPurple),
+]
+
+// MARK: - State
+
+final class FinderState {
+    var currentPath: String
+    var entries: [FileEntry] = []
+    var mouseX: Float = 0
+    var mouseY: Float = 0
+
+    // Selection
+    var selectedIndex: Int?
+
+    // Navigation history
+    var navigationHistory: [String]
+    var historyIndex: Int
+
+    // Context menu
+    var contextMenu: ContextMenu?
+
+    // Double-click detection
+    var lastClickTime: Double = 0
+    var lastClickIndex: Int?
+
+    // Sort
+    var sortOrder: SortOrder = .name
+
+    // Cached window size for hit-testing
+    var windowWidth: Float = 700
+    var windowHeight: Float = 450
+
+    struct FileEntry {
+        let name: String
+        let isDirectory: Bool
+        let size: UInt64
+    }
+
+    init(path: String = NSHomeDirectory()) {
+        self.currentPath = path
+        self.navigationHistory = [path]
+        self.historyIndex = 0
+        reload()
+    }
+
+    func reload() {
+        entries = []
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(atPath: currentPath) else { return }
+
+        let withAttrs: [(name: String, isDir: Bool, size: UInt64)] = items.compactMap { name in
+            guard !name.hasPrefix(".") else { return nil }
+            let fullPath = (currentPath as NSString).appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            fm.fileExists(atPath: fullPath, isDirectory: &isDir)
+            var size: UInt64 = 0
+            if !isDir.boolValue {
+                size = (try? fm.attributesOfItem(atPath: fullPath)[.size] as? UInt64) ?? 0
+            }
+            return (name, isDir.boolValue, size)
+        }
+
+        let sorted: [(name: String, isDir: Bool, size: UInt64)]
+        switch sortOrder {
+        case .name:
+            sorted = withAttrs.sorted { a, b in
+                if a.isDir != b.isDir { return a.isDir }
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+        case .size:
+            sorted = withAttrs.sorted { a, b in
+                if a.isDir != b.isDir { return a.isDir }
+                return a.size > b.size
+            }
+        case .date:
+            sorted = withAttrs.sorted { a, b in
+                if a.isDir != b.isDir { return a.isDir }
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+        }
+
+        entries = sorted.map { FileEntry(name: $0.name, isDirectory: $0.isDir, size: $0.size) }
+    }
+
+    func navigateTo(_ path: String) {
+        var isDir: ObjCBool = false
+        FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+        guard isDir.boolValue else { return }
+
+        currentPath = path
+        selectedIndex = nil
+
+        if historyIndex < navigationHistory.count - 1 {
+            navigationHistory = Array(navigationHistory.prefix(historyIndex + 1))
+        }
+        navigationHistory.append(path)
+        historyIndex = navigationHistory.count - 1
+
+        reload()
+    }
+
+    func navigate(to name: String) {
+        let fullPath = (currentPath as NSString).appendingPathComponent(name)
+        navigateTo(fullPath)
+    }
+
+    func goBack() {
+        guard historyIndex > 0 else { return }
+        historyIndex -= 1
+        currentPath = navigationHistory[historyIndex]
+        selectedIndex = nil
+        reload()
+    }
+
+    func goForward() {
+        guard historyIndex < navigationHistory.count - 1 else { return }
+        historyIndex += 1
+        currentPath = navigationHistory[historyIndex]
+        selectedIndex = nil
+        reload()
+    }
+
+    var canGoBack: Bool { historyIndex > 0 }
+    var canGoForward: Bool { historyIndex < navigationHistory.count - 1 }
+
+    // MARK: - File type detection
+
+    func fileKind(_ name: String) -> (color: Color, kind: String) {
+        let ext = (name as NSString).pathExtension.lowercased()
+
+        if entries.first(where: { $0.name == name })?.isDirectory == true {
+            return (folderColor, "Folder")
+        }
+
+        switch ext {
+        case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb":
+            return (codeColor, "Source Code")
+        case "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp", "tiff":
+            return (imageColor, "Image")
+        case "md", "txt", "json", "yaml", "yml", "xml", "csv", "toml", "plist":
+            return (docColor, "Document")
+        default:
+            return (mutedColor, "Document")
+        }
+    }
+
+    // MARK: - Interaction
+
+    func handleLeftClick(x: Float, y: Float, width: Float, height: Float) {
+        // If context menu open, hit-test it first
+        if let menu = contextMenu {
+            let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+            let menuX = min(menu.x, width - contextMenuWidth - 4)
+            let menuY = min(menu.y, height - menuHeight - 4)
+
+            if x >= menuX && x < menuX + contextMenuWidth &&
+               y >= menuY && y < menuY + menuHeight {
+                let itemIndex = Int((y - menuY - 4) / contextMenuItemHeight)
+                if itemIndex >= 0 && itemIndex < menu.items.count {
+                    executeMenuAction(menu.items[itemIndex].action, targetIndex: menu.targetIndex)
+                }
+            }
+            contextMenu = nil
+            return
+        }
+
+        // Toolbar: back/forward
+        if y < toolbarHeight {
+            if x >= 12 && x < 40 && canGoBack {
+                goBack()
+                return
+            }
+            if x >= 46 && x < 74 && canGoForward {
+                goForward()
+                return
+            }
+            return
+        }
+
+        // Sidebar
+        if x < sidebarWidth {
+            let startY = toolbarHeight + 30
+            for (i, fav) in favorites.enumerated() {
+                let favY = startY + Float(i) * 26
+                if y >= favY && y < favY + 26 {
+                    navigateTo(fav.path)
+                    return
+                }
+            }
+            return
+        }
+
+        // File list
+        let listTop = toolbarHeight + headerHeight
+        let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
+        if y >= listTop && y < listTop + listHeight {
+            let rowIndex = Int((y - listTop) / rowHeight)
+            if rowIndex >= 0 && rowIndex < entries.count {
+                let now = Date().timeIntervalSince1970
+
+                // Double-click detection
+                if lastClickIndex == rowIndex && (now - lastClickTime) < 0.3 {
+                    if entries[rowIndex].isDirectory {
+                        navigate(to: entries[rowIndex].name)
+                    }
+                    lastClickTime = 0
+                    lastClickIndex = nil
+                    return
+                }
+
+                // Single click: select
+                selectedIndex = rowIndex
+                lastClickTime = now
+                lastClickIndex = rowIndex
+            } else {
+                selectedIndex = nil
+            }
+        }
+    }
+
+    func handleRightClick(x: Float, y: Float, width: Float, height: Float) {
+        contextMenu = nil
+
+        let listTop = toolbarHeight + headerHeight
+        let listX = sidebarWidth
+        let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
+
+        if x >= listX && y >= listTop && y < listTop + listHeight {
+            let rowIndex = Int((y - listTop) / rowHeight)
+            if rowIndex >= 0 && rowIndex < entries.count {
+                selectedIndex = rowIndex
+                contextMenu = ContextMenu(
+                    x: x, y: y,
+                    items: [
+                        MenuItem(label: "Open", action: .open),
+                        MenuItem(label: "Get Info", action: .getInfo),
+                        MenuItem(label: "Copy", action: .copy),
+                        MenuItem(label: "Move to Trash", action: .moveToTrash),
+                    ],
+                    targetIndex: rowIndex
+                )
+            } else {
+                contextMenu = ContextMenu(
+                    x: x, y: y,
+                    items: [
+                        MenuItem(label: "New Folder", action: .newFolder),
+                        MenuItem(label: "Sort by Name", action: .sortByName),
+                        MenuItem(label: "Sort by Size", action: .sortBySize),
+                        MenuItem(label: "Sort by Date", action: .sortByDate),
+                    ],
+                    targetIndex: nil
+                )
+            }
+        } else {
+            contextMenu = ContextMenu(
+                x: x, y: y,
+                items: [
+                    MenuItem(label: "New Folder", action: .newFolder),
+                    MenuItem(label: "Sort by Name", action: .sortByName),
+                    MenuItem(label: "Sort by Size", action: .sortBySize),
+                    MenuItem(label: "Sort by Date", action: .sortByDate),
+                ],
+                targetIndex: nil
+            )
+        }
+    }
+
+    func updateContextMenuHover(x: Float, y: Float, width: Float, height: Float) {
+        guard var menu = contextMenu else { return }
+        let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+        let menuX = min(menu.x, width - contextMenuWidth - 4)
+        let menuY = min(menu.y, height - menuHeight - 4)
+
+        if x >= menuX && x < menuX + contextMenuWidth &&
+           y >= menuY && y < menuY + menuHeight {
+            let itemIndex = Int((y - menuY - 4) / contextMenuItemHeight)
+            if itemIndex >= 0 && itemIndex < menu.items.count {
+                menu.hoveredItem = itemIndex
+            } else {
+                menu.hoveredItem = nil
+            }
+        } else {
+            menu.hoveredItem = nil
+        }
+        contextMenu = menu
+    }
+
+    func executeMenuAction(_ action: MenuAction, targetIndex: Int?) {
+        switch action {
+        case .open:
+            if let idx = targetIndex, idx < entries.count, entries[idx].isDirectory {
+                navigate(to: entries[idx].name)
+            }
+        case .sortByName:
+            sortOrder = .name
+            reload()
+        case .sortBySize:
+            sortOrder = .size
+            reload()
+        case .sortByDate:
+            sortOrder = .date
+            reload()
+        case .getInfo, .copy, .moveToTrash, .newFolder:
+            break
+        }
+    }
+
+    // MARK: - Helpers
+
+    func shortenPath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path.hasPrefix(home) {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
+    }
+
+    func formatSize(_ entry: FileEntry) -> String {
+        if entry.isDirectory { return "--" }
+        if entry.size < 1024 { return "\(entry.size) B" }
+        if entry.size < 1024 * 1024 { return "\(entry.size / 1024) KB" }
+        return "\(entry.size / (1024 * 1024)) MB"
+    }
+}
+
+// MARK: - View builders
+
+func toolbarView(state: FinderState, width: Float) -> ViewNode {
+    let backColor: Color = state.canGoBack ? textColor : disabledColor
+    let fwdColor: Color = state.canGoForward ? textColor : disabledColor
+    let pathText = state.shortenPath(state.currentPath)
+
+    let backBtn: ViewNode = ZStack {
+        RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
+        Text("<").fontSize(13).fontWeight(.semibold).foregroundColor(backColor)
+    }
+
+    let fwdBtn: ViewNode = ZStack {
+        RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
+        Text(">").fontSize(13).fontWeight(.semibold).foregroundColor(fwdColor)
+    }
+
+    let bar: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
+        backBtn,
+        fwdBtn,
+        Text(pathText).fontSize(12).foregroundColor(subtleColor),
+        Spacer(),
+    ]).padding(.leading, 12)
+
+    let border: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
+        Spacer(),
+        Rectangle().fill(overlayColor).frame(height: 1),
+    ]).frame(width: width, height: toolbarHeight)
+
+    return .zstack(children: [
+        Rectangle().fill(surfaceColor).frame(width: width, height: toolbarHeight),
+        bar,
+        border,
+    ]).frame(width: width, height: toolbarHeight)
+}
+
+func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> ViewNode {
+    let bgFill: Color = isActive ? selectionColor : (isHovered ? highlightColor : .clear)
+
+    let bg: ViewNode = RoundedRectangle(cornerRadius: 5).fill(bgFill)
+        .frame(width: sidebarWidth - 12, height: 24)
+
+    let content: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
+        RoundedRectangle(cornerRadius: 4).fill(icon).frame(width: 18, height: 18),
+        Text(name).fontSize(13).foregroundColor(textColor),
+        Spacer(),
+    ]).padding(.leading, 8)
+
+    let item: ViewNode = .zstack(children: [bg, content])
+        .frame(width: sidebarWidth - 12, height: 26)
+
+    return item.padding(.leading, 6)
+}
+
+func sidebarView(state: FinderState, height: Float) -> ViewNode {
+    let header: ViewNode = Text("Favorites").fontSize(11).fontWeight(.semibold)
+        .foregroundColor(subtleColor)
+        .padding(.leading, 8).padding(.top, 10)
+
+    let favItems: [ViewNode] = favorites.enumerated().map { (i, fav) in
+        let favY = toolbarHeight + 30 + Float(i) * 26
+        let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
+            state.mouseY >= favY && state.mouseY < favY + 26
+        return sidebarItemView(
+            name: fav.name,
+            icon: fav.icon,
+            isActive: state.currentPath == fav.path,
+            isHovered: isHovered
+        ).onTapGesture {
+            state.navigateTo(fav.path)
+        }
+    }
+
+    let favList: ViewNode = .vstack(alignment: .leading, spacing: 0, children: favItems)
+
+    let inner: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
+        header,
+        .rect(width: sidebarWidth, height: 6, fill: .clear),
+        favList,
+        Spacer(),
+    ]).frame(width: sidebarWidth, height: height)
+
+    return .zstack(children: [
+        Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height),
+        inner,
+    ]).frame(width: sidebarWidth, height: height)
+}
+
+func columnHeadersView(width: Float) -> ViewNode {
+    let labels: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
+        .rect(width: 40, height: 1, fill: .clear),
+        Text("Name").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor),
+        Spacer(),
+        Text("Size").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor),
+        .rect(width: 20, height: 1, fill: .clear),
+    ]).frame(width: width, height: headerHeight)
+
+    let border: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
+        Spacer(),
+        Rectangle().fill(overlayColor).frame(height: 1),
+    ]).frame(width: width, height: headerHeight)
+
+    return .zstack(children: [
+        Rectangle().fill(surfaceColor).frame(width: width, height: headerHeight),
+        labels,
+        border,
+    ]).frame(width: width, height: headerHeight)
+}
+
+func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: Float, listTop: Float) -> ViewNode {
+    let rowY = listTop + Float(index) * rowHeight
+    let isSelected = state.selectedIndex == index
+    let isHovered = state.mouseX >= sidebarWidth && state.mouseX < sidebarWidth + width &&
+        state.mouseY >= rowY && state.mouseY < rowY + rowHeight
+    let (iconColor, _) = state.fileKind(entry.name)
+    let sizeText = state.formatSize(entry)
+    let rowBg: Color = isSelected ? selectionColor : (isHovered ? highlightColor : .clear)
+
+    let content: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
+        .rect(width: 6, height: 1, fill: .clear),
+        RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20),
+        Text(entry.name).fontSize(13).foregroundColor(textColor),
+        Spacer(),
+        Text(sizeText).fontSize(11).foregroundColor(subtleColor),
+        .rect(width: 14, height: 1, fill: .clear),
+    ]).frame(width: width, height: rowHeight)
+
+    return .zstack(children: [
+        Rectangle().fill(rowBg).frame(width: width, height: rowHeight),
+        content,
+    ]).frame(width: width, height: rowHeight)
+}
+
+func fileListView(state: FinderState, width: Float, height: Float) -> ViewNode {
+    let maxRows = Int(height / rowHeight)
+    let listTop = toolbarHeight + headerHeight
+
+    let rows: [ViewNode] = state.entries.prefix(maxRows).enumerated().map { (i, entry) in
+        fileRowView(state: state, entry: entry, index: i, width: width, listTop: listTop)
+    }
+
+    var children = rows
+    children.append(Spacer())
+
+    return ViewNode.vstack(alignment: .leading, spacing: 0, children: children)
+        .frame(width: width, height: height)
+}
+
+func statusBarView(state: FinderState, width: Float) -> ViewNode {
+    let itemCount = state.entries.count
+    let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
+
+    let topBorder: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
+        Rectangle().fill(overlayColor).frame(width: width, height: 1),
+        Spacer(),
+    ]).frame(width: width, height: statusBarHeight)
+
+    let text: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
+        .rect(width: 12, height: 1, fill: .clear),
+        Text(label).fontSize(11).foregroundColor(subtleColor),
+        Spacer(),
+    ]).frame(width: width, height: statusBarHeight)
+
+    return .zstack(children: [
+        Rectangle().fill(surfaceColor).frame(width: width, height: statusBarHeight),
+        topBorder,
+        text,
+    ]).frame(width: width, height: statusBarHeight)
+}
+
+func contextMenuItemView(item: MenuItem, isHovered: Bool) -> ViewNode {
+    let fill: Color = isHovered ? menuHoverColor : .clear
+
+    let label: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
+        .rect(width: 12, height: 1, fill: .clear),
+        Text(item.label).fontSize(13).foregroundColor(textColor),
+        Spacer(),
+    ]).frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
+
+    return .zstack(children: [
+        RoundedRectangle(cornerRadius: 4).fill(fill)
+            .frame(width: contextMenuWidth - 8, height: contextMenuItemHeight),
+        label,
+    ]).frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
+        .padding(.leading, 4)
+}
+
+func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode {
+    let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+    let menuX = min(menu.x, width - contextMenuWidth - 4)
+    let menuY = min(menu.y, height - menuHeight - 4)
+
+    let menuItems: [ViewNode] = menu.items.enumerated().map { (i, item) in
+        contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
+    }
+
+    var itemsWithPadding: [ViewNode] = [Spacer(minLength: 4)]
+    itemsWithPadding.append(contentsOf: menuItems)
+    itemsWithPadding.append(Spacer(minLength: 4))
+
+    let itemsStack: ViewNode = ViewNode.vstack(alignment: .leading, spacing: 0, children: itemsWithPadding)
+        .frame(width: contextMenuWidth, height: menuHeight)
+
+    let menuPanel: ViewNode = .zstack(children: [
+        RoundedRectangle(cornerRadius: 8).fill(menuBgColor)
+            .frame(width: contextMenuWidth, height: menuHeight),
+        itemsStack,
+    ]).frame(width: contextMenuWidth, height: menuHeight)
+
+    // Position the menu using spacers in a full-size container
+    let positioned: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
+        Spacer(minLength: menuY),
+        .hstack(alignment: .top, spacing: 0, children: [
+            Spacer(minLength: menuX),
+            menuPanel,
+            Spacer(),
+        ]),
+        Spacer(),
+    ]).frame(width: width, height: height)
+
+    // Shadow offset by +2
+    let shadowPositioned: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
+        Spacer(minLength: menuY + 2),
+        .hstack(alignment: .top, spacing: 0, children: [
+            Spacer(minLength: menuX + 2),
+            RoundedRectangle(cornerRadius: 8).fill(shadowColor)
+                .frame(width: contextMenuWidth, height: menuHeight),
+            Spacer(),
+        ]),
+        Spacer(),
+    ]).frame(width: width, height: height)
+
+    return .zstack(children: [shadowPositioned, positioned])
+        .frame(width: width, height: height)
+}
+
+func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
+    let listWidth = width - sidebarWidth
+    let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
+    let sidebarH = height - toolbarHeight
+    let mainContent: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
+        toolbarView(state: state, width: width),
+        .hstack(alignment: .top, spacing: 0, children: [
+            sidebarView(state: state, height: sidebarH).frame(width: sidebarWidth),
+            Rectangle().fill(overlayColor).frame(width: 1, height: sidebarH),
+            .vstack(alignment: .leading, spacing: 0, children: [
+                columnHeadersView(width: listWidth),
+                fileListView(state: state, width: listWidth, height: listHeight),
+                statusBarView(state: state, width: listWidth),
+            ]).frame(width: listWidth),
+        ]),
+    ]).background(bgColor)
+
+    var layers: [ViewNode] = [mainContent]
+    if let menu = state.contextMenu {
+        layers.append(contextMenuView(menu: menu, width: width, height: height))
+    }
+
+    return ViewNode.zstack(children: layers).frame(width: width, height: height)
+}
+
+// MARK: - App
+
+@main
+struct FinderApp: App {
+    let state = FinderState()
+
+    var body: some Scene {
+        WindowGroup("Finder") {
+            finderView(state: state, width: 700, height: 450)
+        }
+    }
+
+    var configuration: WindowConfiguration {
+        WindowConfiguration(title: "Finder — ~/", width: 700, height: 450)
+    }
+
+    func onPointerMove(x: Float, y: Float) {
+        state.mouseX = x
+        state.mouseY = y
+        state.updateContextMenuHover(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
+    }
+
+    func onPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float) {
+        guard pressed else { return }
+        if button == 0 {
+            state.handleLeftClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
+        } else if button == 1 {
+            state.handleRightClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
+        }
+        client.send(.setTitle(title: "Finder — \(state.shortenPath(state.currentPath))"))
+    }
+
+    func onKey(keycode: UInt32, pressed: Bool) {
+        guard pressed else { return }
+        switch keycode {
+        case 42, 51:
+            state.goBack()
+            client.send(.setTitle(title: "Finder — \(state.shortenPath(state.currentPath))"))
+        case 1:
+            state.contextMenu = nil
+        default: break
+        }
+    }
+}

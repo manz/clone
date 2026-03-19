@@ -29,7 +29,7 @@ let package = Package(
         // UI DSL framework
         .target(
             name: "SwiftUI",
-            dependencies: [],
+            dependencies: ["CloneClient", "CloneProtocol"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -55,25 +55,25 @@ let package = Package(
         // Finder app (separate process)
         .executableTarget(
             name: "Finder",
-            dependencies: ["CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI"],
             path: "Sources/FinderApp"
         ),
         // Settings app (separate process)
         .executableTarget(
             name: "Settings",
-            dependencies: ["CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
             path: "Sources/SettingsApp"
         ),
         // Dock app (separate process)
         .executableTarget(
             name: "Dock",
-            dependencies: ["CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
             path: "Sources/DockApp"
         ),
         // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
-            dependencies: ["CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
             path: "Sources/MenuBarApp"
         ),
         .testTarget(

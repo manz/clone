@@ -79,7 +79,7 @@ public struct Dock {
 
         return .zstack(children: [
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(r: 0.2, g: 0.2, b: 0.2, a: 0.6))
+                .fill(.dockBackground)
                 .frame(width: totalWidth, height: dockBgHeight),
             ViewNode.hstack(alignment: .bottom, spacing: Self.padding, children: iconNodes),
         ])
@@ -90,7 +90,7 @@ public struct Dock {
         let height: Float = 26
         return ZStack {
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color(r: 0.15, g: 0.14, b: 0.20, a: 0.95))
+                .fill(.popoverBackground)
                 .frame(width: textWidth, height: height)
             Text(name)
                 .fontSize(12)

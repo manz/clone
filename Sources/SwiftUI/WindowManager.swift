@@ -395,7 +395,7 @@ public final class WindowManager {
         let windowBody = ZStack {
             // Window background
             RoundedRectangle(cornerRadius: radius)
-                .fill(isFocused ? .surface : Color(r: 0.16, g: 0.15, b: 0.21))
+                .fill(isFocused ? .surface : .windowBackground)
                 .frame(width: window.width, height: window.height)
             // Content area
             VStack(alignment: .leading, spacing: 0) {
@@ -413,7 +413,7 @@ public final class WindowManager {
         } else {
             withShadow = windowBody
                 .shadow(
-                    color: Color(r: 0, g: 0, b: 0, a: isFocused ? 0.18 : 0.08),
+                    color: .black.withAlpha(isFocused ? 0.18 : 0.08),
                     radius: isFocused ? 24 : 12,
                     x: 0,
                     y: isFocused ? 10 : 5
@@ -429,9 +429,7 @@ public final class WindowManager {
     private func titleBar(window: ManagedWindow, isFocused: Bool, showSymbols: Bool) -> ViewNode {
         let w = window.width
         let h = WindowChrome.titleBarHeight
-        let bg = isFocused
-            ? Color(r: 0.24, g: 0.22, b: 0.30)
-            : Color(r: 0.19, g: 0.17, b: 0.24)
+        let bg = isFocused ? Color.titleBar : Color.titleBarUnfocused
 
         // Build the HStack content as a flat array — no spacers, manual positioning
         // This avoids layout issues with nested ZStack/HStack/Spacer
