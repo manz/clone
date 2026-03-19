@@ -17,18 +17,18 @@ public struct MenuBar {
     public func body() -> ViewNode {
         ZStack {
             RoundedRectangle(cornerRadius: 0)
-                .fill(.menuBarBackground)
+                .fill(WindowChrome.menuBar)
                 .frame(width: screenWidth, height: Self.height)
             HStack(spacing: 16) {
-                Text("\u{F8FF}").fontSize(14).foregroundColor(.text)
-                Text(appName).fontSize(13).bold().foregroundColor(.text)
+                Text("\u{F8FF}").fontSize(14).foregroundColor(.primary)
+                Text(appName).fontSize(13).bold().foregroundColor(.primary)
                 Text("File").fontSize(13)
                 Text("Edit").fontSize(13)
                 Text("View").fontSize(13)
                 Text("Window").fontSize(13)
                 Text("Help").fontSize(13)
                 Spacer()
-                Text(clock).fontSize(13).foregroundColor(.text)
+                Text(clock).fontSize(13).foregroundColor(.primary)
             }
         }
         .frame(width: screenWidth, height: Self.height)

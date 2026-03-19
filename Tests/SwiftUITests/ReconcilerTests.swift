@@ -33,11 +33,11 @@ import Testing
 
 @Test func childAdditionProducesInsert() {
     let old = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
     ])
     let new = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
-        .text("B", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
+        .text("B", fontSize: 14, color: .primary),
     ])
     let patches = Reconciler.diff(old: old, new: new)
     #expect(patches.count == 1)
@@ -51,11 +51,11 @@ import Testing
 
 @Test func childRemovalProducesRemove() {
     let old = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
-        .text("B", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
+        .text("B", fontSize: 14, color: .primary),
     ])
     let new = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
     ])
     let patches = Reconciler.diff(old: old, new: new)
     #expect(patches.count == 1)
@@ -69,17 +69,17 @@ import Testing
 
 @Test func nestedChildChangeProducesCorrectPath() {
     let old = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
         .hstack(alignment: .center, spacing: 4, children: [
-            .text("B", fontSize: 14, color: .text),
-            .text("C", fontSize: 14, color: .text),
+            .text("B", fontSize: 14, color: .primary),
+            .text("C", fontSize: 14, color: .primary),
         ]),
     ])
     let new = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-        .text("A", fontSize: 14, color: .text),
+        .text("A", fontSize: 14, color: .primary),
         .hstack(alignment: .center, spacing: 4, children: [
-            .text("B", fontSize: 14, color: .text),
-            .text("D", fontSize: 14, color: .text), // Changed C -> D
+            .text("B", fontSize: 14, color: .primary),
+            .text("D", fontSize: 14, color: .primary), // Changed C -> D
         ]),
     ])
     let patches = Reconciler.diff(old: old, new: new)
@@ -106,7 +106,7 @@ import Testing
 }
 
 @Test func spacingChangeProducesUpdate() {
-    let children: [ViewNode] = [.text("A", fontSize: 14, color: .text)]
+    let children: [ViewNode] = [.text("A", fontSize: 14, color: .primary)]
     let old = ViewNode.vstack(alignment: .center, spacing: 8, children: children)
     let new = ViewNode.vstack(alignment: .center, spacing: 16, children: children)
     let patches = Reconciler.diff(old: old, new: new)
@@ -120,10 +120,10 @@ import Testing
 
 @Test func complexTreeNoChangeIsEmpty() {
     let tree = ViewNode.zstack(children: [
-        .rect(width: nil, height: nil, fill: .base),
+        .rect(width: nil, height: nil, fill: .gray),
         .vstack(alignment: .center, spacing: 8, children: [
             .text("Title", fontSize: 24, color: .white),
-            .roundedRect(width: 200, height: 100, radius: 12, fill: .surface),
+            .roundedRect(width: 200, height: 100, radius: 12, fill: .white),
         ]),
     ])
     let patches = Reconciler.diff(old: tree, new: tree)

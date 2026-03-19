@@ -26,13 +26,13 @@ public struct Dock {
     }
 
     public static let defaultItems: [DockItem] = [
-        DockItem(appId: "com.clone.finder", name: "Finder", color: .systemBlue),
-        DockItem(appId: "com.clone.safari", name: "Safari", color: .systemBlue),
-        DockItem(appId: "com.clone.mail", name: "Mail", color: .systemBlue),
-        DockItem(appId: "com.clone.music", name: "Music", color: .systemRed),
-        DockItem(appId: "com.clone.photos", name: "Photos", color: .systemGreen),
+        DockItem(appId: "com.clone.finder", name: "Finder", color: .blue),
+        DockItem(appId: "com.clone.safari", name: "Safari", color: .blue),
+        DockItem(appId: "com.clone.mail", name: "Mail", color: .blue),
+        DockItem(appId: "com.clone.music", name: "Music", color: .red),
+        DockItem(appId: "com.clone.photos", name: "Photos", color: .green),
         DockItem(appId: "com.clone.terminal", name: "Terminal", color: .black),
-        DockItem(appId: "com.clone.settings", name: "Settings", color: .muted),
+        DockItem(appId: "com.clone.settings", name: "Settings", color: .gray),
     ]
 
     public init(mouseX: Float, mouseY: Float, screenWidth: Float, screenHeight: Float) {
@@ -79,7 +79,7 @@ public struct Dock {
 
         return .zstack(children: [
             RoundedRectangle(cornerRadius: 16)
-                .fill(.dockBackground)
+                .fill(WindowChrome.dock)
                 .frame(width: totalWidth, height: dockBgHeight),
             ViewNode.hstack(alignment: .bottom, spacing: Self.padding, children: iconNodes),
         ])
@@ -90,12 +90,12 @@ public struct Dock {
         let height: Float = 26
         return ZStack {
             RoundedRectangle(cornerRadius: 6)
-                .fill(.popoverBackground)
+                .fill(WindowChrome.popover)
                 .frame(width: textWidth, height: height)
             Text(name)
                 .fontSize(12)
                 .fontWeight(.medium)
-                .foregroundColor(.text)
+                .foregroundColor(.primary)
                 .frame(width: textWidth, height: height)
         }
         .frame(width: textWidth, height: height)

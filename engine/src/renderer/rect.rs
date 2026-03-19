@@ -6,8 +6,10 @@ pub struct RectPipeline {
     sdf_pipeline: wgpu::RenderPipeline,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
-    instance_buffer: wgpu::Buffer,
-    instance_capacity: usize,
+    solid_instance_buffer: wgpu::Buffer,
+    solid_instance_capacity: usize,
+    rounded_instance_buffer: wgpu::Buffer,
+    rounded_instance_capacity: usize,
 }
 
 const INITIAL_INSTANCE_CAPACITY: usize = 256;
@@ -101,10 +103,18 @@ impl RectPipeline {
             "sdf_roundrect_pipeline",
         );
 
-        // Instance buffer
-        let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("rect_instances"),
-            size: (INITIAL_INSTANCE_CAPACITY * std::mem::size_of::<RectInstance>()) as u64,
+        let buf_size = (INITIAL_INSTANCE_CAPACITY * std::mem::size_of::<RectInstance>()) as u64;
+
+        let solid_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("solid_rect_instances"),
+            size: buf_size,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let rounded_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("rounded_rect_instances"),
+            size: buf_size,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -114,8 +124,10 @@ impl RectPipeline {
             sdf_pipeline,
             uniform_buffer,
             uniform_bind_group,
-            instance_buffer,
-            instance_capacity: INITIAL_INSTANCE_CAPACITY,
+            solid_instance_buffer,
+            solid_instance_capacity: INITIAL_INSTANCE_CAPACITY,
+            rounded_instance_buffer,
+            rounded_instance_capacity: INITIAL_INSTANCE_CAPACITY,
         }
     }
 
@@ -194,9 +206,10 @@ impl RectPipeline {
         };
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::bytes_of(&uniforms));
 
+        // Solid and rounded use separate buffers to avoid write_buffer overwrite.
         if !solid_instances.is_empty() {
-            self.ensure_instance_capacity(device, solid_instances.len());
-            queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(solid_instances));
+            self.ensure_solid_capacity(device, solid_instances.len());
+            queue.write_buffer(&self.solid_instance_buffer, 0, bytemuck::cast_slice(solid_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("solid_rect_pass"),
@@ -213,13 +226,13 @@ impl RectPipeline {
             }
             pass.set_pipeline(&self.solid_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-            pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+            pass.set_vertex_buffer(0, self.solid_instance_buffer.slice(..));
             pass.draw(0..6, 0..solid_instances.len() as u32);
         }
 
         if !rounded_instances.is_empty() {
-            self.ensure_instance_capacity(device, rounded_instances.len());
-            queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(rounded_instances));
+            self.ensure_rounded_capacity(device, rounded_instances.len());
+            queue.write_buffer(&self.rounded_instance_buffer, 0, bytemuck::cast_slice(rounded_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("rounded_rect_pass"),
@@ -236,22 +249,36 @@ impl RectPipeline {
             }
             pass.set_pipeline(&self.sdf_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-            pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+            pass.set_vertex_buffer(0, self.rounded_instance_buffer.slice(..));
             pass.draw(0..6, 0..rounded_instances.len() as u32);
         }
     }
 
-    fn ensure_instance_capacity(&mut self, device: &wgpu::Device, needed: usize) {
-        if needed <= self.instance_capacity {
+    fn ensure_solid_capacity(&mut self, device: &wgpu::Device, needed: usize) {
+        if needed <= self.solid_instance_capacity {
             return;
         }
         let new_capacity = needed.next_power_of_two();
-        self.instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("rect_instances"),
+        self.solid_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("solid_rect_instances"),
             size: (new_capacity * std::mem::size_of::<RectInstance>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        self.instance_capacity = new_capacity;
+        self.solid_instance_capacity = new_capacity;
+    }
+
+    fn ensure_rounded_capacity(&mut self, device: &wgpu::Device, needed: usize) {
+        if needed <= self.rounded_instance_capacity {
+            return;
+        }
+        let new_capacity = needed.next_power_of_two();
+        self.rounded_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("rounded_rect_instances"),
+            size: (new_capacity * std::mem::size_of::<RectInstance>()) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.rounded_instance_capacity = new_capacity;
     }
 }

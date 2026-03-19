@@ -13,11 +13,11 @@ import Testing
 }
 
 @Test func colorAsView() {
-    let body = Color.systemBlue.body
+    let body = Color.blue.body
     if case .rect(let w, let h, let fill) = body {
         #expect(w == nil)
         #expect(h == nil)
-        #expect(fill == .systemBlue)
+        #expect(fill == .blue)
     } else {
         Issue.record("Expected rect from Color.body")
     }
@@ -28,7 +28,7 @@ import Testing
     if case .onTap(_, let child) = node {
         if case .text(let content, _, let color, _) = child {
             #expect(content == "Tap")
-            #expect(color == .systemBlue)
+            #expect(color == .blue)
         } else {
             Issue.record("Expected text child in Button")
         }

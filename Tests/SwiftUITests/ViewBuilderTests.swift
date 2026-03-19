@@ -18,19 +18,19 @@ import Testing
 }
 
 @Test func rectNode() {
-    let node = ViewNode.rect(width: 100, height: 50, fill: .systemBlue)
-    #expect(node == .rect(width: 100, height: 50, fill: .systemBlue))
+    let node = ViewNode.rect(width: 100, height: 50, fill: .blue)
+    #expect(node == .rect(width: 100, height: 50, fill: .blue))
 }
 
 @Test func roundedRectNode() {
-    let node = ViewNode.roundedRect(width: 200, height: 100, radius: 12, fill: .surface)
-    #expect(node == .roundedRect(width: 200, height: 100, radius: 12, fill: .surface))
+    let node = ViewNode.roundedRect(width: 200, height: 100, radius: 12, fill: .white)
+    #expect(node == .roundedRect(width: 200, height: 100, radius: 12, fill: .white))
 }
 
 @Test func vstackBuilder() {
     let node = ViewNode.vstack(spacing: 10) {
-        ViewNode.text("Top", fontSize: 14, color: .text)
-        ViewNode.text("Bottom", fontSize: 14, color: .text)
+        ViewNode.text("Top", fontSize: 14, color: .primary)
+        ViewNode.text("Bottom", fontSize: 14, color: .primary)
     }
     if case .vstack(let alignment, let spacing, let children) = node {
         #expect(alignment == .center)
@@ -44,7 +44,7 @@ import Testing
 @Test func hstackBuilder() {
     let node = ViewNode.hstack(alignment: .top, spacing: 4) {
         ViewNode.spacer(minLength: 0)
-        ViewNode.text("Label", fontSize: 12, color: .subtle)
+        ViewNode.text("Label", fontSize: 12, color: .secondary)
     }
     if case .hstack(let alignment, let spacing, let children) = node {
         #expect(alignment == .top)
@@ -57,7 +57,7 @@ import Testing
 
 @Test func zstackBuilder() {
     let node = ViewNode.zstack {
-        ViewNode.rect(width: nil, height: nil, fill: .base)
+        ViewNode.rect(width: nil, height: nil, fill: .gray)
         ViewNode.text("Overlay", fontSize: 24, color: .white)
     }
     if case .zstack(let children) = node {
@@ -68,7 +68,7 @@ import Testing
 }
 
 @Test func paddingNode() {
-    let inner = ViewNode.text("Padded", fontSize: 14, color: .text)
+    let inner = ViewNode.text("Padded", fontSize: 14, color: .primary)
     let node = ViewNode.padding(EdgeInsets(all: 16), child: inner)
     if case .padding(let insets, let child) = node {
         #expect(insets.top == 16)
@@ -80,7 +80,7 @@ import Testing
 }
 
 @Test func frameNode() {
-    let inner = ViewNode.text("Framed", fontSize: 14, color: .text)
+    let inner = ViewNode.text("Framed", fontSize: 14, color: .primary)
     let node = ViewNode.frame(width: 300, height: nil, child: inner)
     if case .frame(let w, let h, let child) = node {
         #expect(w == 300)
@@ -103,7 +103,7 @@ import Testing
 }
 
 @Test func onTapNode() {
-    let inner = ViewNode.text("Tap me", fontSize: 16, color: .systemBlue)
+    let inner = ViewNode.text("Tap me", fontSize: 16, color: .blue)
     let node = ViewNode.onTap(id: 42, child: inner)
     if case .onTap(let id, let child) = node {
         #expect(id == 42)
@@ -116,11 +116,11 @@ import Testing
 @Test func nestedTree() {
     let tree = ViewNode.vstack {
         ViewNode.hstack {
-            ViewNode.text("Left", fontSize: 14, color: .text)
+            ViewNode.text("Left", fontSize: 14, color: .primary)
             ViewNode.spacer(minLength: 0)
-            ViewNode.text("Right", fontSize: 14, color: .text)
+            ViewNode.text("Right", fontSize: 14, color: .primary)
         }
-        ViewNode.roundedRect(width: nil, height: 200, radius: 12, fill: .surface)
+        ViewNode.roundedRect(width: nil, height: 200, radius: 12, fill: .white)
     }
     if case .vstack(_, _, let children) = tree {
         #expect(children.count == 2)

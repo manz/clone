@@ -9,7 +9,7 @@ import Foundation
     let node = GeometryReader { proxy in
         captured.value = proxy.size
         return RoundedRectangle(cornerRadius: 8)
-            .fill(.systemBlue)
+            .fill(.blue)
             .frame(width: proxy.width, height: proxy.height)
     }
 
@@ -26,7 +26,7 @@ import Foundation
     GeometryReaderRegistry.shared.clear()
 
     let node = GeometryReader { proxy in
-        Rectangle().fill(.base).frame(width: proxy.width, height: proxy.height)
+        Rectangle().fill(.gray).frame(width: proxy.width, height: proxy.height)
     }
 
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 800, maxHeight: 600))
@@ -41,7 +41,7 @@ import Foundation
     let captured = CapturedValue<Float>()
     let node = VStack(spacing: 0) {
         RoundedRectangle(cornerRadius: 0)
-            .fill(.overlay)
+            .fill(.gray)
             .frame(width: nil, height: 50)
         GeometryReader { proxy in
             captured.value = proxy.height
@@ -62,7 +62,7 @@ import Foundation
         EdgeInsets(top: 20, leading: 30, bottom: 0, trailing: 0),
         child: GeometryReader { proxy in
             captured.value = proxy.frame
-            return Rectangle().fill(.base)
+            return Rectangle().fill(.gray)
         }
     )
 
@@ -82,9 +82,9 @@ final class CapturedValue<T> {
 
 @Test func hitTestOnLayoutNode() {
     let node = ZStack {
-        Rectangle().fill(.base).frame(width: 400, height: 300)
+        Rectangle().fill(.gray).frame(width: 400, height: 300)
         RoundedRectangle(cornerRadius: 8)
-            .fill(.systemBlue)
+            .fill(.blue)
             .frame(width: 100, height: 50)
     }
 

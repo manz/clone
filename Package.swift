@@ -61,19 +61,19 @@ let package = Package(
         // Settings app (separate process)
         .executableTarget(
             name: "Settings",
-            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI"],
             path: "Sources/SettingsApp"
         ),
         // Dock app (separate process)
         .executableTarget(
             name: "Dock",
-            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI"],
             path: "Sources/DockApp"
         ),
         // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
-            dependencies: ["SwiftUI", "CloneClient", "CloneProtocol"],
+            dependencies: ["SwiftUI"],
             path: "Sources/MenuBarApp"
         ),
         .testTarget(

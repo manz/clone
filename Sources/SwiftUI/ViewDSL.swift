@@ -4,7 +4,7 @@ import Foundation
 
 /// `Text("Hello")` — defaults to 14pt, .text color
 public func Text(_ content: String) -> ViewNode {
-    .text(content, fontSize: 14, color: .text)
+    .text(content, fontSize: 14, color: .primary)
 }
 
 /// `Rectangle()` — solid filled rect
@@ -50,7 +50,7 @@ public func ZStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
 /// `Button("Tap") { action }` — label string variant
 public func Button(_ label: String, action: @escaping () -> Void) -> ViewNode {
     Text(label)
-        .foregroundColor(.systemBlue)
+        .foregroundColor(.blue)
         .onTapGesture(action)
 }
 
@@ -213,7 +213,7 @@ public extension ViewNode {
         fontSize(size)
     }
 
-    /// `.fill(.systemBlue)` — sets the fill color on rect/roundedRect
+    /// `.fill(.blue)` — sets the fill color on rect/roundedRect
     func fill(_ color: Color) -> ViewNode {
         switch self {
         case .rect(let width, let height, _):
@@ -268,9 +268,10 @@ public extension ViewNode {
         .contextMenu(child: self, menuItems: content())
     }
 
-    /// `.navigationTitle(_:)` — no-op for now (window title is set by the compositor).
+    /// `.navigationTitle(_:)` — sets the window title via WindowState.
     func navigationTitle(_ title: String) -> ViewNode {
-        self
+        WindowState.shared.navigationTitle = title
+        return self
     }
 
     /// `.toolbar { }` — no-op for now (toolbar items are managed by window chrome).
@@ -303,16 +304,16 @@ public extension ViewNode {
 
 /// `Label("Wi-Fi", systemImage: "wifi")` — icon rounded rect + text, like SwiftUI Label.
 /// Since we don't have SF Symbols, `systemImage` is ignored visually but the icon color is used.
-public func Label(_ title: String, systemImage: String, iconColor: Color = .systemBlue) -> ViewNode {
+public func Label(_ title: String, systemImage: String, iconColor: Color = .blue) -> ViewNode {
     .hstack(alignment: .center, spacing: 8, children: [
         .roundedRect(width: 20, height: 20, radius: 5, fill: iconColor),
-        .text(title, fontSize: 13, color: .text),
+        .text(title, fontSize: 13, color: .primary),
     ])
 }
 
 /// `Divider()` — 1px horizontal line
 public func Divider() -> ViewNode {
-    .rect(width: nil, height: 1, fill: .overlay)
+    .rect(width: nil, height: 1, fill: WindowChrome.overlay)
 }
 
 /// `Section("Header") { ... }` — grouped rows with optional header, like SwiftUI Section.
@@ -323,7 +324,7 @@ public func Section(
     var children: [ViewNode] = []
     if let header {
         children.append(
-            ViewNode.text(header, fontSize: 12, color: .subtle, weight: .semibold)
+            ViewNode.text(header, fontSize: 12, color: .secondary, weight: .semibold)
         )
     }
     let rows = content()
@@ -332,7 +333,7 @@ public func Section(
         children.append(row)
         if i < rows.count - 1 {
             children.append(
-                ViewNode.rect(width: nil, height: 1, fill: .overlay)
+                ViewNode.rect(width: nil, height: 1, fill: WindowChrome.overlay)
                     .padding(.leading, 12)
             )
         }
@@ -348,7 +349,7 @@ public func NavigationSplitView(
 ) -> ViewNode {
     .hstack(alignment: .top, spacing: 0, children: [
         ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
-        ViewNode.rect(width: 1, height: nil, fill: .overlay),
+        ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
         ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
     ])
 }

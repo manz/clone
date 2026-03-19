@@ -37,22 +37,22 @@ let contextMenuItemHeight: Float = 26
 
 // MARK: - Semantic color aliases
 
-var bgColor: Color { .surface }
-var surfaceColor: Color { .overlay }
-var overlayColor: Color { .separator }
-var textColor: Color { .text }
-var subtleColor: Color { .subtle }
-var mutedColor: Color { .muted }
-var highlightColor: Color { .highlight }
-var selectionColor: Color { .selection }
-let folderColor: Color = .systemBlue
-let codeColor: Color = .systemOrange
-let imageColor: Color = .systemGreen
-var docColor: Color { .subtle }
-var menuBgColor: Color { .popoverBackground }
-var menuHoverColor: Color { .systemBlue }
-var disabledColor: Color { .muted }
-var sidebarBgColor: Color { .sidebarBackground }
+var bgColor: Color { WindowChrome.surface }
+var surfaceColor: Color { WindowChrome.overlay }
+var overlayColor: Color { WindowChrome.separator }
+var textColor: Color { .primary }
+var subtleColor: Color { .secondary }
+var mutedColor: Color { .gray }
+var highlightColor: Color { WindowChrome.highlight }
+var selectionColor: Color { WindowChrome.selection }
+let folderColor: Color = .blue
+let codeColor: Color = .orange
+let imageColor: Color = .green
+var docColor: Color { .secondary }
+var menuBgColor: Color { WindowChrome.popover }
+var menuHoverColor: Color { .blue }
+var disabledColor: Color { .gray }
+var sidebarBgColor: Color { WindowChrome.sidebar }
 let shadowColor = Color(r: 0, g: 0, b: 0, a: 0.3)
 
 // MARK: - Sidebar favorites
@@ -62,7 +62,7 @@ let favorites: [(name: String, path: String, icon: Color)] = [
     ("Desktop", (NSHomeDirectory() as NSString).appendingPathComponent("Desktop"), folderColor),
     ("Documents", (NSHomeDirectory() as NSString).appendingPathComponent("Documents"), folderColor),
     ("Downloads", (NSHomeDirectory() as NSString).appendingPathComponent("Downloads"), folderColor),
-    ("Applications", "/Applications", Color.systemPurple),
+    ("Applications", "/Applications", Color.purple),
 ]
 
 // MARK: - State
@@ -639,18 +639,18 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
     let panelY = (height - panelH) / 2
     let cornerR: Float = 10
 
-    let iconColor: Color = info.isDirectory ? .systemBlue : .systemOrange
+    let iconColor: Color = info.isDirectory ? .blue : .orange
 
     // Title bar with close dot
     let titleBar: ViewNode = .zstack(children: [
-        Rectangle().fill(.titleBar).frame(width: panelW, height: titleBarH),
+        Rectangle().fill(WindowChrome.titleBar).frame(width: panelW, height: titleBarH),
         .hstack(alignment: .center, spacing: 0, children: [
             .rect(width: 10, height: 1, fill: .clear),
             RoundedRectangle(cornerRadius: 5)
-                .fill(.systemRed)
+                .fill(.red)
                 .frame(width: 10, height: 10),
             Spacer(),
-            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.text),
+            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.primary),
             Spacer(),
             .rect(width: 20, height: 1, fill: .clear),
         ]).frame(width: panelW, height: titleBarH),
@@ -662,11 +662,11 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
         .hstack(alignment: .center, spacing: 10, children: [
             RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48),
             .vstack(alignment: .leading, spacing: 2, children: [
-                Text(info.name).fontSize(14).bold().foregroundColor(.text),
-                Text(info.kind).fontSize(12).foregroundColor(.subtle),
+                Text(info.name).fontSize(14).bold().foregroundColor(.primary),
+                Text(info.kind).fontSize(12).foregroundColor(.secondary),
             ]),
         ]),
-        Rectangle().fill(.separator).frame(height: 1),
+        Rectangle().fill(WindowChrome.separator).frame(height: 1),
         infoRow("Kind:", info.kind),
         infoRow("Size:", info.size),
         infoRow("Where:", info.path),
@@ -674,10 +674,10 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
 
     // Window body
     let windowBody: ViewNode = .zstack(children: [
-        RoundedRectangle(cornerRadius: cornerR).fill(.surface).frame(width: panelW, height: panelH),
+        RoundedRectangle(cornerRadius: cornerR).fill(WindowChrome.surface).frame(width: panelW, height: panelH),
         .vstack(alignment: .leading, spacing: 0, children: [
             titleBar,
-            Rectangle().fill(.separator).frame(width: panelW, height: 1),
+            Rectangle().fill(WindowChrome.separator).frame(width: panelW, height: 1),
             content,
         ]).frame(width: panelW, height: panelH),
     ]).frame(width: panelW, height: panelH)
@@ -701,8 +701,8 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
 
 private func infoRow(_ label: String, _ value: String) -> ViewNode {
     .hstack(alignment: .top, spacing: 6, children: [
-        Text(label).fontSize(12).foregroundColor(.subtle).frame(width: 50),
-        Text(value).fontSize(12).foregroundColor(.text),
+        Text(label).fontSize(12).foregroundColor(.secondary).frame(width: 50),
+        Text(value).fontSize(12).foregroundColor(.primary),
     ])
 }
 
@@ -721,9 +721,14 @@ func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
                 statusBarView(state: state, width: listWidth),
             ]).frame(width: listWidth),
         ]),
-    ]).background(bgColor)
+    ])
 
-    var layers: [ViewNode] = [mainContent.clipped()]
+    let mainWithBg: ViewNode = .zstack(children: [
+        Rectangle().fill(bgColor).frame(width: width, height: height),
+        mainContent,
+    ]).frame(width: width, height: height)
+
+    var layers: [ViewNode] = [mainWithBg.clipped()]
     if let menu = state.contextMenu {
         layers.append(contextMenuView(menu: menu, width: width, height: height))
     }
@@ -731,7 +736,9 @@ func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
         layers.append(infoPanelView(info: info, width: width, height: height))
     }
 
-    return ViewNode.zstack(children: layers).frame(width: width, height: height)
+    return ViewNode.zstack(children: layers)
+        .frame(width: width, height: height)
+        .navigationTitle("Finder — \(state.shortenPath(state.currentPath))")
 }
 
 // MARK: - App
@@ -742,7 +749,7 @@ struct FinderApp: App {
 
     var body: some Scene {
         WindowGroup("Finder") {
-            finderView(state: state, width: 700, height: 450)
+            finderView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
         }
     }
 
@@ -763,7 +770,6 @@ struct FinderApp: App {
         } else if button == 1 {
             state.handleRightClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
         }
-        client.send(.setTitle(title: "Finder — \(state.shortenPath(state.currentPath))"))
     }
 
     func onKey(keycode: UInt32, pressed: Bool) {
@@ -771,7 +777,6 @@ struct FinderApp: App {
         switch keycode {
         case 42, 51:
             state.goBack()
-            client.send(.setTitle(title: "Finder — \(state.shortenPath(state.currentPath))"))
         case 1:
             if state.infoPanel != nil { state.infoPanel = nil }
             else { state.contextMenu = nil }

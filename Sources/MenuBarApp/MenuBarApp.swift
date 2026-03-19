@@ -1,7 +1,5 @@
 import Foundation
 import SwiftUI
-import CloneClient
-import CloneProtocol
 
 final class MenuBarState {
     var focusedAppName = "Finder"
@@ -10,7 +8,7 @@ final class MenuBarState {
 let menuItems = ["File", "Edit", "View", "Window", "Help"]
 
 func menuBarView(state: MenuBarState) -> ViewNode {
-    let menuTextColor: Color = .text
+    let menuTextColor: Color = .primary
 
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm"
@@ -22,7 +20,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
     children.append(
         Text("\u{F8FF}")
             .fontSize(14)
-            .foregroundColor(.text)
+            .foregroundColor(.primary)
     )
 
     // Focused app name (bold)
@@ -30,7 +28,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
         Text(state.focusedAppName)
             .fontSize(13)
             .bold()
-            .foregroundColor(.text)
+            .foregroundColor(.primary)
     )
 
     // Menu items
@@ -49,13 +47,13 @@ func menuBarView(state: MenuBarState) -> ViewNode {
     children.append(
         Text(clock)
             .fontSize(13)
-            .foregroundColor(.text)
+            .foregroundColor(.primary)
     )
 
     return ViewNode.hstack(alignment: .center, spacing: 16, children: children)
         .padding(.horizontal, 12)
         .frame(height: 24)
-        .background(.menuBarBackground)
+        .background(WindowChrome.menuBar)
 }
 
 @main

@@ -82,7 +82,7 @@ public enum CommandFlattener {
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y,
                 width: frame.width, height: frame.height,
-                kind: .text(content: label, fontSize: 14, color: Color.text.withAlpha(opacity))
+                kind: .text(content: label, fontSize: 14, color: Color.primary.withAlpha(opacity))
             ))
 
         case .contextMenu(_, _):
@@ -117,19 +117,19 @@ public enum CommandFlattener {
                     x: iconX, y: iconY,
                     width: iconSize, height: iconSize,
                     kind: .text(content: String(char), fontSize: iconSize,
-                               color: Color.text.withAlpha(opacity), isIcon: true)
+                               color: Color.primary.withAlpha(opacity), isIcon: true)
                 ))
             } else {
                 commands.append(FlatRenderCommand(
                     x: frame.x, y: frame.y,
                     width: frame.width, height: frame.height,
-                    kind: .rect(color: Color.muted.withAlpha(0.3 * opacity))
+                    kind: .rect(color: Color.gray.withAlpha(0.3 * opacity))
                 ))
             }
 
         case .toggle(let isOn, _):
             // Track background
-            let trackColor: Color = isOn ? .systemGreen : .muted
+            let trackColor: Color = isOn ? .green : .gray
             let trackW: Float = 44
             let trackH: Float = 24
             let trackX = frame.x + frame.width - trackW - 8
@@ -152,7 +152,7 @@ public enum CommandFlattener {
             let trackY = frame.y + (frame.height - trackH) / 2
             commands.append(FlatRenderCommand(
                 x: frame.x, y: trackY, width: frame.width, height: trackH,
-                kind: .roundedRect(radius: 2, color: Color.muted.withAlpha(opacity))
+                kind: .roundedRect(radius: 2, color: Color.gray.withAlpha(opacity))
             ))
             let t = (value - range.lowerBound) / (range.upperBound - range.lowerBound)
             let knobX = frame.x + t * (frame.width - 16)
@@ -165,11 +165,11 @@ public enum CommandFlattener {
             // Background box
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y, width: frame.width, height: frame.height,
-                kind: .roundedRect(radius: 6, color: Color.surface.withAlpha(opacity))
+                kind: .roundedRect(radius: 6, color: WindowChrome.surface.withAlpha(opacity))
             ))
             // Text content or placeholder
             let displayText = text.isEmpty ? placeholder : text
-            let textColor = text.isEmpty ? Color.muted : Color.text
+            let textColor = text.isEmpty ? Color.gray : Color.primary
             commands.append(FlatRenderCommand(
                 x: frame.x + 8, y: frame.y + 7, width: frame.width - 16, height: 14,
                 kind: .text(content: displayText, fontSize: 14, color: textColor.withAlpha(opacity))

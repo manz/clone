@@ -270,7 +270,7 @@ public enum Layout {
 
         case .menu(let label, _):
             // Collapsed: layout as a text label
-            let labelNode = ViewNode.text(label, fontSize: 14, color: .text)
+            let labelNode = ViewNode.text(label, fontSize: 14, color: .primary)
             let labelLayout = layout(labelNode, in: frame)
             return LayoutNode(frame: frame, node: node, children: [labelLayout])
 

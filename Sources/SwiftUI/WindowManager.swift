@@ -395,7 +395,7 @@ public final class WindowManager {
         let windowBody = ZStack {
             // Window background
             RoundedRectangle(cornerRadius: radius)
-                .fill(isFocused ? .surface : .windowBackground)
+                .fill(isFocused ? WindowChrome.surface : WindowChrome.backgroundUnfocused)
                 .frame(width: window.width, height: window.height)
             // Content area
             VStack(alignment: .leading, spacing: 0) {
@@ -429,7 +429,7 @@ public final class WindowManager {
     private func titleBar(window: ManagedWindow, isFocused: Bool, showSymbols: Bool) -> ViewNode {
         let w = window.width
         let h = WindowChrome.titleBarHeight
-        let bg = isFocused ? Color.titleBar : Color.titleBarUnfocused
+        let bg = isFocused ? WindowChrome.titleBar : WindowChrome.titleBarUnfocused
 
         // Build the HStack content as a flat array — no spacers, manual positioning
         // This avoids layout issues with nested ZStack/HStack/Spacer
@@ -446,15 +446,15 @@ public final class WindowManager {
         let btnSize = WindowChrome.buttonSize
         let btnStep = btnSize + WindowChrome.buttonSpacing
 
-        nodes.append(trafficLightButton(color: isFocused ? .systemRed : .muted, symbol: showSymbols ? "×" : nil)
+        nodes.append(trafficLightButton(color: isFocused ? .red : .gray, symbol: showSymbols ? "×" : nil)
             .padding(.top, btnY).padding(.leading, btnX))
-        nodes.append(trafficLightButton(color: isFocused ? .systemYellow : .muted, symbol: showSymbols ? "−" : nil)
+        nodes.append(trafficLightButton(color: isFocused ? .yellow : .gray, symbol: showSymbols ? "−" : nil)
             .padding(.top, btnY).padding(.leading, btnX + btnStep))
-        nodes.append(trafficLightButton(color: isFocused ? .systemGreen : .muted, symbol: showSymbols ? (window.isMaximized ? "↙" : "↗") : nil)
+        nodes.append(trafficLightButton(color: isFocused ? .green : .gray, symbol: showSymbols ? (window.isMaximized ? "↙" : "↗") : nil)
             .padding(.top, btnY).padding(.leading, btnX + btnStep * 2))
 
         // Title text — centered
-        let titleColor = isFocused ? Color.text : Color.subtle
+        let titleColor = isFocused ? Color.primary : Color.secondary
         nodes.append(
             Text(window.title).fontSize(13).foregroundColor(titleColor)
                 .padding(.top, (h - 13) / 2)

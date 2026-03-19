@@ -109,6 +109,14 @@ extension App {
             exit(1)
         }
 
+        // Wire up system actions so apps can launch/restore without touching client.
+        SystemActions.shared.launchApp = LaunchAppAction { appId in
+            app.client.send(.launchApp(appId: appId))
+        }
+        SystemActions.shared.restoreApp = RestoreAppAction { appId in
+            app.client.send(.restoreApp(appId: appId))
+        }
+
         if usesDeclarativeRendering {
             // Declarative path: ViewNode → Layout → Flatten → IPC
             guard let windowGroup = app.body as? (any _WindowGroupProtocol) else {
@@ -117,19 +125,26 @@ extension App {
             }
             app.client.onFrameRequest = { width, height in
                 TapRegistry.shared.clear()
+                WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
                 let viewTree = windowGroup.buildViewNode()
-                    .background(config.role == .window ? .surface : .clear)
+                    .background(config.role == .window ? WindowChrome.surface : .clear)
                 let layoutNode = Layout.layout(
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: width, height: height)
                 )
+                // Propagate .navigationTitle() if it changed.
+                if WindowState.shared.titleDidChange(),
+                   let newTitle = WindowState.shared.navigationTitle {
+                    app.client.send(.setTitle(title: newTitle))
+                }
                 return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
             }
             app.client.onPointerButton = { button, pressed, x, y in
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 if button == 0 && pressed {
                     TapRegistry.shared.clear()
+                    WindowState.shared.update(width: app.client.width, height: app.client.height)
                     let viewTree = windowGroup.buildViewNode()
                     let layoutNode = Layout.layout(
                         viewTree,
@@ -139,12 +154,18 @@ extension App {
                        case .onTap(let id, _) = hit.node {
                         TapRegistry.shared.fire(id: id)
                     }
+                    // Propagate title changes from tap handlers (e.g. navigation).
+                    if WindowState.shared.titleDidChange(),
+                       let newTitle = WindowState.shared.navigationTitle {
+                        app.client.send(.setTitle(title: newTitle))
+                    }
                 }
             }
         } else {
             // Imperative path: app renders IPCRenderCommand directly
             app.client.onFrameRequest = { width, height in
-                app.render(width: width, height: height) ?? []
+                WindowState.shared.update(width: width, height: height)
+                return app.render(width: width, height: height) ?? []
             }
             app.client.onPointerButton = { button, pressed, x, y in
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)

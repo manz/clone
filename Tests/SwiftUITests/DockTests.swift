@@ -9,7 +9,7 @@ let dockY: Float = 780
 
 @Test func dockMagnificationAtCenter() {
     let items = (0..<7).map { _ in
-        Dock.DockItem(appId: "test", name: "App", color: .systemBlue)
+        Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
     let sizes = Dock.magnifiedSizes(
         mouseX: 640, mouseY: dockY,
@@ -23,7 +23,7 @@ let dockY: Float = 780
 }
 
 @Test func dockMagnificationFarAwayX() {
-    let items = [Dock.DockItem(appId: "test", name: "App", color: .systemBlue)]
+    let items = [Dock.DockItem(appId: "test", name: "App", color: .blue)]
     let sizes = Dock.magnifiedSizes(
         mouseX: 0, mouseY: dockY,
         items: items, screenWidth: screenWidth, screenHeight: screenHeight
@@ -34,7 +34,7 @@ let dockY: Float = 780
 
 @Test func dockMagnificationFarAwayY() {
     let items = (0..<7).map { _ in
-        Dock.DockItem(appId: "test", name: "App", color: .systemBlue)
+        Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
     // Mouse at top of screen — should NOT magnify
     let sizes = Dock.magnifiedSizes(
@@ -48,7 +48,7 @@ let dockY: Float = 780
 
 @Test func dockMagnificationSymmetric() {
     let items = (0..<5).map { _ in
-        Dock.DockItem(appId: "test", name: "App", color: .systemBlue)
+        Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
     let sw: Float = 1000
     let leftSizes = Dock.magnifiedSizes(

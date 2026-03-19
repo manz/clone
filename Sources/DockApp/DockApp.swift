@@ -1,7 +1,5 @@
 import Foundation
 import SwiftUI
-import CloneClient
-import CloneProtocol
 
 // MARK: - Dock Items
 
@@ -12,13 +10,13 @@ struct DockItem {
 }
 
 let items: [DockItem] = [
-    DockItem(appId: "com.clone.finder", name: "Finder", color: .systemBlue),
-    DockItem(appId: "com.clone.safari", name: "Safari", color: .systemBlue),
-    DockItem(appId: "com.clone.mail", name: "Mail", color: .systemBlue),
-    DockItem(appId: "com.clone.music", name: "Music", color: .systemRed),
-    DockItem(appId: "com.clone.photos", name: "Photos", color: .systemGreen),
+    DockItem(appId: "com.clone.finder", name: "Finder", color: .blue),
+    DockItem(appId: "com.clone.safari", name: "Safari", color: .blue),
+    DockItem(appId: "com.clone.mail", name: "Mail", color: .blue),
+    DockItem(appId: "com.clone.music", name: "Music", color: .red),
+    DockItem(appId: "com.clone.photos", name: "Photos", color: .green),
     DockItem(appId: "com.clone.terminal", name: "Terminal", color: .black),
-    DockItem(appId: "com.clone.settings", name: "Settings", color: .muted),
+    DockItem(appId: "com.clone.settings", name: "Settings", color: .gray),
 ]
 
 // MARK: - Constants
@@ -97,7 +95,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
     children.append(
         positioned(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.dockBackground)
+                .fill(WindowChrome.dock)
                 .frame(width: totalWidth, height: bgHeight),
             x: bgX, y: bgY
         )
@@ -129,7 +127,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
             children.append(
                 positioned(
                     RoundedRectangle(cornerRadius: dotSize / 2)
-                        .fill(.text)
+                        .fill(.primary)
                         .frame(width: dotSize, height: dotSize),
                     x: dotX, y: dotY
                 )
@@ -146,7 +144,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
             children.append(
                 positioned(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(.popoverBackground)
+                        .fill(WindowChrome.popover)
                         .frame(width: textWidth, height: labelH),
                     x: labelX, y: labelY
                 )
@@ -155,7 +153,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
                 positioned(
                     Text(item.name)
                         .fontSize(12)
-                        .foregroundColor(.text)
+                        .foregroundColor(.primary)
                         .fontWeight(.medium),
                     x: labelX + 10, y: labelY + 6
                 )
@@ -194,13 +192,13 @@ struct DockApp: App {
         if button == 0 && pressed {
             let index = hoveredIconIndex(mouseX: x, mouseY: y,
                                           iconCount: items.count,
-                                          screenWidth: client.width, screenHeight: client.height)
+                                          screenWidth: WindowState.shared.width, screenHeight: WindowState.shared.height)
             if let index {
                 let item = items[index]
                 if state.minimizedAppIds.contains(item.appId) {
-                    client.send(.restoreApp(appId: item.appId))
+                    SystemActions.shared.restoreApp(item.appId)
                 } else {
-                    client.send(.launchApp(appId: item.appId))
+                    SystemActions.shared.launchApp(item.appId)
                 }
             }
         }

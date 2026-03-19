@@ -341,16 +341,25 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             // Build window chrome + content in LOCAL coordinates (0,0 = window top-left)
             var windowCommands: [RenderCommand] = []
 
-            // Title bar background
-            let tbColor: Color = isFocused ? .titleBar : .titleBarUnfocused
-            let bgColor: Color = isFocused ? .surface : .windowBackground
+            let tbColor: Color = isFocused ? WindowChrome.titleBar : WindowChrome.titleBarUnfocused
+            let bgColor: Color = isFocused ? WindowChrome.surface : WindowChrome.background
 
-            // Window background (local coords)
+            // 1. Window background
             windowCommands.append(.roundedRect(
                 x: 0, y: 0, w: window.width, h: window.height,
                 radius: radius, color: bgColor.toEngine()
             ))
-            // Title bar
+
+            // 2. App content (IPC commands — offset by title bar height)
+            if let serverWid = externalWindowId(for: window.id) {
+                let ipcCommands = server.commands(for: serverWid)
+                for cmd in ipcCommands {
+                    windowCommands.append(Bridge.offsetIpcCommand(cmd, dy: WindowChrome.titleBarHeight))
+                }
+            }
+
+            // 3. Title bar + chrome drawn LAST so they're always on top
+            windowCommands.append(.pushClip(x: 0, y: 0, w: window.width, h: window.height, radius: 0))
             windowCommands.append(.rect(
                 x: 0, y: 0, w: window.width, h: WindowChrome.titleBarHeight,
                 color: tbColor.toEngine()
@@ -362,9 +371,9 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let btnSize = WindowChrome.buttonSize
             let btnStep = btnSize + WindowChrome.buttonSpacing
 
-            let closeColor: Color = isFocused ? .systemRed : .muted
-            let minColor: Color = isFocused ? .systemYellow : .muted
-            let zoomColor: Color = isFocused ? .systemGreen : .muted
+            let closeColor: Color = isFocused ? .red : .gray
+            let minColor: Color = isFocused ? .yellow : .gray
+            let zoomColor: Color = isFocused ? .green : .gray
 
             windowCommands.append(.roundedRect(x: btnX, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: closeColor.toEngine()))
             windowCommands.append(.roundedRect(x: btnX + btnStep, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: minColor.toEngine()))
@@ -381,22 +390,14 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             }
 
             // Title text
-            let titleColor: Color = isFocused ? .text : .subtle
+            let titleColor: Color = isFocused ? .primary : .secondary
             let titleX = window.width / 2 - Float(window.title.count) * 4
             let titleY = (WindowChrome.titleBarHeight - 13) / 2
             windowCommands.append(.text(
                 x: titleX, y: titleY, content: window.title, fontSize: 13,
                 color: titleColor.toEngine(), weight: .regular, isIcon: false
             ))
-
-            // App content (IPC commands — already in local coords)
-            if let serverWid = externalWindowId(for: window.id) {
-                let ipcCommands = server.commands(for: serverWid)
-                for cmd in ipcCommands {
-                    // Offset by title bar height (IPC coords are relative to content area)
-                    windowCommands.append(Bridge.offsetIpcCommand(cmd, dy: WindowChrome.titleBarHeight))
-                }
-            }
+            windowCommands.append(.popClip)
 
             // Apply animation override if this window is animating
             var frameX = window.x

@@ -1,26 +1,24 @@
 import SwiftUI
-import CloneClient
-import CloneProtocol
 
 // MARK: - Semantic color aliases
 
-var rpBase: Color { .base }
-var rpSurface: Color { .surface }
-var rpOverlay: Color { .overlay }
-var rpText: Color { .text }
-var rpSubtle: Color { .subtle }
-var rpMuted: Color { .muted }
+var rpBase: Color { WindowChrome.base }
+var rpSurface: Color { WindowChrome.surface }
+var rpOverlay: Color { WindowChrome.overlay }
+var rpText: Color { .primary }
+var rpSubtle: Color { .secondary }
+var rpMuted: Color { .gray }
 
-let rpBlue: Color = .systemBlue
-let rpRed: Color = .systemRed
-let rpGreen: Color = .systemGreen
-let rpPurple: Color = .systemPurple
-let rpTeal: Color = .systemTeal
+let rpBlue: Color = .blue
+let rpRed: Color = .red
+let rpGreen: Color = .green
+let rpPurple: Color = .purple
+let rpTeal: Color = .teal
 let rpBlack: Color = .black
-var rpSelected: Color { .selection }
-var hoverBg: Color { .highlight }
-var rowHoverBg: Color { .overlay }
-var rowDivider: Color { .separator }
+var rpSelected: Color { WindowChrome.selection }
+var hoverBg: Color { WindowChrome.highlight }
+var rowHoverBg: Color { WindowChrome.overlay }
+var rowDivider: Color { WindowChrome.separator }
 
 // MARK: - Data model
 
@@ -428,9 +426,9 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
     let content = ViewNode.vstack(alignment: .leading, spacing: 0, children: children)
         .padding(24)
     return ViewNode.zstack(children: [
-        Rectangle().fill(rpSurface),
+        Rectangle().fill(rpSurface).frame(width: width),
         content,
-    ])
+    ]).frame(width: width)
 }
 
 // MARK: - Root settings view

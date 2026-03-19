@@ -26,7 +26,7 @@ import Testing
 }
 
 @Test func measureRoundedRect() {
-    let node = ViewNode.roundedRect(width: 200, height: 100, radius: 12, fill: .surface)
+    let node = ViewNode.roundedRect(width: 200, height: 100, radius: 12, fill: .white)
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 400, maxHeight: 300))
     #expect(size.width == 200)
     #expect(size.height == 100)
@@ -154,10 +154,10 @@ import Testing
 @Test func layoutNestedStacksProduceCorrectPositions() {
     let node = ViewNode.vstack(alignment: .leading, spacing: 10, children: [
         .hstack(alignment: .center, spacing: 8, children: [
-            .rect(width: 50, height: 50, fill: .systemBlue),
-            .text("Label", fontSize: 16, color: .text),
+            .rect(width: 50, height: 50, fill: .blue),
+            .text("Label", fontSize: 16, color: .primary),
         ]),
-        .roundedRect(width: 300, height: 100, radius: 12, fill: .surface),
+        .roundedRect(width: 300, height: 100, radius: 12, fill: .white),
     ])
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 600))
     #expect(result.children.count == 2)
@@ -176,13 +176,13 @@ import Testing
 // MARK: - CommandFlattener tests
 
 @Test func flattenSimpleRect() {
-    let node = ViewNode.rect(width: 100, height: 50, fill: .systemBlue)
+    let node = ViewNode.rect(width: 100, height: 50, fill: .blue)
     let layoutResult = Layout.layout(node, in: LayoutFrame(x: 10, y: 20, width: 400, height: 300))
     let commands = CommandFlattener.flatten(layoutResult)
     #expect(commands.count == 1)
     #expect(commands[0].x == 10)
     #expect(commands[0].y == 20)
-    #expect(commands[0].kind == .rect(color: .systemBlue))
+    #expect(commands[0].kind == .rect(color: .blue))
 }
 
 @Test func flattenOpacityModifiesAlpha() {
@@ -199,12 +199,12 @@ import Testing
 
 @Test func flattenVStackProducesMultipleCommands() {
     let node = ViewNode.vstack(alignment: .center, spacing: 10, children: [
-        .rect(width: 100, height: 40, fill: .systemRed),
-        .roundedRect(width: 200, height: 60, radius: 8, fill: .systemGreen),
+        .rect(width: 100, height: 40, fill: .red),
+        .roundedRect(width: 200, height: 60, radius: 8, fill: .green),
     ])
     let layoutResult = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
     let commands = CommandFlattener.flatten(layoutResult)
     #expect(commands.count == 2)
-    #expect(commands[0].kind == .rect(color: .systemRed))
-    #expect(commands[1].kind == .roundedRect(radius: 8, color: .systemGreen))
+    #expect(commands[0].kind == .rect(color: .red))
+    #expect(commands[1].kind == .roundedRect(radius: 8, color: .green))
 }
