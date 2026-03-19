@@ -2,9 +2,9 @@ import SwiftUI
 
 // MARK: - Semantic color aliases
 
-var rpBase: Color { WindowChrome.base }
-var rpSurface: Color { WindowChrome.surface }
-var rpOverlay: Color { WindowChrome.overlay }
+var rpBase: Color { Color(nsColor: .windowBackgroundColor) }
+var rpSurface: Color { Color(nsColor: .controlBackgroundColor) }
+var rpOverlay: Color { Color(nsColor: .gridColor) }
 var rpText: Color { .primary }
 var rpSubtle: Color { .secondary }
 var rpMuted: Color { .gray }
@@ -15,10 +15,10 @@ let rpGreen: Color = .green
 let rpPurple: Color = .purple
 let rpTeal: Color = .teal
 let rpBlack: Color = .black
-var rpSelected: Color { WindowChrome.selection }
+var rpSelected: Color { Color(nsColor: .selectedControlColor) }
 var hoverBg: Color { WindowChrome.highlight }
-var rowHoverBg: Color { WindowChrome.overlay }
-var rowDivider: Color { WindowChrome.separator }
+var rowHoverBg: Color { Color(nsColor: .gridColor) }
+var rowDivider: Color { Color(nsColor: .separatorColor) }
 
 // MARK: - Data model
 

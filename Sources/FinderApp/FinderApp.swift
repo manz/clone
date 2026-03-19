@@ -37,14 +37,14 @@ let contextMenuItemHeight: Float = 26
 
 // MARK: - Semantic color aliases
 
-var bgColor: Color { WindowChrome.surface }
-var surfaceColor: Color { WindowChrome.overlay }
-var overlayColor: Color { WindowChrome.separator }
+var bgColor: Color { Color(nsColor: .controlBackgroundColor) }
+var surfaceColor: Color { Color(nsColor: .gridColor) }
+var overlayColor: Color { Color(nsColor: .separatorColor) }
 var textColor: Color { .primary }
 var subtleColor: Color { .secondary }
 var mutedColor: Color { .gray }
 var highlightColor: Color { WindowChrome.highlight }
-var selectionColor: Color { WindowChrome.selection }
+var selectionColor: Color { Color(nsColor: .selectedControlColor) }
 let folderColor: Color = .blue
 let codeColor: Color = .orange
 let imageColor: Color = .green
@@ -52,7 +52,7 @@ var docColor: Color { .secondary }
 var menuBgColor: Color { WindowChrome.popover }
 var menuHoverColor: Color { .blue }
 var disabledColor: Color { .gray }
-var sidebarBgColor: Color { WindowChrome.sidebar }
+var sidebarBgColor: Color { Color(nsColor: .sidebarBackgroundColor) }
 let shadowColor = Color(r: 0, g: 0, b: 0, a: 0.3)
 
 // MARK: - Sidebar favorites
@@ -640,7 +640,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
 
     // Title bar with close dot
     let titleBar = ZStack {
-        Rectangle().fill(WindowChrome.titleBar).frame(width: panelW, height: titleBarH)
+        Rectangle().fill(Color(nsColor: .controlColor)).frame(width: panelW, height: titleBarH)
         HStack(alignment: .center, spacing: 0) {
             Rectangle().fill(.clear).frame(width: 10, height: 1)
             RoundedRectangle(cornerRadius: 5)
@@ -663,7 +663,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
                 Text(info.kind).fontSize(12).foregroundColor(.secondary)
             }
         }
-        Rectangle().fill(WindowChrome.separator).frame(height: 1)
+        Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
         infoRow("Kind:", info.kind)
         infoRow("Size:", info.size)
         infoRow("Where:", info.path)
@@ -671,10 +671,10 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
 
     // Window body
     let windowBody = ZStack {
-        RoundedRectangle(cornerRadius: cornerR).fill(WindowChrome.surface).frame(width: panelW, height: panelH)
+        RoundedRectangle(cornerRadius: cornerR).fill(Color(nsColor: .controlBackgroundColor)).frame(width: panelW, height: panelH)
         VStack(alignment: .leading, spacing: 0) {
             titleBar
-            Rectangle().fill(WindowChrome.separator).frame(width: panelW, height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: panelW, height: 1)
             content
         }.frame(width: panelW, height: panelH)
     }.frame(width: panelW, height: panelH)
