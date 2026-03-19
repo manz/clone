@@ -310,31 +310,43 @@ public final class WindowManager {
     }
 
     private func titleBar(window: ManagedWindow, isFocused: Bool, showSymbols: Bool) -> ViewNode {
-        let tbRadius: Float = window.isMaximized ? 0 : 0
-        return ZStack {
-            RoundedRectangle(cornerRadius: tbRadius)
-                .fill(isFocused ? .overlay : DesktopColor(r: 0.19, g: 0.17, b: 0.24))
-                .frame(width: window.width, height: WindowChrome.titleBarHeight)
-            HStack(spacing: WindowChrome.buttonSpacing) {
-                // Traffic lights — colored when focused, gray when not
-                trafficLightButton(
-                    color: isFocused ? .systemRed : .muted,
-                    symbol: showSymbols ? "×" : nil
-                )
-                trafficLightButton(
-                    color: isFocused ? .systemYellow : .muted,
-                    symbol: showSymbols ? "−" : nil
-                )
-                trafficLightButton(
-                    color: isFocused ? .systemGreen : .muted,
-                    symbol: showSymbols ? (window.isMaximized ? "↙" : "↗") : nil
-                )
-                Spacer()
-                Text(window.title).fontSize(13).foregroundColor(isFocused ? .text : .subtle)
-                Spacer()
-            }
-        }
-        .frame(width: window.width, height: WindowChrome.titleBarHeight)
+        let w = window.width
+        let h = WindowChrome.titleBarHeight
+        let bg = isFocused
+            ? DesktopColor(r: 0.24, g: 0.22, b: 0.30)
+            : DesktopColor(r: 0.19, g: 0.17, b: 0.24)
+
+        // Build the HStack content as a flat array — no spacers, manual positioning
+        // This avoids layout issues with nested ZStack/HStack/Spacer
+        var nodes: [ViewNode] = []
+
+        // Title bar background
+        nodes.append(
+            RoundedRectangle(cornerRadius: 0).fill(bg).frame(width: w, height: h)
+        )
+
+        // Traffic lights — positioned explicitly
+        let btnY = WindowChrome.buttonInsetY
+        let btnX = WindowChrome.buttonInsetX
+        let btnSize = WindowChrome.buttonSize
+        let btnStep = btnSize + WindowChrome.buttonSpacing
+
+        nodes.append(trafficLightButton(color: isFocused ? .systemRed : .muted, symbol: showSymbols ? "×" : nil)
+            .padding(.top, btnY).padding(.leading, btnX))
+        nodes.append(trafficLightButton(color: isFocused ? .systemYellow : .muted, symbol: showSymbols ? "−" : nil)
+            .padding(.top, btnY).padding(.leading, btnX + btnStep))
+        nodes.append(trafficLightButton(color: isFocused ? .systemGreen : .muted, symbol: showSymbols ? (window.isMaximized ? "↙" : "↗") : nil)
+            .padding(.top, btnY).padding(.leading, btnX + btnStep * 2))
+
+        // Title text — centered
+        let titleColor = isFocused ? DesktopColor.text : DesktopColor.subtle
+        nodes.append(
+            Text(window.title).fontSize(13).foregroundColor(titleColor)
+                .padding(.top, (h - 13) / 2)
+                .padding(.leading, w / 2 - Float(window.title.count) * 4)
+        )
+
+        return ViewNode.zstack(children: nodes).frame(width: w, height: h)
     }
 
     private func trafficLightButton(color: DesktopColor, symbol: String?) -> ViewNode {
