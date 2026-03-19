@@ -164,28 +164,17 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         syncExternalApps()
         server.requestFrames()
 
-        // Desktop background + dock + menubar (no windows)
+        let screenFrame = LayoutFrame(x: 0, y: 0, width: w, height: h)
+
+        // 1. Desktop background only
         let desktop = Desktop(
             screenWidth: w,
             screenHeight: h,
             mouseX: Float(mouseX),
             mouseY: Float(mouseY)
         )
-
-        let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
-
-        let baseTree = ZStack {
-            desktop.body()
-            VStack(alignment: .leading, spacing: 0) {
-                menuBar.body()
-                Spacer()
-            }
-        }
-
-        let screenFrame = LayoutFrame(x: 0, y: 0, width: w, height: h)
-        let baseLayout = Layout.layout(baseTree, in: screenFrame)
-        lastLayoutResult = baseLayout
-        var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(baseLayout))
+        let bgLayout = Layout.layout(desktop.body(), in: screenFrame)
+        var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(bgLayout))
 
         // Render each window as a complete unit in z-order.
         // PushClip/PopClip around each window creates a render group boundary,
@@ -219,6 +208,29 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
             engineCommands.append(.popClip)
         }
+
+        // 3. Dock — always on top of windows (render group boundary)
+        engineCommands.append(.pushClip(x: 0, y: 0, w: w, h: h, radius: 0))
+        let dockNode = Dock(
+            mouseX: Float(mouseX), mouseY: Float(mouseY),
+            screenWidth: w, screenHeight: h
+        ).body()
+        // Dock sits at the bottom — wrap in a VStack with spacer
+        let dockTree = VStack(spacing: 0) {
+            Spacer()
+            dockNode
+        }
+        let dockLayout = Layout.layout(dockTree, in: screenFrame)
+        engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout)))
+        engineCommands.append(.popClip)
+
+        // 4. Menu bar — always topmost
+        engineCommands.append(.pushClip(x: 0, y: 0, w: w, h: h, radius: 0))
+        let menuBar = MenuBar(screenWidth: w, appName: focusedAppName, clock: currentTime())
+        let menuLayout = Layout.layout(menuBar.body(), in: screenFrame)
+        lastLayoutResult = menuLayout
+        engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(menuLayout)))
+        engineCommands.append(.popClip)
 
         return engineCommands
     }

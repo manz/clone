@@ -15,14 +15,9 @@ public struct Desktop {
     }
 
     public func body() -> ViewNode {
-        ZStack {
-            Rectangle()
-                .fill(.base)
-                .frame(width: screenWidth, height: screenHeight)
-            VStack(spacing: 0) {
-                Spacer()
-                Dock(mouseX: mouseX, mouseY: mouseY, screenWidth: screenWidth, screenHeight: screenHeight).body()
-            }
-        }
+        // Just the wallpaper — dock and menubar are rendered by the compositor on top of windows
+        Rectangle()
+            .fill(.base)
+            .frame(width: screenWidth, height: screenHeight)
     }
 }
