@@ -95,12 +95,17 @@ impl App {
         let Some(gpu) = &mut self.gpu else { return };
         let Some(window) = &self.window else { return };
 
-        let size = window.inner_size();
-        if size.width == 0 || size.height == 0 {
+        let physical_size = window.inner_size();
+        if physical_size.width == 0 || physical_size.height == 0 {
             return;
         }
 
-        let commands = self.delegate.on_frame(0, size.width, size.height);
+        let scale = window.scale_factor() as f32;
+        let logical_w = (physical_size.width as f32 / scale) as u32;
+        let logical_h = (physical_size.height as f32 / scale) as u32;
+
+        // Swift gets logical pixels, Rust renders at physical resolution
+        let commands = self.delegate.on_frame(0, logical_w, logical_h);
 
         let surface_texture = match gpu.surface.get_current_texture() {
             Ok(t) => t,
@@ -126,8 +131,9 @@ impl App {
             &mut encoder,
             &view,
             &commands,
-            size.width,
-            size.height,
+            physical_size.width,
+            physical_size.height,
+            scale,
         );
 
         gpu.queue.submit([encoder.finish()]);
@@ -175,7 +181,8 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.delegate.on_pointer_move(0, position.x, position.y);
+                let scale = self.window.as_ref().map(|w| w.scale_factor()).unwrap_or(1.0);
+                self.delegate.on_pointer_move(0, position.x / scale, position.y / scale);
                 if let Some(w) = &self.window {
                     w.request_redraw();
                 }
