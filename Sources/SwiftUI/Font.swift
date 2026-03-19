@@ -1,14 +1,16 @@
+import Foundation
+
 /// A font that you apply to text in a view.
 /// Matches Apple's SwiftUI Font API.
 public struct Font: Equatable, Sendable {
-    public let size: Float
+    public let size: CGFloat
     public let weight: Weight
 
     /// Font weight — matches Apple's Font.Weight.
     public struct Weight: Equatable, Sendable {
-        public let value: Float
+        public let value: CGFloat
 
-        public init(_ value: Float) { self.value = value }
+        public init(_ value: CGFloat) { self.value = value }
 
         public static let ultraLight = Weight(-0.8)
         public static let thin = Weight(-0.6)
@@ -29,7 +31,7 @@ public struct Font: Equatable, Sendable {
         case monospaced
     }
 
-    internal init(size: Float, weight: Weight) {
+    internal init(size: CGFloat, weight: Weight) {
         self.size = size
         self.weight = weight
     }
@@ -37,7 +39,7 @@ public struct Font: Equatable, Sendable {
     // MARK: - System font
 
     /// `Font.system(size: 14, weight: .semibold)`
-    public static func system(size: Float, weight: Weight = .regular, design: Design = .default) -> Font {
+    public static func system(size: CGFloat, weight: Weight = .regular, design: Design = .default) -> Font {
         Font(size: size, weight: weight)
     }
 

@@ -1,3 +1,5 @@
+import Foundation
+
 @resultBuilder
 public struct ViewBuilder {
     // A block component is always [ViewNode] — a flat list of nodes.
@@ -45,7 +47,7 @@ public struct ViewBuilder {
 public extension ViewNode {
     static func vstack(
         alignment: HAlignment = .center,
-        spacing: Float = 8,
+        spacing: CGFloat = 8,
         @ViewBuilder content: () -> [ViewNode]
     ) -> ViewNode {
         .vstack(alignment: alignment, spacing: spacing, children: content())
@@ -53,7 +55,7 @@ public extension ViewNode {
 
     static func hstack(
         alignment: VAlignment = .center,
-        spacing: Float = 8,
+        spacing: CGFloat = 8,
         @ViewBuilder content: () -> [ViewNode]
     ) -> ViewNode {
         .hstack(alignment: alignment, spacing: spacing, children: content())

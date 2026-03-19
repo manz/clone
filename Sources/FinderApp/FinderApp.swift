@@ -14,8 +14,8 @@ struct MenuItem {
 }
 
 struct ContextMenu {
-    let anchorX: Float      // leading edge of the menu
-    let anchorY: Float      // top of the row the menu is attached to
+    let anchorX: CGFloat      // leading edge of the menu
+    let anchorY: CGFloat      // top of the row the menu is attached to
     let items: [MenuItem]
     let targetIndex: Int?   // nil = background right-click
     var hoveredItem: Int?
@@ -27,13 +27,13 @@ enum SortOrder {
 
 // MARK: - Layout constants
 
-let sidebarWidth: Float = 180
-let toolbarHeight: Float = 38
-let headerHeight: Float = 24
-let rowHeight: Float = 28
-let statusBarHeight: Float = 22
-let contextMenuWidth: Float = 200
-let contextMenuItemHeight: Float = 26
+let sidebarWidth: CGFloat = 180
+let toolbarHeight: CGFloat = 38
+let headerHeight: CGFloat = 24
+let rowHeight: CGFloat = 28
+let statusBarHeight: CGFloat = 22
+let contextMenuWidth: CGFloat = 200
+let contextMenuItemHeight: CGFloat = 26
 
 // MARK: - Semantic color aliases
 
@@ -70,8 +70,8 @@ let favorites: [(name: String, path: String, icon: Color)] = [
 final class FinderState {
     var currentPath: String
     var entries: [FileEntry] = []
-    var mouseX: Float = 0
-    var mouseY: Float = 0
+    var mouseX: CGFloat = 0
+    var mouseY: CGFloat = 0
 
     // Selection
     var selectedIndex: Int?
@@ -94,8 +94,8 @@ final class FinderState {
     var infoPanel: InfoPanel?
 
     // Cached window size for hit-testing
-    var windowWidth: Float = 700
-    var windowHeight: Float = 450
+    var windowWidth: CGFloat = 700
+    var windowHeight: CGFloat = 450
 
     struct InfoPanel {
         let name: String
@@ -221,7 +221,7 @@ final class FinderState {
 
     // MARK: - Interaction
 
-    func handleLeftClick(x: Float, y: Float, width: Float, height: Float) {
+    func handleLeftClick(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         // Dismiss info panel on any click
         if infoPanel != nil {
             infoPanel = nil
@@ -230,7 +230,7 @@ final class FinderState {
 
         // If context menu open, hit-test it first
         if let menu = contextMenu {
-            let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+            let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
             let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
             let menuY = min(menu.anchorY, height - menuHeight - 4)
 
@@ -262,7 +262,7 @@ final class FinderState {
         if x < sidebarWidth {
             let startY = toolbarHeight + 30
             for (i, fav) in favorites.enumerated() {
-                let favY = startY + Float(i) * 26
+                let favY = startY + CGFloat(i) * 26
                 if y >= favY && y < favY + 26 {
                     navigateTo(fav.path)
                     return
@@ -299,7 +299,7 @@ final class FinderState {
         }
     }
 
-    func handleRightClick(x: Float, y: Float, width: Float, height: Float) {
+    func handleRightClick(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         contextMenu = nil
 
         let listTop = toolbarHeight + headerHeight
@@ -321,7 +321,7 @@ final class FinderState {
             let rowIndex = Int((y - listTop) / rowHeight)
             if rowIndex >= 0 && rowIndex < entries.count {
                 // Anchor to the row: right side of the name area, top of the row
-                let rowY = listTop + Float(rowIndex) * rowHeight
+                let rowY = listTop + CGFloat(rowIndex) * rowHeight
                 selectedIndex = rowIndex
                 contextMenu = ContextMenu(
                     anchorX: x, anchorY: rowY + rowHeight,
@@ -341,9 +341,9 @@ final class FinderState {
         }
     }
 
-    func updateContextMenuHover(x: Float, y: Float, width: Float, height: Float) {
+    func updateContextMenuHover(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         guard var menu = contextMenu else { return }
-        let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+        let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
         let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
         let menuY = min(menu.anchorY, height - menuHeight - 4)
 
@@ -414,7 +414,7 @@ final class FinderState {
 
 // MARK: - View builders
 
-func toolbarView(state: FinderState, width: Float) -> some View {
+func toolbarView(state: FinderState, width: CGFloat) -> some View {
     let backColor: Color = state.canGoBack ? textColor : disabledColor
     let fwdColor: Color = state.canGoForward ? textColor : disabledColor
     let pathText = state.shortenPath(state.currentPath)
@@ -468,14 +468,14 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
     return item.padding(.leading, 6)
 }
 
-func sidebarView(state: FinderState, height: Float) -> some View {
+func sidebarView(state: FinderState, height: CGFloat) -> some View {
     let header = Text("Favorites").font(.system(size: 11, weight: .semibold))
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)
 
     let favList = VStack(alignment: .leading, spacing: 0) {
         for (i, fav) in favorites.enumerated() {
-            let favY = toolbarHeight + 30 + Float(i) * 26
+            let favY = toolbarHeight + 30 + CGFloat(i) * 26
             let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
                 state.mouseY >= favY && state.mouseY < favY + 26
             sidebarItemView(
@@ -502,7 +502,7 @@ func sidebarView(state: FinderState, height: Float) -> some View {
     }.frame(width: sidebarWidth, height: height)
 }
 
-func columnHeadersView(width: Float) -> some View {
+func columnHeadersView(width: CGFloat) -> some View {
     let labels = HStack(alignment: .center, spacing: 0) {
         Rectangle().fill(.clear).frame(width: 40, height: 1)
         Text("Name").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
@@ -523,8 +523,8 @@ func columnHeadersView(width: Float) -> some View {
     }.frame(width: width, height: headerHeight)
 }
 
-func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: Float, listTop: Float) -> some View {
-    let rowY = listTop + Float(index) * rowHeight
+func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: CGFloat, listTop: CGFloat) -> some View {
+    let rowY = listTop + CGFloat(index) * rowHeight
     let isSelected = state.selectedIndex == index
     let isHovered = state.mouseX >= sidebarWidth && state.mouseX < sidebarWidth + width &&
         state.mouseY >= rowY && state.mouseY < rowY + rowHeight
@@ -547,7 +547,7 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     }.frame(width: width, height: rowHeight)
 }
 
-func fileListView(state: FinderState, width: Float, height: Float) -> some View {
+func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
     let maxRows = Int(height / rowHeight)
     let listTop = toolbarHeight + headerHeight
 
@@ -559,7 +559,7 @@ func fileListView(state: FinderState, width: Float, height: Float) -> some View 
     }.frame(width: width, height: height)
 }
 
-func statusBarView(state: FinderState, width: Float) -> some View {
+func statusBarView(state: FinderState, width: CGFloat) -> some View {
     let itemCount = state.entries.count
     let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
 
@@ -598,8 +598,8 @@ func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
         .padding(.leading, 4)
 }
 
-func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> some View {
-    let menuHeight = Float(menu.items.count) * contextMenuItemHeight + 8
+func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some View {
+    let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
     let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
     let menuY = min(menu.anchorY, height - menuHeight - 4)
 
@@ -627,14 +627,14 @@ func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> some Vie
     return positioned
 }
 
-func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> some View {
-    let panelW: Float = 280
-    let titleBarH: Float = 28
-    let contentH: Float = 180
+func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat) -> some View {
+    let panelW: CGFloat = 280
+    let titleBarH: CGFloat = 28
+    let contentH: CGFloat = 180
     let panelH = titleBarH + contentH
     let panelX = (width - panelW) / 2
     let panelY = (height - panelH) / 2
-    let cornerR: Float = 10
+    let cornerR: CGFloat = 10
 
     let iconColor: Color = info.isDirectory ? .blue : .orange
 
@@ -702,7 +702,7 @@ private func infoRow(_ label: String, _ value: String) -> some View {
     }
 }
 
-func finderView(state: FinderState, width: Float, height: Float) -> some View {
+func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
     let listWidth = width - sidebarWidth
     let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
     let sidebarH = height - toolbarHeight
@@ -752,13 +752,13 @@ struct FinderApp: App {
         WindowConfiguration(title: "Finder — ~/", width: 700, height: 450)
     }
 
-    func onPointerMove(x: Float, y: Float) {
+    func onPointerMove(x: CGFloat, y: CGFloat) {
         state.mouseX = x
         state.mouseY = y
         state.updateContextMenuHover(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
     }
 
-    func onPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float) {
+    func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {
         guard pressed else { return }
         if button == 0 {
             state.handleLeftClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)

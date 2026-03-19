@@ -7,11 +7,11 @@ import CloneProtocol
 /// Configuration for the app window.
 public struct WindowConfiguration {
     public var title: String
-    public var width: Float
-    public var height: Float
+    public var width: CGFloat
+    public var height: CGFloat
     public var role: SurfaceRole
 
-    public init(title: String, width: Float = 600, height: Float = 400, role: SurfaceRole = .window) {
+    public init(title: String, width: CGFloat = 600, height: CGFloat = 400, role: SurfaceRole = .window) {
         self.title = title
         self.width = width
         self.height = height
@@ -47,13 +47,13 @@ public protocol App {
     var client: AppClient { get }
 
     /// Imperative render — return commands directly. Return nil to use the declarative body.
-    func render(width: Float, height: Float) -> [IPCRenderCommand]?
+    func render(width: CGFloat, height: CGFloat) -> [IPCRenderCommand]?
 
     /// Called on pointer movement.
-    func onPointerMove(x: Float, y: Float)
+    func onPointerMove(x: CGFloat, y: CGFloat)
 
     /// Called on pointer button events.
-    func onPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
+    func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat)
 
     /// Called on key events.
     func onKey(keycode: UInt32, pressed: Bool)
@@ -81,9 +81,9 @@ extension App {
         return WindowConfiguration(title: _resolveAppId())
     }
 
-    public func render(width: Float, height: Float) -> [IPCRenderCommand]? { nil }
-    public func onPointerMove(x: Float, y: Float) {}
-    public func onPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float) {}
+    public func render(width: CGFloat, height: CGFloat) -> [IPCRenderCommand]? { nil }
+    public func onPointerMove(x: CGFloat, y: CGFloat) {}
+    public func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {}
     public func onKey(keycode: UInt32, pressed: Bool) {}
     public func onFocusedApp(name: String) {}
     public func onMinimizedApps(appIds: [String]) {}
@@ -100,8 +100,8 @@ extension App {
             try app.client.connect(
                 appId: appId,
                 title: title,
-                width: config.width,
-                height: config.height,
+                width: Float(config.width),
+                height: Float(config.height),
                 role: config.role
             )
         } catch {
@@ -123,7 +123,9 @@ extension App {
                 fputs("App.body must contain a WindowGroup\n", stderr)
                 exit(1)
             }
-            app.client.onFrameRequest = { width, height in
+            app.client.onFrameRequest = { w, h in
+                let width = CGFloat(w)
+                let height = CGFloat(h)
                 TapRegistry.shared.clear()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
@@ -140,15 +142,19 @@ extension App {
                 }
                 return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
             }
-            app.client.onPointerButton = { button, pressed, x, y in
+            app.client.onPointerButton = { button, pressed, px, py in
+                let x = CGFloat(px)
+                let y = CGFloat(py)
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 if button == 0 && pressed {
                     TapRegistry.shared.clear()
-                    WindowState.shared.update(width: app.client.width, height: app.client.height)
+                    let cw = CGFloat(app.client.width)
+                    let ch = CGFloat(app.client.height)
+                    WindowState.shared.update(width: cw, height: ch)
                     let viewTree = windowGroup.buildViewNode()
                     let layoutNode = Layout.layout(
                         viewTree,
-                        in: LayoutFrame(x: 0, y: 0, width: app.client.width, height: app.client.height)
+                        in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                     )
                     if let tapId = layoutNode.hitTestTap(x: x, y: y) {
                         TapRegistry.shared.fire(id: tapId)
@@ -162,17 +168,19 @@ extension App {
             }
         } else {
             // Imperative path: app renders IPCRenderCommand directly
-            app.client.onFrameRequest = { width, height in
+            app.client.onFrameRequest = { w, h in
+                let width = CGFloat(w)
+                let height = CGFloat(h)
                 WindowState.shared.update(width: width, height: height)
                 return app.render(width: width, height: height) ?? []
             }
-            app.client.onPointerButton = { button, pressed, x, y in
-                app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
+            app.client.onPointerButton = { button, pressed, px, py in
+                app.onPointerButton(button: button, pressed: pressed, x: CGFloat(px), y: CGFloat(py))
             }
         }
 
-        app.client.onPointerMove = { x, y in
-            app.onPointerMove(x: x, y: y)
+        app.client.onPointerMove = { px, py in
+            app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
         }
         app.client.onKey = { keycode, pressed in
             app.onKey(keycode: keycode, pressed: pressed)
@@ -221,21 +229,22 @@ func _resolveAppId() -> String {
 
 extension FlatRenderCommand {
     func toIPC() -> IPCRenderCommand {
+        let fx = Float(x), fy = Float(y), fw = Float(width), fh = Float(height)
         switch kind {
         case .rect(let color):
-            return .rect(x: x, y: y, w: width, h: height, color: color.toIPC())
+            return .rect(x: fx, y: fy, w: fw, h: fh, color: color.toIPC())
         case .roundedRect(let radius, let color):
-            return .roundedRect(x: x, y: y, w: width, h: height,
-                                radius: radius, color: color.toIPC())
+            return .roundedRect(x: fx, y: fy, w: fw, h: fh,
+                                radius: Float(radius), color: color.toIPC())
         case .text(let content, let fontSize, let color, let weight, _):
-            return .text(x: x, y: y, content: content, fontSize: fontSize,
+            return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
                          color: color.toIPC(), weight: weight.toIPC())
         case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
-            return .shadow(x: x, y: y, w: width, h: height,
-                          radius: radius, blur: blur, color: color.toIPC(),
-                          ox: offsetX, oy: offsetY)
+            return .shadow(x: fx, y: fy, w: fw, h: fh,
+                          radius: Float(radius), blur: Float(blur), color: color.toIPC(),
+                          ox: Float(offsetX), oy: Float(offsetY))
         case .pushClip(let radius):
-            return .pushClip(x: x, y: y, w: width, h: height, radius: radius)
+            return .pushClip(x: fx, y: fy, w: fw, h: fh, radius: Float(radius))
         case .popClip:
             return .popClip
         }
@@ -244,7 +253,7 @@ extension FlatRenderCommand {
 
 extension Color {
     func toIPC() -> IPCColor {
-        IPCColor(r: r, g: g, b: b, a: a)
+        IPCColor(r: Float(r), g: Float(g), b: Float(b), a: Float(a))
     }
 }
 

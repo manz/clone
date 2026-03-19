@@ -6,8 +6,8 @@ public final class WindowState {
     public static let shared = WindowState()
 
     /// Current window dimensions (updated by App.main on each frame request).
-    public private(set) var width: Float = 0
-    public private(set) var height: Float = 0
+    public private(set) var width: CGFloat = 0
+    public private(set) var height: CGFloat = 0
 
     /// The current navigation title. Set by `.navigationTitle()`, read by the runtime.
     public var navigationTitle: String?
@@ -18,7 +18,7 @@ public final class WindowState {
     private init() {}
 
     /// Called by App.main() at the start of each frame.
-    internal func update(width: Float, height: Float) {
+    internal func update(width: CGFloat, height: CGFloat) {
         self.width = width
         self.height = height
         self.navigationTitle = nil // Reset — views will set it during tree build

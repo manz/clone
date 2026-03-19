@@ -5,17 +5,17 @@ import Foundation
 public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: Color)
-        case roundedRect(radius: Float, color: Color)
-        case text(content: String, fontSize: Float, color: Color, weight: FontWeight = .regular, isIcon: Bool = false)
-        case shadow(radius: Float, blur: Float, color: Color, offsetX: Float, offsetY: Float)
-        case pushClip(radius: Float)
+        case roundedRect(radius: CGFloat, color: Color)
+        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, isIcon: Bool = false)
+        case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat)
+        case pushClip(radius: CGFloat)
         case popClip
     }
 
-    public let x: Float
-    public let y: Float
-    public let width: Float
-    public let height: Float
+    public let x: CGFloat
+    public let y: CGFloat
+    public let width: CGFloat
+    public let height: CGFloat
     public let kind: Kind
 }
 
@@ -31,7 +31,7 @@ public enum CommandFlattener {
     private static func flattenNode(
         _ layoutNode: LayoutNode,
         into commands: inout [FlatRenderCommand],
-        opacity: Float
+        opacity: CGFloat
     ) {
         let frame = layoutNode.frame
 
@@ -130,8 +130,8 @@ public enum CommandFlattener {
         case .toggle(let isOn, _):
             // Track background
             let trackColor: Color = isOn ? .green : .gray
-            let trackW: Float = 44
-            let trackH: Float = 24
+            let trackW: CGFloat = 44
+            let trackH: CGFloat = 24
             let trackX = frame.x + frame.width - trackW - 8
             let trackY = frame.y + (frame.height - trackH) / 2
             commands.append(FlatRenderCommand(
@@ -139,7 +139,7 @@ public enum CommandFlattener {
                 kind: .roundedRect(radius: trackH / 2, color: trackColor.withAlpha(opacity))
             ))
             // Knob
-            let knobSize: Float = 20
+            let knobSize: CGFloat = 20
             let knobX = isOn ? trackX + trackW - knobSize - 2 : trackX + 2
             let knobY = trackY + 2
             commands.append(FlatRenderCommand(
@@ -148,7 +148,7 @@ public enum CommandFlattener {
             ))
 
         case .slider(let value, let range, _):
-            let trackH: Float = 4
+            let trackH: CGFloat = 4
             let trackY = frame.y + (frame.height - trackH) / 2
             commands.append(FlatRenderCommand(
                 x: frame.x, y: trackY, width: frame.width, height: trackH,
@@ -190,7 +190,7 @@ public enum CommandFlattener {
 
 // Helper
 extension Color {
-    func withAlpha(_ alpha: Float) -> Color {
+    func withAlpha(_ alpha: CGFloat) -> Color {
         Color(r: r, g: g, b: b, a: alpha)
     }
 }

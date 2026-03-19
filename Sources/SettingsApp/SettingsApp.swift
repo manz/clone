@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 // MARK: - Semantic color aliases
@@ -188,22 +189,22 @@ let paneData: [String: [(String?, [SettingRow])]] = [
 
 final class SettingsState {
     var selectedCategory: String = "General"
-    var mouseX: Float = 0
-    var mouseY: Float = 0
+    var mouseX: CGFloat = 0
+    var mouseY: CGFloat = 0
 
-    let sidebarWidth: Float = 220
-    let profileHeight: Float = 50
-    let rowHeight: Float = 28
-    let sectionGap: Float = 16
-    let dividerHeight: Float = 1
+    let sidebarWidth: CGFloat = 220
+    let profileHeight: CGFloat = 50
+    let rowHeight: CGFloat = 28
+    let sectionGap: CGFloat = 16
+    let dividerHeight: CGFloat = 1
 }
 
 // MARK: - Sidebar category row Y-position computation
 
 /// Computes the Y offset for a given category index, accounting for section gaps.
 /// Returns the Y position where that category row starts in the sidebar.
-private func categoryYOffset(state: SettingsState, flatIndex: Int) -> Float {
-    var y: Float = 8 + state.profileHeight + state.sectionGap
+private func categoryYOffset(state: SettingsState, flatIndex: Int) -> CGFloat {
+    var y: CGFloat = 8 + state.profileHeight + state.sectionGap
     var idx = 0
     for (sectionIdx, section) in sections.enumerated() {
         for _ in section.categories {
@@ -283,7 +284,7 @@ private let indexedSections: [(sectionIdx: Int, categories: [(category: Settings
     }
 }()
 
-private func sidebarView(state: SettingsState, height: Float) -> some View {
+private func sidebarView(state: SettingsState, height: CGFloat) -> some View {
     let sidebarContent = VStack(alignment: .leading, spacing: 0) {
         profileCard()
         Rectangle().fill(rpOverlay).frame(height: 1).padding(.horizontal, 16)
@@ -310,8 +311,8 @@ private func sidebarView(state: SettingsState, height: Float) -> some View {
 private func settingRowView(
     state: SettingsState,
     row: SettingRow,
-    rowY: Float,
-    detailWidth: Float
+    rowY: CGFloat,
+    detailWidth: CGFloat
 ) -> some View {
     let isHovered = state.mouseX > state.sidebarWidth
         && state.mouseY >= rowY
@@ -342,15 +343,15 @@ private func settingGroupView(
     state: SettingsState,
     header: String?,
     rows: [SettingRow],
-    startY: Float,
-    detailWidth: Float
+    startY: CGFloat,
+    detailWidth: CGFloat
 ) -> some View {
-    let headerOffset: Float = header != nil ? 20 : 0
+    let headerOffset: CGFloat = header != nil ? 20 : 0
 
     // Build row nodes with interleaved dividers
     let rowsStack = VStack(alignment: .leading, spacing: 0) {
         for (i, row) in rows.enumerated() {
-            let rowY = startY + headerOffset + 2 + Float(i) * 32
+            let rowY = startY + headerOffset + 2 + CGFloat(i) * 32
             settingRowView(
                 state: state,
                 row: row,
@@ -364,7 +365,7 @@ private func settingGroupView(
     }
     .padding(.vertical, 2)
 
-    let groupHeight = Float(rows.count) * 32 + 4
+    let groupHeight = CGFloat(rows.count) * 32 + 4
     let groupBox = ZStack {
         RoundedRectangle(cornerRadius: 10).fill(rpOverlay).frame(height: groupHeight)
         rowsStack
@@ -382,19 +383,19 @@ private func settingGroupView(
 // MARK: - Detail view
 
 /// Pre-computes the startY for each group so the ViewBuilder loop stays mutation-free.
-private func groupStartYs(for groups: [(String?, [SettingRow])]) -> [Float] {
-    var runningY: Float = 16 + 32  // title area offset
-    var result: [Float] = []
+private func groupStartYs(for groups: [(String?, [SettingRow])]) -> [CGFloat] {
+    var runningY: CGFloat = 16 + 32  // title area offset
+    var result: [CGFloat] = []
     for group in groups {
         result.append(runningY)
-        let headerOffset: Float = group.0 != nil ? 20 : 0
-        let groupHeight = headerOffset + Float(group.1.count) * 32 + 4
+        let headerOffset: CGFloat = group.0 != nil ? 20 : 0
+        let groupHeight = headerOffset + CGFloat(group.1.count) * 32 + 4
         runningY += groupHeight + 16 + (group.0 != nil ? 4 : 0)
     }
     return result
 }
 
-private func detailView(state: SettingsState, width: Float) -> some View {
+private func detailView(state: SettingsState, width: CGFloat) -> some View {
     let groups = paneData[state.selectedCategory]
     let detailWidth = width - 48
     let startYs = groups.map { groupStartYs(for: $0) } ?? []
@@ -435,7 +436,7 @@ private func detailView(state: SettingsState, width: Float) -> some View {
 
 // MARK: - Root settings view
 
-func settingsView(state: SettingsState, width: Float, height: Float) -> some View {
+func settingsView(state: SettingsState, width: CGFloat, height: CGFloat) -> some View {
     HStack(spacing: 0) {
         sidebarView(state: state, height: height)
             .frame(width: 220)
@@ -464,7 +465,7 @@ struct SettingsApp: App {
         WindowConfiguration(title: "System Settings", width: 700, height: 500)
     }
 
-    func onPointerMove(x: Float, y: Float) {
+    func onPointerMove(x: CGFloat, y: CGFloat) {
         state.mouseX = x
         state.mouseY = y
     }

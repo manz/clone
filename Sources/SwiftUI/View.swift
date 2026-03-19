@@ -1,3 +1,5 @@
+import Foundation
+
 /// The core protocol for SwiftUI views.
 public protocol View {
     associatedtype Body: View
@@ -33,19 +35,19 @@ func _resolve<V: View>(_ view: V) -> ViewNode {
 /// to app code. Each modifier materializes the view into a ViewNode internally.
 public extension View {
 
-    func frame(width: Float? = nil, height: Float? = nil) -> ViewNode {
+    func frame(width: CGFloat? = nil, height: CGFloat? = nil) -> ViewNode {
         _resolve(self).frame(width: width, height: height)
     }
 
-    func frame(maxWidth: Float? = nil, maxHeight: Float? = nil) -> ViewNode {
+    func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
         _resolve(self).frame(maxWidth: maxWidth, maxHeight: maxHeight)
     }
 
-    func padding(_ value: Float) -> ViewNode {
+    func padding(_ value: CGFloat) -> ViewNode {
         _resolve(self).padding(value)
     }
 
-    func padding(_ edges: Edge.Set, _ value: Float) -> ViewNode {
+    func padding(_ edges: Edge.Set, _ value: CGFloat) -> ViewNode {
         _resolve(self).padding(edges, value)
     }
 
@@ -57,7 +59,7 @@ public extension View {
         _resolve(self).padding(insets)
     }
 
-    func opacity(_ value: Float) -> ViewNode {
+    func opacity(_ value: CGFloat) -> ViewNode {
         _resolve(self).opacity(value)
     }
 
@@ -85,15 +87,15 @@ public extension View {
         _resolve(self).fill(color)
     }
 
-    func cornerRadius(_ radius: Float) -> ViewNode {
+    func cornerRadius(_ radius: CGFloat) -> ViewNode {
         _resolve(self).cornerRadius(radius)
     }
 
     func shadow(
         color: Color = Color(r: 0, g: 0, b: 0, a: 0.3),
-        radius: Float = 10,
-        x: Float = 0,
-        y: Float = 2
+        radius: CGFloat = 10,
+        x: CGFloat = 0,
+        y: CGFloat = 2
     ) -> ViewNode {
         _resolve(self).shadow(color: color, radius: radius, x: x, y: y)
     }
@@ -102,7 +104,7 @@ public extension View {
         _resolve(self).onTapGesture(handler)
     }
 
-    func clipped(radius: Float = 0) -> ViewNode {
+    func clipped(radius: CGFloat = 0) -> ViewNode {
         _resolve(self).clipped(radius: radius)
     }
 

@@ -2,12 +2,12 @@ import Foundation
 
 /// A positioned rectangle — the result of layout.
 public struct LayoutFrame: Equatable, Sendable {
-    public let x: Float
-    public let y: Float
-    public let width: Float
-    public let height: Float
+    public let x: CGFloat
+    public let y: CGFloat
+    public let width: CGFloat
+    public let height: CGFloat
 
-    public init(x: Float = 0, y: Float = 0, width: Float = 0, height: Float = 0) {
+    public init(x: CGFloat = 0, y: CGFloat = 0, width: CGFloat = 0, height: CGFloat = 0) {
         self.x = x
         self.y = y
         self.width = width
@@ -17,10 +17,10 @@ public struct LayoutFrame: Equatable, Sendable {
 
 /// Size constraint passed down during layout.
 public struct SizeConstraint: Sendable {
-    public let maxWidth: Float
-    public let maxHeight: Float
+    public let maxWidth: CGFloat
+    public let maxHeight: CGFloat
 
-    public init(maxWidth: Float, maxHeight: Float) {
+    public init(maxWidth: CGFloat, maxHeight: CGFloat) {
         self.maxWidth = maxWidth
         self.maxHeight = maxHeight
     }
@@ -28,10 +28,10 @@ public struct SizeConstraint: Sendable {
 
 /// Result of measuring a node — its desired size.
 public struct MeasuredSize: Equatable, Sendable {
-    public let width: Float
-    public let height: Float
+    public let width: CGFloat
+    public let height: CGFloat
 
-    public init(width: Float = 0, height: Float = 0) {
+    public init(width: CGFloat = 0, height: CGFloat = 0) {
         self.width = width
         self.height = height
     }
@@ -53,14 +53,14 @@ public struct LayoutNode: Equatable, Sendable {
 // MARK: - Hit testing
 
 extension LayoutFrame {
-    public func contains(x: Float, y: Float) -> Bool {
+    public func contains(x: CGFloat, y: CGFloat) -> Bool {
         x >= self.x && x <= self.x + width && y >= self.y && y <= self.y + height
     }
 }
 
 extension LayoutNode {
     /// Returns the deepest node whose frame contains the point, or nil.
-    public func hitTest(x: Float, y: Float) -> LayoutNode? {
+    public func hitTest(x: CGFloat, y: CGFloat) -> LayoutNode? {
         guard frame.contains(x: x, y: y) else { return nil }
         // Check children back-to-front (last child is on top in ZStack)
         for child in children.reversed() {
@@ -73,7 +73,7 @@ extension LayoutNode {
 
     /// Find the deepest onTap node whose frame contains the point.
     /// Walks the tree and returns the deepest `.onTap` ancestor of the hit point.
-    public func hitTestTap(x: Float, y: Float) -> UInt64? {
+    public func hitTestTap(x: CGFloat, y: CGFloat) -> UInt64? {
         guard frame.contains(x: x, y: y) else { return nil }
 
         // Check children back-to-front
@@ -105,7 +105,7 @@ public enum Layout {
         case .text(let content, let fontSize, _, _):
             // Approximate: 0.6 * fontSize per character width, fontSize for height
             let charWidth = fontSize * 0.6
-            let width = charWidth * Float(content.count)
+            let width = charWidth * CGFloat(content.count)
             return MeasuredSize(width: width, height: fontSize)
 
         case .rect(let width, let height, _):
@@ -195,8 +195,8 @@ public enum Layout {
             return MeasuredSize(width: labelSize.width + 100, height: max(labelSize.height, 30))
 
         case .textField(let placeholder, _):
-            let charWidth: Float = 14 * 0.6
-            let width = charWidth * Float(placeholder.count) + 16
+            let charWidth: CGFloat = 14 * 0.6
+            let width = charWidth * CGFloat(placeholder.count) + 16
             return MeasuredSize(width: max(width, 200), height: 30)
 
         case .navigationStack(let children):
@@ -204,8 +204,8 @@ public enum Layout {
 
         case .menu(let label, _):
             // Collapsed state: measure the label text only
-            let charWidth: Float = 14 * 0.6
-            return MeasuredSize(width: charWidth * Float(label.count), height: 14)
+            let charWidth: CGFloat = 14 * 0.6
+            return MeasuredSize(width: charWidth * CGFloat(label.count), height: 14)
 
         case .contextMenu(let child, _):
             // Menu invisible until triggered — measure the child only
@@ -264,7 +264,7 @@ public enum Layout {
 
         case .geometryReader(let id):
             let proxy = GeometryProxy(
-                size: CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height)),
+                size: CGSize(width: frame.width, height: frame.height),
                 frame: frame
             )
             let resolved = GeometryReaderRegistry.shared.resolve(id: id, proxy: proxy)
@@ -314,11 +314,11 @@ public enum Layout {
     // MARK: - VStack
 
     private static func measureVStack(
-        alignment: HAlignment, spacing: Float,
+        alignment: HAlignment, spacing: CGFloat,
         children: [ViewNode], constraint: SizeConstraint
     ) -> MeasuredSize {
-        var totalHeight: Float = 0
-        var maxWidth: Float = 0
+        var totalHeight: CGFloat = 0
+        var maxWidth: CGFloat = 0
         var spacerCount = 0
 
         for (i, child) in children.enumerated() {
@@ -341,13 +341,13 @@ public enum Layout {
     }
 
     private static func layoutVStack(
-        alignment: HAlignment, spacing: Float,
+        alignment: HAlignment, spacing: CGFloat,
         children: [ViewNode], in frame: LayoutFrame
     ) -> LayoutNode {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
 
         // Measure non-spacer children
-        var fixedHeight: Float = 0
+        var fixedHeight: CGFloat = 0
         var spacerCount = 0
         var childSizes: [MeasuredSize] = []
 
@@ -364,7 +364,7 @@ public enum Layout {
         }
 
         let spacerHeight = spacerCount > 0
-            ? max(0, (frame.height - fixedHeight) / Float(spacerCount))
+            ? max(0, (frame.height - fixedHeight) / CGFloat(spacerCount))
             : 0
 
         var y = frame.y
@@ -379,7 +379,7 @@ public enum Layout {
                 y += spacerHeight
             } else {
                 let size = childSizes[i]
-                let x: Float
+                let x: CGFloat
                 switch alignment {
                 case .leading: x = frame.x
                 case .center: x = frame.x + (frame.width - size.width) / 2
@@ -397,11 +397,11 @@ public enum Layout {
     // MARK: - HStack
 
     private static func measureHStack(
-        alignment: VAlignment, spacing: Float,
+        alignment: VAlignment, spacing: CGFloat,
         children: [ViewNode], constraint: SizeConstraint
     ) -> MeasuredSize {
-        var totalWidth: Float = 0
-        var maxHeight: Float = 0
+        var totalWidth: CGFloat = 0
+        var maxHeight: CGFloat = 0
         var spacerCount = 0
 
         for (i, child) in children.enumerated() {
@@ -423,12 +423,12 @@ public enum Layout {
     }
 
     private static func layoutHStack(
-        alignment: VAlignment, spacing: Float,
+        alignment: VAlignment, spacing: CGFloat,
         children: [ViewNode], in frame: LayoutFrame
     ) -> LayoutNode {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
 
-        var fixedWidth: Float = 0
+        var fixedWidth: CGFloat = 0
         var spacerCount = 0
         var childSizes: [MeasuredSize] = []
 
@@ -445,7 +445,7 @@ public enum Layout {
         }
 
         let spacerWidth = spacerCount > 0
-            ? max(0, (frame.width - fixedWidth) / Float(spacerCount))
+            ? max(0, (frame.width - fixedWidth) / CGFloat(spacerCount))
             : 0
 
         var x = frame.x
@@ -460,7 +460,7 @@ public enum Layout {
                 x += spacerWidth
             } else {
                 let size = childSizes[i]
-                let y: Float
+                let y: CGFloat
                 switch alignment {
                 case .top: y = frame.y
                 case .center: y = frame.y + (frame.height - size.height) / 2
@@ -480,8 +480,8 @@ public enum Layout {
     private static func measureZStack(
         children: [ViewNode], constraint: SizeConstraint
     ) -> MeasuredSize {
-        var maxWidth: Float = 0
-        var maxHeight: Float = 0
+        var maxWidth: CGFloat = 0
+        var maxHeight: CGFloat = 0
 
         for child in children {
             let size = measure(child, constraint: constraint)

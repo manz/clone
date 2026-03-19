@@ -21,13 +21,13 @@ public final class AppearanceManager: @unchecked Sendable {
 // MARK: - Color
 
 public struct Color: Equatable, Sendable {
-    public let r: Float
-    public let g: Float
-    public let b: Float
-    public let a: Float
+    public let r: CGFloat
+    public let g: CGFloat
+    public let b: CGFloat
+    public let a: CGFloat
 
     /// `Color(red: 0.5, green: 0.3, blue: 0.8)` — matches Apple's SwiftUI initializer.
-    public init(red: Float, green: Float, blue: Float, opacity: Float = 1.0) {
+    public init(red: CGFloat, green: CGFloat, blue: CGFloat, opacity: CGFloat = 1.0) {
         self.r = red
         self.g = green
         self.b = blue
@@ -35,7 +35,7 @@ public struct Color: Equatable, Sendable {
     }
 
     /// `Color(white: 0.5)` — grayscale convenience.
-    public init(white: Float, opacity: Float = 1.0) {
+    public init(white: CGFloat, opacity: CGFloat = 1.0) {
         self.r = white
         self.g = white
         self.b = white
@@ -51,7 +51,7 @@ public struct Color: Equatable, Sendable {
     }
 
     /// Internal initializer used throughout Clone.
-    public init(r: Float, g: Float, b: Float, a: Float = 1.0) {
+    public init(r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat = 1.0) {
         self.r = r
         self.g = g
         self.b = b
@@ -104,26 +104,26 @@ public struct Color: Equatable, Sendable {
 }
 
 public struct EdgeInsets: Equatable, Sendable {
-    public let top: Float
-    public let leading: Float
-    public let bottom: Float
-    public let trailing: Float
+    public let top: CGFloat
+    public let leading: CGFloat
+    public let bottom: CGFloat
+    public let trailing: CGFloat
 
-    public init(top: Float = 0, leading: Float = 0, bottom: Float = 0, trailing: Float = 0) {
+    public init(top: CGFloat = 0, leading: CGFloat = 0, bottom: CGFloat = 0, trailing: CGFloat = 0) {
         self.top = top
         self.leading = leading
         self.bottom = bottom
         self.trailing = trailing
     }
 
-    public init(all: Float) {
+    public init(all: CGFloat) {
         self.top = all
         self.leading = all
         self.bottom = all
         self.trailing = all
     }
 
-    public init(horizontal: Float = 0, vertical: Float = 0) {
+    public init(horizontal: CGFloat = 0, vertical: CGFloat = 0) {
         self.top = vertical
         self.leading = horizontal
         self.bottom = vertical

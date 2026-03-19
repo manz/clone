@@ -2,12 +2,12 @@ import Foundation
 
 /// Root desktop component — background + dock.
 public struct Desktop {
-    let screenWidth: Float
-    let screenHeight: Float
-    let mouseX: Float
-    let mouseY: Float
+    let screenWidth: CGFloat
+    let screenHeight: CGFloat
+    let mouseX: CGFloat
+    let mouseY: CGFloat
 
-    public init(screenWidth: Float, screenHeight: Float, mouseX: Float = 0, mouseY: Float = 0) {
+    public init(screenWidth: CGFloat, screenHeight: CGFloat, mouseX: CGFloat = 0, mouseY: CGFloat = 0) {
         self.screenWidth = screenWidth
         self.screenHeight = screenHeight
         self.mouseX = mouseX

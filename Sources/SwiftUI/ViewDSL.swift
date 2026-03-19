@@ -13,19 +13,19 @@ public func Rectangle() -> ViewNode {
 }
 
 /// `RoundedRectangle(cornerRadius: 12)`
-public func RoundedRectangle(cornerRadius: Float) -> ViewNode {
+public func RoundedRectangle(cornerRadius: CGFloat) -> ViewNode {
     .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: .white)
 }
 
 /// `Spacer()`
-public func Spacer(minLength: Float = 0) -> ViewNode {
+public func Spacer(minLength: CGFloat = 0) -> ViewNode {
     .spacer(minLength: minLength)
 }
 
 /// `VStack { ... }`
 public func VStack(
     alignment: HAlignment = .center,
-    spacing: Float = 8,
+    spacing: CGFloat = 8,
     @ViewBuilder content: () -> [ViewNode]
 ) -> ViewNode {
     .vstack(alignment: alignment, spacing: spacing, children: content())
@@ -34,7 +34,7 @@ public func VStack(
 /// `HStack { ... }`
 public func HStack(
     alignment: VAlignment = .center,
-    spacing: Float = 8,
+    spacing: CGFloat = 8,
     @ViewBuilder content: () -> [ViewNode]
 ) -> ViewNode {
     .hstack(alignment: alignment, spacing: spacing, children: content())
@@ -104,7 +104,7 @@ public func Toggle(_ title: String, isOn: Binding<Bool>) -> ViewNode {
 }
 
 /// `Slider(value:in:)` — renders static track + knob.
-public func Slider(value: Binding<Float>, in range: ClosedRange<Float> = 0...1) -> ViewNode {
+public func Slider(value: Binding<CGFloat>, in range: ClosedRange<CGFloat> = 0...1) -> ViewNode {
     .slider(value: value.wrappedValue, range: range, label: .empty)
 }
 
@@ -141,22 +141,22 @@ public func Menu(_ label: String, @ViewBuilder content: () -> [ViewNode]) -> Vie
 public extension ViewNode {
 
     /// `.frame(width: 200, height: 100)`
-    func frame(width: Float? = nil, height: Float? = nil) -> ViewNode {
+    func frame(width: CGFloat? = nil, height: CGFloat? = nil) -> ViewNode {
         .frame(width: width, height: height, child: self)
     }
 
     /// `.frame(maxWidth: .infinity)` — fills available space
-    func frame(maxWidth: Float? = nil, maxHeight: Float? = nil) -> ViewNode {
+    func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
         .frame(width: maxWidth, height: maxHeight, child: self)
     }
 
     /// `.padding(16)` — uniform padding
-    func padding(_ value: Float) -> ViewNode {
+    func padding(_ value: CGFloat) -> ViewNode {
         .padding(EdgeInsets(all: value), child: self)
     }
 
     /// `.padding(.horizontal, 16)`
-    func padding(_ edges: Edge.Set, _ value: Float) -> ViewNode {
+    func padding(_ edges: Edge.Set, _ value: CGFloat) -> ViewNode {
         var insets = EdgeInsets()
         if edges.contains(.top) { insets = EdgeInsets(top: value, leading: insets.leading, bottom: insets.bottom, trailing: insets.trailing) }
         if edges.contains(.bottom) { insets = EdgeInsets(top: insets.top, leading: insets.leading, bottom: value, trailing: insets.trailing) }
@@ -176,7 +176,7 @@ public extension ViewNode {
     }
 
     /// `.opacity(0.5)`
-    func opacity(_ value: Float) -> ViewNode {
+    func opacity(_ value: CGFloat) -> ViewNode {
         .opacity(value, child: self)
     }
 
@@ -239,7 +239,7 @@ public extension ViewNode {
     }
 
     /// `.cornerRadius(12)` — wraps a rect in a roundedRect
-    func cornerRadius(_ radius: Float) -> ViewNode {
+    func cornerRadius(_ radius: CGFloat) -> ViewNode {
         switch self {
         case .rect(let width, let height, let fill):
             return .roundedRect(width: width, height: height, radius: radius, fill: fill)
@@ -253,9 +253,9 @@ public extension ViewNode {
     /// `.shadow(color:radius:x:y:)` — like SwiftUI's shadow modifier
     func shadow(
         color: Color = Color(r: 0, g: 0, b: 0, a: 0.3),
-        radius: Float = 10,
-        x: Float = 0,
-        y: Float = 2
+        radius: CGFloat = 10,
+        x: CGFloat = 0,
+        y: CGFloat = 2
     ) -> ViewNode {
         .shadow(radius: radius, blur: radius, color: color, offsetX: x, offsetY: y, child: self)
     }
@@ -272,7 +272,7 @@ public extension ViewNode {
     }
 
     /// `.clipped()` — clips content to this view's frame.
-    func clipped(radius: Float = 0) -> ViewNode {
+    func clipped(radius: CGFloat = 0) -> ViewNode {
         .clipped(radius: radius, child: self)
     }
 
@@ -356,7 +356,7 @@ public func Section(
 
 /// `NavigationSplitView { sidebar } detail: { detail }` — sidebar + detail layout.
 public func NavigationSplitView(
-    sidebarWidth: Float = 220,
+    sidebarWidth: CGFloat = 220,
     @ViewBuilder sidebar: () -> [ViewNode],
     @ViewBuilder detail: () -> [ViewNode]
 ) -> ViewNode {

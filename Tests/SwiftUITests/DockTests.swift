@@ -1,11 +1,12 @@
+import Foundation
 import Testing
 @testable import SwiftUI
 
-let screenWidth: Float = 1280
-let screenHeight: Float = 800
+let screenWidth: CGFloat = 1280
+let screenHeight: CGFloat = 800
 
 // mouseY at the dock zone (near bottom)
-let dockY: Float = 780
+let dockY: CGFloat = 780
 
 @Test func dockMagnificationAtCenter() {
     let items = (0..<7).map { _ in
@@ -50,7 +51,7 @@ let dockY: Float = 780
     let items = (0..<5).map { _ in
         Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
-    let sw: Float = 1000
+    let sw: CGFloat = 1000
     let leftSizes = Dock.magnifiedSizes(
         mouseX: 450, mouseY: dockY,
         items: items, screenWidth: sw, screenHeight: screenHeight

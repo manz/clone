@@ -1,3 +1,5 @@
+import Foundation
+
 /// A 2D shape that can be used as a View.
 public protocol Shape: View {
     func path(in rect: LayoutFrame) -> ViewNode
@@ -62,9 +64,9 @@ public struct RectangleShape: Shape {
 
 /// A rounded rectangle shape (already exists as a free function in ViewDSL).
 public struct RoundedRectangleShape: Shape {
-    public let cornerRadius: Float
+    public let cornerRadius: CGFloat
 
-    public init(cornerRadius: Float) {
+    public init(cornerRadius: CGFloat) {
         self.cornerRadius = cornerRadius
     }
 

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import Foundation
 @testable import SwiftUI
@@ -38,7 +39,7 @@ import Foundation
     GeometryReaderRegistry.shared.clear()
 
     // Use a shared box to capture from inside the closure
-    let captured = CapturedValue<Float>()
+    let captured = CapturedValue<CGFloat>()
     let node = VStack(spacing: 0) {
         RoundedRectangle(cornerRadius: 0)
             .fill(.gray)

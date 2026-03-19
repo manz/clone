@@ -2,13 +2,13 @@ import Foundation
 
 /// macOS-style global menu bar with frosted glass background.
 public struct MenuBar {
-    let screenWidth: Float
+    let screenWidth: CGFloat
     let appName: String
     let clock: String
 
-    public static let height: Float = 24
+    public static let height: CGFloat = 24
 
-    public init(screenWidth: Float, appName: String = "Finder", clock: String = "12:00") {
+    public init(screenWidth: CGFloat, appName: String = "Finder", clock: String = "12:00") {
         self.screenWidth = screenWidth
         self.appName = appName
         self.clock = clock

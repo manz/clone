@@ -10,13 +10,13 @@ public func CACurrentMediaTime() -> Double {
 
 /// A rect for animation interpolation.
 public struct AnimRect: Equatable, Sendable {
-    public var x: Float, y: Float, w: Float, h: Float
+    public var x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat
 
-    public init(x: Float, y: Float, w: Float, h: Float) {
+    public init(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) {
         self.x = x; self.y = y; self.w = w; self.h = h
     }
 
-    public func lerp(to: AnimRect, t: Float) -> AnimRect {
+    public func lerp(to: AnimRect, t: CGFloat) -> AnimRect {
         AnimRect(
             x: x + (to.x - x) * t,
             y: y + (to.y - y) * t,
@@ -36,8 +36,8 @@ public struct WindowAnimation {
     public let isMinimizing: Bool  // true = shrinking to dock, false = restoring
 
     /// Progress 0→1, eased.
-    public func progress(at time: CFTimeInterval) -> Float {
-        let linear = Float(min(max((time - startTime) / duration, 0), 1))
+    public func progress(at time: CFTimeInterval) -> CGFloat {
+        let linear = CGFloat(min(max((time - startTime) / duration, 0), 1))
         // Ease-in-out cubic
         if linear < 0.5 {
             return 4 * linear * linear * linear
@@ -53,7 +53,7 @@ public struct WindowAnimation {
     }
 
     /// Interpolated opacity (fade out when minimizing, fade in when restoring).
-    public func opacity(at time: CFTimeInterval) -> Float {
+    public func opacity(at time: CFTimeInterval) -> CGFloat {
         let t = progress(at: time)
         return isMinimizing ? 1.0 - t * 0.3 : 0.7 + t * 0.3
     }
@@ -86,7 +86,7 @@ public final class AnimationManager {
     }
 
     /// Get the current animated rect for a window, or nil if not animating.
-    public func animatedRect(for windowId: UInt64) -> (AnimRect, Float)? {
+    public func animatedRect(for windowId: UInt64) -> (AnimRect, CGFloat)? {
         guard let anim = animations[windowId] else { return nil }
         let now = CACurrentMediaTime()
         if anim.isComplete(at: now) { return nil }

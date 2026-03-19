@@ -5,21 +5,21 @@ public struct ManagedWindow: Equatable, Sendable {
     public let id: UInt64
     public let appId: String
     public var title: String
-    public var x: Float
-    public var y: Float
-    public var width: Float
-    public var height: Float
+    public var x: CGFloat
+    public var y: CGFloat
+    public var width: CGFloat
+    public var height: CGFloat
     public var isVisible: Bool
     public var isMinimized: Bool
     public var isMaximized: Bool
 
     // Stored pre-maximize geometry for restore
-    public var restoreX: Float
-    public var restoreY: Float
-    public var restoreWidth: Float
-    public var restoreHeight: Float
+    public var restoreX: CGFloat
+    public var restoreY: CGFloat
+    public var restoreWidth: CGFloat
+    public var restoreHeight: CGFloat
 
-    public init(id: UInt64, appId: String, title: String, x: Float, y: Float, width: Float, height: Float) {
+    public init(id: UInt64, appId: String, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         self.id = id
         self.appId = appId
         self.title = title
@@ -44,27 +44,27 @@ public struct ManagedWindow: Equatable, Sendable {
         LayoutFrame(x: x, y: y, width: width, height: WindowChrome.titleBarHeight)
     }
 
-    public func contains(px: Float, py: Float) -> Bool {
+    public func contains(px: CGFloat, py: CGFloat) -> Bool {
         px >= x && px <= x + width && py >= y && py <= y + height
     }
 
-    public func titleBarContains(px: Float, py: Float) -> Bool {
+    public func titleBarContains(px: CGFloat, py: CGFloat) -> Bool {
         px >= x && px <= x + width && py >= y && py <= y + WindowChrome.titleBarHeight
     }
 }
 
 /// Window chrome constants.
 public enum WindowChrome {
-    public static let titleBarHeight: Float = 38
-    public static let buttonSize: Float = 12
-    public static let buttonSpacing: Float = 8
-    public static let buttonInsetX: Float = 14
-    public static let buttonInsetY: Float = 13
-    public static let cornerRadius: Float = 12
-    public static let menuBarHeight: Float = 24
-    public static let resizeHandleSize: Float = 6
-    public static let minWindowWidth: Float = 200
-    public static let minWindowHeight: Float = 150
+    public static let titleBarHeight: CGFloat = 38
+    public static let buttonSize: CGFloat = 12
+    public static let buttonSpacing: CGFloat = 8
+    public static let buttonInsetX: CGFloat = 14
+    public static let buttonInsetY: CGFloat = 13
+    public static let cornerRadius: CGFloat = 12
+    public static let menuBarHeight: CGFloat = 24
+    public static let resizeHandleSize: CGFloat = 6
+    public static let minWindowWidth: CGFloat = 200
+    public static let minWindowHeight: CGFloat = 150
 }
 
 /// Which edge/corner is being resized.
@@ -88,13 +88,13 @@ public final class WindowManager {
     private var nextWindowId: UInt64 = 1
 
     /// Screen dimensions — set by the compositor each frame.
-    public var screenWidth: Float = 1280
-    public var screenHeight: Float = 800
+    public var screenWidth: CGFloat = 1280
+    public var screenHeight: CGFloat = 800
 
     // Drag state
     private var dragWindowId: UInt64? = nil
-    private var dragOffsetX: Float = 0
-    private var dragOffsetY: Float = 0
+    private var dragOffsetX: CGFloat = 0
+    private var dragOffsetY: CGFloat = 0
 
     // Hover state for traffic lights
     public var hoveredWindowId: UInt64? = nil
@@ -103,19 +103,19 @@ public final class WindowManager {
     // Resize state
     private var resizeWindowId: UInt64? = nil
     private var resizeEdge: ResizeEdge? = nil
-    private var resizeStartMouseX: Float = 0
-    private var resizeStartMouseY: Float = 0
-    private var resizeStartX: Float = 0
-    private var resizeStartY: Float = 0
-    private var resizeStartW: Float = 0
-    private var resizeStartH: Float = 0
+    private var resizeStartMouseX: CGFloat = 0
+    private var resizeStartMouseY: CGFloat = 0
+    private var resizeStartX: CGFloat = 0
+    private var resizeStartY: CGFloat = 0
+    private var resizeStartW: CGFloat = 0
+    private var resizeStartH: CGFloat = 0
 
     public init() {}
 
     // MARK: - Lifecycle
 
     @discardableResult
-    public func open(appId: String, title: String, x: Float, y: Float, width: Float, height: Float) -> UInt64 {
+    public func open(appId: String, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> UInt64 {
         let id = nextWindowId
         nextWindowId += 1
         let window = ManagedWindow(id: id, appId: appId, title: title, x: x, y: y, width: width, height: height)
@@ -185,7 +185,7 @@ public final class WindowManager {
 
     // MARK: - Hit testing
 
-    public func windowAt(x: Float, y: Float) -> ManagedWindow? {
+    public func windowAt(x: CGFloat, y: CGFloat) -> ManagedWindow? {
         for window in windows.reversed() {
             if window.isVisible && !window.isMinimized && window.contains(px: x, py: y) {
                 return window
@@ -195,7 +195,7 @@ public final class WindowManager {
     }
 
     /// Hit-test traffic light buttons. Returns which button was hit, or nil.
-    public func hitTestTrafficLight(windowId: UInt64, x: Float, y: Float) -> TrafficLightButton? {
+    public func hitTestTrafficLight(windowId: UInt64, x: CGFloat, y: CGFloat) -> TrafficLightButton? {
         guard let window = windows.first(where: { $0.id == windowId }) else { return nil }
 
         let btnY = window.y + WindowChrome.buttonInsetY
@@ -217,7 +217,7 @@ public final class WindowManager {
     }
 
     /// Check if mouse is hovering over the traffic light area of a window.
-    public func isOverTrafficLights(windowId: UInt64, x: Float, y: Float) -> Bool {
+    public func isOverTrafficLights(windowId: UInt64, x: CGFloat, y: CGFloat) -> Bool {
         guard let window = windows.first(where: { $0.id == windowId }) else { return false }
         let btnY = window.y + WindowChrome.buttonInsetY
         let btnEndX = window.x + WindowChrome.buttonInsetX + WindowChrome.buttonSize * 3 + WindowChrome.buttonSpacing * 2 + 8
@@ -226,13 +226,13 @@ public final class WindowManager {
     }
 
     // Keep the old method for backwards compat
-    public func hitsCloseButton(windowId: UInt64, x: Float, y: Float) -> Bool {
+    public func hitsCloseButton(windowId: UInt64, x: CGFloat, y: CGFloat) -> Bool {
         hitTestTrafficLight(windowId: windowId, x: x, y: y) == .close
     }
 
     // MARK: - Dragging
 
-    public func beginDrag(windowId: UInt64, mouseX: Float, mouseY: Float) {
+    public func beginDrag(windowId: UInt64, mouseX: CGFloat, mouseY: CGFloat) {
         guard let window = windows.first(where: { $0.id == windowId }) else { return }
         // If maximized, drag should unmaximize and reposition (like macOS)
         if window.isMaximized {
@@ -253,7 +253,7 @@ public final class WindowManager {
         focus(id: windowId)
     }
 
-    public func updateDrag(mouseX: Float, mouseY: Float) {
+    public func updateDrag(mouseX: CGFloat, mouseY: CGFloat) {
         guard let id = dragWindowId,
               let idx = windows.firstIndex(where: { $0.id == id }) else { return }
         windows[idx].x = mouseX - dragOffsetX
@@ -270,7 +270,7 @@ public final class WindowManager {
     // MARK: - Resizing
 
     /// Hit-test the edges/corners of a window. Returns the resize edge or nil.
-    public func hitTestResizeEdge(windowId: UInt64, x: Float, y: Float) -> ResizeEdge? {
+    public func hitTestResizeEdge(windowId: UInt64, x: CGFloat, y: CGFloat) -> ResizeEdge? {
         guard let window = windows.first(where: { $0.id == windowId }) else { return nil }
         guard !window.isMaximized else { return nil }
 
@@ -294,7 +294,7 @@ public final class WindowManager {
     }
 
     /// Begin resizing a window from the given edge.
-    public func beginResize(windowId: UInt64, edge: ResizeEdge, mouseX: Float, mouseY: Float) {
+    public func beginResize(windowId: UInt64, edge: ResizeEdge, mouseX: CGFloat, mouseY: CGFloat) {
         guard let window = windows.first(where: { $0.id == windowId }) else { return }
         resizeWindowId = windowId
         resizeEdge = edge
@@ -308,7 +308,7 @@ public final class WindowManager {
     }
 
     /// Update the resize drag.
-    public func updateResize(mouseX: Float, mouseY: Float) {
+    public func updateResize(mouseX: CGFloat, mouseY: CGFloat) {
         guard let id = resizeWindowId, let edge = resizeEdge,
               let idx = windows.firstIndex(where: { $0.id == id }) else { return }
 
@@ -390,7 +390,7 @@ public final class WindowManager {
 
     private func windowChrome(window: ManagedWindow, isFocused: Bool,
                               showTrafficLightSymbols: Bool, content: ViewNode) -> ViewNode {
-        let radius = window.isMaximized ? Float(0) : WindowChrome.cornerRadius
+        let radius: CGFloat = window.isMaximized ? 0 : WindowChrome.cornerRadius
 
         let windowBody = ZStack {
             // Window background
@@ -458,7 +458,7 @@ public final class WindowManager {
         nodes.append(
             Text(window.title).font(.system(size: 13)).foregroundColor(titleColor)
                 .padding(.top, (h - 13) / 2)
-                .padding(.leading, w / 2 - Float(window.title.count) * 4)
+                .padding(.leading, w / 2 - CGFloat(window.title.count) * 4)
         )
 
         return ViewNode.zstack(children: nodes).frame(width: w, height: h)

@@ -13,8 +13,8 @@ public struct GeometryProxy: Sendable {
         self.frame = frame
     }
 
-    public var width: Float { Float(size.width) }
-    public var height: Float { Float(size.height) }
+    public var width: CGFloat { size.width }
+    public var height: CGFloat { size.height }
 }
 
 /// Registry that holds GeometryReader closures by ID.

@@ -2,16 +2,16 @@ import Foundation
 
 /// macOS-style Dock with icon magnification on hover.
 public struct Dock {
-    public static let baseIconSize: Float = 48
-    public static let maxScale: Float = 2.0
-    public static let influenceRadius: Float = 150
-    public static let padding: Float = 8
-    public static let dockHeight: Float = 64
+    public static let baseIconSize: CGFloat = 48
+    public static let maxScale: CGFloat = 2.0
+    public static let influenceRadius: CGFloat = 150
+    public static let padding: CGFloat = 8
+    public static let dockHeight: CGFloat = 64
 
-    let mouseX: Float
-    let mouseY: Float
-    let screenWidth: Float
-    let screenHeight: Float
+    let mouseX: CGFloat
+    let mouseY: CGFloat
+    let screenWidth: CGFloat
+    let screenHeight: CGFloat
 
     public struct DockItem: Equatable {
         public let appId: String
@@ -35,7 +35,7 @@ public struct Dock {
         DockItem(appId: "com.clone.settings", name: "Settings", color: .gray),
     ]
 
-    public init(mouseX: Float, mouseY: Float, screenWidth: Float, screenHeight: Float) {
+    public init(mouseX: CGFloat, mouseY: CGFloat, screenWidth: CGFloat, screenHeight: CGFloat) {
         self.mouseX = mouseX
         self.mouseY = mouseY
         self.screenWidth = screenWidth
@@ -74,7 +74,7 @@ public struct Dock {
             }
         }
 
-        let totalWidth = iconSizes.reduce(0, +) + Float(items.count - 1) * Self.padding + Self.padding * 2
+        let totalWidth = iconSizes.reduce(0, +) + CGFloat(items.count - 1) * Self.padding + Self.padding * 2
         let dockBgHeight = Self.dockHeight + Self.padding * 2
 
         return .zstack(children: [
@@ -86,8 +86,8 @@ public struct Dock {
     }
 
     private func popoverLabel(_ name: String) -> ViewNode {
-        let textWidth = Float(name.count) * 8 + 20
-        let height: Float = 26
+        let textWidth = CGFloat(name.count) * 8 + 20
+        let height: CGFloat = 26
         return ZStack {
             RoundedRectangle(cornerRadius: 6)
                 .fill(WindowChrome.popover)
@@ -104,19 +104,19 @@ public struct Dock {
 
     /// Which icon index is the mouse hovering over (nil if none).
     public static func hoveredIconIndex(
-        mouseX: Float, mouseY: Float,
-        items: [DockItem], screenWidth: Float, screenHeight: Float
+        mouseX: CGFloat, mouseY: CGFloat,
+        items: [DockItem], screenWidth: CGFloat, screenHeight: CGFloat
     ) -> Int? {
         let rect = dockRect(items: items, screenWidth: screenWidth, screenHeight: screenHeight)
 
         // Must be within dock vertical zone
         guard mouseY >= rect.y && mouseY <= screenHeight else { return nil }
 
-        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding
-        let startX: Float = (screenWidth - totalBaseWidth) / 2
+        let totalBaseWidth = CGFloat(items.count) * baseIconSize + CGFloat(items.count - 1) * padding
+        let startX: CGFloat = (screenWidth - totalBaseWidth) / 2
 
         for i in 0..<items.count {
-            let iconLeft = startX + Float(i) * (baseIconSize + padding)
+            let iconLeft = startX + CGFloat(i) * (baseIconSize + padding)
             let iconRight = iconLeft + baseIconSize
             if mouseX >= iconLeft && mouseX <= iconRight {
                 return i
@@ -126,12 +126,12 @@ public struct Dock {
     }
 
     /// Get the screen-space rect for a specific dock icon slot (for animation targets).
-    public static func iconRect(index: Int, screenWidth: Float, screenHeight: Float) -> AnimRect {
+    public static func iconRect(index: Int, screenWidth: CGFloat, screenHeight: CGFloat) -> AnimRect {
         let items = defaultItems
-        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding
+        let totalBaseWidth = CGFloat(items.count) * baseIconSize + CGFloat(items.count - 1) * padding
         let startX = (screenWidth - totalBaseWidth) / 2
         let dockY = screenHeight - dockHeight - padding * 2
-        let iconX = startX + Float(index) * (baseIconSize + padding)
+        let iconX = startX + CGFloat(index) * (baseIconSize + padding)
         let iconY = dockY + padding + (dockHeight - baseIconSize) / 2
         return AnimRect(x: iconX, y: iconY, w: baseIconSize, h: baseIconSize)
     }
@@ -141,8 +141,8 @@ public struct Dock {
         defaultItems.firstIndex(where: { $0.appId == appId })
     }
 
-    public static func dockRect(items: [DockItem], screenWidth: Float, screenHeight: Float) -> (x: Float, y: Float, w: Float, h: Float) {
-        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding + padding * 2
+    public static func dockRect(items: [DockItem], screenWidth: CGFloat, screenHeight: CGFloat) -> (x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat) {
+        let totalBaseWidth = CGFloat(items.count) * baseIconSize + CGFloat(items.count - 1) * padding + padding * 2
         let dockBgHeight = dockHeight + padding * 2
         let x = (screenWidth - totalBaseWidth) / 2
         let y = screenHeight - dockBgHeight
@@ -150,9 +150,9 @@ public struct Dock {
     }
 
     public static func magnifiedSizes(
-        mouseX: Float, mouseY: Float,
-        items: [DockItem], screenWidth: Float, screenHeight: Float
-    ) -> [Float] {
+        mouseX: CGFloat, mouseY: CGFloat,
+        items: [DockItem], screenWidth: CGFloat, screenHeight: CGFloat
+    ) -> [CGFloat] {
         let rect = dockRect(items: items, screenWidth: screenWidth, screenHeight: screenHeight)
 
         let hitLeft = rect.x - influenceRadius
@@ -164,20 +164,20 @@ public struct Dock {
             && mouseY >= hitTop && mouseY <= hitBottom
 
         if !insideHitZone {
-            return [Float](repeating: baseIconSize, count: items.count)
+            return [CGFloat](repeating: baseIconSize, count: items.count)
         }
 
-        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding
-        let startX: Float = (screenWidth - totalBaseWidth) / 2
+        let totalBaseWidth = CGFloat(items.count) * baseIconSize + CGFloat(items.count - 1) * padding
+        let startX: CGFloat = (screenWidth - totalBaseWidth) / 2
 
         return items.enumerated().map { (i, _) in
-            let iconCenterX: Float = startX + Float(i) * (baseIconSize + padding) + baseIconSize / 2
-            let distance: Float = abs(mouseX - iconCenterX)
+            let iconCenterX: CGFloat = startX + CGFloat(i) * (baseIconSize + padding) + baseIconSize / 2
+            let distance: CGFloat = abs(mouseX - iconCenterX)
             if distance > influenceRadius {
                 return baseIconSize
             }
-            let t: Float = 1.0 - (distance / influenceRadius)
-            let scale: Float = 1.0 + (maxScale - 1.0) * (1.0 - cosf(t * .pi)) / 2.0
+            let t: CGFloat = 1.0 - (distance / influenceRadius)
+            let scale: CGFloat = 1.0 + (maxScale - 1.0) * (1.0 - cos(t * .pi)) / 2.0
             return baseIconSize * scale
         }
     }

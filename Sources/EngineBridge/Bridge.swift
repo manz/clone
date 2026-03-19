@@ -7,35 +7,36 @@ import CloneProtocol
 public enum Bridge {
     public static func toEngineCommands(_ flatCommands: [FlatRenderCommand]) -> [RenderCommand] {
         flatCommands.map { cmd in
+            let cx = Float(cmd.x), cy = Float(cmd.y), cw = Float(cmd.width), ch = Float(cmd.height)
             switch cmd.kind {
             case .rect(let color):
                 return .rect(
-                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
+                    x: cx, y: cy, w: cw, h: ch,
                     color: color.toEngine()
                 )
             case .roundedRect(let radius, let color):
                 return .roundedRect(
-                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
-                    radius: radius, color: color.toEngine()
+                    x: cx, y: cy, w: cw, h: ch,
+                    radius: Float(radius), color: color.toEngine()
                 )
             case .text(let content, let fontSize, let color, let weight, let isIcon):
                 return .text(
-                    x: cmd.x, y: cmd.y,
-                    content: content, fontSize: fontSize,
+                    x: cx, y: cy,
+                    content: content, fontSize: Float(fontSize),
                     color: color.toEngine(),
                     weight: weight.toEngine(),
                     isIcon: isIcon
                 )
             case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
                 return .shadow(
-                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
-                    radius: radius, blur: blur, color: color.toEngine(),
-                    ox: offsetX, oy: offsetY
+                    x: cx, y: cy, w: cw, h: ch,
+                    radius: Float(radius), blur: Float(blur), color: color.toEngine(),
+                    ox: Float(offsetX), oy: Float(offsetY)
                 )
             case .pushClip(let radius):
                 return .pushClip(
-                    x: cmd.x, y: cmd.y, w: cmd.width, h: cmd.height,
-                    radius: radius
+                    x: cx, y: cy, w: cw, h: ch,
+                    radius: Float(radius)
                 )
             case .popClip:
                 return .popClip
@@ -90,7 +91,7 @@ public enum Bridge {
 
 extension Color {
     func toEngine() -> RgbaColor {
-        RgbaColor(r: r, g: g, b: b, a: a)
+        RgbaColor(r: Float(r), g: Float(g), b: Float(b), a: Float(a))
     }
 }
 
@@ -203,8 +204,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         GeometryReaderRegistry.shared.clear()
         TapRegistry.shared.clear()
 
-        let w = Float(width)
-        let h = Float(height)
+        let w = CGFloat(width)
+        let h = CGFloat(height)
 
         // Update screen dimensions for window manager (zoom needs this)
         windowManager.screenWidth = w
@@ -220,8 +221,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         let desktop = Desktop(
             screenWidth: w,
             screenHeight: h,
-            mouseX: Float(mouseX),
-            mouseY: Float(mouseY)
+            mouseX: CGFloat(mouseX),
+            mouseY: CGFloat(mouseY)
         )
         let bgLayout = Layout.layout(desktop.body(), in: screenFrame)
         var engineCommands = Bridge.toEngineCommands(CommandFlattener.flatten(bgLayout))
@@ -243,14 +244,14 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
             // Window content — clipped to window bounds so text doesn't leak
             engineCommands.append(.pushClip(
-                x: window.x, y: window.y,
-                w: window.width, h: window.height, radius: 0
+                x: Float(window.x), y: Float(window.y),
+                w: Float(window.width), h: Float(window.height), radius: 0
             ))
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 if !ipcCommands.isEmpty {
-                    let contentY = window.y + WindowChrome.titleBarHeight
-                    let translated = Bridge.ipcToEngine(ipcCommands, offsetX: window.x, offsetY: contentY)
+                    let contentY = Float(window.y + WindowChrome.titleBarHeight)
+                    let translated = Bridge.ipcToEngine(ipcCommands, offsetX: Float(window.x), offsetY: contentY)
                     engineCommands.append(contentsOf: translated)
                 }
             }
@@ -260,7 +261,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         // Dock — always on top of windows
         let dockTree = VStack(spacing: 0) {
             Spacer()
-            Dock(mouseX: Float(mouseX), mouseY: Float(mouseY),
+            Dock(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY),
                  screenWidth: w, screenHeight: h).body()
         }
         let dockLayout = Layout.layout(dockTree, in: screenFrame)
@@ -287,8 +288,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         GeometryReaderRegistry.shared.clear()
         TapRegistry.shared.clear()
 
-        let w = Float(width)
-        let h = Float(height)
+        let w = CGFloat(width)
+        let h = CGFloat(height)
 
         windowManager.screenWidth = w
         windowManager.screenHeight = h
@@ -321,10 +322,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         var frames: [SurfaceFrame] = []
 
         // 1. Desktop background
-        let desktop = Desktop(screenWidth: w, screenHeight: h, mouseX: Float(mouseX), mouseY: Float(mouseY))
+        let desktop = Desktop(screenWidth: w, screenHeight: h, mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY))
         let desktopLayout = Layout.layout(desktop.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
         frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: w, height: h, cornerRadius: 0, opacity: 1),
+            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(w), height: Float(h), cornerRadius: 0, opacity: 1),
             commands: Bridge.toEngineCommands(CommandFlattener.flatten(desktopLayout))
         ))
 
@@ -336,7 +337,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let surfaceId = windowSurfaceBase + window.id
             let isFocused = window.id == windowManager.focusedWindowId
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
-            let radius = window.isMaximized ? Float(0) : WindowChrome.cornerRadius
+            let radius: CGFloat = window.isMaximized ? 0 : WindowChrome.cornerRadius
 
             // Build window chrome + content in LOCAL coordinates (0,0 = window top-left)
             var windowCommands: [RenderCommand] = []
@@ -344,32 +345,36 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let tbColor: Color = isFocused ? WindowChrome.titleBar : WindowChrome.titleBarUnfocused
             let bgColor: Color = isFocused ? WindowChrome.surface : WindowChrome.background
 
+            let fW = Float(window.width)
+            let fH = Float(window.height)
+            let fRadius = Float(radius)
+
             // 1. Window background
             windowCommands.append(.roundedRect(
-                x: 0, y: 0, w: window.width, h: window.height,
-                radius: radius, color: bgColor.toEngine()
+                x: 0, y: 0, w: fW, h: fH,
+                radius: fRadius, color: bgColor.toEngine()
             ))
 
             // 2. App content (IPC commands — offset by title bar height)
             if let serverWid = externalWindowId(for: window.id) {
                 let ipcCommands = server.commands(for: serverWid)
                 for cmd in ipcCommands {
-                    windowCommands.append(Bridge.offsetIpcCommand(cmd, dy: WindowChrome.titleBarHeight))
+                    windowCommands.append(Bridge.offsetIpcCommand(cmd, dy: Float(WindowChrome.titleBarHeight)))
                 }
             }
 
             // 3. Title bar + chrome drawn LAST so they're always on top
-            windowCommands.append(.pushClip(x: 0, y: 0, w: window.width, h: window.height, radius: 0))
+            windowCommands.append(.pushClip(x: 0, y: 0, w: fW, h: fH, radius: 0))
             windowCommands.append(.rect(
-                x: 0, y: 0, w: window.width, h: WindowChrome.titleBarHeight,
+                x: 0, y: 0, w: fW, h: Float(WindowChrome.titleBarHeight),
                 color: tbColor.toEngine()
             ))
 
             // Traffic lights
-            let btnY = WindowChrome.buttonInsetY
-            let btnX = WindowChrome.buttonInsetX
-            let btnSize = WindowChrome.buttonSize
-            let btnStep = btnSize + WindowChrome.buttonSpacing
+            let btnY = Float(WindowChrome.buttonInsetY)
+            let btnX = Float(WindowChrome.buttonInsetX)
+            let btnSize = Float(WindowChrome.buttonSize)
+            let btnStep = btnSize + Float(WindowChrome.buttonSpacing)
 
             let closeColor: Color = isFocused ? .red : .gray
             let minColor: Color = isFocused ? .yellow : .gray
@@ -391,8 +396,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
             // Title text
             let titleColor: Color = isFocused ? .primary : .secondary
-            let titleX = window.width / 2 - Float(window.title.count) * 4
-            let titleY = (WindowChrome.titleBarHeight - 13) / 2
+            let titleX = fW / 2 - Float(window.title.count) * 4
+            let titleY = (Float(WindowChrome.titleBarHeight) - 13) / 2
             windowCommands.append(.text(
                 x: titleX, y: titleY, content: window.title, fontSize: 13,
                 color: titleColor.toEngine(), weight: .regular, isIcon: false
@@ -404,7 +409,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             var frameY = window.y
             var frameW = window.width
             var frameH = window.height
-            var frameOpacity: Float = 1.0
+            var frameOpacity: CGFloat = 1.0
 
             if let (animRect, animOpacity) = animationManager.animatedRect(for: window.id) {
                 frameX = animRect.x
@@ -417,10 +422,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             frames.append(SurfaceFrame(
                 desc: SurfaceDesc(
                     surfaceId: surfaceId,
-                    x: frameX, y: frameY,
-                    width: frameW, height: frameH,
-                    cornerRadius: radius,
-                    opacity: frameOpacity
+                    x: Float(frameX), y: Float(frameY),
+                    width: Float(frameW), height: Float(frameH),
+                    cornerRadius: fRadius,
+                    opacity: Float(frameOpacity)
                 ),
                 commands: windowCommands
             ))
@@ -437,7 +442,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
                         x: 0, y: 0,
-                        width: w, height: h,
+                        width: Float(w), height: Float(h),
                         cornerRadius: 0, opacity: 1
                     ),
                     commands: engineCommands
@@ -454,8 +459,8 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     public func onPointerMove(surfaceId: UInt64, x: Double, y: Double) {
         mouseX = x
         mouseY = y
-        let mx = Float(x)
-        let my = Float(y)
+        let mx = CGFloat(x)
+        let my = CGFloat(y)
 
         if windowManager.isResizing {
             windowManager.updateResize(mouseX: mx, mouseY: my)
@@ -484,13 +489,13 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
            let window = windowManager.windows.first(where: { $0.id == focusedId }) {
             let localX = mx - window.x
             let localY = my - window.y - WindowChrome.titleBarHeight
-            server.sendPointerMove(windowId: serverWid, x: localX, y: localY)
+            server.sendPointerMove(windowId: serverWid, x: Float(localX), y: Float(localY))
         }
     }
 
     public func onPointerButton(surfaceId: UInt64, button: UInt32, pressed: Bool) {
-        let mx = Float(mouseX)
-        let my = Float(mouseY)
+        let mx = CGFloat(mouseX)
+        let my = CGFloat(mouseY)
 
         if button == 0 {
             if pressed {
@@ -533,7 +538,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     } else if let serverWid = externalWindowId(for: window.id) {
                         let localX = mx - window.x
                         let localY = my - window.y - WindowChrome.titleBarHeight
-                        server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: localX, y: localY)
+                        server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: Float(localX), y: Float(localY))
                     }
 
                     windowManager.focus(id: window.id)
@@ -569,7 +574,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     if let serverWid = externalWindowId(for: window.id) {
                         let localX = mx - window.x
                         let localY = my - window.y - WindowChrome.titleBarHeight
-                        server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: localX, y: localY)
+                        server.sendPointerButton(windowId: serverWid, button: button, pressed: true, x: Float(localX), y: Float(localY))
                     }
                 }
             } else {
@@ -615,10 +620,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             let wmId = windowManager.open(
                 appId: app.appId,
                 title: app.title,
-                x: 150 + Float.random(in: 0...200),
-                y: 50 + Float.random(in: 0...150),
-                width: app.width,
-                height: app.height + WindowChrome.titleBarHeight
+                x: 150 + CGFloat.random(in: 0...200),
+                y: 50 + CGFloat.random(in: 0...150),
+                width: CGFloat(app.width),
+                height: CGFloat(app.height) + WindowChrome.titleBarHeight
             )
             externalWindows[app.windowId] = wmId
             updateFocusedAppName()
@@ -638,13 +643,13 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
     }
 
     /// Walk all layout trees for onTap nodes at the given point and fire them.
-    private func fireTapAt(x: Float, y: Float) {
+    private func fireTapAt(x: CGFloat, y: CGFloat) {
         for layout in lastLayoutResults {
             fireTapInNode(layout, x: x, y: y)
         }
     }
 
-    private func fireTapInNode(_ node: LayoutNode, x: Float, y: Float) {
+    private func fireTapInNode(_ node: LayoutNode, x: CGFloat, y: CGFloat) {
         guard node.frame.contains(x: x, y: y) else { return }
         if case .onTap(let id, _) = node.node {
             TapRegistry.shared.fire(id: id)
@@ -706,7 +711,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
               let window = windowManager.windows.first(where: { $0.id == wmWindowId }) else { return }
         let contentWidth = window.width
         let contentHeight = window.height - WindowChrome.titleBarHeight
-        server.sendResize(windowId: serverWid, width: contentWidth, height: contentHeight)
+        server.sendResize(windowId: serverWid, width: Float(contentWidth), height: Float(contentHeight))
     }
 
     private func updateFocusedAppName() {
