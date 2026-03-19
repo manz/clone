@@ -98,8 +98,9 @@ extension IPCFontWeight {
     }
 }
 
-/// Swift-side delegate — compositor with window manager, app server, and built-in apps.
+/// Swift-side delegate — compositor with window manager, app server, animations, and built-in apps.
 public final class SwiftDesktopDelegate: DesktopDelegate {
+    private let animationManager = AnimationManager()
     private var mouseX: Double = 0
     private var mouseY: Double = 0
     private var mouseDown: Bool = false
@@ -258,9 +259,16 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         syncExternalApps()
         server.requestFrames()
 
+        // Tick animations — complete minimize by actually hiding the window
+        for (windowId, wasMinimizing) in animationManager.tick() {
+            if wasMinimizing {
+                windowManager.minimize(id: windowId)
+            }
+        }
+
         var frames: [SurfaceFrame] = []
 
-        // 1. Desktop background — fullscreen, no corner radius
+        // 1. Desktop background
         let desktop = Desktop(screenWidth: w, screenHeight: h, mouseX: Float(mouseX), mouseY: Float(mouseY))
         let desktopLayout = Layout.layout(desktop.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
         frames.append(SurfaceFrame(
@@ -268,8 +276,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             commands: Bridge.toEngineCommands(CommandFlattener.flatten(desktopLayout))
         ))
 
-        // 2. Windows — each in its own surface, z-order preserved
-        let visibleWindows = windowManager.windows.filter { $0.isVisible && !$0.isMinimized }
+        // 2. Windows — visible + currently animating
+        let visibleWindows = windowManager.windows.filter {
+            ($0.isVisible && !$0.isMinimized) || animationManager.isAnimating($0.id)
+        }
         for window in visibleWindows {
             let surfaceId = windowSurfaceBase + window.id
             let isFocused = window.id == windowManager.focusedWindowId
@@ -340,14 +350,28 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 }
             }
 
-            // Shadow is a compositor concern — described by the SurfaceDesc, not in commands
+            // Apply animation override if this window is animating
+            var frameX = window.x
+            var frameY = window.y
+            var frameW = window.width
+            var frameH = window.height
+            var frameOpacity: Float = 1.0
+
+            if let (animRect, animOpacity) = animationManager.animatedRect(for: window.id) {
+                frameX = animRect.x
+                frameY = animRect.y
+                frameW = animRect.w
+                frameH = animRect.h
+                frameOpacity = animOpacity
+            }
+
             frames.append(SurfaceFrame(
                 desc: SurfaceDesc(
                     surfaceId: surfaceId,
-                    x: window.x, y: window.y,
-                    width: window.width, height: window.height,
+                    x: frameX, y: frameY,
+                    width: frameW, height: frameH,
                     cornerRadius: radius,
-                    opacity: 1
+                    opacity: frameOpacity
                 ),
                 commands: windowCommands
             ))
@@ -438,7 +462,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                             }
                             windowManager.close(id: window.id)
                         case .minimize:
-                            windowManager.minimize(id: window.id)
+                            animateMinimize(windowId: window.id)
                         case .zoom:
                             windowManager.zoom(id: window.id)
                             notifyExternalAppResize(wmWindowId: window.id)
@@ -558,14 +582,50 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         }
     }
 
-    /// Check if a dock icon was tapped and launch the app.
+    /// Check if a dock icon was tapped — restore minimized window or launch new.
     private func handleDockAction() {
         guard let appId = DockActionRegistry.shared.consume() else { return }
+
+        // Check if there's a minimized window for this app to restore
+        if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
+            animateRestore(windowId: window.id)
+            return
+        }
+
+        // Otherwise launch a new instance
         if let binaryName = appBinaries[appId] {
             launchApp(binaryName)
         } else {
             fputs("No binary registered for \(appId)\n", stderr)
         }
+    }
+
+    // MARK: - Genie animations
+
+    private func animateMinimize(windowId: UInt64) {
+        guard let window = windowManager.windows.first(where: { $0.id == windowId }) else { return }
+        let from = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
+
+        // Target: the dock icon for this app
+        let iconIndex = Dock.iconIndex(for: window.appId) ?? 0
+        let to = Dock.iconRect(index: iconIndex, screenWidth: windowManager.screenWidth, screenHeight: windowManager.screenHeight)
+
+        animationManager.startMinimize(windowId: windowId, from: from, to: to)
+        // Don't hide yet — the animation will show the window shrinking.
+        // We hide it when the animation completes in onCompositeFrame.
+    }
+
+    private func animateRestore(windowId: UInt64) {
+        guard let window = windowManager.windows.first(where: { $0.id == windowId }) else { return }
+
+        // Source: the dock icon
+        let iconIndex = Dock.iconIndex(for: window.appId) ?? 0
+        let from = Dock.iconRect(index: iconIndex, screenWidth: windowManager.screenWidth, screenHeight: windowManager.screenHeight)
+        let to = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
+
+        // Unminimize first so the surface exists for compositing
+        windowManager.unminimize(id: windowId)
+        animationManager.startRestore(windowId: windowId, from: from, to: to)
     }
 
     /// Notify an external app that its window was resized (zoom/unmaximize).

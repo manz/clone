@@ -126,6 +126,22 @@ public struct Dock {
         return nil
     }
 
+    /// Get the screen-space rect for a specific dock icon slot (for animation targets).
+    public static func iconRect(index: Int, screenWidth: Float, screenHeight: Float) -> AnimRect {
+        let items = defaultItems
+        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding
+        let startX = (screenWidth - totalBaseWidth) / 2
+        let dockY = screenHeight - dockHeight - padding * 2
+        let iconX = startX + Float(index) * (baseIconSize + padding)
+        let iconY = dockY + padding + (dockHeight - baseIconSize) / 2
+        return AnimRect(x: iconX, y: iconY, w: baseIconSize, h: baseIconSize)
+    }
+
+    /// Find the dock icon index for a given appId.
+    public static func iconIndex(for appId: String) -> Int? {
+        defaultItems.firstIndex(where: { $0.appId == appId })
+    }
+
     public static func dockRect(items: [DockItem], screenWidth: Float, screenHeight: Float) -> (x: Float, y: Float, w: Float, h: Float) {
         let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding + padding * 2
         let dockBgHeight = dockHeight + padding * 2
