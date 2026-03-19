@@ -1,20 +1,14 @@
 import Foundation
+import AppKit
 
 /// Internal colors for the Clone window compositor and system chrome.
-/// Apps should use standard Color values (.primary, .secondary, .gray, etc.)
+/// Delegates to NSColor semantic colors where a direct mapping exists.
 extension WindowChrome {
 
     // MARK: - Window
 
-    public static var background: Color {
-        Color.adaptive(dark: Color(r: 0.14, g: 0.14, b: 0.15),
-                        light: Color(r: 0.96, g: 0.96, b: 0.97))
-    }
-
-    public static var backgroundUnfocused: Color {
-        Color.adaptive(dark: Color(r: 0.14, g: 0.14, b: 0.15),
-                        light: Color(r: 0.96, g: 0.96, b: 0.97))
-    }
+    public static var background: Color { Color(nsColor: .windowBackgroundColor) }
+    public static var backgroundUnfocused: Color { Color(nsColor: .windowBackgroundColor) }
 
     public static var titleBar: Color {
         Color.adaptive(dark: Color(r: 0.20, g: 0.20, b: 0.21),
@@ -26,20 +20,9 @@ extension WindowChrome {
                         light: Color(r: 0.96, g: 0.96, b: 0.96))
     }
 
-    public static var sidebar: Color {
-        Color.adaptive(dark: Color(r: 0.12, g: 0.12, b: 0.13),
-                        light: Color(r: 0.96, g: 0.96, b: 0.97))
-    }
-
-    public static var separator: Color {
-        Color.adaptive(dark: Color(r: 0.30, g: 0.30, b: 0.31),
-                        light: Color(r: 0.82, g: 0.82, b: 0.83))
-    }
-
-    public static var selection: Color {
-        Color.adaptive(dark: Color(r: 0.04, g: 0.52, b: 1.0, a: 0.3),
-                        light: Color(r: 0.04, g: 0.52, b: 1.0, a: 0.2))
-    }
+    public static var sidebar: Color { Color(nsColor: .sidebarBackgroundColor) }
+    public static var separator: Color { Color(nsColor: .separatorColor) }
+    public static var selection: Color { Color(nsColor: .selectedControlColor) }
 
     public static var highlight: Color {
         Color.adaptive(dark: Color(r: 1.0, g: 1.0, b: 1.0, a: 0.06),
@@ -65,18 +48,7 @@ extension WindowChrome {
 
     // MARK: - Background tiers
 
-    public static var base: Color {
-        Color.adaptive(dark: Color(r: 0.11, g: 0.11, b: 0.12),
-                        light: Color(r: 0.93, g: 0.93, b: 0.94))
-    }
-
-    public static var surface: Color {
-        Color.adaptive(dark: Color(r: 0.16, g: 0.16, b: 0.17),
-                        light: Color(r: 1.0, g: 1.0, b: 1.0))
-    }
-
-    public static var overlay: Color {
-        Color.adaptive(dark: Color(r: 0.22, g: 0.22, b: 0.23),
-                        light: Color(r: 0.85, g: 0.85, b: 0.86))
-    }
+    public static var base: Color { Color(nsColor: .windowBackgroundColor) }
+    public static var surface: Color { Color(nsColor: .controlBackgroundColor) }
+    public static var overlay: Color { Color(nsColor: .gridColor) }
 }

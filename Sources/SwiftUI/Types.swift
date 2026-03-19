@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 // MARK: - Appearance
 
@@ -7,10 +8,14 @@ public enum Appearance: Sendable {
     case light
 }
 
-/// Global appearance setting. Apps and the compositor read this to resolve semantic colors.
+/// Global appearance setting. Delegates to NSAppearance (AppKit is the authority).
 public final class AppearanceManager: @unchecked Sendable {
     public static let shared = AppearanceManager()
-    public var current: Appearance = .light
+
+    public var current: Appearance {
+        get { NSAppearance.shared.isDark ? .dark : .light }
+        set { NSAppearance.shared.style = newValue == .dark ? .darkAqua : .aqua }
+    }
 }
 
 // MARK: - Color
@@ -35,6 +40,14 @@ public struct Color: Equatable, Sendable {
         self.g = white
         self.b = white
         self.a = opacity
+    }
+
+    /// Initialize from an NSColor.
+    public init(nsColor: NSColor) {
+        self.r = nsColor.redComponent
+        self.g = nsColor.greenComponent
+        self.b = nsColor.blueComponent
+        self.a = nsColor.alphaComponent
     }
 
     /// Internal initializer used throughout Clone.

@@ -26,10 +26,16 @@ let package = Package(
             dependencies: ["CloneProtocol"],
             path: "Sources/CloneClient"
         ),
+        // AppKit shim — NSColor and other AppKit types for Linux
+        .target(
+            name: "AppKit",
+            dependencies: [],
+            path: "Sources/AppKit"
+        ),
         // UI DSL framework
         .target(
             name: "SwiftUI",
-            dependencies: ["CloneClient", "CloneProtocol"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),
