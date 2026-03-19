@@ -234,11 +234,11 @@ impl SurfaceCompositor {
     }
 
     /// Composite all windows onto the screen surface, back-to-front.
+    /// Each window is submitted as a separate encoder to avoid buffer overwrite.
     pub fn composite(
         &self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        encoder: &mut wgpu::CommandEncoder,
         screen_view: &wgpu::TextureView,
         screen_width: u32,
         screen_height: u32,
@@ -247,7 +247,7 @@ impl SurfaceCompositor {
         let uniforms: [f32; 4] = [screen_width as f32, screen_height as f32, 0.0, 0.0];
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&uniforms));
 
-        // Draw each window as a textured quad, one at a time (separate bind group per texture)
+        // Each window gets its own encoder+submit to avoid instance buffer overwrites.
         for win in windows {
             let Some(surface) = self.surfaces.get(&win.surface_id) else { continue };
 
@@ -278,27 +278,35 @@ impl SurfaceCompositor {
             };
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
 
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("composite_pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: screen_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
+            let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("composite_window"),
             });
 
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &bind_group, &[]);
-            pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-            pass.draw(0..6, 0..1);
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("composite_pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: screen_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+
+                pass.set_pipeline(&self.pipeline);
+                pass.set_bind_group(0, &bind_group, &[]);
+                pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+                pass.draw(0..6, 0..1);
+            }
+
+            queue.submit([encoder.finish()]);
         }
     }
 }

@@ -175,35 +175,35 @@ impl App {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let mut encoder = gpu
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("composite"),
-            });
-
         // Clear screen
         {
-            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("screen_clear"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &screen_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.14, g: 0.13, b: 0.19, a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
             });
+            {
+                let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("screen_clear_pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &screen_view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.14, g: 0.13, b: 0.19, a: 1.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                        depth_slice: None,
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+            }
+            gpu.queue.submit([encoder.finish()]);
         }
 
-        // Composite windows back-to-front
+        // Composite surfaces back-to-front (each submitted separately)
         let composite_windows: Vec<CompositeWindow> = surface_frames
             .iter()
             .map(|sf| CompositeWindow {
@@ -220,14 +220,11 @@ impl App {
         gpu.compositor.composite(
             &gpu.device,
             &gpu.queue,
-            &mut encoder,
             &screen_view,
             physical_size.width,
             physical_size.height,
             &composite_windows,
         );
-
-        gpu.queue.submit([encoder.finish()]);
         surface_texture.present();
     }
 }
