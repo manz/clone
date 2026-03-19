@@ -76,7 +76,8 @@ impl App {
         };
         surface.configure(&device, &surface_config);
 
-        let renderer = DesktopRenderer::new(surface_format);
+        let mut renderer = DesktopRenderer::new(surface_format);
+        renderer.init_pipelines(&device);
 
         self.gpu = Some(GpuState {
             device,
@@ -91,7 +92,7 @@ impl App {
     }
 
     fn render(&mut self) {
-        let Some(gpu) = &self.gpu else { return };
+        let Some(gpu) = &mut self.gpu else { return };
         let Some(window) = &self.window else { return };
 
         let size = window.inner_size();
@@ -119,8 +120,15 @@ impl App {
                 label: Some("frame"),
             });
 
-        gpu.renderer
-            .render(&mut encoder, &view, &commands, size.width, size.height);
+        gpu.renderer.render(
+            &gpu.device,
+            &gpu.queue,
+            &mut encoder,
+            &view,
+            &commands,
+            size.width,
+            size.height,
+        );
 
         gpu.queue.submit([encoder.finish()]);
         surface_texture.present();

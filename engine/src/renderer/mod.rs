@@ -1,55 +1,115 @@
+pub mod rect;
 pub mod types;
 
 use crate::commands::{RenderCommand, RgbaColor};
+use crate::renderer::rect::RectPipeline;
+use crate::renderer::types::RectInstance;
 
 pub struct DesktopRenderer {
     surface_format: wgpu::TextureFormat,
+    rect_pipeline: Option<RectPipeline>,
 }
 
 impl DesktopRenderer {
     pub fn new(surface_format: wgpu::TextureFormat) -> Self {
-        Self { surface_format }
+        Self {
+            surface_format,
+            rect_pipeline: None,
+        }
+    }
+
+    /// Initialize GPU pipelines. Must be called after device is available.
+    pub fn init_pipelines(&mut self, device: &wgpu::Device) {
+        self.rect_pipeline = Some(RectPipeline::new(device, self.surface_format));
     }
 
     pub fn render(
-        &self,
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
         commands: &[RenderCommand],
         width: u32,
         height: u32,
     ) {
-        let clear_color = self.extract_background(commands);
+        let clear_color = Self::extract_background(commands);
 
-        let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("desktop_clear"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: clear_color.r as f64,
-                        g: clear_color.g as f64,
-                        b: clear_color.b as f64,
-                        a: clear_color.a as f64,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            multiview_mask: None,
-        });
-        // Phase 1: just clear to background color.
-        // Phase 2 will add rect/roundedrect pipelines here.
+        // Clear pass
+        {
+            let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("desktop_clear"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: clear_color.r as f64,
+                            g: clear_color.g as f64,
+                            b: clear_color.b as f64,
+                            a: clear_color.a as f64,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+        }
 
-        let _ = (width, height); // will be used for uniforms in Phase 2
+        // Dispatch commands to pipelines
+        let (solid, rounded) = Self::collect_instances(commands);
+
+        if let Some(pipeline) = &mut self.rect_pipeline {
+            if !solid.is_empty() || !rounded.is_empty() {
+                pipeline.draw(device, queue, encoder, view, width, height, &solid, &rounded);
+            }
+        }
     }
 
-    fn extract_background(&self, commands: &[RenderCommand]) -> RgbaColor {
-        // Use the first Rect command as background, or fall back to dark gray
+    /// Collect RenderCommands into GPU instance arrays.
+    fn collect_instances(commands: &[RenderCommand]) -> (Vec<RectInstance>, Vec<RectInstance>) {
+        let mut solid = Vec::new();
+        let mut rounded = Vec::new();
+
+        for cmd in commands {
+            match cmd {
+                RenderCommand::Rect { x, y, w, h, color } => {
+                    solid.push(RectInstance {
+                        rect: [*x, *y, *w, *h],
+                        color: [color.r, color.g, color.b, color.a],
+                        radius: 0.0,
+                        _pad: [0.0; 3],
+                    });
+                }
+                RenderCommand::RoundedRect {
+                    x,
+                    y,
+                    w,
+                    h,
+                    radius,
+                    color,
+                } => {
+                    rounded.push(RectInstance {
+                        rect: [*x, *y, *w, *h],
+                        color: [color.r, color.g, color.b, color.a],
+                        radius: *radius,
+                        _pad: [0.0; 3],
+                    });
+                }
+                _ => {
+                    // Text, Shadow, Blur, Clip, Opacity — handled by future pipelines
+                }
+            }
+        }
+
+        (solid, rounded)
+    }
+
+    fn extract_background(commands: &[RenderCommand]) -> RgbaColor {
         for cmd in commands {
             if let RenderCommand::Rect { color, .. } = cmd {
                 return color.clone();
@@ -70,7 +130,6 @@ mod tests {
 
     #[test]
     fn extract_background_uses_first_rect() {
-        let renderer = DesktopRenderer::new(wgpu::TextureFormat::Bgra8UnormSrgb);
         let red = RgbaColor {
             r: 1.0,
             g: 0.0,
@@ -84,14 +143,61 @@ mod tests {
             h: 1080.0,
             color: red.clone(),
         }];
-        let bg = renderer.extract_background(&commands);
+        let bg = DesktopRenderer::extract_background(&commands);
         assert_eq!(bg, red);
     }
 
     #[test]
     fn extract_background_default_when_empty() {
-        let renderer = DesktopRenderer::new(wgpu::TextureFormat::Bgra8UnormSrgb);
-        let bg = renderer.extract_background(&[]);
+        let bg = DesktopRenderer::extract_background(&[]);
         assert_eq!(bg.r, 0.15);
+    }
+
+    #[test]
+    fn collect_instances_separates_solid_and_rounded() {
+        let white = RgbaColor {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        };
+        let commands = vec![
+            RenderCommand::Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 100.0,
+                h: 50.0,
+                color: white.clone(),
+            },
+            RenderCommand::RoundedRect {
+                x: 10.0,
+                y: 10.0,
+                w: 80.0,
+                h: 40.0,
+                radius: 8.0,
+                color: white.clone(),
+            },
+            RenderCommand::Rect {
+                x: 200.0,
+                y: 0.0,
+                w: 50.0,
+                h: 50.0,
+                color: white,
+            },
+            RenderCommand::PopClip, // ignored
+        ];
+
+        let (solid, rounded) = DesktopRenderer::collect_instances(&commands);
+        assert_eq!(solid.len(), 2);
+        assert_eq!(rounded.len(), 1);
+        assert_eq!(rounded[0].radius, 8.0);
+        assert_eq!(solid[0].rect, [0.0, 0.0, 100.0, 50.0]);
+    }
+
+    #[test]
+    fn collect_instances_empty_commands() {
+        let (solid, rounded) = DesktopRenderer::collect_instances(&[]);
+        assert!(solid.is_empty());
+        assert!(rounded.is_empty());
     }
 }
