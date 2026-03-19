@@ -86,9 +86,10 @@ impl DesktopRenderer {
                     content,
                     font_size,
                     color,
+                    weight,
                 } = cmd
                 {
-                    let glyphs = text_renderer.shape_text(content, *x, *y, *font_size, color);
+                    let glyphs = text_renderer.shape_text(content, *x, *y, *font_size, color, weight);
                     all_glyphs.extend(glyphs);
                 }
             }

@@ -24,3 +24,7 @@ pollster = "0.4"
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
+
+[[bin]]
+name = "clone-desktop"
+path = "src/bin/desktop.rs"

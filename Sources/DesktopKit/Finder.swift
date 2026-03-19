@@ -18,10 +18,6 @@ public struct Finder {
             self.size = size
         }
 
-        public var icon: String {
-            isDirectory ? "\u{1F4C1}" : "\u{1F4C4}"
-        }
-
         public var displaySize: String {
             if isDirectory { return "--" }
             if size < 1024 { return "\(size) B" }
@@ -38,61 +34,60 @@ public struct Finder {
     }
 
     public func body() -> ViewNode {
-        .zstack(children: [
+        ZStack {
             // Window background
-            ViewNode.roundedRect(width: width, height: height, radius: 12, fill: .surface),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: [
-                // Title bar
-                titleBar(),
-                // Path breadcrumb
-                pathBar(),
-                // File list
-                fileList(),
-            ]),
-        ])
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.surface)
+                .frame(width: width, height: height)
+            VStack(alignment: .leading, spacing: 0) {
+                titleBar()
+                pathBar()
+                fileList()
+            }
+        }
     }
 
     private func titleBar() -> ViewNode {
-        .zstack(children: [
-            ViewNode.roundedRect(width: width, height: 38, radius: 0, fill: .overlay),
-            ViewNode.hstack(alignment: .center, spacing: 8, children: [
+        ZStack {
+            RoundedRectangle(cornerRadius: 0)
+                .fill(.overlay)
+                .frame(width: width, height: 38)
+            HStack(spacing: 8) {
                 // Traffic light buttons
-                ViewNode.roundedRect(width: 12, height: 12, radius: 6, fill: .systemRed),
-                ViewNode.roundedRect(width: 12, height: 12, radius: 6, fill: .systemYellow),
-                ViewNode.roundedRect(width: 12, height: 12, radius: 6, fill: .systemGreen),
-                ViewNode.spacer(minLength: 0),
-                ViewNode.text("Finder", fontSize: 13, color: .text),
-                ViewNode.spacer(minLength: 0),
-            ]),
-        ])
+                RoundedRectangle(cornerRadius: 6).fill(.systemRed).frame(width: 12, height: 12)
+                RoundedRectangle(cornerRadius: 6).fill(.systemYellow).frame(width: 12, height: 12)
+                RoundedRectangle(cornerRadius: 6).fill(.systemGreen).frame(width: 12, height: 12)
+                Spacer()
+                Text("Finder").fontSize(13).foregroundColor(.text)
+                Spacer()
+            }
+        }
+        .frame(width: width, height: 38)
     }
 
     private func pathBar() -> ViewNode {
-        .padding(
-            EdgeInsets(horizontal: 12, vertical: 6),
-            child: .text(currentPath, fontSize: 12, color: .subtle)
-        )
+        Text(currentPath)
+            .fontSize(12)
+            .foregroundColor(.subtle)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
     }
 
     private func fileList() -> ViewNode {
-        let rows: [ViewNode] = entries.map { entry in
-            fileRow(entry)
-        }
-        return .vstack(alignment: .leading, spacing: 1, children: rows)
+        let rows: [ViewNode] = entries.map { entry in fileRow(entry) }
+        return ViewNode.vstack(alignment: .leading, spacing: 1, children: rows)
     }
 
     private func fileRow(_ entry: FileEntry) -> ViewNode {
-        .padding(
-            EdgeInsets(horizontal: 12, vertical: 4),
-            child: .hstack(alignment: .center, spacing: 8, children: [
-                ViewNode.roundedRect(
-                    width: 20, height: 20, radius: 4,
-                    fill: entry.isDirectory ? .systemBlue : .muted
-                ),
-                ViewNode.text(entry.name, fontSize: 13, color: .text),
-                ViewNode.spacer(minLength: 0),
-                ViewNode.text(entry.displaySize, fontSize: 11, color: .subtle),
-            ])
-        )
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(entry.isDirectory ? .systemBlue : .muted)
+                .frame(width: 20, height: 20)
+            Text(entry.name).fontSize(13).foregroundColor(.text)
+            Spacer()
+            Text(entry.displaySize).fontSize(11).foregroundColor(.subtle)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
     }
 }

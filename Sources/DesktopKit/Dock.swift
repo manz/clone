@@ -9,6 +9,7 @@ public struct Dock {
     public static let dockHeight: Float = 64
 
     let mouseX: Float
+    let mouseY: Float
     let screenWidth: Float
     let screenHeight: Float
 
@@ -32,43 +33,71 @@ public struct Dock {
         DockItem(name: "Settings", color: .muted),
     ]
 
-    public init(mouseX: Float, screenWidth: Float, screenHeight: Float) {
+    public init(mouseX: Float, mouseY: Float, screenWidth: Float, screenHeight: Float) {
         self.mouseX = mouseX
+        self.mouseY = mouseY
         self.screenWidth = screenWidth
         self.screenHeight = screenHeight
     }
 
     public func body() -> ViewNode {
         let items = Self.defaultItems
-        let iconSizes = Self.magnifiedSizes(mouseX: mouseX, items: items, screenWidth: screenWidth)
+        let iconSizes = Self.magnifiedSizes(
+            mouseX: mouseX, mouseY: mouseY,
+            items: items, screenWidth: screenWidth, screenHeight: screenHeight
+        )
 
-        // Build icon nodes
         let iconNodes: [ViewNode] = items.enumerated().map { (i, item) in
             let size = iconSizes[i]
-            return ViewNode.roundedRect(width: size, height: size, radius: size * 0.22, fill: item.color)
+            return RoundedRectangle(cornerRadius: size * 0.22)
+                .fill(item.color)
+                .frame(width: size, height: size)
         }
 
-        // Dock background
         let totalWidth = iconSizes.reduce(0, +) + Float(items.count - 1) * Self.padding + Self.padding * 2
         let dockBgHeight = Self.dockHeight + Self.padding * 2
 
         return .zstack(children: [
-            ViewNode.roundedRect(
-                width: totalWidth,
-                height: dockBgHeight,
-                radius: 16,
-                fill: DesktopColor(r: 0.2, g: 0.2, b: 0.2, a: 0.6)
-            ),
+            RoundedRectangle(cornerRadius: 16)
+                .fill(DesktopColor(r: 0.2, g: 0.2, b: 0.2, a: 0.6))
+                .frame(width: totalWidth, height: dockBgHeight),
             ViewNode.hstack(alignment: .bottom, spacing: Self.padding, children: iconNodes),
         ])
     }
 
+    /// The dock's bounding rect (centered at bottom of screen).
+    public static func dockRect(items: [DockItem], screenWidth: Float, screenHeight: Float) -> (x: Float, y: Float, w: Float, h: Float) {
+        let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding + padding * 2
+        let dockBgHeight = dockHeight + padding * 2
+        let x = (screenWidth - totalBaseWidth) / 2
+        let y = screenHeight - dockBgHeight
+        return (x, y, totalBaseWidth, dockBgHeight)
+    }
+
     /// Calculate magnified sizes for each icon based on mouse proximity.
+    /// Only magnifies when the mouse is within or near the dock rect.
     public static func magnifiedSizes(
         mouseX: Float,
+        mouseY: Float,
         items: [DockItem],
-        screenWidth: Float
+        screenWidth: Float,
+        screenHeight: Float
     ) -> [Float] {
+        let rect = dockRect(items: items, screenWidth: screenWidth, screenHeight: screenHeight)
+
+        // Expand the hit zone by influenceRadius for the approach effect
+        let hitLeft = rect.x - influenceRadius
+        let hitRight = rect.x + rect.w + influenceRadius
+        let hitTop = rect.y - influenceRadius
+        let hitBottom = screenHeight
+
+        let insideHitZone = mouseX >= hitLeft && mouseX <= hitRight
+            && mouseY >= hitTop && mouseY <= hitBottom
+
+        if !insideHitZone {
+            return [Float](repeating: baseIconSize, count: items.count)
+        }
+
         let totalBaseWidth = Float(items.count) * baseIconSize + Float(items.count - 1) * padding
         let startX: Float = (screenWidth - totalBaseWidth) / 2
 

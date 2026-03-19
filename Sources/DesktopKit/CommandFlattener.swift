@@ -6,7 +6,7 @@ public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: DesktopColor)
         case roundedRect(radius: Float, color: DesktopColor)
-        case text(content: String, fontSize: Float, color: DesktopColor)
+        case text(content: String, fontSize: Float, color: DesktopColor, weight: FontWeight = .regular)
     }
 
     public let x: Float
@@ -47,11 +47,11 @@ public enum CommandFlattener {
                 kind: .roundedRect(radius: radius, color: fill.withAlpha(fill.a * opacity))
             ))
 
-        case .text(let content, let fontSize, let color):
+        case .text(let content, let fontSize, let color, let weight):
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y,
                 width: frame.width, height: frame.height,
-                kind: .text(content: content, fontSize: fontSize, color: color.withAlpha(color.a * opacity))
+                kind: .text(content: content, fontSize: fontSize, color: color.withAlpha(color.a * opacity), weight: weight)
             ))
 
         case .opacity(let value, _):

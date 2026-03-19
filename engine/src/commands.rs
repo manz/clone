@@ -9,6 +9,14 @@ pub struct RgbaColor {
 }
 
 #[derive(Clone, Debug, PartialEq, uniffi::Enum)]
+pub enum FontWeight {
+    Regular,
+    Medium,
+    Semibold,
+    Bold,
+}
+
+#[derive(Clone, Debug, PartialEq, uniffi::Enum)]
 pub enum RenderCommand {
     Rect {
         x: f32,
@@ -31,6 +39,7 @@ pub enum RenderCommand {
         content: String,
         font_size: f32,
         color: RgbaColor,
+        weight: FontWeight,
     },
     Shadow {
         x: f32,
@@ -136,6 +145,7 @@ mod tests {
                 content: "hello".into(),
                 font_size: 14.0,
                 color: color.clone(),
+                weight: FontWeight::Regular,
             },
             RenderCommand::PushClip {
                 x: 0.0,

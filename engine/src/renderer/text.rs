@@ -1,4 +1,4 @@
-use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, SwashCache};
+use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, SwashCache, Weight};
 use rustc_hash::FxHashMap;
 use crate::commands::RgbaColor;
 
@@ -218,11 +218,18 @@ impl TextRenderer {
         y: f32,
         font_size: f32,
         color: &RgbaColor,
+        weight: &crate::commands::FontWeight,
     ) -> Vec<GlyphInstance> {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(&mut self.font_system, metrics);
 
-        let attrs = Attrs::new().family(Family::SansSerif);
+        let cosmic_weight = match weight {
+            crate::commands::FontWeight::Regular => Weight::NORMAL,
+            crate::commands::FontWeight::Medium => Weight(500),
+            crate::commands::FontWeight::Semibold => Weight::SEMIBOLD,
+            crate::commands::FontWeight::Bold => Weight::BOLD,
+        };
+        let attrs = Attrs::new().family(Family::SansSerif).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);
 

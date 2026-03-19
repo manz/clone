@@ -62,6 +62,13 @@ public struct EdgeInsets: Equatable, Sendable {
     }
 }
 
+public enum FontWeight: Equatable, Sendable {
+    case regular
+    case medium
+    case semibold
+    case bold
+}
+
 public enum HAlignment: Equatable, Sendable {
     case leading
     case center

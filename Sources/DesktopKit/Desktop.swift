@@ -15,15 +15,13 @@ public struct Desktop {
     }
 
     public func body() -> ViewNode {
-        .zstack {
-            // Desktop background
-            ViewNode.rect(width: screenWidth, height: screenHeight, fill: .base)
-            // Desktop label
-            ViewNode.text("Clone Desktop", fontSize: 32, color: .text)
-            // Dock at bottom
-            ViewNode.vstack(spacing: 0) {
-                ViewNode.spacer(minLength: 0)
-                Dock(mouseX: mouseX, screenWidth: screenWidth, screenHeight: screenHeight).body()
+        ZStack {
+            Rectangle()
+                .fill(.base)
+                .frame(width: screenWidth, height: screenHeight)
+            VStack(spacing: 0) {
+                Spacer()
+                Dock(mouseX: mouseX, mouseY: mouseY, screenWidth: screenWidth, screenHeight: screenHeight).body()
             }
         }
     }

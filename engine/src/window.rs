@@ -77,7 +77,7 @@ impl App {
         surface.configure(&device, &surface_config);
 
         let mut renderer = DesktopRenderer::new(surface_format);
-        renderer.init_pipelines(&device);
+        renderer.init_pipelines(&device, &queue);
 
         self.gpu = Some(GpuState {
             device,

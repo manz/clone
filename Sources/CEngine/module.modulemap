@@ -1,4 +1,4 @@
-module CEngine {
-    header "cloneFFI.h"
+module clone_engineFFI {
+    header "include/clone_engineFFI.h"
     export *
 }

@@ -2,7 +2,7 @@
 /// Fully value-typed, Equatable, trivially diffable.
 public indirect enum ViewNode: Equatable, Sendable {
     case empty
-    case text(String, fontSize: Float, color: DesktopColor)
+    case text(String, fontSize: Float, color: DesktopColor, weight: FontWeight = .regular)
     case rect(width: Float?, height: Float?, fill: DesktopColor)
     case roundedRect(width: Float?, height: Float?, radius: Float, fill: DesktopColor)
     case blur(radius: Float)
@@ -14,4 +14,5 @@ public indirect enum ViewNode: Equatable, Sendable {
     case frame(width: Float?, height: Float?, child: ViewNode)
     case opacity(Float, child: ViewNode)
     case onTap(id: UInt64, child: ViewNode)
+    case geometryReader(id: UInt64)
 }

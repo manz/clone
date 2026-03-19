@@ -134,6 +134,7 @@ impl DesktopEngine {
 }
 
 /// Run the desktop engine with a winit window. This blocks the current thread.
+#[uniffi::export]
 pub fn run_desktop(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     crate::window::run(delegate)
 }

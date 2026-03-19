@@ -50,6 +50,28 @@ public struct LayoutNode: Equatable, Sendable {
     }
 }
 
+// MARK: - Hit testing
+
+extension LayoutFrame {
+    public func contains(x: Float, y: Float) -> Bool {
+        x >= self.x && x <= self.x + width && y >= self.y && y <= self.y + height
+    }
+}
+
+extension LayoutNode {
+    /// Returns the deepest node whose frame contains the point, or nil.
+    public func hitTest(x: Float, y: Float) -> LayoutNode? {
+        guard frame.contains(x: x, y: y) else { return nil }
+        // Check children back-to-front (last child is on top in ZStack)
+        for child in children.reversed() {
+            if let hit = child.hitTest(x: x, y: y) {
+                return hit
+            }
+        }
+        return self
+    }
+}
+
 // MARK: - Layout engine
 
 public enum Layout {
@@ -60,7 +82,7 @@ public enum Layout {
         case .empty:
             return MeasuredSize()
 
-        case .text(let content, let fontSize, _):
+        case .text(let content, let fontSize, _, _):
             // Approximate: 0.6 * fontSize per character width, fontSize for height
             let charWidth = fontSize * 0.6
             let width = charWidth * Float(content.count)
@@ -116,6 +138,10 @@ public enum Layout {
 
         case .onTap(_, let child):
             return measure(child, constraint: constraint)
+
+        case .geometryReader:
+            // GeometryReader fills the proposed space (like SwiftUI)
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
         }
     }
 
@@ -157,6 +183,15 @@ public enum Layout {
 
         case .onTap(_, let child):
             let childLayout = layout(child, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [childLayout])
+
+        case .geometryReader(let id):
+            let proxy = GeometryProxy(
+                size: CGSize(width: CGFloat(frame.width), height: CGFloat(frame.height)),
+                frame: frame
+            )
+            let resolved = GeometryReaderRegistry.shared.resolve(id: id, proxy: proxy)
+            let childLayout = layout(resolved, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
         default:
