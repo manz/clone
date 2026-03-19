@@ -429,23 +429,23 @@ func toolbarView(state: FinderState, width: Float) -> ViewNode {
         Text(">").fontSize(13).fontWeight(.semibold).foregroundColor(fwdColor)
     }
 
-    let bar: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
-        backBtn,
-        fwdBtn,
-        Text(pathText).fontSize(12).foregroundColor(subtleColor),
-        Spacer(),
-    ]).padding(.leading, 12)
+    let bar = HStack(alignment: .center, spacing: 6) {
+        backBtn
+        fwdBtn
+        Text(pathText).fontSize(12).foregroundColor(subtleColor)
+        Spacer()
+    }.padding(.leading, 12)
 
-    let border: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
-        Spacer(),
-        Rectangle().fill(overlayColor).frame(height: 1),
-    ]).frame(width: width, height: toolbarHeight)
+    let border = VStack(alignment: .center, spacing: 0) {
+        Spacer()
+        Rectangle().fill(overlayColor).frame(height: 1)
+    }.frame(width: width, height: toolbarHeight)
 
-    return .zstack(children: [
-        Rectangle().fill(surfaceColor).frame(width: width, height: toolbarHeight),
-        bar,
-        border,
-    ]).frame(width: width, height: toolbarHeight)
+    return ZStack {
+        Rectangle().fill(surfaceColor).frame(width: width, height: toolbarHeight)
+        bar
+        border
+    }.frame(width: width, height: toolbarHeight)
 }
 
 func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> ViewNode {
@@ -454,14 +454,16 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
     let bg: ViewNode = RoundedRectangle(cornerRadius: 5).fill(bgFill)
         .frame(width: sidebarWidth - 12, height: 24)
 
-    let content: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
-        RoundedRectangle(cornerRadius: 4).fill(icon).frame(width: 18, height: 18),
-        Text(name).fontSize(13).foregroundColor(textColor),
-        Spacer(),
-    ]).padding(.leading, 8)
+    let content = HStack(alignment: .center, spacing: 6) {
+        RoundedRectangle(cornerRadius: 4).fill(icon).frame(width: 18, height: 18)
+        Text(name).fontSize(13).foregroundColor(textColor)
+        Spacer()
+    }.padding(.leading, 8)
 
-    let item: ViewNode = .zstack(children: [bg, content])
-        .frame(width: sidebarWidth - 12, height: 26)
+    let item = ZStack {
+        bg
+        content
+    }.frame(width: sidebarWidth - 12, height: 26)
 
     return item.padding(.leading, 6)
 }
@@ -471,54 +473,54 @@ func sidebarView(state: FinderState, height: Float) -> ViewNode {
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)
 
-    let favItems: [ViewNode] = favorites.enumerated().map { (i, fav) in
-        let favY = toolbarHeight + 30 + Float(i) * 26
-        let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
-            state.mouseY >= favY && state.mouseY < favY + 26
-        return sidebarItemView(
-            name: fav.name,
-            icon: fav.icon,
-            isActive: state.currentPath == fav.path,
-            isHovered: isHovered
-        ).onTapGesture {
-            state.navigateTo(fav.path)
+    let favList = VStack(alignment: .leading, spacing: 0) {
+        for (i, fav) in favorites.enumerated() {
+            let favY = toolbarHeight + 30 + Float(i) * 26
+            let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
+                state.mouseY >= favY && state.mouseY < favY + 26
+            sidebarItemView(
+                name: fav.name,
+                icon: fav.icon,
+                isActive: state.currentPath == fav.path,
+                isHovered: isHovered
+            ).onTapGesture {
+                state.navigateTo(fav.path)
+            }
         }
     }
 
-    let favList: ViewNode = .vstack(alignment: .leading, spacing: 0, children: favItems)
+    let inner = VStack(alignment: .leading, spacing: 0) {
+        header
+        ViewNode.rect(width: sidebarWidth, height: 6, fill: .clear)
+        favList
+        Spacer()
+    }.frame(width: sidebarWidth, height: height)
 
-    let inner: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
-        header,
-        .rect(width: sidebarWidth, height: 6, fill: .clear),
-        favList,
-        Spacer(),
-    ]).frame(width: sidebarWidth, height: height)
-
-    return .zstack(children: [
-        Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height),
-        inner,
-    ]).frame(width: sidebarWidth, height: height)
+    return ZStack {
+        Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height)
+        inner
+    }.frame(width: sidebarWidth, height: height)
 }
 
 func columnHeadersView(width: Float) -> ViewNode {
-    let labels: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
-        .rect(width: 40, height: 1, fill: .clear),
-        Text("Name").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor),
-        Spacer(),
-        Text("Size").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor),
-        .rect(width: 20, height: 1, fill: .clear),
-    ]).frame(width: width, height: headerHeight)
+    let labels = HStack(alignment: .center, spacing: 0) {
+        ViewNode.rect(width: 40, height: 1, fill: .clear)
+        Text("Name").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
+        Spacer()
+        Text("Size").fontSize(11).fontWeight(.semibold).foregroundColor(subtleColor)
+        ViewNode.rect(width: 20, height: 1, fill: .clear)
+    }.frame(width: width, height: headerHeight)
 
-    let border: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
-        Spacer(),
-        Rectangle().fill(overlayColor).frame(height: 1),
-    ]).frame(width: width, height: headerHeight)
+    let border = VStack(alignment: .center, spacing: 0) {
+        Spacer()
+        Rectangle().fill(overlayColor).frame(height: 1)
+    }.frame(width: width, height: headerHeight)
 
-    return .zstack(children: [
-        Rectangle().fill(surfaceColor).frame(width: width, height: headerHeight),
-        labels,
-        border,
-    ]).frame(width: width, height: headerHeight)
+    return ZStack {
+        Rectangle().fill(surfaceColor).frame(width: width, height: headerHeight)
+        labels
+        border
+    }.frame(width: width, height: headerHeight)
 }
 
 func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: Float, listTop: Float) -> ViewNode {
@@ -530,72 +532,69 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     let sizeText = state.formatSize(entry)
     let rowBg: Color = isSelected ? selectionColor : (isHovered ? highlightColor : .clear)
 
-    let content: ViewNode = .hstack(alignment: .center, spacing: 6, children: [
-        .rect(width: 6, height: 1, fill: .clear),
-        RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20),
-        Text(entry.name).fontSize(13).foregroundColor(textColor),
-        Spacer(),
-        Text(sizeText).fontSize(11).foregroundColor(subtleColor),
-        .rect(width: 14, height: 1, fill: .clear),
-    ]).frame(width: width, height: rowHeight)
+    let content = HStack(alignment: .center, spacing: 6) {
+        ViewNode.rect(width: 6, height: 1, fill: .clear)
+        RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20)
+        Text(entry.name).fontSize(13).foregroundColor(textColor)
+        Spacer()
+        Text(sizeText).fontSize(11).foregroundColor(subtleColor)
+        ViewNode.rect(width: 14, height: 1, fill: .clear)
+    }.frame(width: width, height: rowHeight)
 
-    return .zstack(children: [
-        Rectangle().fill(rowBg).frame(width: width, height: rowHeight),
-        content,
-    ]).frame(width: width, height: rowHeight)
+    return ZStack {
+        Rectangle().fill(rowBg).frame(width: width, height: rowHeight)
+        content
+    }.frame(width: width, height: rowHeight)
 }
 
 func fileListView(state: FinderState, width: Float, height: Float) -> ViewNode {
     let maxRows = Int(height / rowHeight)
     let listTop = toolbarHeight + headerHeight
 
-    let rows: [ViewNode] = state.entries.prefix(maxRows).enumerated().map { (i, entry) in
-        fileRowView(state: state, entry: entry, index: i, width: width, listTop: listTop)
-    }
-
-    var children = rows
-    children.append(Spacer())
-
-    return .vstack(alignment: .leading, spacing: 0, children: children)
-        .frame(width: width, height: height)
+    return VStack(alignment: .leading, spacing: 0) {
+        for (i, entry) in state.entries.prefix(maxRows).enumerated() {
+            fileRowView(state: state, entry: entry, index: i, width: width, listTop: listTop)
+        }
+        Spacer()
+    }.frame(width: width, height: height)
 }
 
 func statusBarView(state: FinderState, width: Float) -> ViewNode {
     let itemCount = state.entries.count
     let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
 
-    let topBorder: ViewNode = .vstack(alignment: .center, spacing: 0, children: [
-        Rectangle().fill(overlayColor).frame(width: width, height: 1),
-        Spacer(),
-    ]).frame(width: width, height: statusBarHeight)
+    let topBorder = VStack(alignment: .center, spacing: 0) {
+        Rectangle().fill(overlayColor).frame(width: width, height: 1)
+        Spacer()
+    }.frame(width: width, height: statusBarHeight)
 
-    let text: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
-        .rect(width: 12, height: 1, fill: .clear),
-        Text(label).fontSize(11).foregroundColor(subtleColor),
-        Spacer(),
-    ]).frame(width: width, height: statusBarHeight)
+    let text = HStack(alignment: .center, spacing: 0) {
+        ViewNode.rect(width: 12, height: 1, fill: .clear)
+        Text(label).fontSize(11).foregroundColor(subtleColor)
+        Spacer()
+    }.frame(width: width, height: statusBarHeight)
 
-    return .zstack(children: [
-        Rectangle().fill(surfaceColor).frame(width: width, height: statusBarHeight),
-        topBorder,
-        text,
-    ]).frame(width: width, height: statusBarHeight)
+    return ZStack {
+        Rectangle().fill(surfaceColor).frame(width: width, height: statusBarHeight)
+        topBorder
+        text
+    }.frame(width: width, height: statusBarHeight)
 }
 
 func contextMenuItemView(item: MenuItem, isHovered: Bool) -> ViewNode {
     let fill: Color = isHovered ? menuHoverColor : .clear
 
-    let label: ViewNode = .hstack(alignment: .center, spacing: 0, children: [
-        .rect(width: 12, height: 1, fill: .clear),
-        Text(item.label).fontSize(13).foregroundColor(textColor),
-        Spacer(),
-    ]).frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
+    let label = HStack(alignment: .center, spacing: 0) {
+        ViewNode.rect(width: 12, height: 1, fill: .clear)
+        Text(item.label).fontSize(13).foregroundColor(textColor)
+        Spacer()
+    }.frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
 
-    return .zstack(children: [
+    return ZStack {
         RoundedRectangle(cornerRadius: 4).fill(fill)
-            .frame(width: contextMenuWidth - 8, height: contextMenuItemHeight),
-        label,
-    ]).frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
+            .frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
+        label
+    }.frame(width: contextMenuWidth - 8, height: contextMenuItemHeight)
         .padding(.leading, 4)
 }
 
@@ -604,25 +603,24 @@ func contextMenuView(menu: ContextMenu, width: Float, height: Float) -> ViewNode
     let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
     let menuY = min(menu.anchorY, height - menuHeight - 4)
 
-    let menuItems: [ViewNode] = menu.items.enumerated().map { (i, item) in
-        contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
-    }
-
-    let itemsStack: ViewNode = .vstack(alignment: .leading, spacing: 0, children: menuItems)
-        .padding(.vertical, 6)
+    let itemsStack = VStack(alignment: .leading, spacing: 0) {
+        for (i, item) in menu.items.enumerated() {
+            contextMenuItemView(item: item, isHovered: menu.hoveredItem == i)
+        }
+    }.padding(.vertical, 6)
         .frame(width: contextMenuWidth)
 
-    let menuPanel: ViewNode = .zstack(children: [
+    let menuPanel = ZStack {
         RoundedRectangle(cornerRadius: 8).fill(menuBgColor)
-            .frame(width: contextMenuWidth, height: menuHeight),
-        itemsStack,
-    ]).frame(width: contextMenuWidth, height: menuHeight)
+            .frame(width: contextMenuWidth, height: menuHeight)
+        itemsStack
+    }.frame(width: contextMenuWidth, height: menuHeight)
 
     // Position absolutely with soft shadow
     let panelWithShadow = menuPanel
         .shadow(color: Color(r: 0, g: 0, b: 0, a: 0.2), radius: 12, x: 0, y: 4)
 
-    let positioned: ViewNode = .padding(
+    let positioned = ViewNode.padding(
         EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0),
         child: panelWithShadow
     ).frame(width: width, height: height)
@@ -642,45 +640,45 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
     let iconColor: Color = info.isDirectory ? .blue : .orange
 
     // Title bar with close dot
-    let titleBar: ViewNode = .zstack(children: [
-        Rectangle().fill(WindowChrome.titleBar).frame(width: panelW, height: titleBarH),
-        .hstack(alignment: .center, spacing: 0, children: [
-            .rect(width: 10, height: 1, fill: .clear),
+    let titleBar = ZStack {
+        Rectangle().fill(WindowChrome.titleBar).frame(width: panelW, height: titleBarH)
+        HStack(alignment: .center, spacing: 0) {
+            ViewNode.rect(width: 10, height: 1, fill: .clear)
             RoundedRectangle(cornerRadius: 5)
                 .fill(.red)
-                .frame(width: 10, height: 10),
-            Spacer(),
-            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.primary),
-            Spacer(),
-            .rect(width: 20, height: 1, fill: .clear),
-        ]).frame(width: panelW, height: titleBarH),
-    ]).frame(width: panelW, height: titleBarH)
+                .frame(width: 10, height: 10)
+            Spacer()
+            Text("\(info.name) Info").fontSize(12).bold().foregroundColor(.primary)
+            Spacer()
+            ViewNode.rect(width: 20, height: 1, fill: .clear)
+        }.frame(width: panelW, height: titleBarH)
+    }.frame(width: panelW, height: titleBarH)
 
     // Info content
-    let content: ViewNode = .vstack(alignment: .leading, spacing: 8, children: [
+    let content = VStack(alignment: .leading, spacing: 8) {
         // Header: icon + name
-        .hstack(alignment: .center, spacing: 10, children: [
-            RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48),
-            .vstack(alignment: .leading, spacing: 2, children: [
-                Text(info.name).fontSize(14).bold().foregroundColor(.primary),
-                Text(info.kind).fontSize(12).foregroundColor(.secondary),
-            ]),
-        ]),
-        Rectangle().fill(WindowChrome.separator).frame(height: 1),
-        infoRow("Kind:", info.kind),
-        infoRow("Size:", info.size),
-        infoRow("Where:", info.path),
-    ]).padding(12).frame(width: panelW)
+        HStack(alignment: .center, spacing: 10) {
+            RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.name).fontSize(14).bold().foregroundColor(.primary)
+                Text(info.kind).fontSize(12).foregroundColor(.secondary)
+            }
+        }
+        Rectangle().fill(WindowChrome.separator).frame(height: 1)
+        infoRow("Kind:", info.kind)
+        infoRow("Size:", info.size)
+        infoRow("Where:", info.path)
+    }.padding(12).frame(width: panelW)
 
     // Window body
-    let windowBody: ViewNode = .zstack(children: [
-        RoundedRectangle(cornerRadius: cornerR).fill(WindowChrome.surface).frame(width: panelW, height: panelH),
-        .vstack(alignment: .leading, spacing: 0, children: [
-            titleBar,
-            Rectangle().fill(WindowChrome.separator).frame(width: panelW, height: 1),
-            content,
-        ]).frame(width: panelW, height: panelH),
-    ]).frame(width: panelW, height: panelH)
+    let windowBody = ZStack {
+        RoundedRectangle(cornerRadius: cornerR).fill(WindowChrome.surface).frame(width: panelW, height: panelH)
+        VStack(alignment: .leading, spacing: 0) {
+            titleBar
+            Rectangle().fill(WindowChrome.separator).frame(width: panelW, height: 1)
+            content
+        }.frame(width: panelW, height: panelH)
+    }.frame(width: panelW, height: panelH)
 
     // Shadow
     let shadow: ViewNode = RoundedRectangle(cornerRadius: cornerR)
@@ -688,56 +686,55 @@ func infoPanelView(info: FinderState.InfoPanel, width: Float, height: Float) -> 
         .frame(width: panelW, height: panelH)
 
     // Position with padding offsets
-    let positioned: ViewNode = .padding(
+    let positioned = ViewNode.padding(
         EdgeInsets(top: panelY, leading: panelX, bottom: 0, trailing: 0),
-        child: .zstack(children: [
-            .padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0), child: shadow),
-            windowBody,
-        ])
+        child: ZStack {
+            ViewNode.padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0), child: shadow)
+            windowBody
+        }
     ).frame(width: width, height: height)
 
     return positioned
 }
 
 private func infoRow(_ label: String, _ value: String) -> ViewNode {
-    .hstack(alignment: .top, spacing: 6, children: [
-        Text(label).fontSize(12).foregroundColor(.secondary).frame(width: 50),
-        Text(value).fontSize(12).foregroundColor(.primary),
-    ])
+    HStack(alignment: .top, spacing: 6) {
+        Text(label).fontSize(12).foregroundColor(.secondary).frame(width: 50)
+        Text(value).fontSize(12).foregroundColor(.primary)
+    }
 }
 
 func finderView(state: FinderState, width: Float, height: Float) -> ViewNode {
     let listWidth = width - sidebarWidth
     let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
     let sidebarH = height - toolbarHeight
-    let mainContent: ViewNode = .vstack(alignment: .leading, spacing: 0, children: [
-        toolbarView(state: state, width: width),
-        .hstack(alignment: .top, spacing: 0, children: [
-            sidebarView(state: state, height: sidebarH).frame(width: sidebarWidth),
-            Rectangle().fill(overlayColor).frame(width: 1, height: sidebarH),
-            .vstack(alignment: .leading, spacing: 0, children: [
-                columnHeadersView(width: listWidth),
-                fileListView(state: state, width: listWidth, height: listHeight),
-                statusBarView(state: state, width: listWidth),
-            ]).frame(width: listWidth),
-        ]),
-    ])
-
-    let mainWithBg: ViewNode = .zstack(children: [
-        Rectangle().fill(bgColor).frame(width: width, height: height),
-        mainContent,
-    ]).frame(width: width, height: height)
-
-    var layers: [ViewNode] = [mainWithBg.clipped()]
-    if let menu = state.contextMenu {
-        layers.append(contextMenuView(menu: menu, width: width, height: height))
-    }
-    if let info = state.infoPanel {
-        layers.append(infoPanelView(info: info, width: width, height: height))
+    let mainContent = VStack(alignment: .leading, spacing: 0) {
+        toolbarView(state: state, width: width)
+        HStack(alignment: .top, spacing: 0) {
+            sidebarView(state: state, height: sidebarH).frame(width: sidebarWidth)
+            Rectangle().fill(overlayColor).frame(width: 1, height: sidebarH)
+            VStack(alignment: .leading, spacing: 0) {
+                columnHeadersView(width: listWidth)
+                fileListView(state: state, width: listWidth, height: listHeight)
+                statusBarView(state: state, width: listWidth)
+            }.frame(width: listWidth)
+        }
     }
 
-    return .zstack(children: layers)
-        .frame(width: width, height: height)
+    let mainWithBg = ZStack {
+        Rectangle().fill(bgColor).frame(width: width, height: height)
+        mainContent
+    }.frame(width: width, height: height)
+
+    return ZStack {
+        mainWithBg.clipped()
+        if let menu = state.contextMenu {
+            contextMenuView(menu: menu, width: width, height: height)
+        }
+        if let info = state.infoPanel {
+            infoPanelView(info: info, width: width, height: height)
+        }
+    }.frame(width: width, height: height)
         .navigationTitle("Finder — \(state.shortenPath(state.currentPath))")
 }
 

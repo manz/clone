@@ -50,6 +50,7 @@ func menuBarView(state: MenuBarState) -> ViewNode {
             .foregroundColor(.primary)
     )
 
+    // Dynamic children — can't use ViewBuilder
     return .hstack(alignment: .center, spacing: 16, children: children)
         .padding(.horizontal, 12)
         .frame(height: 24)

@@ -1,28 +1,36 @@
 @resultBuilder
 public struct ViewBuilder {
-    public static func buildBlock(_ components: ViewNode...) -> [ViewNode] {
-        components
+    // A block component is always [ViewNode] — a flat list of nodes.
+    public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] {
+        components.flatMap { $0 }
     }
 
-    public static func buildExpression(_ expression: ViewNode) -> ViewNode {
+    // A single ViewNode expression → wrap in array.
+    public static func buildExpression(_ expression: ViewNode) -> [ViewNode] {
+        [expression]
+    }
+
+    // An array of ViewNodes (from ForEach) → pass through.
+    public static func buildExpression(_ expression: [ViewNode]) -> [ViewNode] {
         expression
     }
 
-    public static func buildOptional(_ component: [ViewNode]?) -> ViewNode {
-        if let component, let first = component.first {
-            return first
-        }
-        return .empty
+    // if let / if without else
+    public static func buildOptional(_ component: [ViewNode]?) -> [ViewNode] {
+        component ?? []
     }
 
-    public static func buildEither(first component: [ViewNode]) -> ViewNode {
-        component.first ?? .empty
+    // if/else — true branch
+    public static func buildEither(first component: [ViewNode]) -> [ViewNode] {
+        component
     }
 
-    public static func buildEither(second component: [ViewNode]) -> ViewNode {
-        component.first ?? .empty
+    // if/else — false branch
+    public static func buildEither(second component: [ViewNode]) -> [ViewNode] {
+        component
     }
 
+    // for...in loops
     public static func buildArray(_ components: [[ViewNode]]) -> [ViewNode] {
         components.flatMap { $0 }
     }

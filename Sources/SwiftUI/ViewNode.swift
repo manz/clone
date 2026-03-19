@@ -1,5 +1,9 @@
 /// Core view vocabulary — the entire UI is described as a tree of ViewNode values.
 /// Fully value-typed, Equatable, trivially diffable.
+///
+/// **Internal use only.** App code should use the SwiftUI DSL functions
+/// (`VStack`, `HStack`, `ZStack`, `Text`, `Rectangle`, etc.) and never
+/// reference `ViewNode` directly.
 public indirect enum ViewNode: Equatable, Sendable {
     case empty
     case text(String, fontSize: Float, color: Color, weight: FontWeight = .regular)

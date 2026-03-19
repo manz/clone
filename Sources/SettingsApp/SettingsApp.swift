@@ -271,27 +271,29 @@ private func categoryRow(
 // MARK: - Sidebar view
 
 private func sidebarView(state: SettingsState, height: Float) -> ViewNode {
-    var children: [ViewNode] = [
+    var sidebarChildren: [ViewNode] = [
         profileCard(),
         Rectangle().fill(rpOverlay).frame(height: 1).padding(.horizontal, 16),
     ]
     var flatIndex = 0
     for (sectionIdx, section) in sections.enumerated() {
         for cat in section.categories {
-            children.append(categoryRow(state: state, category: cat, flatIndex: flatIndex))
+            sidebarChildren.append(categoryRow(state: state, category: cat, flatIndex: flatIndex))
             flatIndex += 1
         }
         if sectionIdx < sections.count - 1 {
-            children.append(
+            sidebarChildren.append(
                 Rectangle().fill(rpOverlay).frame(height: 1)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
             )
         }
     }
-    children.append(Spacer())
+    sidebarChildren.append(Spacer())
 
-    let sidebarContent: ViewNode = .vstack(alignment: .leading, spacing: 0, children: children)
+    let sidebarContent = VStack(alignment: .leading, spacing: 0) {
+        sidebarChildren
+    }
     return ZStack {
         Rectangle().fill(rpBase).frame(width: 220, height: height)
         sidebarContent
@@ -341,24 +343,21 @@ private func settingGroupView(
     let headerOffset: Float = header != nil ? 20 : 0
 
     // Build row nodes with interleaved dividers
-    var rowNodes: [ViewNode] = []
-    for (i, row) in rows.enumerated() {
-        let rowY = startY + headerOffset + 2 + Float(i) * 32
-        rowNodes.append(settingRowView(
-            state: state,
-            row: row,
-            rowY: rowY,
-            detailWidth: detailWidth
-        ))
-        if i < rows.count - 1 {
-            rowNodes.append(
-                Rectangle().fill(rowDivider).frame(height: 1).padding(.horizontal, 12)
+    let rowsStack = VStack(alignment: .leading, spacing: 0) {
+        for (i, row) in rows.enumerated() {
+            let rowY = startY + headerOffset + 2 + Float(i) * 32
+            settingRowView(
+                state: state,
+                row: row,
+                rowY: rowY,
+                detailWidth: detailWidth
             )
+            if i < rows.count - 1 {
+                Rectangle().fill(rowDivider).frame(height: 1).padding(.horizontal, 12)
+            }
         }
     }
-
-    let rowsStack: ViewNode = .vstack(alignment: .leading, spacing: 0, children: rowNodes)
-        .padding(.vertical, 2)
+    .padding(.vertical, 2)
 
     let groupHeight = Float(rows.count) * 32 + 4
     let groupBox = ZStack {
@@ -366,16 +365,13 @@ private func settingGroupView(
         rowsStack
     }.frame(height: groupHeight)
 
-    var children: [ViewNode] = []
-    if let header = header {
-        children.append(
+    return VStack(alignment: .leading, spacing: 0) {
+        if let header = header {
             Text(header).fontSize(12).foregroundColor(rpSubtle).fontWeight(.semibold)
                 .padding(.bottom, 4)
-        )
+        }
+        groupBox
     }
-    children.append(groupBox)
-
-    return .vstack(alignment: .leading, spacing: 0, children: children)
 }
 
 // MARK: - Detail view
@@ -384,7 +380,8 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
     let groups = paneData[state.selectedCategory]
     let detailWidth = width - 48
 
-    var children: [ViewNode] = [
+    // Build detail children imperatively (runningY mutation needed for hover Y tracking)
+    var detailChildren: [ViewNode] = [
         Text(state.selectedCategory)
             .bold()
             .fontSize(20)
@@ -393,13 +390,12 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
     ]
 
     if let groups = groups {
-        // Precompute Y positions for hover detection
         var runningY: Float = 16 + 32  // title area offset
         for (groupIdx, group) in groups.enumerated() {
             let headerOffset: Float = group.0 != nil ? 20 : 0
             let groupStartY = runningY
 
-            children.append(settingGroupView(
+            detailChildren.append(settingGroupView(
                 state: state,
                 header: group.0,
                 rows: group.1,
@@ -411,21 +407,23 @@ private func detailView(state: SettingsState, width: Float) -> ViewNode {
             runningY += groupHeight + 16 + (group.0 != nil ? 4 : 0)
 
             if groupIdx < groups.count - 1 {
-                children.append(Spacer(minLength: 16))
+                detailChildren.append(Spacer(minLength: 16))
             }
         }
     } else {
-        children.append(
+        detailChildren.append(
             Text("Settings for \(state.selectedCategory) will appear here.")
                 .fontSize(13)
                 .foregroundColor(rpSubtle)
         )
     }
 
-    children.append(Spacer())
+    detailChildren.append(Spacer())
 
-    let content: ViewNode = .vstack(alignment: .leading, spacing: 0, children: children)
-        .padding(24)
+    let content = VStack(alignment: .leading, spacing: 0) {
+        detailChildren
+    }
+    .padding(24)
     return ZStack {
         Rectangle().fill(rpSurface).frame(width: width)
         content

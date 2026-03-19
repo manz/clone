@@ -163,6 +163,7 @@ func dockView(state: DockState, width: Float, height: Float) -> ViewNode {
         iconX += size + iconPadding
     }
 
+    // Dynamic children — can't use ViewBuilder
     return .zstack(children: children)
         .frame(width: width, height: height)
 }
