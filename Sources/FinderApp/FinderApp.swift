@@ -475,6 +475,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
         bg
         content
     }.frame(width: sidebarWidth - 12, height: 26)
+    .contentShape(Rectangle())
 
     return item.padding(.leading, 6)
 }
@@ -556,6 +557,7 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
         Rectangle().fill(rowBg).frame(width: width, height: rowHeight)
         content
     }.frame(width: width, height: rowHeight)
+    .contentShape(Rectangle())
     .onTapGesture {
         state.selectedIndex = index
         if entry.isDirectory {

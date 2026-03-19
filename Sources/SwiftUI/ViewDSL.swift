@@ -276,6 +276,12 @@ public extension ViewNode {
         .clipped(radius: radius, child: self)
     }
 
+    /// `.contentShape(_:)` — defines the tappable area. No-op on Clone (all areas are tappable).
+    /// Required on real SwiftUI for hit testing on transparent views.
+    func contentShape(_ shape: ViewNode) -> ViewNode {
+        self
+    }
+
     /// `.contextMenu { }` — attaches a context menu to this view.
     func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         .contextMenu(child: self, menuItems: content())
