@@ -58,6 +58,12 @@ let package = Package(
             dependencies: ["CloneClient", "CloneProtocol"],
             path: "Sources/FinderApp"
         ),
+        // Settings app (separate process)
+        .executableTarget(
+            name: "Settings",
+            dependencies: ["CloneClient", "CloneProtocol"],
+            path: "Sources/SettingsApp"
+        ),
         .testTarget(
             name: "DesktopKitTests",
             dependencies: ["DesktopKit"],

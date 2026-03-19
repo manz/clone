@@ -180,6 +180,80 @@ public extension ViewNode {
     }
 }
 
+// MARK: - SwiftUI-compatible compound views
+
+/// `Label("Wi-Fi", systemImage: "wifi")` — icon rounded rect + text, like SwiftUI Label.
+/// Since we don't have SF Symbols, `systemImage` is ignored visually but the icon color is used.
+public func Label(_ title: String, systemImage: String, iconColor: DesktopColor = .systemBlue) -> ViewNode {
+    .hstack(alignment: .center, spacing: 8, children: [
+        .roundedRect(width: 20, height: 20, radius: 5, fill: iconColor),
+        .text(title, fontSize: 13, color: .text),
+    ])
+}
+
+/// `Divider()` — 1px horizontal line
+public func Divider() -> ViewNode {
+    .rect(width: nil, height: 1, fill: .overlay)
+}
+
+/// `Section("Header") { ... }` — grouped rows with optional header, like SwiftUI Section.
+public func Section(
+    _ header: String? = nil,
+    @ViewBuilder content: () -> [ViewNode]
+) -> ViewNode {
+    var children: [ViewNode] = []
+    if let header {
+        children.append(
+            ViewNode.text(header, fontSize: 12, color: .subtle, weight: .semibold)
+        )
+    }
+    let rows = content()
+    // Interleave rows with dividers
+    for (i, row) in rows.enumerated() {
+        children.append(row)
+        if i < rows.count - 1 {
+            children.append(
+                ViewNode.rect(width: nil, height: 1, fill: .overlay)
+                    .padding(.leading, 12)
+            )
+        }
+    }
+    return .vstack(alignment: .leading, spacing: 0, children: children)
+}
+
+/// `NavigationSplitView { sidebar } detail: { detail }` — sidebar + detail layout.
+public func NavigationSplitView(
+    sidebarWidth: Float = 220,
+    @ViewBuilder sidebar: () -> [ViewNode],
+    @ViewBuilder detail: () -> [ViewNode]
+) -> ViewNode {
+    .hstack(alignment: .top, spacing: 0, children: [
+        ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
+        ViewNode.rect(width: 1, height: nil, fill: .overlay),
+        ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
+    ])
+}
+
+/// `ForEach(items) { item in ... }` — maps a collection to ViewNodes.
+public func ForEach<T>(_ data: [T], @ViewBuilder content: (T) -> [ViewNode]) -> [ViewNode] {
+    data.flatMap { content($0) }
+}
+
+/// `.background(_:)` — wraps content in a ZStack with a background color behind it.
+public extension ViewNode {
+    func background(_ color: DesktopColor) -> ViewNode {
+        .zstack(children: [
+            .rect(width: nil, height: nil, fill: color),
+            self,
+        ])
+    }
+
+    /// `.listRowBackground(_:)` — alias for background, matches SwiftUI naming.
+    func listRowBackground(_ color: DesktopColor) -> ViewNode {
+        background(color)
+    }
+}
+
 // MARK: - Edge.Set for padding
 
 public enum Edge {
