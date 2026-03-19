@@ -454,7 +454,7 @@ struct SettingsApp: App {
 
     var body: some Scene {
         WindowGroup("System Settings") {
-            settingsView(state: state, width: 700, height: 500)
+            settingsView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
         }
     }
 

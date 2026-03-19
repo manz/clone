@@ -150,9 +150,8 @@ extension App {
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: app.client.width, height: app.client.height)
                     )
-                    if let hit = layoutNode.hitTest(x: x, y: y),
-                       case .onTap(let id, _) = hit.node {
-                        TapRegistry.shared.fire(id: id)
+                    if let tapId = layoutNode.hitTestTap(x: x, y: y) {
+                        TapRegistry.shared.fire(id: tapId)
                     }
                     // Propagate title changes from tap handlers (e.g. navigation).
                     if WindowState.shared.titleDidChange(),

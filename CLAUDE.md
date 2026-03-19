@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Clone is a macOS desktop environment clone — a from-scratch compositor, window manager, and UI framework. Swift handles UI logic (layout, DSL, window chrome, app lifecycle) and Rust handles GPU rendering (wgpu/Metal). Apps run as separate processes communicating with the compositor over Unix domain sockets.
 
+Note that the SDK surface must be 100% the same interface as it's Apple counterpart.
+
 ## Build & Test Commands
 
 ```bash

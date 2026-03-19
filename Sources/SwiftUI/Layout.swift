@@ -70,6 +70,26 @@ extension LayoutNode {
         }
         return self
     }
+
+    /// Find the deepest onTap node whose frame contains the point.
+    /// Walks the tree and returns the deepest `.onTap` ancestor of the hit point.
+    public func hitTestTap(x: Float, y: Float) -> UInt64? {
+        guard frame.contains(x: x, y: y) else { return nil }
+
+        // Check children back-to-front
+        for child in children.reversed() {
+            if let tapId = child.hitTestTap(x: x, y: y) {
+                return tapId
+            }
+        }
+
+        // If this node itself is an onTap, return its ID
+        if case .onTap(let id, _) = node {
+            return id
+        }
+
+        return nil
+    }
 }
 
 // MARK: - Layout engine
