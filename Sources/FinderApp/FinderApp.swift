@@ -1,5 +1,8 @@
 import Foundation
 import SwiftUI
+#if canImport(Observation)
+import Observation
+#endif
 
 // MARK: - Context menu model
 
@@ -569,6 +572,24 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     .onTapGesture {
         state.selectedIndex = index
     }
+    #if canImport(AppKit) && !canImport(CloneClient)
+    .contextMenu {
+        if entry.isDirectory {
+            Button("Open") { state.navigate(to: entry.name) }
+        }
+        Button("Get Info") {
+            let fullPath = (state.currentPath as NSString).appendingPathComponent(entry.name)
+            let (_, kind) = state.fileKind(entry.name)
+            state.infoPanel = FinderState.InfoPanel(
+                name: entry.name, path: fullPath, kind: kind,
+                size: state.formatSize(entry), isDirectory: entry.isDirectory
+            )
+        }
+        Divider()
+        Button("Copy") { }
+        Button("Move to Trash", role: .destructive) { }
+    }
+    #endif
 }
 
 func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
