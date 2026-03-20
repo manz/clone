@@ -10,6 +10,13 @@ public struct Menu: View {
         self.child = .menu(label: label, children: content())
     }
 
+    /// `Menu { items } label: { Text("Label") }` — custom label variant (Apple's multi-closure pattern).
+    public init(@ViewBuilder content: () -> [ViewNode], @ViewBuilder label: () -> [ViewNode]) {
+        // ViewNode.menu requires a String label; extract from label nodes or use fallback.
+        let items = content()
+        self.child = .menu(label: "Menu", children: items)
+    }
+
     public var body: ViewNode {
         child
     }

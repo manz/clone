@@ -297,7 +297,8 @@ enum StubGenerator {
     import Foundation
 
     public class MPNowPlayingInfoCenter {
-        public static let `default` = MPNowPlayingInfoCenter()
+        private static let _shared = MPNowPlayingInfoCenter()
+        public class func `default`() -> MPNowPlayingInfoCenter { _shared }
         public var nowPlayingInfo: [String: Any]?
         public var playbackState: MPNowPlayingPlaybackState = .unknown
     }

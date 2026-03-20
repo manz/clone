@@ -11,6 +11,11 @@ public final class State<Value> {
         self._value = wrappedValue
     }
 
+    /// Compatibility alias used by Apple's SwiftUI.
+    public init(initialValue: Value) {
+        self._value = initialValue
+    }
+
     public var wrappedValue: Value {
         get { _value }
         set {

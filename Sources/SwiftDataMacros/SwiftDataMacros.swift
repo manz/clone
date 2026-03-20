@@ -148,7 +148,8 @@ public struct PredicateMacro: ExpressionMacro {
         of node: some FreestandingMacroExpansionSyntax,
         in context: some MacroExpansionContext
     ) throws -> ExprSyntax {
-        return "nil as Predicate?"
+        // Return nil — the macro declaration's return type provides the concrete generic.
+        return "nil"
     }
 }
 
@@ -161,6 +162,30 @@ public struct PreviewMacro: DeclarationMacro {
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
         // Just discard the preview body
+        []
+    }
+}
+
+// MARK: - #Index (freestanding declaration form)
+
+/// `#Index<T>([\.prop])` — no-op declaration macro.
+public struct IndexDeclMacro: DeclarationMacro {
+    public static func expansion(
+        of node: some FreestandingMacroExpansionSyntax,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        []
+    }
+}
+
+// MARK: - #Unique (freestanding declaration form)
+
+/// `#Unique<T>([\.prop])` — no-op declaration macro.
+public struct UniqueDeclMacro: DeclarationMacro {
+    public static func expansion(
+        of node: some FreestandingMacroExpansionSyntax,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
         []
     }
 }
@@ -204,6 +229,7 @@ public struct ModelActorMacro: MemberMacro {
         return [
             "public let modelContainer: ModelContainer",
             "public var modelContext: ModelContext { modelContainer.mainContext() }",
+            "public init(modelContainer: ModelContainer) { self.modelContainer = modelContainer }",
         ]
     }
 }
@@ -220,6 +246,8 @@ struct SwiftDataMacrosPlugin: CompilerPlugin {
         PreviewMacro.self,
         IndexMacro.self,
         UniqueMacro.self,
+        IndexDeclMacro.self,
+        UniqueDeclMacro.self,
         ModelActorMacro.self,
     ]
 }

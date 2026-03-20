@@ -39,6 +39,24 @@ public struct BorderedProminentButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View { configuration.label }
 }
 
+// MARK: - ButtonStyle shorthand (`.buttonStyle(.bordered)`)
+
+extension ButtonStyle where Self == PlainButtonStyle {
+    public static var plain: PlainButtonStyle { PlainButtonStyle() }
+}
+
+extension ButtonStyle where Self == BorderlessButtonStyle {
+    public static var borderless: BorderlessButtonStyle { BorderlessButtonStyle() }
+}
+
+extension ButtonStyle where Self == BorderedButtonStyle {
+    public static var bordered: BorderedButtonStyle { BorderedButtonStyle() }
+}
+
+extension ButtonStyle where Self == BorderedProminentButtonStyle {
+    public static var borderedProminent: BorderedProminentButtonStyle { BorderedProminentButtonStyle() }
+}
+
 // MARK: - List styles
 
 /// A list style with no decoration.
@@ -78,9 +96,15 @@ public struct CheckboxToggleStyle { public init() {} }
 // MARK: - ProgressView styles
 
 /// A circular progress view style.
-public struct CircularProgressViewStyle { public init() {} }
+public struct CircularProgressViewStyle {
+    public init() {}
+    public init(tint: Color) {}
+}
 /// A linear progress view style.
-public struct LinearProgressViewStyle { public init() {} }
+public struct LinearProgressViewStyle {
+    public init() {}
+    public init(tint: Color) {}
+}
 
 // MARK: - Label styles
 

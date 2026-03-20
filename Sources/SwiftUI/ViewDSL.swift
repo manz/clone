@@ -24,6 +24,11 @@ public extension ViewNode {
         .padding(EdgeInsets(all: value), child: self)
     }
 
+    /// `.padding(.horizontal)` — edge-specific with default 8pt
+    func padding(_ edges: Edge.Set) -> ViewNode {
+        padding(edges, 8)
+    }
+
     /// `.padding(.horizontal, 16)`
     func padding(_ edges: Edge.Set, _ value: CGFloat) -> ViewNode {
         var insets = EdgeInsets()
@@ -360,7 +365,7 @@ public extension ViewNode {
     }
 
     /// `.buttonStyle(_:)` — no-op on Clone.
-    func buttonStyle<S>(_ style: S) -> ViewNode {
+    func buttonStyle<S: ButtonStyle>(_ style: S) -> ViewNode {
         self
     }
 
@@ -666,6 +671,12 @@ public extension ViewNode {
 
     /// `.textInputAutocapitalization(_:)` — no-op on Clone.
     func textInputAutocapitalization(_ autocapitalization: Any?) -> ViewNode { self }
+
+    /// `.modelContainer(for:)` — no-op on Clone.
+    func modelContainer(for modelType: Any.Type, inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode { self }
+
+    /// `.modelContainer(for:)` — array variant, no-op on Clone.
+    func modelContainer(for modelTypes: [Any.Type], inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode { self }
 
 }
 

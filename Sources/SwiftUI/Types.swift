@@ -42,8 +42,16 @@ public struct Color: Equatable, Sendable {
         self.a = opacity
     }
 
-    /// Initialize from an NSColor.
+    /// Initialize from an NSColor (labeled).
     public init(nsColor: NSColor) {
+        self.r = nsColor.redComponent
+        self.g = nsColor.greenComponent
+        self.b = nsColor.blueComponent
+        self.a = nsColor.alphaComponent
+    }
+
+    /// Initialize from an NSColor (unlabeled). Matches `Color(NSColor.controlBackgroundColor)`.
+    public init(_ nsColor: NSColor) {
         self.r = nsColor.redComponent
         self.g = nsColor.greenComponent
         self.b = nsColor.blueComponent

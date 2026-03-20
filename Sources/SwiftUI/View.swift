@@ -1,6 +1,7 @@
 // Re-export Foundation so `import SwiftUI` brings in Foundation types (URL, Date, CGFloat, etc.)
 // This matches Apple's SwiftUI behavior.
 @_exported import Foundation
+@_exported import AppKit
 
 /// The core protocol for SwiftUI views.
 public protocol View {
@@ -60,6 +61,10 @@ public extension View {
 
     func padding(_ value: CGFloat) -> ViewNode {
         _resolve(self).padding(value)
+    }
+
+    func padding(_ edges: Edge.Set) -> ViewNode {
+        _resolve(self).padding(edges)
     }
 
     func padding(_ edges: Edge.Set, _ value: CGFloat) -> ViewNode {
@@ -255,7 +260,7 @@ public extension View {
         _resolve(self).textFieldStyle(style)
     }
 
-    func buttonStyle<S>(_ style: S) -> ViewNode {
+    func buttonStyle<S: ButtonStyle>(_ style: S) -> ViewNode {
         _resolve(self).buttonStyle(style)
     }
 
@@ -568,6 +573,14 @@ public extension View {
     }
 
     func textInputAutocapitalization(_ autocapitalization: Any?) -> ViewNode {
+        _resolve(self)
+    }
+
+    func modelContainer(for modelType: Any.Type, inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode {
+        _resolve(self)
+    }
+
+    func modelContainer(for modelTypes: [Any.Type], inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode {
         _resolve(self)
     }
 }

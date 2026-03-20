@@ -32,6 +32,13 @@ public final class ModelContext: NSObject {
         deletions[key, default: []].append(model.persistentModelID)
     }
 
+    /// Delete all instances of a model type. Matches Apple's `context.delete(model: Song.self)`.
+    public func delete<T: PersistentModel>(model: T.Type) throws {
+        let schema = T.schema
+        let sql = "DELETE FROM \(schema.name)"
+        try container.connection.execute(sql, parameters: [])
+    }
+
     // MARK: - Fetch
 
     public func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> [T] {
