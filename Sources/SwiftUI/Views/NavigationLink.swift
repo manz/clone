@@ -6,6 +6,13 @@ public struct NavigationLink<Label: View, Destination: View>: View {
     let label: ViewNode
     let destination: ViewNode
 
+    /// `NavigationLink(destination: SomeView()) { Text("Go") }`
+    public init(destination: Destination, @ViewBuilder label: () -> Label) {
+        self.destination = _resolve(destination)
+        self.label = _resolve(label())
+    }
+
+    /// `NavigationLink { label } destination: { dest }`
     public init(@ViewBuilder destination: () -> Destination, @ViewBuilder label: () -> Label) {
         self.destination = _resolve(destination())
         self.label = _resolve(label())
@@ -18,8 +25,8 @@ public struct NavigationLink<Label: View, Destination: View>: View {
 
 extension NavigationLink where Label == Text {
     /// Creates a navigation link with a text label.
-    public init(_ titleKey: String, @ViewBuilder destination: () -> Destination) {
+    public init(_ titleKey: String, destination: Destination) {
         self.label = Text(titleKey).body
-        self.destination = _resolve(destination())
+        self.destination = _resolve(destination)
     }
 }

@@ -91,4 +91,42 @@ extension Font {
     public func weight(_ weight: Weight) -> Font {
         Font(size: size, weight: weight)
     }
+
+    /// Returns a version with monospaced digits.
+    public func monospacedDigit() -> Font {
+        self
+    }
+
+    /// Returns a version with italic styling.
+    public func italic() -> Font {
+        self
+    }
+
+    /// Returns a version with the specified leading.
+    public func leading(_ leading: Leading) -> Font {
+        self
+    }
+
+    /// Font leading.
+    public enum Leading: Sendable { case standard, tight, loose }
+
+    /// Width preset.
+    public enum Width: Sendable {
+        case compressed, condensed, standard, expanded
+    }
+
+    /// A monospaced font of the given size.
+    public static func system(size: CGFloat, design: Design) -> Font {
+        Font(size: size, weight: .regular)
+    }
+
+    /// A custom font with the given name and size.
+    public static func custom(_ name: String, size: CGFloat) -> Font {
+        Font(size: size, weight: .regular)
+    }
+
+    /// A custom font with the given name, fixed size.
+    public static func custom(_ name: String, fixedSize: CGFloat) -> Font {
+        Font(size: fixedSize, weight: .regular)
+    }
 }

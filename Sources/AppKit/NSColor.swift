@@ -1,4 +1,4 @@
-import Foundation
+import CoreFoundation
 
 /// AppKit NSColor shim for Linux. Provides the same semantic color API as macOS.
 /// On real macOS, apps import AppKit and get the real NSColor. On Clone/Linux,
@@ -15,6 +15,11 @@ public final class NSColor: @unchecked Sendable {
     private init(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1.0) {
         self.redComponent = r; self.greenComponent = g
         self.blueComponent = b; self.alphaComponent = a
+    }
+
+    /// Public initializer matching Apple's NSColor API.
+    public convenience init(red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
+        self.init(red, green, blue, alpha)
     }
 
     private static func adaptive(dark: NSColor, light: NSColor) -> NSColor {

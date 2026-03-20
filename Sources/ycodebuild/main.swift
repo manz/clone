@@ -14,8 +14,12 @@ struct YCodeBuild {
         let imports = try ImportScanner.scan(directory: sourceDir)
         print("ycodebuild: found \(imports.count) unique imports: \(imports.sorted().joined(separator: ", "))")
 
+        // Remove the target's own module name from imports (self-import)
+        var filteredImports = imports
+        filteredImports.remove(target)
+
         let sdkManifest = try SDKManifest.load(from: sdkPath)
-        let classified = sdkManifest.classify(imports: imports)
+        let classified = sdkManifest.classify(imports: filteredImports)
 
         print("ycodebuild: SDK-provided: \(classified.sdk.sorted().joined(separator: ", "))")
         print("ycodebuild: system (pass-through): \(classified.system.sorted().joined(separator: ", "))")
@@ -52,17 +56,12 @@ struct YCodeBuild {
         process.arguments = ["build", "--package-path", parentDir.path, "--target", target]
         process.currentDirectoryURL = parentDir
 
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
+        // Stream build output directly to terminal
+        process.standardOutput = FileHandle.standardOutput
+        process.standardError = FileHandle.standardError
 
         try process.run()
         process.waitUntilExit()
-
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        if !output.isEmpty {
-            print(output)
-        }
 
         if process.terminationStatus == 0 {
             print("ycodebuild: build succeeded!")
@@ -167,7 +166,7 @@ func parseArguments() throws -> YCodeBuild {
 
     let resolvedSDK = sdkPath
         ?? ProcessInfo.processInfo.environment["AQUAX_SDK_PATH"]
-        ?? ("" as NSString).expandingTildeInPath + "/Projects/clone"
+        ?? (NSString(string: "~/Projects/clone").expandingTildeInPath)
     let resolvedSource = sourceDir ?? "."
     let resolvedTarget = target ?? URL(fileURLWithPath: resolvedSource).lastPathComponent
 

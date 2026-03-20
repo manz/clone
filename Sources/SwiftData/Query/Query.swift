@@ -9,7 +9,7 @@ public final class Query<T: PersistentModel> {
     private var lastGeneration: UInt64 = UInt64.max
     private weak var context: ModelContext?
 
-    public init(sort sortDescriptors: [SortDescriptor] = [],
+    public init(sort sortDescriptors: [SortDescriptor<T>] = [],
                 predicate: Predicate<T>? = nil,
                 limit: Int? = nil) {
         self.descriptor = FetchDescriptor(

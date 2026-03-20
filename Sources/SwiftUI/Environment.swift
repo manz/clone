@@ -53,6 +53,39 @@ extension EnvironmentValues {
         get { self[DismissActionKey.self] }
         set { self[DismissActionKey.self] = newValue }
     }
+
+    public var presentationMode: Binding<PresentationMode> {
+        .constant(PresentationMode())
+    }
+}
+
+/// A mode that indicates whether a view is currently presented.
+public struct PresentationMode {
+    public var isPresented: Bool { true }
+    public mutating func dismiss() {}
+}
+
+// MARK: - @EnvironmentObject
+
+/// A property wrapper that reads an observable object from the environment.
+@propertyWrapper
+public struct EnvironmentObject<ObjectType: AnyObject> {
+    private var object: ObjectType?
+
+    public init() { self.object = nil }
+
+    public var wrappedValue: ObjectType {
+        get { object! }
+        set { object = newValue }
+    }
+
+    public var projectedValue: Wrapper {
+        Wrapper(object: object)
+    }
+
+    public struct Wrapper {
+        let object: ObjectType?
+    }
 }
 
 // MARK: - @AppStorage

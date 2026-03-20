@@ -16,7 +16,8 @@ enum PackageGenerator {
         let sourcePath = URL(fileURLWithPath: outputDir).appendingPathComponent(sourceDir).path
         let excludes = findExcludes(in: sourcePath)
 
-        // Build SDK dependencies (only SwiftUI and SwiftData are products)
+        // SDK products exposed by Clone's Package.swift.
+        // AppKit is a transitive dependency of SwiftUI, not a separate product.
         var sdkDeps: [String] = []
         if sdkModules.contains("SwiftUI") {
             sdkDeps.append("SwiftUI")
@@ -24,31 +25,33 @@ enum PackageGenerator {
         if sdkModules.contains("SwiftData") {
             sdkDeps.append("SwiftData")
         }
-        if sdkModules.contains("AppKit") && !sdkModules.contains("SwiftUI") {
-            // AppKit is a transitive dependency of SwiftUI, but add explicitly if needed alone
-            sdkDeps.append("AppKit")
-        }
+
+        // Stubs that need SwiftUI as a dependency
+        let stubsNeedingSwiftUI: Set<String> = ["Charts"]
 
         let sortedStubs = stubs.sorted()
 
         // Generate stub target entries
         let stubTargets = sortedStubs.map { stub in
-            "        .target(name: \"\(stub)\", path: \".aquax/stubs/\(stub)\")"
+            if stubsNeedingSwiftUI.contains(stub) {
+                return "        .target(name: \"\(stub)\", dependencies: [.product(name: \"SwiftUI\", package: \"clone\")], path: \".aquax/stubs/\(stub)\")"
+            }
+            return "        .target(name: \"\(stub)\", path: \".aquax/stubs/\(stub)\")"
         }.joined(separator: ",\n")
 
-        // Generate stub dependency references for the app target
-        let stubDeps = sortedStubs.map { "            \"\($0)\"" }.joined(separator: ",\n")
-
-        // Generate SDK product dependencies
+        // SDK product dependencies
         let sdkProductDeps = sdkDeps.map { dep in
             "            .product(name: \"\(dep)\", package: \"clone\")"
         }.joined(separator: ",\n")
 
-        // Generate exclude list
+        // Stub dependency refs
+        let stubDeps = sortedStubs.map { "            \"\($0)\"" }.joined(separator: ",\n")
+
+        // Exclude list
         let excludeList = excludes.map { "            \"\($0)\"" }.joined(separator: ",\n")
         let excludeSection = excludes.isEmpty ? "" : ",\n            exclude: [\n\(excludeList)\n            ]"
 
-        // All dependencies for the app target
+        // All deps
         var allDeps = [String]()
         if !sdkProductDeps.isEmpty { allDeps.append(sdkProductDeps) }
         if !stubDeps.isEmpty { allDeps.append(stubDeps) }
@@ -66,7 +69,6 @@ enum PackageGenerator {
                 .package(path: "\(sdkPath)"),
             ],
             targets: [
-                // Stub modules for unavailable frameworks
         \(stubTargets),
 
                 .executableTarget(
@@ -80,31 +82,60 @@ enum PackageGenerator {
         )
         """
 
-        // Write Package.swift to the parent directory (not inside .aquax)
         let packagePath = URL(fileURLWithPath: outputDir).appendingPathComponent("Package.swift").path
         try packageSwift.write(toFile: packagePath, atomically: true, encoding: .utf8)
 
-        // Also ensure .aquax dir exists
         try fm.createDirectory(atPath: aquaxDir, withIntermediateDirectories: true)
     }
 
-    /// Find files that should be excluded (platform-specific).
+    /// Find files/directories that should be excluded (platform-specific + non-Swift resources).
     private static func findExcludes(in directory: String) -> [String] {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: URL(fileURLWithPath: directory),
-            includingPropertiesForKeys: nil,
+            includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
 
-        var excludes: [String] = []
         let platformSuffixes = ["+iOS", "+tvOS", "+watchOS", "+visionOS"]
+        let excludedExtensions: Set<String> = [
+            "plist", "xcassets", "entitlements", "xcdatamodeld",
+            "storyboard", "xib", "xcodeproj", "xcworkspace",
+            "svg", "png", "jpg", "jpeg", "gif", "pdf", "ico",
+            "icon", "json", "strings", "stringsdict",
+            "metal", "mlmodel", "intentdefinition",
+        ]
+        let excludedDirExtensions: Set<String> = [
+            "xcassets", "xcdatamodeld", "icon", "xcodeproj", "xcworkspace",
+        ]
+
+        var excludes: [String] = []
+        var excludedDirs: Set<String> = []
 
         for case let fileURL as URL in enumerator {
+            let path = fileURL.path
+
+            if excludedDirs.contains(where: { path.hasPrefix($0 + "/") }) {
+                continue
+            }
+
             let filename = fileURL.lastPathComponent
+            let ext = fileURL.pathExtension.lowercased()
+            let rel = path.replacingOccurrences(of: directory + "/", with: "")
+
+            let isDir = (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if isDir && excludedDirExtensions.contains(ext) {
+                excludes.append(rel)
+                excludedDirs.insert(path)
+                continue
+            }
+
             if platformSuffixes.contains(where: { filename.contains($0) }) {
-                // Get relative path from directory
-                let rel = fileURL.path.replacingOccurrences(of: directory + "/", with: "")
+                excludes.append(rel)
+                continue
+            }
+
+            if !isDir && excludedExtensions.contains(ext) {
                 excludes.append(rel)
             }
         }

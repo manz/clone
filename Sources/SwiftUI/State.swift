@@ -32,6 +32,7 @@ public final class State<Value> {
 }
 
 /// Two-way binding to a value.
+@propertyWrapper
 public struct Binding<Value> {
     private let getter: () -> Value
     private let setter: (Value) -> Void
@@ -41,10 +42,17 @@ public struct Binding<Value> {
         self.setter = set
     }
 
+    public init(projectedValue: Binding<Value>) {
+        self.getter = projectedValue.getter
+        self.setter = projectedValue.setter
+    }
+
     public var wrappedValue: Value {
         get { getter() }
         nonmutating set { setter(newValue) }
     }
+
+    public var projectedValue: Binding<Value> { self }
 
     /// Creates a binding with an immutable value.
     public static func constant(_ value: Value) -> Binding<Value> {

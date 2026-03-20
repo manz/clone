@@ -11,16 +11,3 @@ public struct WindowGroup<Content: View>: Scene {
         self.content = content
     }
 }
-
-// ViewBuilder variant that returns [ViewNode]
-extension WindowGroup where Content == ViewNode {
-    public init(_ title: String = "", @ViewBuilder content: @escaping () -> [ViewNode]) {
-        self.title = title
-        // Wrap multiple nodes in a VStack
-        self.content = {
-            let nodes = content()
-            if nodes.count == 1 { return nodes[0] }
-            return ViewNode.vstack(alignment: .leading, spacing: 0, children: nodes)
-        }
-    }
-}

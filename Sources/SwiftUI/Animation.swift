@@ -42,6 +42,8 @@ public struct AnyTransition: Sendable {
     public static func asymmetric(insertion: AnyTransition, removal: AnyTransition) -> AnyTransition { AnyTransition() }
 
     public func combined(with other: AnyTransition) -> AnyTransition { AnyTransition() }
+
+    public func animation(_ animation: Animation?) -> AnyTransition { self }
 }
 
 // MARK: - Window animation engine

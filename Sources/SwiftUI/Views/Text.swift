@@ -51,4 +51,52 @@ public struct Text: View {
         copy.fontWeight = Font(size: fontSize, weight: weight).internalWeight
         return copy
     }
+
+    /// `.foregroundStyle(_:)` — alias for foregroundColor.
+    public func foregroundStyle(_ color: Color) -> Text {
+        foregroundColor(color)
+    }
+
+    /// `.strikethrough()` — no-op for now.
+    public func strikethrough(_ active: Bool = true, color: Color? = nil) -> Text { self }
+
+    /// `.underline()` — no-op for now.
+    public func underline(_ active: Bool = true, color: Color? = nil) -> Text { self }
+
+    /// `.lineLimit(_:)` — no-op for now.
+    public func lineLimit(_ limit: Int?) -> Text { self }
+
+    /// `.lineSpacing(_:)` — no-op for now.
+    public func lineSpacing(_ spacing: CGFloat) -> Text { self }
+
+    /// Text truncation mode.
+    public enum TruncationMode { case head, tail, middle }
+
+    /// Text case transformation.
+    public enum Case { case uppercase, lowercase }
+
+    /// `Text + Text` — concatenates two text views.
+    public static func + (lhs: Text, rhs: Text) -> Text {
+        var result = Text(lhs.content + rhs.content)
+        result.fontSize = lhs.fontSize
+        result.color = lhs.color
+        result.fontWeight = lhs.fontWeight
+        return result
+    }
+}
+
+// MARK: - LocalizedStringKey
+
+/// A key used to look up a localized string. On Clone, just wraps the string.
+public struct LocalizedStringKey: ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Sendable {
+    public let key: String
+    public init(_ value: String) { self.key = value }
+    public init(stringLiteral value: String) { self.key = value }
+}
+
+extension Text {
+    /// `Text(LocalizedStringKey)` — creates text from a localized string key.
+    public init(_ key: LocalizedStringKey) {
+        self.init(key.key)
+    }
 }

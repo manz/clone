@@ -1,14 +1,19 @@
 // swift-tools-version: 5.9
 import PackageDescription
+import CompilerPluginSupport
 
 let package = Package(
     name: "Clone",
     platforms: [.macOS(.v14)],
     products: [
         // Public SDK products — external apps depend on these
+        // AppKit is exposed transitively via SwiftUI (not listed here to avoid
+        // shadowing macOS's real AppKit in the dependency resolver)
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
-        .library(name: "AppKit", targets: ["AppKit"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
         .systemLibrary(
@@ -41,7 +46,7 @@ let package = Package(
         // UI DSL framework
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -98,9 +103,18 @@ let package = Package(
             path: "Sources/CSQLite",
             pkgConfig: "sqlite3"
         ),
+        // SwiftData macro compiler plugin
+        .macro(
+            name: "SwiftDataMacros",
+            dependencies: [
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+            ],
+            path: "Sources/SwiftDataMacros"
+        ),
         .target(
             name: "SwiftData",
-            dependencies: ["CSQLite"],
+            dependencies: ["CSQLite", "SwiftDataMacros"],
             path: "Sources/SwiftData"
         ),
         .testTarget(

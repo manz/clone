@@ -106,6 +106,13 @@ public struct Color: Equatable, Sendable {
     /// The accent color — defaults to system blue, used for interactive elements.
     public static var accentColor: Color { .blue }
 
+    // MARK: - Material approximations
+
+    public static var ultraThinMaterial: Color { Color(white: 0.5, opacity: 0.1) }
+    public static var thinMaterial: Color { Color(white: 0.5, opacity: 0.2) }
+    public static var regularMaterial: Color { Color(white: 0.5, opacity: 0.3) }
+    public static var thickMaterial: Color { Color(white: 0.5, opacity: 0.4) }
+    public static var ultraThickMaterial: Color { Color(white: 0.5, opacity: 0.5) }
 }
 
 public struct EdgeInsets: Equatable, Sendable {
@@ -157,3 +164,158 @@ public enum VAlignment: Equatable, Sendable {
 
 public typealias HorizontalAlignment = HAlignment
 public typealias VerticalAlignment = VAlignment
+
+// MARK: - Alignment (combined horizontal + vertical)
+
+public struct Alignment: Equatable, Sendable {
+    public let horizontal: HAlignment
+    public let vertical: VAlignment
+
+    public init(horizontal: HAlignment, vertical: VAlignment) {
+        self.horizontal = horizontal
+        self.vertical = vertical
+    }
+
+    public static let center = Alignment(horizontal: .center, vertical: .center)
+    public static let leading = Alignment(horizontal: .leading, vertical: .center)
+    public static let trailing = Alignment(horizontal: .trailing, vertical: .center)
+    public static let top = Alignment(horizontal: .center, vertical: .top)
+    public static let bottom = Alignment(horizontal: .center, vertical: .bottom)
+    public static let topLeading = Alignment(horizontal: .leading, vertical: .top)
+    public static let topTrailing = Alignment(horizontal: .trailing, vertical: .top)
+    public static let bottomLeading = Alignment(horizontal: .leading, vertical: .bottom)
+    public static let bottomTrailing = Alignment(horizontal: .trailing, vertical: .bottom)
+}
+
+// MARK: - KeyEquivalent
+
+public struct KeyEquivalent: ExpressibleByStringLiteral, Sendable {
+    public let character: Character
+    public init(_ character: Character) { self.character = character }
+    public init(stringLiteral value: String) { self.character = value.first ?? " " }
+
+    public static let `return` = KeyEquivalent("\r")
+    public static let escape = KeyEquivalent("\u{1B}")
+    public static let delete = KeyEquivalent("\u{7F}")
+    public static let tab = KeyEquivalent("\t")
+    public static let space = KeyEquivalent(" ")
+    public static let upArrow = KeyEquivalent("\u{F700}")
+    public static let downArrow = KeyEquivalent("\u{F701}")
+    public static let leftArrow = KeyEquivalent("\u{F702}")
+    public static let rightArrow = KeyEquivalent("\u{F703}")
+}
+
+// MARK: - EventModifiers
+
+public struct EventModifiers: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let capsLock = EventModifiers(rawValue: 1 << 0)
+    public static let shift = EventModifiers(rawValue: 1 << 1)
+    public static let control = EventModifiers(rawValue: 1 << 2)
+    public static let option = EventModifiers(rawValue: 1 << 3)
+    public static let command = EventModifiers(rawValue: 1 << 4)
+    public static let numericPad = EventModifiers(rawValue: 1 << 5)
+    public static let all = EventModifiers(rawValue: ~0)
+}
+
+// MARK: - ContentMode
+
+public enum ContentMode: Sendable { case fit, fill }
+
+// MARK: - PresentationDetent
+
+public struct PresentationDetent: Hashable, Sendable {
+    let id: Int
+    private init(id: Int) { self.id = id }
+    public init() { self.id = 0 }
+    public static let medium = PresentationDetent(id: 1)
+    public static let large = PresentationDetent(id: 2)
+    public static func fraction(_ fraction: CGFloat) -> PresentationDetent { PresentationDetent(id: 3) }
+    public static func height(_ height: CGFloat) -> PresentationDetent { PresentationDetent(id: 4) }
+}
+
+// MARK: - TextAlignment
+
+public enum TextAlignment: Sendable { case leading, center, trailing }
+
+// MARK: - KeyPress
+
+public struct KeyPress {
+    public enum Result {
+        case handled
+        case ignored
+    }
+}
+
+// MARK: - NavigationBarItem
+
+public enum NavigationBarItem {
+    public enum TitleDisplayMode {
+        case automatic, inline, large
+    }
+}
+
+// MARK: - Visibility
+
+public enum Visibility: Sendable {
+    case automatic, visible, hidden
+}
+
+// MARK: - ContentMarginPlacement
+
+public struct ContentMarginPlacement: Sendable {
+    public static let automatic = ContentMarginPlacement()
+    public static let scrollContent = ContentMarginPlacement()
+    public static let scrollIndicators = ContentMarginPlacement()
+}
+
+// MARK: - ScrollIndicatorVisibility
+
+public struct ScrollIndicatorVisibility: Sendable {
+    public static let automatic = ScrollIndicatorVisibility()
+    public static let visible = ScrollIndicatorVisibility()
+    public static let hidden = ScrollIndicatorVisibility()
+    public static let never = ScrollIndicatorVisibility()
+}
+
+// MARK: - SensoryFeedback
+
+public enum SensoryFeedback: Sendable {
+    case success, warning, error, selection, impact, alignment, levelChange, increase, decrease
+}
+
+// MARK: - Prominence
+
+public enum Prominence: Sendable {
+    case standard, increased
+}
+
+// MARK: - ColorScheme
+
+public enum ColorScheme: Sendable {
+    case light, dark
+}
+
+// MARK: - TextSelectability
+
+public enum TextSelectability {
+    public static let enabled = TextSelectability.on
+    public static let disabled = TextSelectability.off
+    case on, off
+}
+
+// MARK: - ControlSize
+
+public enum ControlSize: Sendable { case mini, small, regular, large, extraLarge }
+
+// MARK: - Axis.Set
+
+extension Axis {
+    public struct Set: OptionSet, Sendable {
+        public let rawValue: UInt8
+        public init(rawValue: UInt8) { self.rawValue = rawValue }
+        public static let horizontal = Set(rawValue: 1 << 0)
+        public static let vertical = Set(rawValue: 1 << 1)
+    }
+}

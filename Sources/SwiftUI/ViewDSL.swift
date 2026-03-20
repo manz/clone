@@ -14,6 +14,11 @@ public extension ViewNode {
         .frame(width: maxWidth, height: maxHeight, child: self)
     }
 
+    /// `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:alignment:)` — flexible frame
+    func frame(minWidth: CGFloat? = nil, idealWidth: CGFloat? = nil, maxWidth: CGFloat? = nil, minHeight: CGFloat? = nil, idealHeight: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment = .center) -> ViewNode {
+        .frame(width: maxWidth ?? idealWidth ?? minWidth, height: maxHeight ?? idealHeight ?? minHeight, child: self)
+    }
+
     /// `.padding(16)` — uniform padding
     func padding(_ value: CGFloat) -> ViewNode {
         .padding(EdgeInsets(all: value), child: self)
@@ -478,6 +483,190 @@ public extension ViewNode {
     func preferredColorScheme(_ scheme: Any?) -> ViewNode {
         self
     }
+
+    /// `.stroke(_:lineWidth:)` — no-op on Clone.
+    func stroke(_ color: Color, lineWidth: CGFloat = 1) -> ViewNode { self }
+
+    /// `.stroke(_:style:)` — no-op on Clone.
+    func stroke(_ color: Color, style: StrokeStyle) -> ViewNode { self }
+
+    /// `.keyboardShortcut(_:modifiers:)` — no-op on Clone.
+    func keyboardShortcut(_ key: KeyEquivalent, modifiers: EventModifiers = .command) -> ViewNode { self }
+
+    /// `.navigationDestination(for:destination:)` — no-op on Clone.
+    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> [ViewNode]) -> ViewNode { self }
+
+    /// `.navigationDestination(isPresented:destination:)` — no-op on Clone.
+    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> [ViewNode]) -> ViewNode { self }
+
+    /// `.navigationDestination(item:destination:)` — no-op on Clone.
+    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> [ViewNode]) -> ViewNode { self }
+
+    /// `.onReceive(_:perform:)` — no-op on Clone.
+    func onReceive<P>(_ publisher: P, perform action: @escaping (P) -> Void) -> ViewNode { self }
+
+    /// `.simultaneousGesture(_:)` — no-op on Clone.
+    func simultaneousGesture<G>(_ gesture: G) -> ViewNode { self }
+
+    /// `.gesture(_:)` — no-op on Clone.
+    func gesture<G>(_ gesture: G) -> ViewNode { self }
+
+    /// `.highPriorityGesture(_:)` — no-op on Clone.
+    func highPriorityGesture<G>(_ gesture: G) -> ViewNode { self }
+
+    /// `.aspectRatio(_:contentMode:)` — no-op on Clone.
+    func aspectRatio(_ ratio: CGFloat? = nil, contentMode: ContentMode = .fit) -> ViewNode { self }
+
+    /// `.lineSpacing(_:)` — no-op on Clone.
+    func lineSpacing(_ spacing: CGFloat) -> ViewNode { self }
+
+    /// `.truncationMode(_:)` — no-op on Clone.
+    func truncationMode(_ mode: Text.TruncationMode) -> ViewNode { self }
+
+    /// `.imageScale(_:)` — no-op on Clone.
+    func imageScale(_ scale: Image.Scale) -> ViewNode { self }
+
+    /// `.monospacedDigit()` — no-op on Clone.
+    func monospacedDigit() -> ViewNode { self }
+
+    /// `.layoutPriority(_:)` — no-op on Clone.
+    func layoutPriority(_ value: Double) -> ViewNode { self }
+
+    /// `.scrollPosition(id:)` — no-op on Clone.
+    func scrollPosition(id: Binding<Int?>) -> ViewNode { self }
+
+    /// `.glassEffect(_:)` — no-op on Clone.
+    func glassEffect(_ effect: Int?...) -> ViewNode { self }
+
+    /// `.onKeyPress(_:action:)` — no-op on Clone.
+    func onKeyPress(_ key: KeyEquivalent, action: @escaping () -> KeyPress.Result) -> ViewNode { self }
+
+    /// `.symbolEffect(_:)` — no-op on Clone.
+    func symbolEffect<E>(_ effect: E) -> ViewNode { self }
+
+    /// `.gridCellUnsizedAxes(_:)` — no-op on Clone.
+    func gridCellUnsizedAxes(_ axes: Axis) -> ViewNode { self }
+
+    /// `.strikethrough(_:color:)` — no-op on Clone.
+    func strikethrough(_ active: Bool = true, color: Color? = nil) -> ViewNode { self }
+
+    /// `.textContentType(_:)` — no-op on Clone.
+    func textContentType<T>(_ type: T?) -> ViewNode { self }
+
+    /// `.rotation3DEffect(_:axis:)` — no-op on Clone.
+    func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat)) -> ViewNode { self }
+
+    /// `.labelStyle(_:)` — no-op on Clone.
+    func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode { self }
+
+    /// `.listRowBackground(_:)` — no-op for view variant on Clone.
+    func listRowBackground<V: View>(_ view: V?) -> ViewNode { self }
+
+    /// `.toolbar(_:)` — toolbar with ToolbarContent.
+    func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode { self }
+
+    /// `.presentationDetents(_:)` — no-op on Clone.
+    func presentationDetents(_ detents: Swift.Set<PresentationDetent>) -> ViewNode { self }
+
+    /// `.interactiveDismissDisabled(_:)` — no-op on Clone.
+    func interactiveDismissDisabled(_ isDisabled: Bool = true) -> ViewNode { self }
+
+    /// `.matchedGeometryEffect(id:in:)` — no-op on Clone.
+    func matchedGeometryEffect(id: some Hashable, in namespace: Namespace.ID) -> ViewNode { self }
+
+    /// `.navigationBarBackButtonHidden(_:)` — no-op on Clone.
+    func navigationBarBackButtonHidden(_ hidden: Bool = true) -> ViewNode { self }
+
+    /// `.textSelection(_:)` — no-op on Clone.
+    func textSelection<S>(_ selectability: S) -> ViewNode { self }
+
+    /// `.onMove(perform:)` — no-op on Clone.
+    func onMove(perform: ((IndexSet, Int) -> Void)?) -> ViewNode { self }
+
+    /// `.onDelete(perform:)` — no-op on Clone.
+    func onDelete(perform: ((IndexSet) -> Void)?) -> ViewNode { self }
+
+    /// `.progressViewStyle(_:)` — no-op on Clone.
+    func progressViewStyle<S>(_ style: S) -> ViewNode { self }
+
+    /// `.scaleEffect(x:y:)` — no-op on Clone.
+    func scaleEffect(x: CGFloat = 1, y: CGFloat = 1) -> ViewNode { self }
+
+    /// `.fullScreenCover(isPresented:content:)` — no-op on Clone.
+    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
+
+    /// `.navigationBarTitleDisplayMode(_:)` — no-op on Clone.
+    func navigationBarTitleDisplayMode(_ displayMode: NavigationBarItem.TitleDisplayMode) -> ViewNode { self }
+
+    /// `.listRowSeparator(_:)` — no-op on Clone.
+    func listRowSeparator(_ visibility: Visibility) -> ViewNode { self }
+
+    /// `.listRowInsets(_:)` — no-op on Clone.
+    func listRowInsets(_ insets: EdgeInsets?) -> ViewNode { self }
+
+    /// `.contentMargins(_:_:for:)` — no-op on Clone.
+    func contentMargins(_ edges: Edge.Set = .all, _ length: CGFloat, for placement: ContentMarginPlacement = .automatic) -> ViewNode { self }
+
+    /// `.scrollContentBackground(_:)` — no-op on Clone.
+    func scrollContentBackground(_ visibility: Visibility) -> ViewNode { self }
+
+    /// `.scrollIndicators(_:)` — no-op on Clone.
+    func scrollIndicators(_ visibility: ScrollIndicatorVisibility) -> ViewNode { self }
+
+    /// `.popover(isPresented:content:)` — no-op on Clone.
+    func popover(isPresented: Binding<Bool>, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
+
+    /// `.focused(_:equals:)` — no-op on Clone.
+    func focused<V: Hashable>(_ binding: Binding<V?>, equals value: V) -> ViewNode { self }
+
+    /// `.focused(_:)` (Bool binding variant) — no-op on Clone.
+    func focused(_ condition: Binding<Bool>) -> ViewNode { self }
+
+    /// `.sensoryFeedback(_:trigger:)` — no-op on Clone.
+    func sensoryFeedback<V: Equatable>(_ feedback: SensoryFeedback, trigger: V) -> ViewNode { self }
+
+    /// `.defaultFocus(_:_:)` — no-op on Clone.
+    func defaultFocus<V: Hashable>(_ binding: Binding<V?>, _ value: V) -> ViewNode { self }
+
+    /// `.focusSection()` — no-op on Clone.
+    func focusSection() -> ViewNode { self }
+
+    /// `.headerProminence(_:)` — no-op on Clone.
+    func headerProminence(_ prominence: Prominence) -> ViewNode { self }
+
+    /// `.onChange(of:_:)` — Swift 5.9+ onChange with old and new values.
+    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> ViewNode { self }
+
+    /// `.disableAutocorrection(_:)` — no-op on Clone.
+    func disableAutocorrection(_ disable: Bool?) -> ViewNode { self }
+
+    /// `.autocorrectionDisabled(_:)` — no-op on Clone.
+    func autocorrectionDisabled(_ disable: Bool = true) -> ViewNode { self }
+
+    /// `.textCase(_:)` — no-op on Clone.
+    func textCase(_ textCase: Text.Case?) -> ViewNode { self }
+
+    /// `.trim(from:to:)` — no-op on Clone.
+    func trim(from: CGFloat = 0, to: CGFloat = 1) -> ViewNode { self }
+
+    /// `.mask(content:)` — no-op on Clone.
+    func mask<V: View>(@ViewBuilder _ mask: () -> V) -> ViewNode { self }
+
+    /// `.controlSize(_:)` — no-op on Clone.
+    func controlSize(_ size: ControlSize) -> ViewNode { self }
+
+    /// `.formStyle(_:)` — no-op on Clone.
+    func formStyle<S>(_ style: S) -> ViewNode { self }
+
+    /// `.onDrop(of:isTargeted:perform:)` — no-op on Clone.
+    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([Any]) -> Bool) -> ViewNode { self }
+
+    /// `.clipShape(_:)` with Shape constraint — no-op on Clone.
+    func clipShape<S: Shape>(_ shape: S) -> ViewNode { self }
+
+    /// `.textInputAutocapitalization(_:)` — no-op on Clone.
+    func textInputAutocapitalization(_ autocapitalization: Any?) -> ViewNode { self }
+
 }
 
 /// `.background(_:)` — wraps content in a ZStack with a background color behind it.

@@ -16,6 +16,12 @@ public final class ModelContainer: NSObject {
         try createTables()
     }
 
+    /// Variadic convenience: `ModelContainer(for: Song.self, Artist.self)`
+    public convenience init(for types: any PersistentModel.Type..., configurations: ModelConfiguration...) throws {
+        let config = configurations.first ?? ModelConfiguration(isStoredInMemoryOnly: true)
+        try self.init(for: Array(types), configuration: config)
+    }
+
     /// The shared main context.
     public func mainContext() -> ModelContext {
         if let ctx = _mainContext { return ctx }

@@ -15,7 +15,36 @@ public struct Image: View {
         self.name = name
     }
 
+    /// `Image(nsImage:)` — creates an image from an NSImage. Stub: uses empty name.
+    public init(nsImage: Any) {
+        self.name = ""
+    }
+
     public var body: ViewNode {
         .image(name: name, width: nil, height: nil)
     }
+
+    /// Image rendering scale.
+    public enum Scale { case small, medium, large }
+
+    /// Image rendering mode.
+    public func renderingMode(_ mode: TemplateRenderingMode?) -> Image { self }
+
+    /// Image template rendering mode.
+    public enum TemplateRenderingMode { case original, template }
+
+    /// Returns a resizable version of this image.
+    public func resizable(capInsets: EdgeInsets = EdgeInsets(), resizingMode: ResizingMode = .stretch) -> Image { self }
+
+    /// Image resizing mode.
+    public enum ResizingMode { case tile, stretch }
+
+    /// Returns an interpolated version of this image.
+    public func interpolation(_ interpolation: Interpolation) -> Image { self }
+
+    /// Image interpolation.
+    public enum Interpolation { case none, low, medium, high }
+
+    /// Returns an antialiased version of this image.
+    public func antialiased(_ isAntialiased: Bool) -> Image { self }
 }

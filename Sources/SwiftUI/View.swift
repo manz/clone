@@ -1,4 +1,6 @@
-import Foundation
+// Re-export Foundation so `import SwiftUI` brings in Foundation types (URL, Date, CGFloat, etc.)
+// This matches Apple's SwiftUI behavior.
+@_exported import Foundation
 
 /// The core protocol for SwiftUI views.
 public protocol View {
@@ -10,6 +12,15 @@ public protocol View {
 extension ViewNode: View {
     public typealias Body = ViewNode
     public var body: ViewNode { self }
+}
+
+/// [ViewNode] as a View — allows @ViewBuilder closures to work with `some View`.
+extension Array: View where Element == ViewNode {
+    public typealias Body = ViewNode
+    public var body: ViewNode {
+        if count == 1 { return self[0] }
+        return .vstack(alignment: .leading, spacing: 0, children: self)
+    }
 }
 
 /// Color as a View — renders as a filled rect.
@@ -41,6 +52,10 @@ public extension View {
 
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
         _resolve(self).frame(maxWidth: maxWidth, maxHeight: maxHeight)
+    }
+
+    func frame(minWidth: CGFloat? = nil, idealWidth: CGFloat? = nil, maxWidth: CGFloat? = nil, minHeight: CGFloat? = nil, idealHeight: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment = .center) -> ViewNode {
+        _resolve(self).frame(minWidth: minWidth, idealWidth: idealWidth, maxWidth: maxWidth, minHeight: minHeight, idealHeight: idealHeight, maxHeight: maxHeight, alignment: alignment)
     }
 
     func padding(_ value: CGFloat) -> ViewNode {
@@ -321,6 +336,238 @@ public extension View {
     }
 
     func preferredColorScheme(_ scheme: Any?) -> ViewNode {
+        _resolve(self)
+    }
+
+    func stroke(_ color: Color, lineWidth: CGFloat = 1) -> ViewNode {
+        _resolve(self).stroke(color, lineWidth: lineWidth)
+    }
+
+    func stroke(_ color: Color, style: StrokeStyle) -> ViewNode {
+        _resolve(self).stroke(color, style: style)
+    }
+
+    func keyboardShortcut(_ key: KeyEquivalent, modifiers: EventModifiers = .command) -> ViewNode {
+        _resolve(self).keyboardShortcut(key, modifiers: modifiers)
+    }
+
+    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> [ViewNode]) -> ViewNode {
+        _resolve(self).navigationDestination(for: type, destination: destination)
+    }
+
+    func onReceive<P>(_ publisher: P, perform action: @escaping (P) -> Void) -> ViewNode {
+        _resolve(self).onReceive(publisher, perform: action)
+    }
+
+    func simultaneousGesture<G>(_ gesture: G) -> ViewNode {
+        _resolve(self).simultaneousGesture(gesture)
+    }
+
+    func gesture<G>(_ gesture: G) -> ViewNode {
+        _resolve(self).gesture(gesture)
+    }
+
+    func highPriorityGesture<G>(_ gesture: G) -> ViewNode {
+        _resolve(self).highPriorityGesture(gesture)
+    }
+
+    func aspectRatio(_ ratio: CGFloat? = nil, contentMode: ContentMode = .fit) -> ViewNode {
+        _resolve(self).aspectRatio(ratio, contentMode: contentMode)
+    }
+
+    func lineSpacing(_ spacing: CGFloat) -> ViewNode {
+        _resolve(self).lineSpacing(spacing)
+    }
+
+    func truncationMode(_ mode: Text.TruncationMode) -> ViewNode {
+        _resolve(self).truncationMode(mode)
+    }
+
+    func imageScale(_ scale: Image.Scale) -> ViewNode {
+        _resolve(self).imageScale(scale)
+    }
+
+    func monospacedDigit() -> ViewNode {
+        _resolve(self).monospacedDigit()
+    }
+
+    func layoutPriority(_ value: Double) -> ViewNode {
+        _resolve(self).layoutPriority(value)
+    }
+
+    func scrollPosition(id: Binding<Int?>) -> ViewNode {
+        _resolve(self).scrollPosition(id: id)
+    }
+
+    func onKeyPress(_ key: KeyEquivalent, action: @escaping () -> KeyPress.Result) -> ViewNode {
+        _resolve(self).onKeyPress(key, action: action)
+    }
+
+    func symbolEffect<E>(_ effect: E) -> ViewNode {
+        _resolve(self).symbolEffect(effect)
+    }
+
+    func gridCellUnsizedAxes(_ axes: Axis) -> ViewNode {
+        _resolve(self).gridCellUnsizedAxes(axes)
+    }
+
+    func strikethrough(_ active: Bool = true, color: Color? = nil) -> ViewNode {
+        _resolve(self).strikethrough(active, color: color)
+    }
+
+    func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat)) -> ViewNode {
+        _resolve(self).rotation3DEffect(angle, axis: axis)
+    }
+
+    func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode {
+        _resolve(self).labelStyle(style)
+    }
+
+    func listRowBackground<V: View>(_ view: V?) -> ViewNode {
+        _resolve(self).listRowBackground(view)
+    }
+
+    func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode {
+        _resolve(self).toolbar(content)
+    }
+
+    func presentationDetents(_ detents: Set<PresentationDetent>) -> ViewNode {
+        _resolve(self).presentationDetents(detents)
+    }
+
+    func interactiveDismissDisabled(_ isDisabled: Bool = true) -> ViewNode {
+        _resolve(self).interactiveDismissDisabled(isDisabled)
+    }
+
+    func matchedGeometryEffect(id: some Hashable, in namespace: Namespace.ID) -> ViewNode {
+        _resolve(self).matchedGeometryEffect(id: id, in: namespace)
+    }
+
+    func navigationBarBackButtonHidden(_ hidden: Bool = true) -> ViewNode {
+        _resolve(self).navigationBarBackButtonHidden(hidden)
+    }
+
+    func textSelection<S>(_ selectability: S) -> ViewNode {
+        _resolve(self).textSelection(selectability)
+    }
+
+    func onMove(perform: ((IndexSet, Int) -> Void)?) -> ViewNode {
+        _resolve(self).onMove(perform: perform)
+    }
+
+    func onDelete(perform: ((IndexSet) -> Void)?) -> ViewNode {
+        _resolve(self).onDelete(perform: perform)
+    }
+
+    func progressViewStyle<S>(_ style: S) -> ViewNode {
+        _resolve(self).progressViewStyle(style)
+    }
+
+    func scaleEffect(_ scale: CGFloat) -> ViewNode {
+        _resolve(self).scaleEffect(scale)
+    }
+
+    func scaleEffect(x: CGFloat = 1, y: CGFloat = 1) -> ViewNode {
+        _resolve(self).scaleEffect(x: x, y: y)
+    }
+
+    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).fullScreenCover(isPresented: isPresented, onDismiss: onDismiss, content: content)
+    }
+
+    func navigationBarTitleDisplayMode(_ displayMode: NavigationBarItem.TitleDisplayMode) -> ViewNode {
+        _resolve(self).navigationBarTitleDisplayMode(displayMode)
+    }
+
+    func listRowSeparator(_ visibility: Visibility) -> ViewNode {
+        _resolve(self).listRowSeparator(visibility)
+    }
+
+    func listRowInsets(_ insets: EdgeInsets?) -> ViewNode {
+        _resolve(self).listRowInsets(insets)
+    }
+
+    func contentMargins(_ edges: Edge.Set = .all, _ length: CGFloat, for placement: ContentMarginPlacement = .automatic) -> ViewNode {
+        _resolve(self).contentMargins(edges, length, for: placement)
+    }
+
+    func scrollContentBackground(_ visibility: Visibility) -> ViewNode {
+        _resolve(self).scrollContentBackground(visibility)
+    }
+
+    func scrollIndicators(_ visibility: ScrollIndicatorVisibility) -> ViewNode {
+        _resolve(self).scrollIndicators(visibility)
+    }
+
+    func popover(isPresented: Binding<Bool>, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).popover(isPresented: isPresented, content: content)
+    }
+
+    func focused<V: Hashable>(_ binding: Binding<V?>, equals value: V) -> ViewNode {
+        _resolve(self).focused(binding, equals: value)
+    }
+
+    func focused(_ condition: Binding<Bool>) -> ViewNode {
+        _resolve(self).focused(condition)
+    }
+
+    func sensoryFeedback<V: Equatable>(_ feedback: SensoryFeedback, trigger: V) -> ViewNode {
+        _resolve(self).sensoryFeedback(feedback, trigger: trigger)
+    }
+
+    func headerProminence(_ prominence: Prominence) -> ViewNode {
+        _resolve(self).headerProminence(prominence)
+    }
+
+    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> ViewNode {
+        _resolve(self).onChange(of: value, action)
+    }
+
+    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).navigationDestination(isPresented: isPresented, destination: destination)
+    }
+
+    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> [ViewNode]) -> ViewNode {
+        _resolve(self).navigationDestination(item: item, destination: destination)
+    }
+
+    func disableAutocorrection(_ disable: Bool?) -> ViewNode {
+        _resolve(self).disableAutocorrection(disable)
+    }
+
+    func autocorrectionDisabled(_ disable: Bool = true) -> ViewNode {
+        _resolve(self).autocorrectionDisabled(disable)
+    }
+
+    func textCase(_ textCase: Text.Case?) -> ViewNode {
+        _resolve(self).textCase(textCase)
+    }
+
+    func trim(from: CGFloat = 0, to: CGFloat = 1) -> ViewNode {
+        _resolve(self).trim(from: from, to: to)
+    }
+
+    func mask<V: View>(@ViewBuilder _ mask: () -> V) -> ViewNode {
+        _resolve(self).mask(mask)
+    }
+
+    func controlSize(_ size: ControlSize) -> ViewNode {
+        _resolve(self).controlSize(size)
+    }
+
+    func formStyle<S>(_ style: S) -> ViewNode {
+        _resolve(self).formStyle(style)
+    }
+
+    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([Any]) -> Bool) -> ViewNode {
+        _resolve(self).onDrop(of: types, isTargeted: isTargeted, perform: perform)
+    }
+
+    func clipShape<S: Shape>(_ shape: S) -> ViewNode {
+        _resolve(self).clipShape(shape)
+    }
+
+    func textInputAutocapitalization(_ autocapitalization: Any?) -> ViewNode {
         _resolve(self)
     }
 }
