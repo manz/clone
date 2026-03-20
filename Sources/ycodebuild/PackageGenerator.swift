@@ -32,11 +32,12 @@ enum PackageGenerator {
         let sortedStubs = stubs.sorted()
 
         // Generate stub target entries
+        let concurrencySettings = ", swiftSettings: [.unsafeFlags([\"-strict-concurrency=minimal\"])]"
         let stubTargets = sortedStubs.map { stub in
             if stubsNeedingSwiftUI.contains(stub) {
-                return "        .target(name: \"\(stub)\", dependencies: [.product(name: \"SwiftUI\", package: \"clone\")], path: \".aquax/stubs/\(stub)\")"
+                return "        .target(name: \"\(stub)\", dependencies: [.product(name: \"SwiftUI\", package: \"clone\")], path: \".aquax/stubs/\(stub)\"\(concurrencySettings))"
             }
-            return "        .target(name: \"\(stub)\", path: \".aquax/stubs/\(stub)\")"
+            return "        .target(name: \"\(stub)\", path: \".aquax/stubs/\(stub)\"\(concurrencySettings))"
         }.joined(separator: ",\n")
 
         // SDK product dependencies
@@ -76,7 +77,10 @@ enum PackageGenerator {
                     dependencies: [
         \(depsSection)
                     ],
-                    path: "\(sourceDir)"\(excludeSection)
+                    path: "\(sourceDir)"\(excludeSection),
+                    swiftSettings: [
+                        .unsafeFlags(["-strict-concurrency=minimal"])
+                    ]
                 ),
             ]
         )

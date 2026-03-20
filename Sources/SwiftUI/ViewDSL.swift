@@ -728,7 +728,7 @@ public extension ViewNode {
     func navigationSplitViewColumnWidth(min: CGFloat? = nil, ideal: CGFloat, max: CGFloat? = nil) -> ViewNode { self }
 
     /// `.onDrop(of:isTargeted:perform:)` — no-op on Clone.
-    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode { self }
+    func onDrop(of types: [Any], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode { self }
 
     /// `.clipShape(_:)` with Shape constraint — no-op on Clone.
     func clipShape<S: Shape>(_ shape: S) -> ViewNode { self }
@@ -759,6 +759,9 @@ public extension ViewNode {
 
     /// `.navigationSplitViewStyle(_:)` — no-op on Clone.
     func navigationSplitViewStyle<S>(_ style: S) -> ViewNode { self }
+
+    /// `.accessibilityHint(_:)` — no-op on Clone.
+    func accessibilityHint(_ hint: String) -> ViewNode { self }
 
 }
 

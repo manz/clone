@@ -208,6 +208,7 @@ public struct KeyEquivalent: ExpressibleByStringLiteral, Sendable {
     public static let delete = KeyEquivalent("\u{7F}")
     public static let tab = KeyEquivalent("\t")
     public static let space = KeyEquivalent(" ")
+    public static let defaultAction = KeyEquivalent("\r")
     public static let upArrow = KeyEquivalent("\u{F700}")
     public static let downArrow = KeyEquivalent("\u{F701}")
     public static let leftArrow = KeyEquivalent("\u{F702}")

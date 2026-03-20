@@ -33,3 +33,12 @@ extension ForEach where Data == Range<Int> {
         self.nodes = data.flatMap { content($0) }
     }
 }
+
+// MARK: - View conformance
+
+extension ForEach: View {
+    public var body: ViewNode {
+        if nodes.count == 1 { return nodes[0] }
+        return .vstack(alignment: .leading, spacing: 0, children: nodes)
+    }
+}

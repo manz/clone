@@ -89,6 +89,7 @@ open class NSWindow {
     public func orderFront(_ sender: Any?) {}
     public func orderOut(_ sender: Any?) {}
     public var screen: NSScreen? { .main }
+    public var firstResponder: NSResponder? { nil }
 }
 
 // MARK: - NSViewController
@@ -133,6 +134,7 @@ open class NSApplication {
     public static let willResignActiveNotification = Notification.Name("NSApplicationWillResignActive")
     public static let didHideNotification = Notification.Name("NSApplicationDidHide")
     public static let didUnhideNotification = Notification.Name("NSApplicationDidUnhide")
+    public static let willBecomeActiveNotification = Notification.Name("NSApplicationWillBecomeActive")
 }
 public let NSApp: NSApplication = .shared
 
@@ -206,6 +208,7 @@ open class NSEvent {
         public let rawValue: UInt64
         public init(rawValue: UInt64) { self.rawValue = rawValue }
         public static let keyDown = EventTypeMask(rawValue: 1)
+        public static let scrollWheel = EventTypeMask(rawValue: 2)
     }
 }
 
@@ -253,6 +256,7 @@ open class NSGraphicsContext {
     public var cgContext: Any? { nil }
     public static func saveGraphicsState() {}
     public static func restoreGraphicsState() {}
+    public init() {}
 }
 
 // MARK: - NSCursor

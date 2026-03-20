@@ -67,6 +67,7 @@ extension EnvironmentValues {
 /// Placement for tab view bottom accessory.
 public enum TabViewBottomAccessoryPlacement: Sendable {
     case automatic
+    case inline
 }
 
 /// A mode that indicates whether a view is currently presented.

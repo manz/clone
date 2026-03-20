@@ -628,7 +628,7 @@ public extension View {
         _resolve(self).navigationSplitViewColumnWidth(min: min, ideal: ideal, max: max)
     }
 
-    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode {
+    func onDrop(of types: [Any], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode {
         _resolve(self).onDrop(of: types, isTargeted: isTargeted, perform: perform)
     }
 
@@ -682,5 +682,13 @@ public extension View {
 
     func navigationSplitViewStyle<S>(_ style: S) -> ViewNode {
         _resolve(self).navigationSplitViewStyle(style)
+    }
+
+    func symbolRenderingMode(_ mode: Any?) -> ViewNode {
+        _resolve(self).symbolRenderingMode(mode)
+    }
+
+    func accessibilityHint(_ hint: String) -> ViewNode {
+        _resolve(self).accessibilityHint(hint)
     }
 }

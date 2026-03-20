@@ -47,4 +47,7 @@ public struct Image: View {
 
     /// Returns an antialiased version of this image.
     public func antialiased(_ isAntialiased: Bool) -> Image { self }
+
+    /// `.symbolRenderingMode(_:)` — no-op on Clone.
+    public func symbolRenderingMode(_ mode: Any?) -> Image { self }
 }
