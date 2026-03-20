@@ -1,6 +1,5 @@
 import Foundation
 
-@MainActor
 @resultBuilder
 public struct ViewBuilder {
     // A block component is always [ViewNode] — a flat list of nodes.

@@ -4,7 +4,7 @@
 @_exported import AppKit
 
 /// The core protocol for SwiftUI views.
-@MainActor
+@preconcurrency @MainActor
 public protocol View {
     associatedtype Body: View
     var body: Body { get }
@@ -36,8 +36,6 @@ extension Color: View {
 // MARK: - View → ViewNode materialization
 
 /// Resolves any View to its terminal ViewNode by walking the body chain.
-/// This is intentionally internal to the SwiftUI module.
-@MainActor
 func _resolve<V: View>(_ view: V) -> ViewNode {
     if let node = view as? ViewNode { return node }
     return _resolve(view.body)
