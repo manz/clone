@@ -78,6 +78,9 @@ let favorites: [(name: String, path: String, icon: Color)] = [
 
 // MARK: - State
 
+#if canImport(Observation)
+@Observable
+#endif
 final class FinderState {
     var currentPath: String
     var entries: [FileEntry] = []
@@ -558,11 +561,13 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
         content
     }.frame(width: width, height: rowHeight)
     .contentShape(Rectangle())
-    .onTapGesture {
-        state.selectedIndex = index
+    .onTapGesture(count: 2) {
         if entry.isDirectory {
             state.navigate(to: entry.name)
         }
+    }
+    .onTapGesture {
+        state.selectedIndex = index
     }
 }
 
@@ -759,7 +764,7 @@ func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some Vie
 
 @main
 struct FinderApp: App {
-    let state = FinderState()
+    @State private var state = FinderState()
 
     var body: some Scene {
         WindowGroup("Finder") {

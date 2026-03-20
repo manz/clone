@@ -104,6 +104,10 @@ public extension View {
         _resolve(self).onTapGesture(handler)
     }
 
+    func onTapGesture(count: Int = 1, perform handler: @escaping () -> Void) -> ViewNode {
+        _resolve(self).onTapGesture(count: count, perform: handler)
+    }
+
     func clipped(radius: CGFloat = 0) -> ViewNode {
         _resolve(self).clipped(radius: radius)
     }

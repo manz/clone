@@ -266,6 +266,13 @@ public extension ViewNode {
         return .onTap(id: id, child: self)
     }
 
+    /// `.onTapGesture(count:perform:)` — matches Apple's SwiftUI.
+    /// On Clone, count > 1 is treated as single tap (no multi-tap detection yet).
+    func onTapGesture(count: Int = 1, perform handler: @escaping () -> Void) -> ViewNode {
+        let id = TapRegistry.shared.register(handler)
+        return .onTap(id: id, child: self)
+    }
+
     /// `.onTapGesture(id:)` — attaches a pre-existing tap ID
     func onTapGesture(id: UInt64) -> ViewNode {
         .onTap(id: id, child: self)
