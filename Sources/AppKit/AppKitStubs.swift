@@ -1,4 +1,4 @@
-import CoreFoundation
+import Foundation
 
 // MARK: - Minimal AppKit type stubs for compilation.
 // On real macOS these come from Apple's AppKit. Clone's AppKit module shadows it,
@@ -27,6 +27,7 @@ open class NSWindow {
         public static let closable = StyleMask(rawValue: 2)
         public static let miniaturizable = StyleMask(rawValue: 4)
         public static let resizable = StyleMask(rawValue: 8)
+        public static let fullScreen = StyleMask(rawValue: 1 << 14)
         public static let fullSizeContentView = StyleMask(rawValue: 1 << 15)
     }
     public var styleMask: StyleMask = []
@@ -105,6 +106,8 @@ open class NSBitmapImageRep {
         public init(rawValue: String) { self.rawValue = rawValue }
         public static let compressionFactor = PropertyKey(rawValue: "compressionFactor")
     }
+    public init?(data: Data) {}
+    public func representation(using fileType: FileType, properties: [PropertyKey: Any]) -> Data? { nil }
 }
 
 // MARK: - NSEvent
@@ -127,6 +130,9 @@ open class NSEvent {
     }
 
     public static func addLocalMonitorForEvents(matching mask: EventTypeMask, handler: @escaping (NSEvent) -> NSEvent?) -> Any? { nil }
+    public static func removeMonitor(_ monitor: Any?) {}
+    public var scrollingDeltaX: CGFloat { 0 }
+    public var scrollingDeltaY: CGFloat { 0 }
     public struct EventTypeMask: OptionSet, Sendable {
         public let rawValue: UInt64
         public init(rawValue: UInt64) { self.rawValue = rawValue }
@@ -167,6 +173,17 @@ open class NSAlert {
 
 open class NSWorkspace {
     public static let shared = NSWorkspace()
+    public var notificationCenter: NotificationCenter { .default }
+    public static let didWakeNotification = Notification.Name("NSWorkspaceDidWake")
+}
+
+// MARK: - NSGraphicsContext
+
+open class NSGraphicsContext {
+    public static var current: NSGraphicsContext? { nil }
+    public var cgContext: Any? { nil }
+    public static func saveGraphicsState() {}
+    public static func restoreGraphicsState() {}
 }
 
 // MARK: - NSCursor

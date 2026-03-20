@@ -689,6 +689,11 @@ public extension ViewNode {
         ])
     }
 
+    /// `.background(_:)` — background with arbitrary view (e.g. LinearGradient).
+    func background<V: View>(_ view: V) -> ViewNode {
+        .zstack(children: [_resolve(view), self])
+    }
+
     /// `.listRowBackground(_:)` — alias for background, matches SwiftUI naming.
     func listRowBackground(_ color: Color) -> ViewNode {
         background(color)

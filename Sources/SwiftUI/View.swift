@@ -284,6 +284,10 @@ public extension View {
         _resolve(self).background(color, in: shape)
     }
 
+    func background<V: View>(_ view: V) -> ViewNode {
+        _resolve(self).background(view)
+    }
+
     func background(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         _resolve(self).background(content: content)
     }
@@ -570,6 +574,10 @@ public extension View {
 
     func clipShape<S: Shape>(_ shape: S) -> ViewNode {
         _resolve(self).clipShape(shape)
+    }
+
+    func textContentType<T>(_ type: T?) -> ViewNode {
+        _resolve(self).textContentType(type)
     }
 
     func textInputAutocapitalization(_ autocapitalization: Any?) -> ViewNode {
