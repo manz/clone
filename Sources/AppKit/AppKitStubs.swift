@@ -22,7 +22,17 @@ open class NSView: NSResponder {
     public var frame: CGRect = _zeroRect
     public override init() { super.init() }
     public init(frame: CGRect) { self.frame = frame; super.init() }
+    public func hitTest(_ point: CGPoint) -> NSView? { nil }
+    public var subviews: [NSView] = []
+    public func addSubview(_ view: NSView) {}
+    public func removeFromSuperview() {}
+    public var bounds: CGRect = _zeroRect
+    public var needsDisplay: Bool = false
+    public var layer: NSViewLayer? = nil
 }
+
+/// Opaque layer type for NSView.layer stub.
+public class NSViewLayer {}
 
 // MARK: - NSWindow
 
@@ -65,6 +75,27 @@ open class NSWindow {
     public var titleVisibility: TitleVisibility = .visible
     public enum TitleVisibility: Int { case visible, hidden }
     public enum BackingStoreType: Int { case buffered }
+    public var isMovableByWindowBackground: Bool = false
+    public weak var delegate: NSWindowDelegate?
+    public var contentViewController: NSViewController?
+    public var minSize: CGSize = _zeroSize
+    public var maxSize: CGSize = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+    public var isReleasedWhenClosed: Bool = true
+    public var animationBehavior: AnimationBehavior = .default
+    public enum AnimationBehavior: Int { case `default`, none, documentWindow, utilityWindow, alertPanel }
+    public func setFrameOrigin(_ origin: CGPoint) {}
+    public func setFrame(_ rect: CGRect, display: Bool, animate: Bool = false) {}
+    public var frame: CGRect = _zeroRect
+    public func orderFront(_ sender: Any?) {}
+    public func orderOut(_ sender: Any?) {}
+    public var screen: NSScreen? { .main }
+}
+
+// MARK: - NSViewController
+
+open class NSViewController {
+    public var view: NSView = NSView()
+    public init() {}
 }
 
 // MARK: - NSWindowDelegate
@@ -90,6 +121,11 @@ open class NSApplication {
     public func activate(ignoringOtherApps: Bool) {}
     public var mainWindow: NSWindow? { nil }
     public var keyWindow: NSWindow? { nil }
+    public var currentEvent: NSEvent? { nil }
+    public var isActive: Bool { true }
+    @discardableResult
+    public func setActivationPolicy(_ policy: ActivationPolicy) -> Bool { true }
+    public enum ActivationPolicy: Int { case regular, accessory, prohibited }
 
     public static let didBecomeActiveNotification = Notification.Name("NSApplicationDidBecomeActive")
     public static let willTerminateNotification = Notification.Name("NSApplicationWillTerminate")
@@ -112,6 +148,11 @@ open class NSImage {
     public func unlockFocus() {}
     public func cgImage(forProposedRect proposedRect: UnsafeMutablePointer<CGRect>?, context: Any?, hints: [NSImageRep.HintKey: Any]?) -> CGImage? { nil }
     public var tiffRepresentation: Data? { nil }
+    public func draw(in rect: CGRect) {}
+    public func draw(in rect: CGRect, from: CGRect, operation: CompositingOperation, fraction: CGFloat) {}
+    public func addRepresentation(_ rep: NSImageRep) {}
+    public var representations: [NSImageRep] = []
+    public enum CompositingOperation: UInt { case sourceOver, copy }
 }
 
 // MARK: - NSImageRep

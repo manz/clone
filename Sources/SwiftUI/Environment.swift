@@ -57,6 +57,16 @@ extension EnvironmentValues {
     public var presentationMode: Binding<PresentationMode> {
         .constant(PresentationMode())
     }
+
+    public var tabViewBottomAccessoryPlacement: TabViewBottomAccessoryPlacement {
+        get { .automatic }
+        set {}
+    }
+}
+
+/// Placement for tab view bottom accessory.
+public enum TabViewBottomAccessoryPlacement: Sendable {
+    case automatic
 }
 
 /// A mode that indicates whether a view is currently presented.

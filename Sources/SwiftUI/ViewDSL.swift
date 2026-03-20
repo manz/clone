@@ -742,6 +742,24 @@ public extension ViewNode {
     /// `.modelContainer(for:)` — array variant, no-op on Clone.
     func modelContainer(for modelTypes: [Any.Type], inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode { self }
 
+    /// `.accessibilityValue(_:)` — no-op on Clone.
+    func accessibilityValue(_ value: String) -> ViewNode { self }
+
+    /// `.accessibilityValue(_:)` — generic variant, no-op on Clone.
+    func accessibilityValue<V>(_ value: V) -> ViewNode { self }
+
+    /// `.accessibilityAddTraits(_:)` — no-op on Clone.
+    func accessibilityAddTraits(_ traits: AccessibilityTraits) -> ViewNode { self }
+
+    /// `.accessibilityRemoveTraits(_:)` — no-op on Clone.
+    func accessibilityRemoveTraits(_ traits: AccessibilityTraits) -> ViewNode { self }
+
+    /// `.accessibilityIdentifier(_:)` — no-op on Clone.
+    func accessibilityIdentifier(_ identifier: String) -> ViewNode { self }
+
+    /// `.navigationSplitViewStyle(_:)` — no-op on Clone.
+    func navigationSplitViewStyle<S>(_ style: S) -> ViewNode { self }
+
 }
 
 /// `.background(_:)` — wraps content in a ZStack with a background color behind it.

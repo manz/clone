@@ -651,4 +651,36 @@ public extension View {
     func modelContainer(for modelTypes: [Any.Type], inMemory: Bool = false, isAutosaveEnabled: Bool = true, isUndoEnabled: Bool = false) -> ViewNode {
         _resolve(self)
     }
+
+    func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).contextMenu(content: content)
+    }
+
+    func toolbar(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).toolbar(content: content)
+    }
+
+    func accessibilityValue(_ value: String) -> ViewNode {
+        _resolve(self).accessibilityValue(value)
+    }
+
+    func accessibilityValue<V>(_ value: V) -> ViewNode {
+        _resolve(self).accessibilityValue(value)
+    }
+
+    func accessibilityAddTraits(_ traits: AccessibilityTraits) -> ViewNode {
+        _resolve(self).accessibilityAddTraits(traits)
+    }
+
+    func accessibilityRemoveTraits(_ traits: AccessibilityTraits) -> ViewNode {
+        _resolve(self).accessibilityRemoveTraits(traits)
+    }
+
+    func accessibilityIdentifier(_ identifier: String) -> ViewNode {
+        _resolve(self).accessibilityIdentifier(identifier)
+    }
+
+    func navigationSplitViewStyle<S>(_ style: S) -> ViewNode {
+        _resolve(self).navigationSplitViewStyle(style)
+    }
 }

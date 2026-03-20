@@ -328,3 +328,39 @@ extension Axis {
         public static let vertical = Set(rawValue: 1 << 1)
     }
 }
+
+// MARK: - AccessibilityTraits
+
+public struct AccessibilityTraits: OptionSet, Sendable {
+    public let rawValue: UInt64
+    public init(rawValue: UInt64) { self.rawValue = rawValue }
+    public static let isButton = AccessibilityTraits(rawValue: 1 << 0)
+    public static let isHeader = AccessibilityTraits(rawValue: 1 << 1)
+    public static let isSelected = AccessibilityTraits(rawValue: 1 << 2)
+    public static let isLink = AccessibilityTraits(rawValue: 1 << 3)
+    public static let isImage = AccessibilityTraits(rawValue: 1 << 4)
+    public static let isStaticText = AccessibilityTraits(rawValue: 1 << 5)
+    public static let playsSound = AccessibilityTraits(rawValue: 1 << 6)
+    public static let isKeyboardKey = AccessibilityTraits(rawValue: 1 << 7)
+    public static let isSummaryElement = AccessibilityTraits(rawValue: 1 << 8)
+    public static let isSearchField = AccessibilityTraits(rawValue: 1 << 9)
+    public static let startsMediaSession = AccessibilityTraits(rawValue: 1 << 10)
+    public static let updatesFrequently = AccessibilityTraits(rawValue: 1 << 11)
+    public static let allowsDirectInteraction = AccessibilityTraits(rawValue: 1 << 12)
+    public static let isToggle = AccessibilityTraits(rawValue: 1 << 13)
+}
+
+// MARK: - NavigationSplitViewStyle
+
+public struct BalancedNavigationSplitViewStyle {
+    public init() {}
+}
+
+public struct ProminentDetailNavigationSplitViewStyle {
+    public init() {}
+}
+
+extension View {
+    public static var balanced: BalancedNavigationSplitViewStyle { .init() }
+    public static var prominentDetail: ProminentDetailNavigationSplitViewStyle { .init() }
+}
