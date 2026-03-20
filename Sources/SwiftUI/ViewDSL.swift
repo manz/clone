@@ -1,150 +1,5 @@
 import Foundation
 
-// MARK: - SwiftUI-style view constructors
-
-/// `Text("Hello")` — defaults to 14pt, .text color
-public func Text(_ content: String) -> ViewNode {
-    .text(content, fontSize: 14, color: .primary)
-}
-
-/// `Rectangle()` — solid filled rect
-public func Rectangle() -> ViewNode {
-    .rect(width: nil, height: nil, fill: .white)
-}
-
-/// `RoundedRectangle(cornerRadius: 12)`
-public func RoundedRectangle(cornerRadius: CGFloat) -> ViewNode {
-    .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: .white)
-}
-
-/// `Spacer()`
-public func Spacer(minLength: CGFloat = 0) -> ViewNode {
-    .spacer(minLength: minLength)
-}
-
-/// `VStack { ... }`
-public func VStack(
-    alignment: HAlignment = .center,
-    spacing: CGFloat = 8,
-    @ViewBuilder content: () -> [ViewNode]
-) -> ViewNode {
-    .vstack(alignment: alignment, spacing: spacing, children: content())
-}
-
-/// `HStack { ... }`
-public func HStack(
-    alignment: VAlignment = .center,
-    spacing: CGFloat = 8,
-    @ViewBuilder content: () -> [ViewNode]
-) -> ViewNode {
-    .hstack(alignment: alignment, spacing: spacing, children: content())
-}
-
-/// `ZStack { ... }`
-public func ZStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-    .zstack(children: content())
-}
-
-
-
-// MARK: - Button
-
-/// Button role — matches Apple's SwiftUI ButtonRole.
-public struct ButtonRole: Equatable, Sendable {
-    public let rawValue: String
-    public init(_ rawValue: String) { self.rawValue = rawValue }
-    public static let destructive = ButtonRole("destructive")
-    public static let cancel = ButtonRole("cancel")
-}
-
-/// `Button("Tap") { action }` — label string variant
-public func Button(_ label: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> ViewNode {
-    let color: Color = role == .destructive ? .red : .blue
-    return Text(label)
-        .foregroundColor(color)
-        .onTapGesture(action)
-}
-
-/// `Button(action: { }) { label }` — custom label variant
-public func Button(role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
-    let content = label()
-    let child = content.count == 1 ? content[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: content)
-    return child.onTapGesture(action)
-}
-
-// MARK: - ScrollView / List
-
-/// `ScrollView { ... }` — vertical by default. Renders as VStack until scrolling is implemented.
-public func ScrollView(
-    _ axis: Axis = .vertical,
-    @ViewBuilder content: () -> [ViewNode]
-) -> ViewNode {
-    .scrollView(axis: axis, children: content())
-}
-
-/// `List { ... }` — renders as VStack with dividers between children.
-public func List(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-    .list(children: content())
-}
-
-// MARK: - Image
-
-/// `Image(systemName:)` — stub: renders as a colored placeholder rect.
-public func Image(systemName: String) -> ViewNode {
-    .image(name: systemName, width: nil, height: nil)
-}
-
-/// `Image(_:)` — named image stub.
-public func Image(_ name: String) -> ViewNode {
-    .image(name: name, width: nil, height: nil)
-}
-
-// MARK: - Form controls
-
-/// `Toggle(isOn:) { label }` — renders static representation.
-public func Toggle(isOn: Binding<Bool>, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
-    let labelNode = label().count == 1 ? label()[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: label())
-    return .toggle(isOn: isOn.wrappedValue, label: labelNode)
-}
-
-/// `Toggle("Label", isOn:)` — convenience.
-public func Toggle(_ title: String, isOn: Binding<Bool>) -> ViewNode {
-    .toggle(isOn: isOn.wrappedValue, label: Text(title))
-}
-
-/// `Slider(value:in:)` — renders static track + knob.
-public func Slider(value: Binding<CGFloat>, in range: ClosedRange<CGFloat> = 0...1) -> ViewNode {
-    .slider(value: value.wrappedValue, range: range, label: .empty)
-}
-
-/// `Picker(selection:) { options } label: { label }` — renders label + current value.
-public func Picker(
-    _ title: String,
-    selection: Binding<String>,
-    @ViewBuilder content: () -> [ViewNode]
-) -> ViewNode {
-    .picker(selection: selection.wrappedValue, label: Text(title), children: content())
-}
-
-/// `TextField("Placeholder", text:)` — text input box with placeholder.
-public func TextField(_ placeholder: String, text: Binding<String>) -> ViewNode {
-    .textField(placeholder: placeholder, text: text.wrappedValue)
-}
-
-// MARK: - Navigation
-
-/// `NavigationStack { ... }` — wraps children in a VStack (navigation state is window-managed).
-public func NavigationStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-    .navigationStack(children: content())
-}
-
-// MARK: - Menu
-
-/// `Menu("Label") { ... }` — collapsed menu with children.
-public func Menu(_ label: String, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-    .menu(label: label, children: content())
-}
-
 // MARK: - Modifier chains on ViewNode
 
 public extension ViewNode {
@@ -294,7 +149,7 @@ public extension ViewNode {
 
     /// `.contentShape(_:)` — defines the tappable area. No-op on Clone (all areas are tappable).
     /// Required on real SwiftUI for hit testing on transparent views.
-    func contentShape(_ shape: ViewNode) -> ViewNode {
+    func contentShape<S: View>(_ shape: S) -> ViewNode {
         self
     }
 
@@ -330,96 +185,8 @@ public extension ViewNode {
     }
 
     /// `.clipShape(_:)` — no-op for now.
-    func clipShape(_ shape: ViewNode) -> ViewNode {
+    func clipShape<S: View>(_ shape: S) -> ViewNode {
         self
-    }
-}
-
-// MARK: - SwiftUI-compatible compound views
-
-/// `Label("Wi-Fi", systemImage: "wifi")` — icon rounded rect + text, like SwiftUI Label.
-/// Since we don't have SF Symbols, `systemImage` is ignored visually but the icon color is used.
-public func Label(_ title: String, systemImage: String, iconColor: Color = .blue) -> ViewNode {
-    .hstack(alignment: .center, spacing: 8, children: [
-        .roundedRect(width: 20, height: 20, radius: 5, fill: iconColor),
-        .text(title, fontSize: 13, color: .primary),
-    ])
-}
-
-/// `Divider()` — 1px horizontal line
-public func Divider() -> ViewNode {
-    .rect(width: nil, height: 1, fill: WindowChrome.overlay)
-}
-
-/// `Section("Header") { ... }` — grouped rows with optional header, like SwiftUI Section.
-public func Section(
-    _ header: String? = nil,
-    @ViewBuilder content: () -> [ViewNode]
-) -> ViewNode {
-    var children: [ViewNode] = []
-    if let header {
-        children.append(
-            ViewNode.text(header, fontSize: 12, color: .secondary, weight: .semibold)
-        )
-    }
-    let rows = content()
-    // Interleave rows with dividers
-    for (i, row) in rows.enumerated() {
-        children.append(row)
-        if i < rows.count - 1 {
-            children.append(
-                ViewNode.rect(width: nil, height: 1, fill: WindowChrome.overlay)
-                    .padding(.leading, 12)
-            )
-        }
-    }
-    return .vstack(alignment: .leading, spacing: 0, children: children)
-}
-
-/// `NavigationSplitView { sidebar } detail: { detail }` — sidebar + detail layout.
-public func NavigationSplitView(
-    sidebarWidth: CGFloat = 220,
-    @ViewBuilder sidebar: () -> [ViewNode],
-    @ViewBuilder detail: () -> [ViewNode]
-) -> ViewNode {
-    .hstack(alignment: .top, spacing: 0, children: [
-        ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
-        ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-        ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
-    ])
-}
-
-/// `ForEach` — matches Apple's SwiftUI ForEach. Produces views from a collection.
-///
-/// Usage:
-/// ```swift
-/// ForEach(items) { item in Text(item.name) }          // Identifiable
-/// ForEach(items, id: \.self) { item in Text(item) }   // explicit id
-/// ForEach(0..<5) { i in Text("\(i)") }                 // range
-/// ```
-public struct ForEach<Data> {
-    let nodes: [ViewNode]
-}
-
-// Identifiable collection
-extension ForEach where Data: RandomAccessCollection, Data.Element: Identifiable {
-    public init(_ data: Data, @ViewBuilder content: (Data.Element) -> [ViewNode]) {
-        self.nodes = data.flatMap { content($0) }
-    }
-}
-
-// Explicit id key path
-extension ForEach where Data: RandomAccessCollection {
-    public init<ID: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>,
-                               @ViewBuilder content: (Data.Element) -> [ViewNode]) {
-        self.nodes = data.flatMap { content($0) }
-    }
-}
-
-// Range<Int>
-extension ForEach where Data == Range<Int> {
-    public init(_ data: Range<Int>, @ViewBuilder content: (Int) -> [ViewNode]) {
-        self.nodes = data.flatMap { content($0) }
     }
 }
 
@@ -435,25 +202,5 @@ public extension ViewNode {
     /// `.listRowBackground(_:)` — alias for background, matches SwiftUI naming.
     func listRowBackground(_ color: Color) -> ViewNode {
         background(color)
-    }
-}
-
-// MARK: - Edge.Set for padding
-
-public enum Edge {
-    case top, leading, bottom, trailing
-
-    public struct Set: OptionSet, Sendable {
-        public let rawValue: UInt8
-        public init(rawValue: UInt8) { self.rawValue = rawValue }
-
-        public static let top = Set(rawValue: 1 << 0)
-        public static let leading = Set(rawValue: 1 << 1)
-        public static let bottom = Set(rawValue: 1 << 2)
-        public static let trailing = Set(rawValue: 1 << 3)
-
-        public static let horizontal: Set = [.leading, .trailing]
-        public static let vertical: Set = [.top, .bottom]
-        public static let all: Set = [.top, .leading, .bottom, .trailing]
     }
 }

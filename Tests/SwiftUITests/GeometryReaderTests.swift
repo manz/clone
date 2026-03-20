@@ -12,7 +12,7 @@ import Foundation
         return RoundedRectangle(cornerRadius: 8)
             .fill(.blue)
             .frame(width: proxy.width, height: proxy.height)
-    }
+    }.body
 
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
 
@@ -28,7 +28,7 @@ import Foundation
 
     let node = GeometryReader { proxy in
         Rectangle().fill(.gray).frame(width: proxy.width, height: proxy.height)
-    }
+    }.body
 
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 800, maxHeight: 600))
     #expect(size.width == 800)
@@ -40,7 +40,7 @@ import Foundation
 
     // Use a shared box to capture from inside the closure
     let captured = CapturedValue<CGFloat>()
-    let node = VStack(spacing: 0) {
+    let node = _resolve(VStack(spacing: 0) {
         RoundedRectangle(cornerRadius: 0)
             .fill(.gray)
             .frame(width: nil, height: 50)
@@ -48,7 +48,7 @@ import Foundation
             captured.value = proxy.height
             return Text("Content area")
         }
-    }
+    })
 
     let _ = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
 
@@ -64,7 +64,7 @@ import Foundation
         child: GeometryReader { proxy in
             captured.value = proxy.frame
             return Rectangle().fill(.gray)
-        }
+        }.body
     )
 
     let _ = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
@@ -82,12 +82,12 @@ final class CapturedValue<T> {
 }
 
 @Test func hitTestOnLayoutNode() {
-    let node = ZStack {
+    let node = _resolve(ZStack {
         Rectangle().fill(.gray).frame(width: 400, height: 300)
         RoundedRectangle(cornerRadius: 8)
             .fill(.blue)
             .frame(width: 100, height: 50)
-    }
+    })
 
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
 

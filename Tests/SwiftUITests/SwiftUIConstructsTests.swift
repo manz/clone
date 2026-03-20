@@ -4,7 +4,7 @@ import Testing
 // MARK: - Smoke tests for new SwiftUI constructs
 
 @Test func importSwiftUIAndCreateText() {
-    let node = Text("hello")
+    let node = _resolve(Text("hello"))
     if case .text(let content, _, _, _) = node {
         #expect(content == "hello")
     } else {
@@ -24,7 +24,7 @@ import Testing
 }
 
 @Test func buttonWithStringLabel() {
-    let node = Button("Tap") {}
+    let node = _resolve(Button("Tap") {})
     if case .onTap(_, let child) = node {
         if case .text(let content, _, let color, _) = child {
             #expect(content == "Tap")
@@ -38,9 +38,9 @@ import Testing
 }
 
 @Test func buttonWithCustomLabel() {
-    let node = Button(action: {}) {
+    let node = _resolve(Button(action: {}) {
         Text("Custom")
-    }
+    })
     if case .onTap(_, let child) = node {
         if case .text(let content, _, _, _) = child {
             #expect(content == "Custom")
@@ -53,10 +53,10 @@ import Testing
 }
 
 @Test func scrollViewCreatesNode() {
-    let node = ScrollView {
+    let node = _resolve(ScrollView {
         Text("Item 1")
         Text("Item 2")
-    }
+    })
     if case .scrollView(let axis, let children) = node {
         #expect(axis == .vertical)
         #expect(children.count == 2)
@@ -66,10 +66,10 @@ import Testing
 }
 
 @Test func listCreatesNode() {
-    let node = List {
+    let node = _resolve(List {
         Text("Row 1")
         Text("Row 2")
-    }
+    })
     if case .list(let children) = node {
         #expect(children.count == 2)
     } else {
@@ -78,7 +78,7 @@ import Testing
 }
 
 @Test func imageCreatesNode() {
-    let node = Image(systemName: "star.fill")
+    let node = _resolve(Image(systemName: "star.fill"))
     if case .image(let name, _, _) = node {
         #expect(name == "star.fill")
     } else {
@@ -88,7 +88,7 @@ import Testing
 
 @Test func toggleCreatesNode() {
     let binding = Binding(get: { true }, set: { _ in })
-    let node = Toggle("Wi-Fi", isOn: binding)
+    let node = _resolve(Toggle("Wi-Fi", isOn: binding))
     if case .toggle(let isOn, let label) = node {
         #expect(isOn == true)
         if case .text(let content, _, _, _) = label {
@@ -103,7 +103,7 @@ import Testing
 
 @Test func textFieldCreatesNode() {
     let binding = Binding(get: { "" }, set: { _ in })
-    let node = TextField("Search...", text: binding)
+    let node = _resolve(TextField("Search...", text: binding))
     if case .textField(let placeholder, let text) = node {
         #expect(placeholder == "Search...")
         #expect(text == "")
@@ -113,9 +113,9 @@ import Testing
 }
 
 @Test func navigationStackCreatesNode() {
-    let node = NavigationStack {
+    let node = _resolve(NavigationStack {
         Text("Content")
-    }
+    })
     if case .navigationStack(let children) = node {
         #expect(children.count == 1)
     } else {
@@ -124,10 +124,10 @@ import Testing
 }
 
 @Test func viewProtocolConformance() {
-    // ViewNode conforms to View
-    let textNode: ViewNode = Text("hello")
-    let body: ViewNode = textNode.body
-    #expect(body == textNode)
+    // Text conforms to View, body returns ViewNode
+    let text = Text("hello")
+    let body: ViewNode = text.body
+    #expect(body == .text("hello", fontSize: 14, color: .primary))
 }
 
 @Test func observableObjectProtocol() {
@@ -170,16 +170,16 @@ import Testing
 
 @Test func buttonLayoutsCorrectly() {
     TapRegistry.shared.clear()
-    let node = Button("Tap me") {}
+    let node = _resolve(Button("Tap me") {})
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
     #expect(result.frame.width == 400)
 }
 
 @Test func scrollViewLayoutsLikeVStack() {
-    let node = ScrollView {
+    let node = _resolve(ScrollView {
         ViewNode.rect(width: 100, height: 50, fill: .white)
         ViewNode.rect(width: 100, height: 50, fill: .white)
-    }
+    })
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 600))
     #expect(result.children.count == 2)
 }
@@ -194,7 +194,7 @@ import Testing
 @Test func toggleRendersTrackAndKnob() {
     TapRegistry.shared.clear()
     let binding = Binding(get: { true }, set: { _ in })
-    let node = Toggle("Test", isOn: binding)
+    let node = _resolve(Toggle("Test", isOn: binding))
     let layoutResult = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 40))
     let commands = CommandFlattener.flatten(layoutResult)
     // Should have at least track + knob

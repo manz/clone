@@ -120,7 +120,7 @@ public extension View {
         _resolve(self).background(color)
     }
 
-    func contentShape(_ shape: ViewNode) -> ViewNode {
-        _resolve(self).contentShape(shape)
+    func contentShape<S: View>(_ shape: S) -> ViewNode {
+        _resolve(self)
     }
 }

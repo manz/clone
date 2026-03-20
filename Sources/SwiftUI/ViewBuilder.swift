@@ -14,7 +14,7 @@ public struct ViewBuilder {
 
     // Any View expression → resolve body to ViewNode.
     public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
-        [expression.body as! ViewNode]
+        [_resolve(expression)]
     }
 
     // An array of ViewNodes → pass through.

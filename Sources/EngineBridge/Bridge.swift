@@ -263,7 +263,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             Spacer()
             Dock(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY),
                  screenWidth: w, screenHeight: h).body()
-        }
+        }.body
         let dockLayout = Layout.layout(dockTree, in: screenFrame)
         engineCommands.append(contentsOf: Bridge.toEngineCommands(CommandFlattener.flatten(dockLayout)))
 

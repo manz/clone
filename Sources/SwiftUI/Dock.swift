@@ -65,10 +65,10 @@ public struct Dock {
 
             if i == hoveredIndex {
                 // Show popover label above hovered icon
-                return VStack(spacing: 4) {
+                return _resolve(VStack(spacing: 4) {
                     popoverLabel(item.name)
                     icon
-                }
+                })
             } else {
                 return icon
             }
@@ -88,7 +88,7 @@ public struct Dock {
     private func popoverLabel(_ name: String) -> ViewNode {
         let textWidth = CGFloat(name.count) * 8 + 20
         let height: CGFloat = 26
-        return ZStack {
+        return _resolve(ZStack {
             RoundedRectangle(cornerRadius: 6)
                 .fill(WindowChrome.popover)
                 .frame(width: textWidth, height: height)
@@ -96,7 +96,7 @@ public struct Dock {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(.primary)
                 .frame(width: textWidth, height: height)
-        }
+        })
         .frame(width: textWidth, height: height)
     }
 

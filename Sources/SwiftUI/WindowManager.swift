@@ -392,7 +392,7 @@ public final class WindowManager {
                               showTrafficLightSymbols: Bool, content: ViewNode) -> ViewNode {
         let radius: CGFloat = window.isMaximized ? 0 : WindowChrome.cornerRadius
 
-        let windowBody = ZStack {
+        let windowBody = _resolve(ZStack {
             // Window background
             RoundedRectangle(cornerRadius: radius)
                 .fill(isFocused ? WindowChrome.surface : WindowChrome.backgroundUnfocused)
@@ -404,7 +404,7 @@ public final class WindowManager {
                 content.frame(width: window.width)
             }
             .frame(width: window.width, height: window.height)
-        }
+        })
 
         // Apply shadow (GPU-rendered SDF blur) unless maximized
         let withShadow: ViewNode
