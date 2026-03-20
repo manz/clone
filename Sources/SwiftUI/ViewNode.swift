@@ -21,12 +21,13 @@ public indirect enum ViewNode: Equatable, Sendable {
     case opacity(CGFloat, child: ViewNode)
     case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat, child: ViewNode)
     case onTap(id: UInt64, child: ViewNode)
+    case onHover(id: UInt64, child: ViewNode)
     case geometryReader(id: UInt64)
 
     // Step 4 additions
     case scrollView(axis: Axis, children: [ViewNode])
     case list(children: [ViewNode])
-    case image(name: String, width: CGFloat?, height: CGFloat?)
+    case image(name: String, width: CGFloat?, height: CGFloat?, tint: Color? = nil)
     case toggle(isOn: Bool, label: ViewNode)
     case slider(value: CGFloat, range: ClosedRange<CGFloat>, label: ViewNode)
     case picker(selection: String, label: ViewNode, children: [ViewNode])

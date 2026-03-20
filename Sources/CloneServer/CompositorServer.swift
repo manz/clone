@@ -251,6 +251,16 @@ public final class CompositorServer {
         app?.send(.resize(width: width, height: height))
     }
 
+    /// Update the app's dimensions without sending a resize message.
+    /// Used during live resize so requestFrames() picks up the new size.
+    public func updateAppDimensions(windowId: UInt64, width: Float, height: Float) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.width = width
+        app?.height = height
+    }
+
     public func sendPointerMove(windowId: UInt64, x: Float, y: Float) {
         lock.lock()
         let app = apps[windowId]

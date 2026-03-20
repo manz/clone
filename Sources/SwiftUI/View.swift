@@ -108,6 +108,14 @@ public extension View {
         _resolve(self).onTapGesture(count: count, perform: handler)
     }
 
+    func onHover(_ handler: @escaping (Bool) -> Void) -> ViewNode {
+        _resolve(self).onHover(handler)
+    }
+
+    func onContinuousHover(_ handler: @escaping (HoverPhase) -> Void) -> ViewNode {
+        _resolve(self).onContinuousHover(handler)
+    }
+
     func clipped(radius: CGFloat = 0) -> ViewNode {
         _resolve(self).clipped(radius: radius)
     }

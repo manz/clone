@@ -44,11 +44,13 @@ public extension ViewNode {
         .opacity(value, child: self)
     }
 
-    /// `.foregroundColor(.white)` — only meaningful for text nodes, wraps as-is for others
+    /// `.foregroundColor(.white)` — applies to text and image nodes
     func foregroundColor(_ color: Color) -> ViewNode {
         switch self {
         case .text(let content, let fontSize, _, let weight):
             return .text(content, fontSize: fontSize, color: color, weight: weight)
+        case .image(let name, let width, let height, _):
+            return .image(name: name, width: width, height: height, tint: color)
         default:
             return self
         }
@@ -140,6 +142,18 @@ public extension ViewNode {
     /// `.onTapGesture(id:)` — attaches a pre-existing tap ID
     func onTapGesture(id: UInt64) -> ViewNode {
         .onTap(id: id, child: self)
+    }
+
+    /// `.onHover { isHovered in }` — called when pointer enters/exits this view's frame.
+    func onHover(_ handler: @escaping (Bool) -> Void) -> ViewNode {
+        let id = HoverRegistry.shared.register(handler)
+        return .onHover(id: id, child: self)
+    }
+
+    /// `.onContinuousHover { phase in }` — called with pointer position on every move inside this view.
+    func onContinuousHover(_ handler: @escaping (HoverPhase) -> Void) -> ViewNode {
+        let id = HoverRegistry.shared.registerContinuous(handler)
+        return .onHover(id: id, child: self)
     }
 
     /// `.clipped()` — clips content to this view's frame.

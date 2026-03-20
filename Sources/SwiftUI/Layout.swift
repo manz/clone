@@ -90,6 +90,19 @@ extension LayoutNode {
 
         return nil
     }
+
+    /// Collect all onHover IDs whose frame contains the point.
+    public func hitTestHover(x: CGFloat, y: CGFloat) -> Set<UInt64> {
+        guard frame.contains(x: x, y: y) else { return [] }
+        var ids = Set<UInt64>()
+        if case .onHover(let id, _) = node {
+            ids.insert(id)
+        }
+        for child in children {
+            ids.formUnion(child.hitTestHover(x: x, y: y))
+        }
+        return ids
+    }
 }
 
 // MARK: - Layout engine
@@ -162,6 +175,9 @@ public enum Layout {
         case .onTap(_, let child):
             return measure(child, constraint: constraint)
 
+        case .onHover(_, let child):
+            return measure(child, constraint: constraint)
+
         case .geometryReader:
             // GeometryReader fills the proposed space (like SwiftUI)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
@@ -177,7 +193,7 @@ public enum Layout {
         case .list(let children):
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
-        case .image(_, let width, let height):
+        case .image(_, let width, let height, _):
             return MeasuredSize(
                 width: width ?? constraint.maxWidth,
                 height: height ?? constraint.maxHeight
@@ -244,7 +260,10 @@ public enum Layout {
             let childSize = measure(child, constraint: constraint)
             let w = width ?? childSize.width
             let h = height ?? childSize.height
-            let childFrame = LayoutFrame(x: frame.x, y: frame.y, width: w, height: h)
+            // Center the sized frame within the proposed frame (matches Apple's SwiftUI)
+            let cx = frame.x + (frame.width - w) / 2
+            let cy = frame.y + (frame.height - h) / 2
+            let childFrame = LayoutFrame(x: cx, y: cy, width: w, height: h)
             let childLayout = layout(child, in: childFrame)
             return LayoutNode(frame: childFrame, node: node, children: [childLayout])
 
@@ -259,6 +278,10 @@ public enum Layout {
             return LayoutNode(frame: childFrame, node: node, children: [childLayout])
 
         case .onTap(_, let child):
+            let childLayout = layout(child, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [childLayout])
+
+        case .onHover(_, let child):
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
@@ -495,8 +518,13 @@ public enum Layout {
     private static func layoutZStack(
         children: [ViewNode], in frame: LayoutFrame
     ) -> LayoutNode {
-        let layoutChildren = children.map { child in
-            layout(child, in: frame)
+        let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
+        let layoutChildren = children.map { child -> LayoutNode in
+            let size = measure(child, constraint: constraint)
+            let cx = frame.x + (frame.width - size.width) / 2
+            let cy = frame.y + (frame.height - size.height) / 2
+            let childFrame = LayoutFrame(x: cx, y: cy, width: size.width, height: size.height)
+            return layout(child, in: childFrame)
         }
         return LayoutNode(frame: frame, node: .zstack(children: children), children: layoutChildren)
     }

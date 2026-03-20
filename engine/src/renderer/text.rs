@@ -49,6 +49,10 @@ pub struct TextRenderer {
 impl TextRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, surface_format: wgpu::TextureFormat) -> Self {
         let mut font_system = FontSystem::new();
+        // Load bundled Inter font (system UI text)
+        font_system
+            .db_mut()
+            .load_font_data(include_bytes!("../../assets/Inter.ttf").to_vec());
         // Load bundled Phosphor icon font
         font_system
             .db_mut()
@@ -237,7 +241,7 @@ impl TextRenderer {
         let family = if is_icon {
             Family::Name("Phosphor")
         } else {
-            Family::SansSerif
+            Family::Name("Inter Variable")
         };
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);

@@ -55,6 +55,8 @@ public enum PhosphorIcons {
         "arrow.clockwise":          0xe036,
         "arrow.counterclockwise":   0xe038,
         "arrow.up.left.and.arrow.down.right": 0xe0a6,
+        "arrows.out":               0xe094,  // expand / maximize
+        "arrows.in":                0xe08c,  // shrink / restore
 
         // Actions
         "magnifyingglass":          0xe30c,

@@ -40,8 +40,9 @@ Run the compositor: `swift run CloneDesktop` (after `make all`)
 │  import SwiftUI  ← same API as Apple's                  │
 ├─────────────────────────────────────────────────────────┤
 │  SwiftUI module        │  AppKit module (NSColor shim)  │
-│  Color, Font, View,    │  NSColor, NSAppearance         │
-│  ViewBuilder, ForEach,  │  Semantic system colors        │
+│  View structs (Text,   │  NSColor, NSAppearance         │
+│  VStack, Button, etc.) │  Semantic system colors        │
+│  ViewBuilder, ForEach,  │                                │
 │  @main App protocol    │                                │
 ├─────────────────────────────────────────────────────────┤
 │  SwiftData module      │  CloneClient / CloneProtocol   │
@@ -56,8 +57,10 @@ Run the compositor: `swift run CloneDesktop` (after `make all`)
 ### Rendering pipeline
 
 ```
-@main App.body → WindowGroup { views } → ViewNode tree
-→ Layout.measure/layout → LayoutNode tree
+@main App.body → WindowGroup { views }
+→ View structs (Text, VStack, Button, etc.) with modifier chaining
+→ ViewBuilder collects via buildExpression → _resolve() each View to ViewNode
+→ ViewNode tree → Layout.measure/layout → LayoutNode tree
 → CommandFlattener.flatten → FlatRenderCommand[] (CGFloat)
 → toIPC() converts CGFloat→Float → IPCRenderCommand over socket
 → Bridge.toEngineCommands → RenderCommand[] (Float/f32)
@@ -75,7 +78,8 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 | Module | Purpose |
 |--------|---------|
-| `Sources/SwiftUI/` | UI framework: View, ViewNode, Layout, Font, Color, App protocol |
+| `Sources/SwiftUI/` | UI framework: View structs, ViewNode IR, Layout, Font, Color, App protocol |
+| `Sources/SwiftUI/Views/` | View structs: Text, VStack, HStack, ZStack, Button, Rectangle, etc. |
 | `Sources/AppKit/` | NSColor, NSAppearance shims for Linux |
 | `Sources/SwiftData/` | SQLite-backed persistence (PersistentModel, ModelContainer) |
 | `Sources/CloneProtocol/` | IPC message types (Codable, uses Float wire format) |
@@ -92,15 +96,19 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 ### Apple API fidelity
 - **App code must compile against real Apple SwiftUI.** Test by pasting into an Xcode project.
+- **All DSL types are structs, not free functions.** `Text("hi")` creates a `Text` struct, `VStack { }` creates a `VStack` struct — same syntax as Apple's SwiftUI.
 - **Use only standard SwiftUI/AppKit types in app code.** `Color`, `Font`, `Text`, `VStack`, `HStack`, `ZStack`, `ForEach`, `Spacer`, `Rectangle`, `RoundedRectangle`, `.font(.system(size:weight:))`, `.foregroundColor()`, `.bold()`, `.frame()`, `.padding()`, etc.
 - **Use `CGFloat` everywhere** — never `Float` in public API. Bridge converts to Float at the engine boundary.
 - **Use `Color(red:green:blue:opacity:)` for inline colors** — not `Color(r:g:b:a:)` or `Color(nsColor:)` in app code (those are Clone-internal).
 - **Use `ForEach` not `for...in` in ViewBuilder closures** — Apple's ViewBuilder doesn't support `for...in`.
 - **`#if canImport(CloneClient)` guards** for Clone-specific APIs: `WindowState`, `WindowConfiguration`, `SystemActions`, event handlers.
 
-### ViewNode is internal
-- **Never reference `ViewNode` in app code.** Use DSL functions and `some View` return types.
-- `ViewNode` is the internal IR — apps should never see it, type it, or import it.
+### View structs and ViewNode
+- **All DSL elements are proper structs conforming to `View`** — `Text`, `VStack`, `HStack`, `ZStack`, `Rectangle`, `RoundedRectangle`, `Button`, `Spacer`, `Image`, `Divider`, `ScrollView`, `List`, `Toggle`, `Slider`, `Picker`, `TextField`, `Menu`, `Label`, `Section`, `NavigationStack`, `NavigationSplitView`, `GeometryReader`, `ForEach`.
+- **Text-specific modifiers return `Text`** — `.font()`, `.bold()`, `.italic()`, `.foregroundColor()`, `.fontWeight()` on `Text` return `Text` for type-safe chaining. Generic modifiers (`.frame()`, `.padding()`, etc.) are on `View` extension and return `ViewNode`.
+- **`ViewNode` is the internal IR** — produced by `View.body` and consumed by Layout, Reconciler, CommandFlattener. Apps should never reference `ViewNode` directly.
+- **`_resolve()` materializes any View to ViewNode** — walks the `body` chain to terminal `ViewNode`. Used internally by `ViewBuilder` and modifier extensions. Framework code that needs a `ViewNode` from a View struct should call `_resolve()` or `.body`.
+- **Never reference `ViewNode` in app code.** Use View structs and `some View` return types.
 
 ### Colors
 - **Standard SwiftUI colors in apps:** `.primary`, `.secondary`, `.gray`, `.blue`, `.red`, etc.

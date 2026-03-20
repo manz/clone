@@ -4,18 +4,21 @@ pub mod rect;
 pub mod shadow;
 pub mod text;
 pub mod types;
+pub mod wallpaper;
 
 use crate::commands::{RenderCommand, RgbaColor};
 use crate::renderer::rect::RectPipeline;
 use crate::renderer::shadow::{ShadowInstance, ShadowPipeline};
 use crate::renderer::text::TextRenderer;
 use crate::renderer::types::RectInstance;
+use crate::renderer::wallpaper::WallpaperPipeline;
 
 pub struct DesktopRenderer {
     surface_format: wgpu::TextureFormat,
     rect_pipeline: Option<RectPipeline>,
     shadow_pipeline: Option<ShadowPipeline>,
     text_renderer: Option<TextRenderer>,
+    wallpaper_pipeline: Option<WallpaperPipeline>,
 }
 
 impl DesktopRenderer {
@@ -25,6 +28,7 @@ impl DesktopRenderer {
             rect_pipeline: None,
             shadow_pipeline: None,
             text_renderer: None,
+            wallpaper_pipeline: None,
         }
     }
 
@@ -32,6 +36,14 @@ impl DesktopRenderer {
         self.rect_pipeline = Some(RectPipeline::new(device, self.surface_format));
         self.shadow_pipeline = Some(ShadowPipeline::new(device, self.surface_format));
         self.text_renderer = Some(TextRenderer::new(device, queue, self.surface_format));
+        self.wallpaper_pipeline = Some(WallpaperPipeline::new(device, self.surface_format));
+    }
+
+    /// Load a wallpaper image. Called once at startup.
+    pub fn load_wallpaper(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, path: &str) {
+        if let Some(wp) = &mut self.wallpaper_pipeline {
+            wp.load(device, queue, path);
+        }
     }
 
     /// Render commands into the given texture view. Commands are in LOCAL coordinates
@@ -198,7 +210,7 @@ impl DesktopRenderer {
                     shadows.push(ShadowInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
-                        params: [*radius, *blur, ox * scale, oy * scale],
+                        params: [radius * scale, blur * scale, ox * scale, oy * scale],
                     });
                 }
                 RenderCommand::Text { x, y, content, font_size, color, weight, is_icon } => {
@@ -207,6 +219,18 @@ impl DesktopRenderer {
                             content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon,
                         );
                         glyphs.extend(g);
+                    }
+                }
+                RenderCommand::Wallpaper { .. } => {
+                    // Flush pending draws, then draw wallpaper fullscreen
+                    flush(device, queue, encoder, view,
+                          &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+                          &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+                          width, height, scissor);
+                    if let Some(wp) = &self.wallpaper_pipeline {
+                        if wp.is_loaded() {
+                            wp.draw(queue, encoder, view, width, height);
+                        }
                     }
                 }
                 _ => {}

@@ -107,9 +107,10 @@ public enum CommandFlattener {
             ))
             return
 
-        case .image(let name, _, _):
+        case .image(let name, _, _, let tint):
             // Try Phosphor icon font, fall back to placeholder rect
             if let char = PhosphorIcons.character(forName: name) {
+                let iconColor = tint ?? Color.primary
                 let iconSize = min(frame.width, frame.height)
                 let iconX = frame.x + (frame.width - iconSize) / 2
                 let iconY = frame.y + (frame.height - iconSize) / 2
@@ -117,7 +118,7 @@ public enum CommandFlattener {
                     x: iconX, y: iconY,
                     width: iconSize, height: iconSize,
                     kind: .text(content: String(char), fontSize: iconSize,
-                               color: Color.primary.withAlpha(opacity), isIcon: true)
+                               color: iconColor.withAlpha(opacity), isIcon: true)
                 ))
             } else {
                 commands.append(FlatRenderCommand(

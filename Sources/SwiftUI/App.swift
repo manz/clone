@@ -126,6 +126,7 @@ extension App {
             app.client.onFrameRequest = { w, h in
                 let width = CGFloat(w)
                 let height = CGFloat(h)
+                GeometryReaderRegistry.shared.clear()
                 TapRegistry.shared.clear()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
@@ -166,6 +167,19 @@ extension App {
                     }
                 }
             }
+            app.client.onPointerMove = { px, py in
+                app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
+                let cw = CGFloat(app.client.width)
+                let ch = CGFloat(app.client.height)
+                HoverRegistry.shared.clear()
+                let viewTree = windowGroup.buildViewNode()
+                let layoutNode = Layout.layout(
+                    viewTree,
+                    in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
+                )
+                let hitIds = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
+                HoverRegistry.shared.update(hitIds: hitIds, position: CGPoint(x: CGFloat(px), y: CGFloat(py)))
+            }
         } else {
             // Imperative path: app renders IPCRenderCommand directly
             app.client.onFrameRequest = { w, h in
@@ -177,10 +191,9 @@ extension App {
             app.client.onPointerButton = { button, pressed, px, py in
                 app.onPointerButton(button: button, pressed: pressed, x: CGFloat(px), y: CGFloat(py))
             }
-        }
-
-        app.client.onPointerMove = { px, py in
-            app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
+            app.client.onPointerMove = { px, py in
+                app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
+            }
         }
         app.client.onKey = { keycode, pressed in
             app.onKey(keycode: keycode, pressed: pressed)
@@ -236,9 +249,9 @@ extension FlatRenderCommand {
         case .roundedRect(let radius, let color):
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
-        case .text(let content, let fontSize, let color, let weight, _):
+        case .text(let content, let fontSize, let color, let weight, let isIcon):
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
-                         color: color.toIPC(), weight: weight.toIPC())
+                         color: color.toIPC(), weight: weight.toIPC(), isIcon: isIcon)
         case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
             return .shadow(x: fx, y: fy, w: fw, h: fh,
                           radius: Float(radius), blur: Float(blur), color: color.toIPC(),

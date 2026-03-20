@@ -286,6 +286,13 @@ typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod4)(uint64_t, uint64_t
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD5
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_DESKTOP_DELEGATE_METHOD5
+typedef void (*UniffiCallbackInterfaceDesktopDelegateMethod5)(uint64_t, RustBuffer* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DESKTOP_DELEGATE
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_DESKTOP_DELEGATE
 typedef struct UniffiVTableCallbackInterfaceDesktopDelegate {
@@ -294,6 +301,7 @@ typedef struct UniffiVTableCallbackInterfaceDesktopDelegate {
     UniffiCallbackInterfaceDesktopDelegateMethod2 _Nonnull onPointerMove;
     UniffiCallbackInterfaceDesktopDelegateMethod3 _Nonnull onPointerButton;
     UniffiCallbackInterfaceDesktopDelegateMethod4 _Nonnull onKey;
+    UniffiCallbackInterfaceDesktopDelegateMethod5 _Nonnull wallpaperPath;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceDesktopDelegate;
 
@@ -664,6 +672,12 @@ uint16_t uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_button(v
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_KEY
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_ON_KEY
 uint16_t uniffi_clone_engine_checksum_method_desktopdelegate_on_key(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_WALLPAPER_PATH
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_ENGINE_CHECKSUM_METHOD_DESKTOPDELEGATE_WALLPAPER_PATH
+uint16_t uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path(void
     
 );
 #endif

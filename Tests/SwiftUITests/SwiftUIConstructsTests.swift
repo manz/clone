@@ -79,7 +79,7 @@ import Testing
 
 @Test func imageCreatesNode() {
     let node = _resolve(Image(systemName: "star.fill"))
-    if case .image(let name, _, _) = node {
+    if case .image(let name, _, _, _) = node {
         #expect(name == "star.fill")
     } else {
         Issue.record("Expected image node")

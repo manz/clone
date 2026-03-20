@@ -13,13 +13,13 @@ var hoverBg: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
 var rowHoverBg: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor) }
 var rowDivider: Color { Color(nsColor: .separatorColor) }
 #else
-let rpBase = Color(red: 0.93, green: 0.93, blue: 0.94)
+let rpBase = Color(red: 0.96, green: 0.96, blue: 0.97)
 let rpSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
-let rpOverlay = Color(red: 0.88, green: 0.88, blue: 0.88)
-let rpSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
+let rpOverlay = Color(red: 0.93, green: 0.93, blue: 0.94)
+let rpSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.2)
 let hoverBg = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
-let rowHoverBg = Color(red: 0.88, green: 0.88, blue: 0.88)
-let rowDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
+let rowHoverBg = Color(red: 0.93, green: 0.93, blue: 0.94)
+let rowDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.08)
 #endif
 var rpText: Color { .primary }
 var rpSubtle: Color { .secondary }
@@ -37,6 +37,7 @@ let rpBlack: Color = .black
 struct SettingsCategory {
     let name: String
     let color: Color
+    let icon: String
 }
 
 struct SettingsSection {
@@ -50,24 +51,24 @@ struct SettingRow {
 
 let sections: [SettingsSection] = [
     SettingsSection(categories: [
-        SettingsCategory(name: "Wi-Fi", color: rpBlue),
-        SettingsCategory(name: "Bluetooth", color: rpBlue),
-        SettingsCategory(name: "Network", color: rpBlue),
+        SettingsCategory(name: "Wi-Fi", color: rpBlue, icon: "wifi"),
+        SettingsCategory(name: "Bluetooth", color: rpBlue, icon: "network"),
+        SettingsCategory(name: "Network", color: rpBlue, icon: "globe"),
     ]),
     SettingsSection(categories: [
-        SettingsCategory(name: "Notifications", color: rpRed),
-        SettingsCategory(name: "Sound", color: rpRed),
-        SettingsCategory(name: "Focus", color: rpPurple),
+        SettingsCategory(name: "Notifications", color: rpRed, icon: "bell.fill"),
+        SettingsCategory(name: "Sound", color: rpRed, icon: "speaker.wave.2"),
+        SettingsCategory(name: "Focus", color: rpPurple, icon: "moon.fill"),
     ]),
     SettingsSection(categories: [
-        SettingsCategory(name: "General", color: rpMuted),
-        SettingsCategory(name: "Appearance", color: rpBlue),
-        SettingsCategory(name: "Desktop & Dock", color: rpBlack),
-        SettingsCategory(name: "Displays", color: rpBlue),
-        SettingsCategory(name: "Wallpaper", color: rpTeal),
+        SettingsCategory(name: "General", color: rpMuted, icon: "gearshape.fill"),
+        SettingsCategory(name: "Appearance", color: rpBlue, icon: "paintbrush"),
+        SettingsCategory(name: "Desktop & Dock", color: rpBlack, icon: "desktopcomputer"),
+        SettingsCategory(name: "Displays", color: rpBlue, icon: "display"),
+        SettingsCategory(name: "Wallpaper", color: rpTeal, icon: "photo.fill"),
     ]),
     SettingsSection(categories: [
-        SettingsCategory(name: "Privacy & Security", color: rpBlue),
+        SettingsCategory(name: "Privacy & Security", color: rpBlue, icon: "shield.checkered"),
     ]),
 ]
 
@@ -263,10 +264,18 @@ private func categoryRow(
     let textColor: Color = isSelected ? .white : rpText
 
     let content = HStack(spacing: 8) {
-        RoundedRectangle(cornerRadius: 5)
-            .fill(category.color)
-            .frame(width: 20, height: 20)
+        ZStack {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(category.color)
+                .frame(width: 20, height: 20)
+                .shadow(color: Color(red: 0, green: 0, blue: 0, opacity: 0.4), radius: 3, x: 0, y: 1)
+            Image(systemName: category.icon)
+                .foregroundColor(.white)
+                .frame(width: 12, height: 12)
+        }
+        .frame(width: 20, height: 20)
         Text(category.name).font(.system(size: 13)).foregroundColor(textColor)
+        Spacer()
     }
     .padding(.horizontal, 8)
 

@@ -63,6 +63,7 @@ public enum WindowChrome {
     public static let cornerRadius: CGFloat = 12
     public static let menuBarHeight: CGFloat = 24
     public static let resizeHandleSize: CGFloat = 6
+    public static let cornerResizeSize: CGFloat = 20
     public static let minWindowWidth: CGFloat = 200
     public static let minWindowHeight: CGFloat = 150
 }
@@ -275,6 +276,9 @@ public final class WindowManager {
         guard !window.isMaximized else { return nil }
 
         let r = WindowChrome.resizeHandleSize
+        let c = WindowChrome.cornerResizeSize
+
+        // Edge strips (thin)
         let left = x >= window.x - r && x <= window.x + r
         let right = x >= window.x + window.width - r && x <= window.x + window.width + r
         let top = y >= window.y - r && y <= window.y + r
@@ -282,10 +286,18 @@ public final class WindowManager {
         let inX = x >= window.x - r && x <= window.x + window.width + r
         let inY = y >= window.y - r && y <= window.y + window.height + r
 
-        if top && left { return .topLeft }
-        if top && right { return .topRight }
-        if bottom && left { return .bottomLeft }
-        if bottom && right { return .bottomRight }
+        // Corner zones (larger — extend c pixels along each edge from the corner)
+        let nearLeft = x >= window.x - r && x <= window.x + c
+        let nearRight = x >= window.x + window.width - c && x <= window.x + window.width + r
+        let nearTop = y >= window.y - r && y <= window.y + c
+        let nearBottom = y >= window.y + window.height - c && y <= window.y + window.height + r
+
+        // Corners first (use expanded zones)
+        if nearTop && nearLeft { return .topLeft }
+        if nearTop && nearRight { return .topRight }
+        if nearBottom && nearLeft { return .bottomLeft }
+        if nearBottom && nearRight { return .bottomRight }
+        // Edges (thin strips, excluding corners)
         if top && inX { return .top }
         if bottom && inX { return .bottom }
         if left && inY { return .left }

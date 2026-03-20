@@ -62,6 +62,7 @@ impl DesktopDelegate for DemoDelegate {
     fn on_pointer_move(&self, _surface_id: u64, _x: f64, _y: f64) {}
     fn on_pointer_button(&self, _surface_id: u64, _button: u32, _pressed: bool) {}
     fn on_key(&self, _surface_id: u64, _keycode: u32, _pressed: bool) {}
+    fn wallpaper_path(&self) -> String { String::new() }
 }
 
 fn dock_icon(x: f32, y: f32, size: f32, r: f32, g: f32, b: f32) -> RenderCommand {

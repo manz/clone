@@ -99,13 +99,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let window_alpha = color.a * mask * in.opacity;
     let combined_alpha = window_alpha + shadow_alpha * (1.0 - window_alpha);
 
-    // Avoid division by zero — if nothing visible, output transparent
-    if combined_alpha < 0.001 {
-        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
-    }
-
-    // Premultiplied alpha compositing
+    // Premultiplied alpha compositing — output premultiplied RGB
     let combined_rgb = color.rgb * window_alpha + vec3<f32>(0.0) * shadow_alpha * (1.0 - window_alpha);
 
-    return vec4<f32>(combined_rgb / combined_alpha, combined_alpha);
+    return vec4<f32>(combined_rgb, combined_alpha);
 }

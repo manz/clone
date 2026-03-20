@@ -19,7 +19,7 @@ public enum IPCFontWeight: String, Codable, Sendable {
 public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, isIcon: Bool = false)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
     case popClip

@@ -52,9 +52,9 @@ public enum Bridge {
                 return .rect(x: x + offsetX, y: y + offsetY, w: w, h: h, color: color.toEngine())
             case .roundedRect(let x, let y, let w, let h, let radius, let color):
                 return .roundedRect(x: x + offsetX, y: y + offsetY, w: w, h: h, radius: radius, color: color.toEngine())
-            case .text(let x, let y, let content, let fontSize, let color, let weight):
+            case .text(let x, let y, let content, let fontSize, let color, let weight, let isIcon):
                 return .text(x: x + offsetX, y: y + offsetY, content: content, fontSize: fontSize,
-                            color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
+                            color: color.toEngine(), weight: weight.toEngine(), isIcon: isIcon)
             case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
                 return .shadow(x: x + offsetX, y: y + offsetY, w: w, h: h,
                               radius: radius, blur: blur, color: color.toEngine(),
@@ -74,9 +74,9 @@ public enum Bridge {
             return .rect(x: x, y: y + dy, w: w, h: h, color: color.toEngine())
         case .roundedRect(let x, let y, let w, let h, let radius, let color):
             return .roundedRect(x: x, y: y + dy, w: w, h: h, radius: radius, color: color.toEngine())
-        case .text(let x, let y, let content, let fontSize, let color, let weight):
+        case .text(let x, let y, let content, let fontSize, let color, let weight, let isIcon):
             return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
-                        color: color.toEngine(), weight: weight.toEngine(), isIcon: false)
+                        color: color.toEngine(), weight: weight.toEngine(), isIcon: isIcon)
         case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
             return .shadow(x: x, y: y + dy, w: w, h: h,
                           radius: radius, blur: blur, color: color.toEngine(),
@@ -294,12 +294,20 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         windowManager.screenWidth = w
         windowManager.screenHeight = h
         syncExternalApps()
+        syncResizingAppDimensions()
         server.requestFrames()
         lastLayoutResults = []
 
         // Process queued dock commands
         for appId in pendingLaunches {
-            if let name = appBinaries[appId] {
+            // Focus existing window if one exists
+            if let window = windowManager.windows.first(where: { $0.appId == appId && $0.isVisible && !$0.isMinimized }) {
+                windowManager.focus(id: window.id)
+                updateFocusedAppName()
+            } else if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
+                // Restore minimized window
+                animateRestore(windowId: window.id)
+            } else if let name = appBinaries[appId] {
                 launchApp(name)
             }
         }
@@ -321,12 +329,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 
         var frames: [SurfaceFrame] = []
 
-        // 1. Desktop background
-        let desktop = Desktop(screenWidth: w, screenHeight: h, mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY))
-        let desktopLayout = Layout.layout(desktop.body(), in: LayoutFrame(x: 0, y: 0, width: w, height: h))
+        // 1. Desktop background (wallpaper rendered by engine via Wallpaper command)
         frames.append(SurfaceFrame(
             desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(w), height: Float(h), cornerRadius: 0, opacity: 1),
-            commands: Bridge.toEngineCommands(CommandFlattener.flatten(desktopLayout))
+            commands: [.wallpaper(x: 0, y: 0, w: Float(w), h: Float(h))]
         ))
 
         // 2. Windows — visible + currently animating
@@ -384,14 +390,19 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
             windowCommands.append(.roundedRect(x: btnX + btnStep, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: minColor.toEngine()))
             windowCommands.append(.roundedRect(x: btnX + btnStep * 2, y: btnY, w: btnSize, h: btnSize, radius: btnSize / 2, color: zoomColor.toEngine()))
 
-            // Traffic light symbols on hover
+            // Traffic light symbols on hover (Phosphor icons)
             if showSymbols {
-                let symY = btnY + (btnSize - 9) / 2
+                let iconSize = btnSize * 0.6
+                let symX = { (base: Float) in base + (btnSize - iconSize) / 2 }
+                let symY = btnY + (btnSize - iconSize) / 2
                 let symColor = RgbaColor(r: 0, g: 0, b: 0, a: 0.5)
-                windowCommands.append(.text(x: btnX + 2, y: symY, content: "×", fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
-                windowCommands.append(.text(x: btnX + btnStep + 2, y: symY, content: "−", fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
-                let zoomSym = window.isMaximized ? "↙" : "↗"
-                windowCommands.append(.text(x: btnX + btnStep * 2 + 2, y: symY, content: zoomSym, fontSize: btnSize * 0.7, color: symColor, weight: .bold, isIcon: false))
+                let closeSym = String(PhosphorIcons.character(forName: "xmark")!)
+                let minSym = String(PhosphorIcons.character(forName: "minus")!)
+                let zoomName = window.isMaximized ? "arrows.in" : "arrows.out"
+                let zoomSym = String(PhosphorIcons.character(forName: zoomName)!)
+                windowCommands.append(.text(x: symX(btnX), y: symY, content: closeSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true))
+                windowCommands.append(.text(x: symX(btnX + btnStep), y: symY, content: minSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true))
+                windowCommands.append(.text(x: symX(btnX + btnStep * 2), y: symY, content: zoomSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true))
             }
 
             // Title text
@@ -544,9 +555,10 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                     windowManager.focus(id: window.id)
                     updateFocusedAppName()
                 } else {
-                    // No window hit — check for tap handlers (dock icons, etc.)
-                    fireTapAt(x: mx, y: my)
-                    handleDockAction()
+                    // No window hit — forward click to dock/menubar overlays
+                    for app in server.connectedApps where app.role == .dock || app.role == .menubar {
+                        server.sendPointerButton(windowId: app.windowId, button: button, pressed: true, x: Float(mx), y: Float(my))
+                    }
                 }
             } else {
                 mouseDown = false
@@ -584,6 +596,24 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
                 }
             }
         }
+    }
+
+    public func wallpaperPath() -> String {
+        let fm = FileManager.default
+        // Resolve the executable's real location to find the project root
+        let execURL = URL(fileURLWithPath: CommandLine.arguments[0]).standardizedFileURL
+        let projectRoot = execURL
+            .deletingLastPathComponent()  // .build/debug/
+            .deletingLastPathComponent()  // .build/
+            .deletingLastPathComponent()  // project root
+        let candidates = [
+            projectRoot.appendingPathComponent("engine/assets/wallpaper.jpg").path,
+            // CWD-relative fallback
+            fm.currentDirectoryPath + "/engine/assets/wallpaper.jpg",
+        ]
+        let result = candidates.first(where: { fm.fileExists(atPath: $0) }) ?? ""
+        fputs("Wallpaper path: \(result.isEmpty ? "(none)" : result)\n", stderr)
+        return result
     }
 
     public func onKey(surfaceId: UInt64, keycode: UInt32, pressed: Bool) {
@@ -703,6 +733,17 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
         // Unminimize first so the surface exists for compositing
         windowManager.unminimize(id: windowId)
         animationManager.startRestore(windowId: windowId, from: from, to: to)
+    }
+
+    /// Sync external app dimensions with the WindowManager during resize so
+    /// apps receive the live size in requestFrames() and redraw continuously.
+    private func syncResizingAppDimensions() {
+        guard let wmId = windowManager.resizingWindowId,
+              let serverWid = externalWindowId(for: wmId),
+              let window = windowManager.windows.first(where: { $0.id == wmId }) else { return }
+        let contentWidth = window.width
+        let contentHeight = window.height - WindowChrome.titleBarHeight
+        server.updateAppDimensions(windowId: serverWid, width: Float(contentWidth), height: Float(contentHeight))
     }
 
     /// Notify an external app that its window was resized (zoom/unmaximize).

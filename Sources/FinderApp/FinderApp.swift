@@ -335,19 +335,19 @@ final class FinderState: ObservableObject {
 // MARK: - View builders
 
 func toolbarView(state: FinderState, width: CGFloat) -> some View {
-    let backColor: Color = state.canGoBack ? textColor : disabledColor
-    let fwdColor: Color = state.canGoForward ? textColor : disabledColor
     let pathText = state.shortenPath(state.currentPath)
 
     let backBtn = ZStack {
-        RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
-        Text("<").font(.system(size: 13, weight: .semibold)).foregroundColor(backColor)
-    }.onTapGesture { if state.canGoBack { state.goBack() } }
+        Rectangle().fill(overlayColor).frame(width: 28, height: 22)
+        Image(systemName: "chevron.left").frame(width: 12, height: 12)
+    }.frame(width: 28, height: 22)
+    .onTapGesture { if state.canGoBack { state.goBack() } }
 
     let fwdBtn = ZStack {
-        RoundedRectangle(cornerRadius: 4).fill(overlayColor).frame(width: 28, height: 22)
-        Text(">").font(.system(size: 13, weight: .semibold)).foregroundColor(fwdColor)
-    }.onTapGesture { if state.canGoForward { state.goForward() } }
+        Rectangle().fill(overlayColor).frame(width: 28, height: 22)
+        Image(systemName: "chevron.right").frame(width: 12, height: 12)
+    }.frame(width: 28, height: 22)
+    .onTapGesture { if state.canGoForward { state.goForward() } }
 
     let bar = HStack(alignment: .center, spacing: 6) {
         backBtn
@@ -657,7 +657,7 @@ func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some Vie
     }.frame(width: width, height: height)
 
     return ZStack {
-        mainWithBg.clipped()
+        mainWithBg
         if let menu = state.contextMenu {
             contextMenuView(menu: menu, width: width, height: height)
         }

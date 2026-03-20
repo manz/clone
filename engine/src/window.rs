@@ -85,6 +85,11 @@ impl App {
 
         let compositor = SurfaceCompositor::new(&device, surface_format);
 
+        let wallpaper_path = self.delegate.wallpaper_path();
+        if !wallpaper_path.is_empty() {
+            renderer.load_wallpaper(&device, &queue, &wallpaper_path);
+        }
+
         self.gpu = Some(GpuState {
             device,
             queue,
@@ -198,7 +203,7 @@ impl App {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.93, g: 0.93, b: 0.94, a: 1.0,
+                                r: 0.0, g: 0.0, b: 0.0, a: 1.0,
                             }),
                             store: wgpu::StoreOp::Store,
                         },

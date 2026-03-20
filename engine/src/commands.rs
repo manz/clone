@@ -92,6 +92,12 @@ pub enum RenderCommand {
     SetOpacity {
         value: f32,
     },
+    Wallpaper {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    },
 }
 
 #[cfg(test)]
