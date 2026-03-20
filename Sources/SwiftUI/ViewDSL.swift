@@ -49,15 +49,24 @@ public func ZStack(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
 
 // MARK: - Button
 
+/// Button role — matches Apple's SwiftUI ButtonRole.
+public struct ButtonRole: Equatable, Sendable {
+    public let rawValue: String
+    public init(_ rawValue: String) { self.rawValue = rawValue }
+    public static let destructive = ButtonRole("destructive")
+    public static let cancel = ButtonRole("cancel")
+}
+
 /// `Button("Tap") { action }` — label string variant
-public func Button(_ label: String, action: @escaping () -> Void) -> ViewNode {
-    Text(label)
-        .foregroundColor(.blue)
+public func Button(_ label: String, role: ButtonRole? = nil, action: @escaping () -> Void) -> ViewNode {
+    let color: Color = role == .destructive ? .red : .blue
+    return Text(label)
+        .foregroundColor(color)
         .onTapGesture(action)
 }
 
 /// `Button(action: { }) { label }` — custom label variant
-public func Button(action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
+public func Button(role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) -> ViewNode {
     let content = label()
     let child = content.count == 1 ? content[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: content)
     return child.onTapGesture(action)

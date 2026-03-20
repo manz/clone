@@ -58,6 +58,11 @@ public struct Color: Equatable, Sendable {
         self.a = a
     }
 
+    /// Returns this color with the given opacity. Matches Apple's SwiftUI Color.opacity().
+    public func opacity(_ opacity: CGFloat) -> Color {
+        Color(r: r, g: g, b: b, a: a * opacity)
+    }
+
     /// Adaptive color — resolves to dark or light variant based on current appearance.
     public static func adaptive(dark: Color, light: Color) -> Color {
         AppearanceManager.shared.current == .dark ? dark : light

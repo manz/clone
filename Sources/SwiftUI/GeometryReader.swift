@@ -52,9 +52,11 @@ public final class GeometryReaderRegistry {
 
 /// `GeometryReader { proxy in ... }` — SwiftUI-style constructor.
 /// Registers the closure and returns a `.geometryReader(id:)` ViewNode.
-public func GeometryReader(
-    content: @escaping (GeometryProxy) -> ViewNode
+public func GeometryReader<Content: View>(
+    content: @escaping (GeometryProxy) -> Content
 ) -> ViewNode {
-    let id = GeometryReaderRegistry.shared.register(content)
+    let id = GeometryReaderRegistry.shared.register { proxy in
+        _resolve(content(proxy))
+    }
     return .geometryReader(id: id)
 }

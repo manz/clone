@@ -1,8 +1,6 @@
 import Foundation
 import SwiftUI
-#if canImport(Observation)
-import Observation
-#endif
+import AppKit
 
 // MARK: - Context menu model
 
@@ -17,10 +15,10 @@ struct MenuItem {
 }
 
 struct ContextMenu {
-    let anchorX: CGFloat      // leading edge of the menu
-    let anchorY: CGFloat      // top of the row the menu is attached to
+    let anchorX: CGFloat
+    let anchorY: CGFloat
     let items: [MenuItem]
-    let targetIndex: Int?   // nil = background right-click
+    let targetIndex: Int?
     var hoveredItem: Int?
 }
 
@@ -38,10 +36,8 @@ let statusBarHeight: CGFloat = 22
 let contextMenuWidth: CGFloat = 200
 let contextMenuItemHeight: CGFloat = 26
 
-// MARK: - Semantic color aliases
+// MARK: - Semantic color aliases (NSColor adapts to dark/light on both platforms)
 
-#if canImport(AppKit) && !canImport(CloneClient)
-import AppKit
 var bgColor: Color { Color(nsColor: .controlBackgroundColor) }
 var surfaceColor: Color { Color(nsColor: .unemphasizedSelectedContentBackgroundColor) }
 var overlayColor: Color { Color(nsColor: .separatorColor) }
@@ -49,15 +45,6 @@ var highlightColor: Color { Color(nsColor: .unemphasizedSelectedContentBackgroun
 var selectionColor: Color { Color.accentColor.opacity(0.3) }
 var menuBgColor: Color { Color(nsColor: .windowBackgroundColor).opacity(0.95) }
 var sidebarBgColor: Color { Color(nsColor: .controlBackgroundColor) }
-#else
-let bgColor = Color(red: 1.0, green: 1.0, blue: 1.0)
-let surfaceColor = Color(red: 0.88, green: 0.88, blue: 0.88)
-let overlayColor = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
-let highlightColor = Color(red: 0, green: 0, blue: 0, opacity: 0.04)
-let selectionColor = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.3)
-let menuBgColor = Color(red: 0.98, green: 0.98, blue: 0.98, opacity: 0.95)
-let sidebarBgColor = Color(red: 0.96, green: 0.96, blue: 0.97)
-#endif
 var textColor: Color { .primary }
 var subtleColor: Color { .secondary }
 var mutedColor: Color { .gray }
@@ -81,36 +68,26 @@ let favorites: [(name: String, path: String, icon: Color)] = [
 
 // MARK: - State
 
-#if canImport(Observation)
-@Observable
-#endif
-final class FinderState {
-    var currentPath: String
-    var entries: [FileEntry] = []
+final class FinderState: ObservableObject {
+    @Published var currentPath: String
+    @Published var entries: [FileEntry] = []
     var mouseX: CGFloat = 0
     var mouseY: CGFloat = 0
 
-    // Selection
-    var selectedIndex: Int?
+    @Published var selectedIndex: Int?
 
-    // Navigation history
     var navigationHistory: [String]
     var historyIndex: Int
 
-    // Context menu
-    var contextMenu: ContextMenu?
+    @Published var contextMenu: ContextMenu?
 
-    // Double-click detection
     var lastClickTime: Double = 0
     var lastClickIndex: Int?
 
-    // Sort
     var sortOrder: SortOrder = .name
 
-    // Get Info panel
-    var infoPanel: InfoPanel?
+    @Published var infoPanel: InfoPanel?
 
-    // Cached window size for hit-testing
     var windowWidth: CGFloat = 700
     var windowHeight: CGFloat = 450
 
@@ -215,8 +192,6 @@ final class FinderState {
     var canGoBack: Bool { historyIndex > 0 }
     var canGoForward: Bool { historyIndex < navigationHistory.count - 1 }
 
-    // MARK: - File type detection
-
     func fileKind(_ name: String) -> (color: Color, kind: String) {
         let ext = (name as NSString).pathExtension.lowercased()
 
@@ -236,21 +211,13 @@ final class FinderState {
         }
     }
 
-    // MARK: - Interaction
-
     func handleLeftClick(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
-        // Dismiss info panel on any click
-        if infoPanel != nil {
-            infoPanel = nil
-            return
-        }
+        if infoPanel != nil { infoPanel = nil; return }
 
-        // If context menu open, hit-test it first
         if let menu = contextMenu {
             let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
             let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
             let menuY = min(menu.anchorY, height - menuHeight - 4)
-
             if x >= menuX && x < menuX + contextMenuWidth &&
                y >= menuY && y < menuY + menuHeight {
                 let itemIndex = Int((y - menuY - 4) / contextMenuItemHeight)
@@ -262,100 +229,59 @@ final class FinderState {
             return
         }
 
-        // Toolbar: back/forward
-        if y < toolbarHeight {
-            if x >= 12 && x < 40 && canGoBack {
-                goBack()
-                return
-            }
-            if x >= 46 && x < 74 && canGoForward {
-                goForward()
-                return
-            }
-            return
-        }
+        if y < toolbarHeight { return }
 
-        // Sidebar
         if x < sidebarWidth {
             let startY = toolbarHeight + 30
             for (i, fav) in favorites.enumerated() {
                 let favY = startY + CGFloat(i) * 26
-                if y >= favY && y < favY + 26 {
-                    navigateTo(fav.path)
-                    return
-                }
+                if y >= favY && y < favY + 26 { navigateTo(fav.path); return }
             }
             return
         }
 
-        // File list
         let listTop = toolbarHeight + headerHeight
         let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
         if y >= listTop && y < listTop + listHeight {
             let rowIndex = Int((y - listTop) / rowHeight)
             if rowIndex >= 0 && rowIndex < entries.count {
                 let now = Date().timeIntervalSince1970
-
-                // Double-click detection
                 if lastClickIndex == rowIndex && (now - lastClickTime) < 0.3 {
-                    if entries[rowIndex].isDirectory {
-                        navigate(to: entries[rowIndex].name)
-                    }
-                    lastClickTime = 0
-                    lastClickIndex = nil
-                    return
+                    if entries[rowIndex].isDirectory { navigate(to: entries[rowIndex].name) }
+                    lastClickTime = 0; lastClickIndex = nil; return
                 }
-
-                // Single click: select
                 selectedIndex = rowIndex
-                lastClickTime = now
-                lastClickIndex = rowIndex
-            } else {
-                selectedIndex = nil
-            }
+                lastClickTime = now; lastClickIndex = rowIndex
+            } else { selectedIndex = nil }
         }
     }
 
     func handleRightClick(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         contextMenu = nil
-
         let listTop = toolbarHeight + headerHeight
         let listX = sidebarWidth
         let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
 
-        let bgMenu = ContextMenu(
-            anchorX: x, anchorY: y,
-            items: [
-                MenuItem(label: "New Folder", action: .newFolder),
-                MenuItem(label: "Sort by Name", action: .sortByName),
-                MenuItem(label: "Sort by Size", action: .sortBySize),
-                MenuItem(label: "Sort by Date", action: .sortByDate),
-            ],
-            targetIndex: nil
-        )
+        let bgMenu = ContextMenu(anchorX: x, anchorY: y, items: [
+            MenuItem(label: "New Folder", action: .newFolder),
+            MenuItem(label: "Sort by Name", action: .sortByName),
+            MenuItem(label: "Sort by Size", action: .sortBySize),
+            MenuItem(label: "Sort by Date", action: .sortByDate),
+        ], targetIndex: nil)
 
         if x >= listX && y >= listTop && y < listTop + listHeight {
             let rowIndex = Int((y - listTop) / rowHeight)
             if rowIndex >= 0 && rowIndex < entries.count {
-                // Anchor to the row: right side of the name area, top of the row
                 let rowY = listTop + CGFloat(rowIndex) * rowHeight
                 selectedIndex = rowIndex
-                contextMenu = ContextMenu(
-                    anchorX: x, anchorY: rowY + rowHeight,
-                    items: [
-                        MenuItem(label: "Open", action: .open),
-                        MenuItem(label: "Get Info", action: .getInfo),
-                        MenuItem(label: "Copy", action: .copy),
-                        MenuItem(label: "Move to Trash", action: .moveToTrash),
-                    ],
-                    targetIndex: rowIndex
-                )
-            } else {
-                contextMenu = bgMenu
-            }
-        } else {
-            contextMenu = bgMenu
-        }
+                contextMenu = ContextMenu(anchorX: x, anchorY: rowY + rowHeight, items: [
+                    MenuItem(label: "Open", action: .open),
+                    MenuItem(label: "Get Info", action: .getInfo),
+                    MenuItem(label: "Copy", action: .copy),
+                    MenuItem(label: "Move to Trash", action: .moveToTrash),
+                ], targetIndex: rowIndex)
+            } else { contextMenu = bgMenu }
+        } else { contextMenu = bgMenu }
     }
 
     func updateContextMenuHover(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
@@ -363,18 +289,11 @@ final class FinderState {
         let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
         let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
         let menuY = min(menu.anchorY, height - menuHeight - 4)
-
         if x >= menuX && x < menuX + contextMenuWidth &&
            y >= menuY && y < menuY + menuHeight {
             let itemIndex = Int((y - menuY - 4) / contextMenuItemHeight)
-            if itemIndex >= 0 && itemIndex < menu.items.count {
-                menu.hoveredItem = itemIndex
-            } else {
-                menu.hoveredItem = nil
-            }
-        } else {
-            menu.hoveredItem = nil
-        }
+            menu.hoveredItem = (itemIndex >= 0 && itemIndex < menu.items.count) ? itemIndex : nil
+        } else { menu.hoveredItem = nil }
         contextMenu = menu
     }
 
@@ -389,35 +308,19 @@ final class FinderState {
                 let entry = entries[idx]
                 let fullPath = (currentPath as NSString).appendingPathComponent(entry.name)
                 let (_, kind) = fileKind(entry.name)
-                infoPanel = InfoPanel(
-                    name: entry.name,
-                    path: fullPath,
-                    kind: kind,
-                    size: formatSize(entry),
-                    isDirectory: entry.isDirectory
-                )
+                infoPanel = InfoPanel(name: entry.name, path: fullPath, kind: kind,
+                                      size: formatSize(entry), isDirectory: entry.isDirectory)
             }
-        case .sortByName:
-            sortOrder = .name
-            reload()
-        case .sortBySize:
-            sortOrder = .size
-            reload()
-        case .sortByDate:
-            sortOrder = .date
-            reload()
-        case .copy, .moveToTrash, .newFolder:
-            break
+        case .sortByName: sortOrder = .name; reload()
+        case .sortBySize: sortOrder = .size; reload()
+        case .sortByDate: sortOrder = .date; reload()
+        case .copy, .moveToTrash, .newFolder: break
         }
     }
 
-    // MARK: - Helpers
-
     func shortenPath(_ path: String) -> String {
         let home = NSHomeDirectory()
-        if path.hasPrefix(home) {
-            return "~" + path.dropFirst(home.count)
-        }
+        if path.hasPrefix(home) { return "~" + path.dropFirst(home.count) }
         return path
     }
 
@@ -542,13 +445,10 @@ func columnHeadersView(width: CGFloat) -> some View {
 }
 
 func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: CGFloat, listTop: CGFloat) -> some View {
-    let rowY = listTop + CGFloat(index) * rowHeight
     let isSelected = state.selectedIndex == index
-    let isHovered = state.mouseX >= sidebarWidth && state.mouseX < sidebarWidth + width &&
-        state.mouseY >= rowY && state.mouseY < rowY + rowHeight
     let (iconColor, _) = state.fileKind(entry.name)
     let sizeText = state.formatSize(entry)
-    let rowBg: Color = isSelected ? selectionColor : (isHovered ? highlightColor : .clear)
+    let rowBg: Color = isSelected ? selectionColor : .clear
 
     let content = HStack(alignment: .center, spacing: 6) {
         Rectangle().fill(.clear).frame(width: 6, height: 1)
@@ -565,14 +465,11 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     }.frame(width: width, height: rowHeight)
     .contentShape(Rectangle())
     .onTapGesture(count: 2) {
-        if entry.isDirectory {
-            state.navigate(to: entry.name)
-        }
+        if entry.isDirectory { state.navigate(to: entry.name) }
     }
     .onTapGesture {
         state.selectedIndex = index
     }
-    #if canImport(AppKit) && !canImport(CloneClient)
     .contextMenu {
         if entry.isDirectory {
             Button("Open") { state.navigate(to: entry.name) }
@@ -589,7 +486,6 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
         Button("Copy") { }
         Button("Move to Trash", role: .destructive) { }
     }
-    #endif
 }
 
 func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
@@ -661,7 +557,6 @@ func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some
         itemsStack
     }.frame(width: contextMenuWidth, height: menuHeight)
 
-    // Position absolutely with soft shadow
     let panelWithShadow = menuPanel
         .shadow(color: Color(red: 0, green: 0, blue: 0, opacity: 0.2), radius: 12, x: 0, y: 4)
 
@@ -683,14 +578,11 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
 
     let iconColor: Color = info.isDirectory ? .blue : .orange
 
-    // Title bar with close dot
     let titleBar = ZStack {
         Rectangle().fill(surfaceColor).frame(width: panelW, height: titleBarH)
         HStack(alignment: .center, spacing: 0) {
             Rectangle().fill(.clear).frame(width: 10, height: 1)
-            RoundedRectangle(cornerRadius: 5)
-                .fill(.red)
-                .frame(width: 10, height: 10)
+            RoundedRectangle(cornerRadius: 5).fill(.red).frame(width: 10, height: 10)
             Spacer()
             Text("\(info.name) Info").font(.system(size: 12, weight: .bold)).foregroundColor(.primary)
             Spacer()
@@ -698,9 +590,7 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
         }.frame(width: panelW, height: titleBarH)
     }.frame(width: panelW, height: titleBarH)
 
-    // Info content
     let content = VStack(alignment: .leading, spacing: 8) {
-        // Header: icon + name
         HStack(alignment: .center, spacing: 10) {
             RoundedRectangle(cornerRadius: 10).fill(iconColor).frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 2) {
@@ -714,7 +604,6 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
         infoRow("Where:", info.path)
     }.padding(12).frame(width: panelW)
 
-    // Window body
     let windowBody = ZStack {
         RoundedRectangle(cornerRadius: cornerR).fill(bgColor).frame(width: panelW, height: panelH)
         VStack(alignment: .leading, spacing: 0) {
@@ -724,12 +613,10 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
         }.frame(width: panelW, height: panelH)
     }.frame(width: panelW, height: panelH)
 
-    // Shadow
     let shadow = RoundedRectangle(cornerRadius: cornerR)
         .fill(Color(red: 0, green: 0, blue: 0, opacity: 0.25))
         .frame(width: panelW, height: panelH)
 
-    // Position with padding offsets
     let positioned = ZStack {
             shadow.padding(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 0))
             windowBody
@@ -785,50 +672,13 @@ func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some Vie
 
 @main
 struct FinderApp: App {
-    @State private var state = FinderState()
+    @StateObject private var state = FinderState()
 
     var body: some Scene {
         WindowGroup("Finder") {
-            #if canImport(AppKit) && !canImport(CloneClient)
             GeometryReader { proxy in
                 finderView(state: state, width: proxy.size.width, height: proxy.size.height)
             }
-            #else
-            finderView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
-            #endif
         }
     }
-
-    #if canImport(CloneClient)
-    var configuration: WindowConfiguration {
-        WindowConfiguration(title: "Finder — ~/", width: 700, height: 450)
-    }
-
-    func onPointerMove(x: CGFloat, y: CGFloat) {
-        state.mouseX = x
-        state.mouseY = y
-        state.updateContextMenuHover(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
-    }
-
-    func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {
-        guard pressed else { return }
-        if button == 0 {
-            state.handleLeftClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
-        } else if button == 1 {
-            state.handleRightClick(x: x, y: y, width: state.windowWidth, height: state.windowHeight)
-        }
-    }
-
-    func onKey(keycode: UInt32, pressed: Bool) {
-        guard pressed else { return }
-        switch keycode {
-        case 42, 51:
-            state.goBack()
-        case 1:
-            if state.infoPanel != nil { state.infoPanel = nil }
-            else { state.contextMenu = nil }
-        default: break
-        }
-    }
-    #endif
 }
