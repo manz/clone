@@ -27,7 +27,7 @@ import Testing
     #expect(node == .roundedRect(width: 200, height: 100, radius: 12, fill: .white))
 }
 
-@Test func vstackBuilder() {
+@MainActor @Test func vstackBuilder() {
     let node = ViewNode.vstack(spacing: 10) {
         ViewNode.text("Top", fontSize: 14, color: .primary)
         ViewNode.text("Bottom", fontSize: 14, color: .primary)
@@ -41,7 +41,7 @@ import Testing
     }
 }
 
-@Test func hstackBuilder() {
+@MainActor @Test func hstackBuilder() {
     let node = ViewNode.hstack(alignment: .top, spacing: 4) {
         ViewNode.spacer(minLength: 0)
         ViewNode.text("Label", fontSize: 12, color: .secondary)
@@ -55,7 +55,7 @@ import Testing
     }
 }
 
-@Test func zstackBuilder() {
+@MainActor @Test func zstackBuilder() {
     let node = ViewNode.zstack {
         ViewNode.rect(width: nil, height: nil, fill: .gray)
         ViewNode.text("Overlay", fontSize: 24, color: .white)
@@ -113,7 +113,7 @@ import Testing
     }
 }
 
-@Test func nestedTree() {
+@MainActor @Test func nestedTree() {
     let tree = ViewNode.vstack {
         ViewNode.hstack {
             ViewNode.text("Left", fontSize: 14, color: .primary)

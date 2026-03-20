@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 @resultBuilder
 public struct ViewBuilder {
     // A block component is always [ViewNode] — a flat list of nodes.
@@ -13,7 +14,7 @@ public struct ViewBuilder {
     }
 
     // Any View expression → resolve body to ViewNode.
-    @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
+    public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
         [_resolve(expression)]
     }
 
