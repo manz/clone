@@ -4,6 +4,12 @@ import PackageDescription
 let package = Package(
     name: "Clone",
     platforms: [.macOS(.v14)],
+    products: [
+        // Public SDK products — external apps depend on these
+        .library(name: "SwiftUI", targets: ["SwiftUI"]),
+        .library(name: "SwiftData", targets: ["SwiftData"]),
+        .library(name: "AppKit", targets: ["AppKit"]),
+    ],
     targets: [
         .systemLibrary(
             name: "clone_engineFFI",
@@ -101,6 +107,11 @@ let package = Package(
             name: "SwiftDataTests",
             dependencies: ["SwiftData"],
             path: "Tests/SwiftDataTests"
+        ),
+        // ycodebuild — CLI tool for building external apps against Aquax SDK
+        .executableTarget(
+            name: "ycodebuild",
+            path: "Sources/ycodebuild"
         ),
     ]
 )

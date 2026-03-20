@@ -202,6 +202,282 @@ public extension ViewNode {
     func clipShape<S: View>(_ shape: S) -> ViewNode {
         self
     }
+
+    /// `.overlay { content }` — layers content on top, like a ZStack.
+    func overlay(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        .zstack(children: [self] + content())
+    }
+
+    /// `.overlay(alignment:content:)` — layers content on top.
+    func overlay(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        .zstack(children: [self] + content())
+    }
+
+    /// `.overlay(_:)` — layers a single view on top.
+    func overlay<V: View>(_ overlay: V) -> ViewNode {
+        .zstack(children: [self, _resolve(overlay)])
+    }
+
+    /// `.disabled(_:)` — marks the view as disabled. Reduces opacity as visual hint.
+    func disabled(_ isDisabled: Bool) -> ViewNode {
+        isDisabled ? .opacity(0.5, child: self) : self
+    }
+
+    /// `.tint(_:)` — applies a tint color. Maps to foregroundColor for interactive elements.
+    func tint(_ color: Color?) -> ViewNode {
+        guard let color = color else { return self }
+        return foregroundColor(color)
+    }
+
+    /// `.onAppear { }` — executes a closure when the view appears.
+    /// On Clone, fires immediately during tree build (no lifecycle tracking yet).
+    func onAppear(perform action: (() -> Void)? = nil) -> ViewNode {
+        action?()
+        return self
+    }
+
+    /// `.onDisappear { }` — no-op on Clone (no lifecycle tracking yet).
+    func onDisappear(perform action: (() -> Void)? = nil) -> ViewNode {
+        self
+    }
+
+    /// `.task { }` — executes an async closure when the view appears.
+    /// On Clone, launches the task immediately (no cancellation on disappear).
+    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
+        Task(priority: priority) { await action() }
+        return self
+    }
+
+    /// `.task(id:_:)` — executes an async closure when id changes.
+    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
+        Task(priority: priority) { await action() }
+        return self
+    }
+
+    /// `.sheet(isPresented:onDismiss:content:)` — presents a modal sheet.
+    /// On Clone, renders content as overlay when presented.
+    func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        if isPresented.wrappedValue {
+            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: content())
+            return .zstack(children: [self, sheetContent])
+        }
+        return self
+    }
+
+    /// `.sheet(item:onDismiss:content:)` — presents a sheet for an optional item.
+    func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> [ViewNode]) -> ViewNode {
+        if let value = item.wrappedValue {
+            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: content(value))
+            return .zstack(children: [self, sheetContent])
+        }
+        return self
+    }
+
+    /// `.alert(_:isPresented:actions:)` — no-op on Clone.
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.alert(_:isPresented:actions:message:)` — no-op on Clone.
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.confirmationDialog(_:isPresented:actions:)` — no-op on Clone.
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.searchable(text:)` — no-op on Clone.
+    func searchable(text: Binding<String>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
+        self
+    }
+
+    /// `.onChange(of:perform:)` — no-op on Clone (no observation system yet).
+    func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> ViewNode {
+        self
+    }
+
+    /// `.onChange(of:initial:_:)` — Swift 5.9+ onChange.
+    func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void) -> ViewNode {
+        if initial { action() }
+        return self
+    }
+
+    /// `.animation(_:)` — no-op on Clone (no animation system).
+    func animation(_ animation: Animation?) -> ViewNode {
+        self
+    }
+
+    /// `.animation(_:value:)` — no-op on Clone.
+    func animation<V: Equatable>(_ animation: Animation?, value: V) -> ViewNode {
+        self
+    }
+
+    /// `.transition(_:)` — no-op on Clone.
+    func transition(_ t: AnyTransition) -> ViewNode {
+        self
+    }
+
+    /// `.tabItem { }` — stores a tab label. No-op rendering on Clone.
+    func tabItem(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.tag(_:)` — attaches a tag value for selection. No-op on Clone.
+    func tag<V: Hashable>(_ tag: V) -> ViewNode {
+        self
+    }
+
+    /// `.ignoresSafeArea()` — no-op on Clone.
+    func ignoresSafeArea(_ regions: Any?...) -> ViewNode {
+        self
+    }
+
+    /// `.safeAreaInset(edge:content:)` — no-op on Clone.
+    func safeAreaInset(edge: Edge.Set, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.lineLimit(_:)` — no-op on Clone.
+    func lineLimit(_ limit: Int?) -> ViewNode {
+        self
+    }
+
+    /// `.multilineTextAlignment(_:)` — no-op on Clone.
+    func multilineTextAlignment(_ alignment: HAlignment) -> ViewNode {
+        self
+    }
+
+    /// `.textFieldStyle(_:)` — no-op on Clone.
+    func textFieldStyle<S>(_ style: S) -> ViewNode {
+        self
+    }
+
+    /// `.buttonStyle(_:)` — no-op on Clone.
+    func buttonStyle<S>(_ style: S) -> ViewNode {
+        self
+    }
+
+    /// `.listStyle(_:)` — no-op on Clone.
+    func listStyle<S>(_ style: S) -> ViewNode {
+        self
+    }
+
+    /// `.pickerStyle(_:)` — no-op on Clone.
+    func pickerStyle<S>(_ style: S) -> ViewNode {
+        self
+    }
+
+    /// `.toggleStyle(_:)` — no-op on Clone.
+    func toggleStyle<S>(_ style: S) -> ViewNode {
+        self
+    }
+
+    /// `.foregroundStyle(_:)` — maps to foregroundColor for single color.
+    func foregroundStyle(_ color: Color) -> ViewNode {
+        foregroundColor(color)
+    }
+
+    /// `.background(_:in:)` — background with shape. Renders as ZStack.
+    func background<S: View>(_ color: Color, in shape: S) -> ViewNode {
+        background(color)
+    }
+
+    /// `.background(content:)` — background with arbitrary view content.
+    func background(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        .zstack(children: content() + [self])
+    }
+
+    /// `.background(alignment:content:)` — background with view content.
+    func background(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        .zstack(children: content() + [self])
+    }
+
+    /// `.help(_:)` — tooltip text. No-op on Clone.
+    func help(_ text: String) -> ViewNode {
+        self
+    }
+
+    /// `.accessibilityLabel(_:)` — no-op on Clone.
+    func accessibilityLabel(_ label: String) -> ViewNode {
+        self
+    }
+
+    /// `.accessibilityHidden(_:)` — no-op on Clone.
+    func accessibilityHidden(_ hidden: Bool) -> ViewNode {
+        self
+    }
+
+    /// `.focusable(_:)` — no-op on Clone.
+    func focusable(_ isFocusable: Bool = true) -> ViewNode {
+        self
+    }
+
+    /// `.focused(_:)` — no-op on Clone.
+    func focused(_ condition: Any?) -> ViewNode {
+        self
+    }
+
+    /// `.allowsHitTesting(_:)` — no-op on Clone.
+    func allowsHitTesting(_ enabled: Bool) -> ViewNode {
+        self
+    }
+
+    /// `.id(_:)` — no-op on Clone (no identity tracking yet).
+    func id<ID: Hashable>(_ id: ID) -> ViewNode {
+        self
+    }
+
+    /// `.offset(x:y:)` — no-op on Clone (no offset support yet).
+    func offset(x: CGFloat = 0, y: CGFloat = 0) -> ViewNode {
+        self
+    }
+
+    /// `.rotationEffect(_:)` — no-op on Clone.
+    func rotationEffect(_ angle: Any) -> ViewNode {
+        self
+    }
+
+    /// `.scaleEffect(_:)` — no-op on Clone.
+    func scaleEffect(_ scale: CGFloat) -> ViewNode {
+        self
+    }
+
+    /// `.environment(_:_:)` — no-op on Clone (environment is global).
+    func environment<V>(_ keyPath: WritableKeyPath<EnvironmentValues, V>, _ value: V) -> ViewNode {
+        self
+    }
+
+    /// `.environmentObject(_:)` — no-op on Clone.
+    func environmentObject<T: AnyObject>(_ object: T) -> ViewNode {
+        self
+    }
+
+    /// `.onSubmit(_:)` — no-op on Clone.
+    func onSubmit(_ action: @escaping () -> Void) -> ViewNode {
+        self
+    }
+
+    /// `.swipeActions(edge:content:)` — no-op on Clone.
+    func swipeActions(edge: Any? = nil, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.refreshable(action:)` — no-op on Clone.
+    func refreshable(action: @escaping @Sendable () async -> Void) -> ViewNode {
+        self
+    }
+
+    /// `.symbolRenderingMode(_:)` — no-op on Clone.
+    func symbolRenderingMode(_ mode: Any?) -> ViewNode {
+        self
+    }
+
+    /// `.preferredColorScheme(_:)` — no-op on Clone.
+    func preferredColorScheme(_ scheme: Any?) -> ViewNode {
+        self
+    }
 }
 
 /// `.background(_:)` — wraps content in a ZStack with a background color behind it.

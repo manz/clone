@@ -1,5 +1,51 @@
 import Foundation
 
+// MARK: - SwiftUI Animation type (for modifier API compatibility)
+
+/// A type that describes how to animate a change. No-op on Clone.
+public struct Animation: Equatable, Sendable {
+    public static let `default` = Animation()
+    public static let easeIn = Animation()
+    public static let easeOut = Animation()
+    public static let easeInOut = Animation()
+    public static let linear = Animation()
+    public static let spring = Animation()
+
+    public static func easeIn(duration: Double) -> Animation { Animation() }
+    public static func easeOut(duration: Double) -> Animation { Animation() }
+    public static func easeInOut(duration: Double) -> Animation { Animation() }
+    public static func linear(duration: Double) -> Animation { Animation() }
+    public static func spring(response: Double = 0.5, dampingFraction: Double = 0.825, blendDuration: Double = 0) -> Animation { Animation() }
+    public static func interactiveSpring(response: Double = 0.15, dampingFraction: Double = 0.86, blendDuration: Double = 0.25) -> Animation { Animation() }
+
+    public func delay(_ delay: Double) -> Animation { self }
+    public func speed(_ speed: Double) -> Animation { self }
+    public func repeatCount(_ count: Int, autoreverses: Bool = true) -> Animation { self }
+    public func repeatForever(autoreverses: Bool = true) -> Animation { self }
+}
+
+/// Executes a closure with animation context. No-op on Clone — just runs the body.
+public func withAnimation<Result>(_ animation: Animation? = .default, _ body: () throws -> Result) rethrows -> Result {
+    try body()
+}
+
+/// A type-erased transition. No-op on Clone.
+public struct AnyTransition: Sendable {
+    public static let identity = AnyTransition()
+    public static let opacity = AnyTransition()
+    public static let slide = AnyTransition()
+    public static let scale = AnyTransition()
+    public static let move = AnyTransition()
+
+    public static func move(edge: Edge.Set) -> AnyTransition { AnyTransition() }
+    public static func offset(x: CGFloat = 0, y: CGFloat = 0) -> AnyTransition { AnyTransition() }
+    public static func asymmetric(insertion: AnyTransition, removal: AnyTransition) -> AnyTransition { AnyTransition() }
+
+    public func combined(with other: AnyTransition) -> AnyTransition { AnyTransition() }
+}
+
+// MARK: - Window animation engine
+
 /// Monotonic clock — replacement for QuartzCore's CACurrentMediaTime().
 /// Uses CLOCK_MONOTONIC via clock_gettime, same as the real implementation.
 public func CACurrentMediaTime() -> Double {

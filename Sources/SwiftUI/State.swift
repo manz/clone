@@ -45,4 +45,16 @@ public struct Binding<Value> {
         get { getter() }
         nonmutating set { setter(newValue) }
     }
+
+    /// Creates a binding with an immutable value.
+    public static func constant(_ value: Value) -> Binding<Value> {
+        Binding(get: { value }, set: { _ in })
+    }
+}
+
+extension Binding where Value: ExpressibleByNilLiteral {
+    /// Creates a nil binding.
+    public init() {
+        self.init(get: { nil }, set: { _ in })
+    }
 }
