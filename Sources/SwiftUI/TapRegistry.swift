@@ -1,7 +1,7 @@
 import Foundation
 
 /// Registry for onTap handlers. Maps tap IDs to closures.
-public final class TapRegistry {
+public final class TapRegistry: @unchecked Sendable {
     public static let shared = TapRegistry()
 
     private var handlers: [UInt64: () -> Void] = [:]

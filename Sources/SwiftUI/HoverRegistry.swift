@@ -7,7 +7,7 @@ public enum HoverPhase {
 }
 
 /// Registry for onHover and onContinuousHover handlers.
-public final class HoverRegistry {
+public final class HoverRegistry: @unchecked Sendable {
     public static let shared = HoverRegistry()
 
     private var boolHandlers: [UInt64: (Bool) -> Void] = [:]

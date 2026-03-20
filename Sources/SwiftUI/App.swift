@@ -68,7 +68,7 @@ public protocol App {
 // MARK: - Default Implementations
 
 /// Shared AppClient singleton for the running app.
-private var _sharedClient = AppClient()
+nonisolated(unsafe) private var _sharedClient = AppClient()
 
 extension App {
     public var client: AppClient { _sharedClient }

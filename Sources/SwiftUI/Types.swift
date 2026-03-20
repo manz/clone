@@ -309,7 +309,7 @@ public enum ColorScheme: Sendable {
 
 // MARK: - TextSelectability
 
-public enum TextSelectability {
+public enum TextSelectability: Sendable {
     public static let enabled = TextSelectability.on
     public static let disabled = TextSelectability.off
     case on, off

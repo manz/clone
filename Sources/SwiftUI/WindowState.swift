@@ -2,7 +2,7 @@ import Foundation
 
 /// Shared state for the current window, updated by the App runtime each frame.
 /// Views read this for window dimensions; `.navigationTitle()` writes to it.
-public final class WindowState {
+public final class WindowState: @unchecked Sendable {
     public static let shared = WindowState()
 
     /// Current window dimensions (updated by App.main on each frame request).
@@ -61,7 +61,7 @@ public struct RestoreAppAction {
 }
 
 /// Global system actions — wired up by App.main().
-public final class SystemActions {
+public final class SystemActions: @unchecked Sendable {
     public static let shared = SystemActions()
 
     public var launchApp = LaunchAppAction { _ in }

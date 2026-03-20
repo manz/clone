@@ -20,7 +20,7 @@ public struct GeometryProxy: Sendable {
 /// Registry that holds GeometryReader closures by ID.
 /// During layout, when a `.geometryReader(id:)` node is encountered,
 /// the resolver is called to produce the child ViewNode.
-public final class GeometryReaderRegistry {
+public final class GeometryReaderRegistry: @unchecked Sendable {
     public static let shared = GeometryReaderRegistry()
 
     private var closures: [UInt64: (GeometryProxy) -> ViewNode] = [:]

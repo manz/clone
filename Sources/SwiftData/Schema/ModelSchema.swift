@@ -1,7 +1,7 @@
 import Foundation
 
 /// Describes the type of a persisted property.
-public enum PropertyType {
+public enum PropertyType: Sendable {
     case string
     case int
     case int64
@@ -14,7 +14,7 @@ public enum PropertyType {
 }
 
 /// Describes a single persisted property (column).
-public struct PropertySchema {
+public struct PropertySchema: Sendable {
     public let name: String
     public let type: PropertyType
     public let isOptional: Bool
@@ -43,20 +43,20 @@ public struct PropertySchema {
 }
 
 /// Relationship cardinality.
-public enum RelationshipCardinality {
+public enum RelationshipCardinality: Sendable {
     case toOne
     case toMany
 }
 
 /// Deletion rule for relationships.
-public enum DeleteRule {
+public enum DeleteRule: Sendable {
     case cascade
     case nullify
     case noAction
 }
 
 /// Describes a relationship between models.
-public struct RelationshipDescriptor {
+public struct RelationshipDescriptor: Sendable {
     public let name: String
     public let destinationTable: String
     public let cardinality: RelationshipCardinality
@@ -74,7 +74,7 @@ public struct RelationshipDescriptor {
 }
 
 /// Full schema for a PersistentModel — table name, columns, relationships.
-public struct ModelSchema {
+public struct ModelSchema: Sendable {
     public let name: String
     public let properties: [PropertySchema]
     public let relationships: [RelationshipDescriptor]

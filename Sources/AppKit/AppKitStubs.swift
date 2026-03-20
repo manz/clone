@@ -115,8 +115,8 @@ open class NSWindowController {
 
 // MARK: - NSApplication
 
-open class NSApplication {
-    public static let shared = NSApplication()
+open class NSApplication: @unchecked Sendable {
+    nonisolated(unsafe) public static let shared = NSApplication()
     public func terminate(_ sender: Any?) {}
     public var windows: [NSWindow] = []
     public func activate(ignoringOtherApps: Bool) {}
@@ -136,7 +136,7 @@ open class NSApplication {
     public static let didUnhideNotification = Notification.Name("NSApplicationDidUnhide")
     public static let willBecomeActiveNotification = Notification.Name("NSApplicationWillBecomeActive")
 }
-public let NSApp: NSApplication = .shared
+nonisolated(unsafe) public let NSApp: NSApplication = .shared
 
 // MARK: - NSImage
 
@@ -216,7 +216,7 @@ open class NSEvent {
 
 open class NSScreen {
     public static var main: NSScreen? { NSScreen() }
-    public static var screens: [NSScreen] = [NSScreen()]
+    nonisolated(unsafe) public static var screens: [NSScreen] = [NSScreen()]
     public var frame: CGRect = CGRect(origin: _zeroPoint, size: CGSize(width: 1920, height: 1080))
     public var visibleFrame: CGRect = CGRect(origin: _zeroPoint, size: CGSize(width: 1920, height: 1080))
     public var backingScaleFactor: CGFloat = 2.0
@@ -243,8 +243,8 @@ open class NSAlert {
 
 // MARK: - NSWorkspace
 
-open class NSWorkspace {
-    public static let shared = NSWorkspace()
+open class NSWorkspace: @unchecked Sendable {
+    nonisolated(unsafe) public static let shared = NSWorkspace()
     public var notificationCenter: NotificationCenter { .default }
     public static let didWakeNotification = Notification.Name("NSWorkspaceDidWake")
 }
@@ -261,9 +261,9 @@ open class NSGraphicsContext {
 
 // MARK: - NSCursor
 
-open class NSCursor {
-    public static let pointingHand = NSCursor()
-    public static let arrow = NSCursor()
+open class NSCursor: @unchecked Sendable {
+    nonisolated(unsafe) public static let pointingHand = NSCursor()
+    nonisolated(unsafe) public static let arrow = NSCursor()
     public func push() {}
     public func pop() {}
     public static func pop() {}
@@ -271,8 +271,8 @@ open class NSCursor {
 
 // MARK: - NSPasteboard
 
-open class NSPasteboard {
-    public static let general = NSPasteboard()
+open class NSPasteboard: @unchecked Sendable {
+    nonisolated(unsafe) public static let general = NSPasteboard()
     public func clearContents() {}
     public func setString(_ string: String, forType: PasteboardType) {}
     public struct PasteboardType: RawRepresentable, Hashable, Sendable {
@@ -314,7 +314,7 @@ open class NSHostingController<Content> {
 
 // MARK: - CATransform3D (QuartzCore stubs)
 
-public struct CATransform3D {
+public struct CATransform3D: Sendable {
     public var m11: CGFloat = 1, m12: CGFloat = 0, m13: CGFloat = 0, m14: CGFloat = 0
     public var m21: CGFloat = 0, m22: CGFloat = 1, m23: CGFloat = 0, m24: CGFloat = 0
     public var m31: CGFloat = 0, m32: CGFloat = 0, m33: CGFloat = 1, m34: CGFloat = 0
@@ -322,7 +322,7 @@ public struct CATransform3D {
     public init() {}
 }
 
-public let CATransform3DIdentity = CATransform3D()
+nonisolated(unsafe) public let CATransform3DIdentity = CATransform3D()
 
 public func CATransform3DRotate(_ t: CATransform3D, _ angle: CGFloat, _ x: CGFloat, _ y: CGFloat, _ z: CGFloat) -> CATransform3D { t }
 public func CATransform3DTranslate(_ t: CATransform3D, _ tx: CGFloat, _ ty: CGFloat, _ tz: CGFloat) -> CATransform3D { t }

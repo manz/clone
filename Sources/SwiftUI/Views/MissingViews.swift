@@ -259,7 +259,7 @@ public struct CommandMenu<Content: View>: Commands, View {
 }
 
 /// The placement of a command group.
-public struct CommandGroupPlacement {
+public struct CommandGroupPlacement: Sendable {
     public static let appInfo = CommandGroupPlacement()
     public static let appSettings = CommandGroupPlacement()
     public static let appTermination = CommandGroupPlacement()

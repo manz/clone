@@ -19,7 +19,7 @@ public struct EnvironmentValues {
 }
 
 /// Shared global environment — in a full implementation, this would be per-view-tree.
-private var _globalEnvironment = EnvironmentValues()
+nonisolated(unsafe) private var _globalEnvironment = EnvironmentValues()
 
 /// A property wrapper that reads a value from the environment.
 @propertyWrapper
@@ -42,7 +42,7 @@ private struct DismissActionKey: EnvironmentKey {
 }
 
 /// A dismiss action that can be called from the environment.
-public struct DismissAction {
+public struct DismissAction: @unchecked Sendable {
     private let action: () -> Void
     public init(_ action: @escaping () -> Void) { self.action = action }
     public func callAsFunction() { action() }
@@ -164,7 +164,7 @@ extension AppStorage where Value == Double {
 }
 
 /// Backing store for @AppStorage
-private var _appStorageBacking: [String: Any] = [:]
+nonisolated(unsafe) private var _appStorageBacking: [String: Any] = [:]
 
 // MARK: - @SceneStorage
 

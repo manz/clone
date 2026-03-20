@@ -13,7 +13,7 @@ public struct Dock {
     let screenWidth: CGFloat
     let screenHeight: CGFloat
 
-    public struct DockItem: Equatable {
+    public struct DockItem: Equatable, Sendable {
         public let appId: String
         public let name: String
         public let color: Color
@@ -185,7 +185,7 @@ public struct Dock {
 
 /// Shared registry to communicate dock icon taps back to the compositor.
 /// The compositor checks this each frame and launches the requested app.
-public final class DockActionRegistry {
+public final class DockActionRegistry: @unchecked Sendable {
     public static let shared = DockActionRegistry()
     public var lastTappedAppId: String? = nil
     private init() {}
