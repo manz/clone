@@ -7,7 +7,7 @@ final class MenuBarState {
 
 let menuItems = ["File", "Edit", "View", "Window", "Help"]
 
-func menuBarView(state: MenuBarState) -> some View {
+@MainActor func menuBarView(state: MenuBarState) -> some View {
     let menuTextColor: Color = .primary
 
     let formatter = DateFormatter()

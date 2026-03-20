@@ -79,6 +79,7 @@ public struct PresentationMode {
 // MARK: - @EnvironmentObject
 
 /// A property wrapper that reads an observable object from the environment.
+@MainActor
 @propertyWrapper
 public struct EnvironmentObject<ObjectType: AnyObject> {
     private var object: ObjectType?

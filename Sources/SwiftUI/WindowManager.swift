@@ -83,6 +83,7 @@ public enum TrafficLightButton {
 }
 
 /// Manages all windows: z-ordering, focus, movement, lifecycle.
+@MainActor
 public final class WindowManager {
     public var windows: [ManagedWindow] = []
     public private(set) var focusedWindowId: UInt64? = nil

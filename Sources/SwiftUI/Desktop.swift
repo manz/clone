@@ -1,6 +1,7 @@
 import Foundation
 
 /// Root desktop component — background + dock.
+@MainActor
 public struct Desktop {
     let screenWidth: CGFloat
     let screenHeight: CGFloat

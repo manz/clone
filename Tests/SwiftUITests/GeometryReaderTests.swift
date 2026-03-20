@@ -3,7 +3,7 @@ import Testing
 import Foundation
 @testable import SwiftUI
 
-@Test func geometryReaderReceivesProposedSize() {
+@Test @MainActor func geometryReaderReceivesProposedSize() {
     GeometryReaderRegistry.shared.clear()
 
     let captured = CapturedValue<CGSize>()
@@ -23,7 +23,7 @@ import Foundation
     #expect(result.frame.height == 300)
 }
 
-@Test func geometryReaderFillsParent() {
+@Test @MainActor func geometryReaderFillsParent() {
     GeometryReaderRegistry.shared.clear()
 
     let node = GeometryReader { proxy in
@@ -35,7 +35,7 @@ import Foundation
     #expect(size.height == 600)
 }
 
-@Test func geometryReaderInsideVStack() {
+@Test @MainActor func geometryReaderInsideVStack() {
     GeometryReaderRegistry.shared.clear()
 
     // Use a shared box to capture from inside the closure
@@ -55,7 +55,7 @@ import Foundation
     #expect(captured.value != nil)
 }
 
-@Test func geometryReaderReceivesCorrectFrame() {
+@Test @MainActor func geometryReaderReceivesCorrectFrame() {
     GeometryReaderRegistry.shared.clear()
 
     let captured = CapturedValue<LayoutFrame>()
@@ -81,7 +81,7 @@ final class CapturedValue<T> {
     var value: T?
 }
 
-@Test func hitTestOnLayoutNode() {
+@Test @MainActor func hitTestOnLayoutNode() {
     let node = _resolve(ZStack {
         Rectangle().fill(.gray).frame(width: 400, height: 300)
         RoundedRectangle(cornerRadius: 8)

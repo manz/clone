@@ -125,7 +125,7 @@ public extension ViewNode {
     }
 
     /// `.fill(_:)` — fills with an arbitrary ShapeStyle/View (extracts first color from gradient).
-    func fill<S: View>(_ style: S) -> ViewNode {
+    @MainActor func fill<S: View>(_ style: S) -> ViewNode {
         // Try to extract a representative color from the style's body
         let resolved = _resolve(style)
         switch resolved {
@@ -246,7 +246,7 @@ public extension ViewNode {
     }
 
     /// `.overlay(_:)` — layers a single view on top.
-    func overlay<V: View>(_ overlay: V) -> ViewNode {
+    @MainActor func overlay<V: View>(_ overlay: V) -> ViewNode {
         .zstack(children: [self, _resolve(overlay)])
     }
 
@@ -775,7 +775,7 @@ public extension ViewNode {
     }
 
     /// `.background(_:)` — background with arbitrary view (e.g. LinearGradient).
-    func background<V: View>(_ view: V) -> ViewNode {
+    @MainActor func background<V: View>(_ view: V) -> ViewNode {
         .zstack(children: [_resolve(view), self])
     }
 

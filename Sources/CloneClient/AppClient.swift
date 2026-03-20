@@ -2,6 +2,7 @@ import Foundation
 import CloneProtocol
 
 /// Client library for apps to connect to the Clone compositor.
+@MainActor
 public final class AppClient {
     private var socketFd: Int32 = -1
     private var readBuffer = Data()
@@ -11,19 +12,19 @@ public final class AppClient {
     public private(set) var isConnected = false
 
     /// Callback when the compositor requests a frame.
-    public var onFrameRequest: ((Float, Float) -> [IPCRenderCommand])?
+    public var onFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
     /// Callback for pointer movement (local coords).
-    public var onPointerMove: ((Float, Float) -> Void)?
+    public var onPointerMove: (@MainActor (Float, Float) -> Void)?
     /// Callback for pointer button.
-    public var onPointerButton: ((UInt32, Bool, Float, Float) -> Void)?
+    public var onPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
     /// Callback for key events.
-    public var onKey: ((UInt32, Bool) -> Void)?
+    public var onKey: (@MainActor (UInt32, Bool) -> Void)?
     /// Callback when window is created.
-    public var onWindowCreated: ((UInt64, Float, Float) -> Void)?
+    public var onWindowCreated: (@MainActor (UInt64, Float, Float) -> Void)?
     /// Callback when compositor reports focused app name (for menubar).
-    public var onFocusedApp: ((String) -> Void)?
+    public var onFocusedApp: (@MainActor (String) -> Void)?
     /// Callback when compositor reports minimized app IDs (for dock).
-    public var onMinimizedApps: (([String]) -> Void)?
+    public var onMinimizedApps: (@MainActor ([String]) -> Void)?
 
     public init() {}
 
@@ -161,8 +162,11 @@ public final class AppClient {
         isConnected = false
     }
 
-    deinit {
-        disconnect()
+    nonisolated deinit {
+        // deinit is nonisolated; perform raw socket cleanup directly.
+        if socketFd >= 0 {
+            Darwin.close(socketFd)
+        }
     }
 }
 

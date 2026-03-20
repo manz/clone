@@ -8,7 +8,7 @@ let screenHeight: CGFloat = 800
 // mouseY at the dock zone (near bottom)
 let dockY: CGFloat = 780
 
-@Test func dockMagnificationAtCenter() {
+@Test @MainActor func dockMagnificationAtCenter() {
     let items = (0..<7).map { _ in
         Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
@@ -23,7 +23,7 @@ let dockY: CGFloat = 780
     #expect(maxSize <= Dock.baseIconSize * Dock.maxScale)
 }
 
-@Test func dockMagnificationFarAwayX() {
+@Test @MainActor func dockMagnificationFarAwayX() {
     let items = [Dock.DockItem(appId: "test", name: "App", color: .blue)]
     let sizes = Dock.magnifiedSizes(
         mouseX: 0, mouseY: dockY,
@@ -33,7 +33,7 @@ let dockY: CGFloat = 780
     #expect(sizes[0] == Dock.baseIconSize)
 }
 
-@Test func dockMagnificationFarAwayY() {
+@Test @MainActor func dockMagnificationFarAwayY() {
     let items = (0..<7).map { _ in
         Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
@@ -47,7 +47,7 @@ let dockY: CGFloat = 780
     }
 }
 
-@Test func dockMagnificationSymmetric() {
+@Test @MainActor func dockMagnificationSymmetric() {
     let items = (0..<5).map { _ in
         Dock.DockItem(appId: "test", name: "App", color: .blue)
     }
@@ -67,7 +67,7 @@ let dockY: CGFloat = 780
     }
 }
 
-@Test func dockRectIsBottomCentered() {
+@Test @MainActor func dockRectIsBottomCentered() {
     let items = Dock.defaultItems
     let rect = Dock.dockRect(items: items, screenWidth: screenWidth, screenHeight: screenHeight)
     #expect(rect.y + rect.h == screenHeight)
@@ -75,7 +75,7 @@ let dockY: CGFloat = 780
     #expect(rect.x + rect.w < screenWidth)
 }
 
-@Test func dockProducesValidViewTree() {
+@Test @MainActor func dockProducesValidViewTree() {
     let dock = Dock(mouseX: 640, mouseY: dockY, screenWidth: screenWidth, screenHeight: screenHeight)
     let tree = dock.body()
     if case .zstack(let children) = tree {
@@ -85,6 +85,6 @@ let dockY: CGFloat = 780
     }
 }
 
-@Test func dockItemCount() {
+@Test @MainActor func dockItemCount() {
     #expect(Dock.defaultItems.count == 7)
 }

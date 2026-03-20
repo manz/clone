@@ -4,6 +4,7 @@
 @_exported import AppKit
 
 /// The core protocol for SwiftUI views.
+@MainActor
 public protocol View {
     associatedtype Body: View
     var body: Body { get }
@@ -12,13 +13,13 @@ public protocol View {
 /// ViewNode is the terminal View — its body is itself.
 extension ViewNode: View {
     public typealias Body = ViewNode
-    public var body: ViewNode { self }
+    nonisolated public var body: ViewNode { self }
 }
 
 /// [ViewNode] as a View — allows @ViewBuilder closures to work with `some View`.
 extension Array: View where Element == ViewNode {
     public typealias Body = ViewNode
-    public var body: ViewNode {
+    nonisolated public var body: ViewNode {
         if count == 1 { return self[0] }
         return .vstack(alignment: .leading, spacing: 0, children: self)
     }
@@ -27,7 +28,7 @@ extension Array: View where Element == ViewNode {
 /// Color as a View — renders as a filled rect.
 extension Color: View {
     public typealias Body = ViewNode
-    public var body: ViewNode {
+    nonisolated public var body: ViewNode {
         .rect(width: nil, height: nil, fill: self)
     }
 }
@@ -36,6 +37,7 @@ extension Color: View {
 
 /// Resolves any View to its terminal ViewNode by walking the body chain.
 /// This is intentionally internal to the SwiftUI module.
+@MainActor
 func _resolve<V: View>(_ view: V) -> ViewNode {
     if let node = view as? ViewNode { return node }
     return _resolve(view.body)

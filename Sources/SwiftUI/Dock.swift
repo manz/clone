@@ -1,6 +1,7 @@
 import Foundation
 
 /// macOS-style Dock with icon magnification on hover.
+@MainActor
 public struct Dock {
     public static let baseIconSize: CGFloat = 48
     public static let maxScale: CGFloat = 2.0

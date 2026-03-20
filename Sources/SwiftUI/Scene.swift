@@ -1,6 +1,7 @@
 import Foundation
 
 /// A part of an app's user interface with a life cycle managed by the system.
+@MainActor
 public protocol Scene {
     associatedtype Body: Scene
     var body: Body { get }

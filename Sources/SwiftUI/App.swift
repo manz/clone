@@ -35,6 +35,7 @@ public struct WindowConfiguration {
 ///
 /// **Imperative rendering** (for apps that produce IPCRenderCommand directly):
 /// Override `render(width:height:)` and event handlers.
+@MainActor
 public protocol App {
     associatedtype Body: Scene
     @SceneBuilder var body: Body { get }
@@ -68,7 +69,7 @@ public protocol App {
 // MARK: - Default Implementations
 
 /// Shared AppClient singleton for the running app.
-nonisolated(unsafe) private var _sharedClient = AppClient()
+@MainActor private var _sharedClient = AppClient()
 
 extension App {
     public var client: AppClient { _sharedClient }
@@ -90,7 +91,7 @@ extension App {
 
     /// Default entry point.
     public static func main() {
-        let app = Self()
+        nonisolated(unsafe) let app = Self()
         let config = app.configuration
         let appId = _resolveAppId()
         let title = config.title.isEmpty ? appId : config.title
@@ -110,11 +111,12 @@ extension App {
         }
 
         // Wire up system actions so apps can launch/restore without touching client.
+        let client = app.client
         SystemActions.shared.launchApp = LaunchAppAction { appId in
-            app.client.send(.launchApp(appId: appId))
+            client.send(.launchApp(appId: appId))
         }
         SystemActions.shared.restoreApp = RestoreAppAction { appId in
-            app.client.send(.restoreApp(appId: appId))
+            client.send(.restoreApp(appId: appId))
         }
 
         if usesDeclarativeRendering {
@@ -214,6 +216,7 @@ extension App {
 // MARK: - Internal Helpers
 
 /// Type-erased protocol for extracting WindowGroup info.
+@MainActor
 protocol _WindowGroupProtocol {
     var windowTitle: String { get }
     func buildViewNode() -> ViewNode
@@ -228,6 +231,7 @@ extension WindowGroup: _WindowGroupProtocol {
 }
 
 /// Convert any View to a ViewNode by recursively evaluating body.
+@MainActor
 func _viewToNode<V: View>(_ view: V) -> ViewNode {
     if let node = view as? ViewNode { return node }
     return _viewToNode(view.body)

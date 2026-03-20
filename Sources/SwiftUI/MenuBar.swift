@@ -1,6 +1,7 @@
 import Foundation
 
 /// macOS-style global menu bar with frosted glass background.
+@MainActor
 public struct MenuBar {
     let screenWidth: CGFloat
     let appName: String

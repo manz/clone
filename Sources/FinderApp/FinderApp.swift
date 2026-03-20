@@ -334,7 +334,7 @@ final class FinderState: ObservableObject {
 
 // MARK: - View builders
 
-func toolbarView(state: FinderState, width: CGFloat) -> some View {
+@MainActor func toolbarView(state: FinderState, width: CGFloat) -> some View {
     let pathText = state.shortenPath(state.currentPath)
 
     let backBtn = ZStack {
@@ -368,7 +368,7 @@ func toolbarView(state: FinderState, width: CGFloat) -> some View {
     }.frame(width: width, height: toolbarHeight)
 }
 
-func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> some View {
+@MainActor func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> some View {
     let bgFill: Color = isActive ? selectionColor : (isHovered ? highlightColor : .clear)
 
     let bg = RoundedRectangle(cornerRadius: 5).fill(bgFill)
@@ -389,7 +389,7 @@ func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool)
     return item.padding(.leading, 6)
 }
 
-func sidebarView(state: FinderState, height: CGFloat) -> some View {
+@MainActor func sidebarView(state: FinderState, height: CGFloat) -> some View {
     let header = Text("Favorites").font(.system(size: 11, weight: .semibold))
         .foregroundColor(subtleColor)
         .padding(.leading, 8).padding(.top, 10)
@@ -423,7 +423,7 @@ func sidebarView(state: FinderState, height: CGFloat) -> some View {
     }.frame(width: sidebarWidth, height: height)
 }
 
-func columnHeadersView(width: CGFloat) -> some View {
+@MainActor func columnHeadersView(width: CGFloat) -> some View {
     let labels = HStack(alignment: .center, spacing: 0) {
         Rectangle().fill(.clear).frame(width: 40, height: 1)
         Text("Name").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
@@ -444,7 +444,7 @@ func columnHeadersView(width: CGFloat) -> some View {
     }.frame(width: width, height: headerHeight)
 }
 
-func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: CGFloat, listTop: CGFloat) -> some View {
+@MainActor func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: CGFloat, listTop: CGFloat) -> some View {
     let isSelected = state.selectedIndex == index
     let (iconColor, _) = state.fileKind(entry.name)
     let sizeText = state.formatSize(entry)
@@ -488,7 +488,7 @@ func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, w
     }
 }
 
-func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
     let maxRows = Int(height / rowHeight)
     let listTop = toolbarHeight + headerHeight
 
@@ -500,7 +500,7 @@ func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some V
     }.frame(width: width, height: height)
 }
 
-func statusBarView(state: FinderState, width: CGFloat) -> some View {
+@MainActor func statusBarView(state: FinderState, width: CGFloat) -> some View {
     let itemCount = state.entries.count
     let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
 
@@ -522,7 +522,7 @@ func statusBarView(state: FinderState, width: CGFloat) -> some View {
     }.frame(width: width, height: statusBarHeight)
 }
 
-func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
+@MainActor func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
     let fill: Color = isHovered ? menuHoverColor : .clear
 
     let label = HStack(alignment: .center, spacing: 0) {
@@ -539,7 +539,7 @@ func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
         .padding(.leading, 4)
 }
 
-func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some View {
     let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
     let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
     let menuY = min(menu.anchorY, height - menuHeight - 4)
@@ -567,7 +567,7 @@ func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some
     return positioned
 }
 
-func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat) -> some View {
     let panelW: CGFloat = 280
     let titleBarH: CGFloat = 28
     let contentH: CGFloat = 180
@@ -627,14 +627,14 @@ func infoPanelView(info: FinderState.InfoPanel, width: CGFloat, height: CGFloat)
     return positioned
 }
 
-private func infoRow(_ label: String, _ value: String) -> some View {
+@MainActor private func infoRow(_ label: String, _ value: String) -> some View {
     HStack(alignment: .top, spacing: 6) {
         Text(label).font(.system(size: 12)).foregroundColor(.secondary).frame(width: 50)
         Text(value).font(.system(size: 12)).foregroundColor(.primary)
     }
 }
 
-func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
     let listWidth = width - sidebarWidth
     let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
     let sidebarH = height - toolbarHeight

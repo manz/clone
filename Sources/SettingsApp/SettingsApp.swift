@@ -233,7 +233,7 @@ private func categoryYOffset(state: SettingsState, flatIndex: Int) -> CGFloat {
 
 // MARK: - Profile card
 
-private func profileCard() -> some View {
+@MainActor private func profileCard() -> some View {
     HStack(spacing: 8) {
         RoundedRectangle(cornerRadius: 16)
             .fill(rpMuted)
@@ -249,7 +249,7 @@ private func profileCard() -> some View {
 
 // MARK: - Sidebar category row
 
-private func categoryRow(
+@MainActor private func categoryRow(
     state: SettingsState,
     category: SettingsCategory,
     flatIndex: Int
@@ -304,7 +304,7 @@ private let indexedSections: [(sectionIdx: Int, categories: [(category: Settings
     }
 }()
 
-private func sidebarView(state: SettingsState, height: CGFloat) -> some View {
+@MainActor private func sidebarView(state: SettingsState, height: CGFloat) -> some View {
     let sidebarContent = VStack(alignment: .leading, spacing: 0) {
         profileCard()
         Rectangle().fill(rpOverlay).frame(height: 1).padding(.horizontal, 16)
@@ -328,7 +328,7 @@ private func sidebarView(state: SettingsState, height: CGFloat) -> some View {
 
 // MARK: - Detail row
 
-private func settingRowView(
+@MainActor private func settingRowView(
     state: SettingsState,
     row: SettingRow,
     rowY: CGFloat,
@@ -356,7 +356,7 @@ private func settingRowView(
 
 // MARK: - Detail group
 
-private func settingGroupView(
+@MainActor private func settingGroupView(
     state: SettingsState,
     header: String?,
     rows: [SettingRow],
@@ -412,7 +412,7 @@ private func groupStartYs(for groups: [(String?, [SettingRow])]) -> [CGFloat] {
     return result
 }
 
-private func detailView(state: SettingsState, width: CGFloat) -> some View {
+@MainActor private func detailView(state: SettingsState, width: CGFloat) -> some View {
     let groups = paneData[state.selectedCategory]
     let detailWidth = width - 48
     let startYs = groups.map { groupStartYs(for: $0) } ?? []
@@ -453,7 +453,7 @@ private func detailView(state: SettingsState, width: CGFloat) -> some View {
 
 // MARK: - Root settings view
 
-func settingsView(state: SettingsState, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func settingsView(state: SettingsState, width: CGFloat, height: CGFloat) -> some View {
     HStack(spacing: 0) {
         sidebarView(state: state, height: height)
             .frame(width: 220)

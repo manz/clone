@@ -3,7 +3,7 @@ import Testing
 
 // MARK: - Smoke tests for new SwiftUI constructs
 
-@Test func importSwiftUIAndCreateText() {
+@Test @MainActor func importSwiftUIAndCreateText() {
     let node = _resolve(Text("hello"))
     if case .text(let content, _, _, _) = node {
         #expect(content == "hello")
@@ -12,7 +12,7 @@ import Testing
     }
 }
 
-@Test func colorAsView() {
+@Test @MainActor func colorAsView() {
     let body = Color.blue.body
     if case .rect(let w, let h, let fill) = body {
         #expect(w == nil)
@@ -23,7 +23,7 @@ import Testing
     }
 }
 
-@Test func buttonWithStringLabel() {
+@Test @MainActor func buttonWithStringLabel() {
     let node = _resolve(Button("Tap") {})
     if case .onTap(_, let child) = node {
         if case .text(let content, _, let color, _) = child {
@@ -37,7 +37,7 @@ import Testing
     }
 }
 
-@Test func buttonWithCustomLabel() {
+@Test @MainActor func buttonWithCustomLabel() {
     let node = _resolve(Button(action: {}) {
         Text("Custom")
     })
@@ -52,7 +52,7 @@ import Testing
     }
 }
 
-@Test func scrollViewCreatesNode() {
+@Test @MainActor func scrollViewCreatesNode() {
     let node = _resolve(ScrollView {
         Text("Item 1")
         Text("Item 2")
@@ -65,7 +65,7 @@ import Testing
     }
 }
 
-@Test func listCreatesNode() {
+@Test @MainActor func listCreatesNode() {
     let node = _resolve(List {
         Text("Row 1")
         Text("Row 2")
@@ -77,7 +77,7 @@ import Testing
     }
 }
 
-@Test func imageCreatesNode() {
+@Test @MainActor func imageCreatesNode() {
     let node = _resolve(Image(systemName: "star.fill"))
     if case .image(let name, _, _, _) = node {
         #expect(name == "star.fill")
@@ -86,7 +86,7 @@ import Testing
     }
 }
 
-@Test func toggleCreatesNode() {
+@Test @MainActor func toggleCreatesNode() {
     let binding = Binding(get: { true }, set: { _ in })
     let node = _resolve(Toggle("Wi-Fi", isOn: binding))
     if case .toggle(let isOn, let label) = node {
@@ -101,7 +101,7 @@ import Testing
     }
 }
 
-@Test func textFieldCreatesNode() {
+@Test @MainActor func textFieldCreatesNode() {
     let binding = Binding(get: { "" }, set: { _ in })
     let node = _resolve(TextField("Search...", text: binding))
     if case .textField(let placeholder, let text) = node {
@@ -112,7 +112,7 @@ import Testing
     }
 }
 
-@Test func navigationStackCreatesNode() {
+@Test @MainActor func navigationStackCreatesNode() {
     let node = _resolve(NavigationStack {
         Text("Content")
     })
@@ -123,14 +123,14 @@ import Testing
     }
 }
 
-@Test func viewProtocolConformance() {
+@Test @MainActor func viewProtocolConformance() {
     // Text conforms to View, body returns ViewNode
     let text = Text("hello")
     let body: ViewNode = text.body
     #expect(body == .text("hello", fontSize: 14, color: .primary))
 }
 
-@Test func observableObjectProtocol() {
+@Test @MainActor func observableObjectProtocol() {
     final class TestModel: ObservableObject {
         @Published var count = 0
     }
@@ -140,7 +140,7 @@ import Testing
     #expect(model.count == 5)
 }
 
-@Test func environmentKey() {
+@Test @MainActor func environmentKey() {
     var env = EnvironmentValues()
     struct TestKey: EnvironmentKey {
         static let defaultValue = 42
@@ -150,7 +150,7 @@ import Testing
     #expect(env[TestKey.self] == 100)
 }
 
-@Test func shapeCircle() {
+@Test @MainActor func shapeCircle() {
     let node = Circle()
     if case .roundedRect(_, _, let radius, _) = node {
         #expect(radius == 1000)
@@ -159,7 +159,7 @@ import Testing
     }
 }
 
-@Test func shapeCapsule() {
+@Test @MainActor func shapeCapsule() {
     let node = Capsule()
     if case .roundedRect(_, _, let radius, _) = node {
         #expect(radius == 1000)
@@ -168,14 +168,14 @@ import Testing
     }
 }
 
-@Test func buttonLayoutsCorrectly() {
+@Test @MainActor func buttonLayoutsCorrectly() {
     TapRegistry.shared.clear()
     let node = _resolve(Button("Tap me") {})
     let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
     #expect(result.frame.width == 400)
 }
 
-@Test func scrollViewLayoutsLikeVStack() {
+@Test @MainActor func scrollViewLayoutsLikeVStack() {
     let node = _resolve(ScrollView {
         ViewNode.rect(width: 100, height: 50, fill: .white)
         ViewNode.rect(width: 100, height: 50, fill: .white)
@@ -184,14 +184,14 @@ import Testing
     #expect(result.children.count == 2)
 }
 
-@Test func imageRendersAsPlaceholder() {
+@Test @MainActor func imageRendersAsPlaceholder() {
     let node = Image("photo").frame(width: 100, height: 100)
     let layoutResult = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
     let commands = CommandFlattener.flatten(layoutResult)
     #expect(!commands.isEmpty)
 }
 
-@Test func toggleRendersTrackAndKnob() {
+@Test @MainActor func toggleRendersTrackAndKnob() {
     TapRegistry.shared.clear()
     let binding = Binding(get: { true }, set: { _ in })
     let node = _resolve(Toggle("Test", isOn: binding))
@@ -201,7 +201,7 @@ import Testing
     #expect(commands.count >= 2)
 }
 
-@Test func alignmentTypealiases() {
+@Test @MainActor func alignmentTypealiases() {
     let h: HorizontalAlignment = .center
     let v: VerticalAlignment = .center
     #expect(h == HAlignment.center)

@@ -1,7 +1,7 @@
 import Testing
 @testable import SwiftUI
 
-@Test func openWindowAssignsId() {
+@Test @MainActor func openWindowAssignsId() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
     #expect(id == 1)
@@ -9,7 +9,7 @@ import Testing
     #expect(wm.focusedWindowId == id)
 }
 
-@Test func openMultipleWindows() {
+@Test @MainActor func openMultipleWindows() {
     let wm = WindowManager()
     let id1 = wm.open(appId: "a", title: "A", x: 0, y: 0, width: 400, height: 300)
     let id2 = wm.open(appId: "b", title: "B", x: 50, y: 50, width: 400, height: 300)
@@ -18,7 +18,7 @@ import Testing
     #expect(wm.focusedWindowId == id2)
 }
 
-@Test func closeWindow() {
+@Test @MainActor func closeWindow() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     wm.close(id: id)
@@ -26,7 +26,7 @@ import Testing
     #expect(wm.focusedWindowId == nil)
 }
 
-@Test func closeTransfersFocus() {
+@Test @MainActor func closeTransfersFocus() {
     let wm = WindowManager()
     let id1 = wm.open(appId: "a", title: "A", x: 0, y: 0, width: 400, height: 300)
     let _ = wm.open(appId: "b", title: "B", x: 50, y: 50, width: 400, height: 300)
@@ -34,7 +34,7 @@ import Testing
     #expect(wm.focusedWindowId == id1)
 }
 
-@Test func focusBringsToFront() {
+@Test @MainActor func focusBringsToFront() {
     let wm = WindowManager()
     let id1 = wm.open(appId: "a", title: "A", x: 0, y: 0, width: 400, height: 300)
     let _ = wm.open(appId: "b", title: "B", x: 50, y: 50, width: 400, height: 300)
@@ -43,7 +43,7 @@ import Testing
     #expect(wm.focusedWindowId == id1)
 }
 
-@Test func hitTestReturnsTopmostWindow() {
+@Test @MainActor func hitTestReturnsTopmostWindow() {
     let wm = WindowManager()
     let _ = wm.open(appId: "a", title: "A", x: 0, y: 0, width: 400, height: 300)
     let id2 = wm.open(appId: "b", title: "B", x: 50, y: 50, width: 400, height: 300)
@@ -51,14 +51,14 @@ import Testing
     #expect(hit?.id == id2)
 }
 
-@Test func hitTestReturnsNilOutside() {
+@Test @MainActor func hitTestReturnsNilOutside() {
     let wm = WindowManager()
     let _ = wm.open(appId: "a", title: "A", x: 100, y: 100, width: 200, height: 200)
     let hit = wm.windowAt(x: 50, y: 50)
     #expect(hit == nil)
 }
 
-@Test func dragMovesWindow() {
+@Test @MainActor func dragMovesWindow() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
     wm.beginDrag(windowId: id, mouseX: 200, mouseY: 110)
@@ -70,7 +70,7 @@ import Testing
     #expect(!wm.isDragging)
 }
 
-@Test func renderProducesViewNodes() {
+@Test @MainActor func renderProducesViewNodes() {
     let wm = WindowManager()
     let _ = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
     let nodes = wm.render { _ in
@@ -79,7 +79,7 @@ import Testing
     #expect(nodes.count == 1)
 }
 
-@Test func closeButtonHitTest() {
+@Test @MainActor func closeButtonHitTest() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     let hit = wm.hitsCloseButton(windowId: id, x: WindowChrome.buttonInsetX + 6, y: WindowChrome.buttonInsetY + 6)
@@ -90,7 +90,7 @@ import Testing
 
 // MARK: - Minimize
 
-@Test func minimizeHidesWindow() {
+@Test @MainActor func minimizeHidesWindow() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     wm.minimize(id: id)
@@ -99,7 +99,7 @@ import Testing
     #expect(wm.focusedWindowId == nil)
 }
 
-@Test func unminimizeRestoresWindow() {
+@Test @MainActor func unminimizeRestoresWindow() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
     wm.minimize(id: id)
@@ -109,7 +109,7 @@ import Testing
     #expect(wm.focusedWindowId == id)
 }
 
-@Test func minimizedWindowNotHitTestable() {
+@Test @MainActor func minimizedWindowNotHitTestable() {
     let wm = WindowManager()
     let _ = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     wm.minimize(id: 1)
@@ -119,7 +119,7 @@ import Testing
 
 // MARK: - Zoom (maximize)
 
-@Test func zoomMaximizes() {
+@Test @MainActor func zoomMaximizes() {
     let wm = WindowManager()
     wm.screenWidth = 1280
     wm.screenHeight = 800
@@ -132,7 +132,7 @@ import Testing
     #expect(wm.windows[0].height == 800 - WindowChrome.menuBarHeight)
 }
 
-@Test func zoomRestores() {
+@Test @MainActor func zoomRestores() {
     let wm = WindowManager()
     wm.screenWidth = 1280
     wm.screenHeight = 800
@@ -146,7 +146,7 @@ import Testing
     #expect(wm.windows[0].height == 300)
 }
 
-@Test func dragUnmaximizes() {
+@Test @MainActor func dragUnmaximizes() {
     let wm = WindowManager()
     wm.screenWidth = 1280
     wm.screenHeight = 800
@@ -161,7 +161,7 @@ import Testing
 
 // MARK: - Traffic light hit test
 
-@Test func trafficLightHitTestClose() {
+@Test @MainActor func trafficLightHitTestClose() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     let closeX = WindowChrome.buttonInsetX + WindowChrome.buttonSize / 2
@@ -170,7 +170,7 @@ import Testing
     #expect(result == .close)
 }
 
-@Test func trafficLightHitTestMinimize() {
+@Test @MainActor func trafficLightHitTestMinimize() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     let minimizeX = WindowChrome.buttonInsetX + WindowChrome.buttonSize / 2 + WindowChrome.buttonSize + WindowChrome.buttonSpacing
@@ -179,7 +179,7 @@ import Testing
     #expect(result == .minimize)
 }
 
-@Test func trafficLightHitTestZoom() {
+@Test @MainActor func trafficLightHitTestZoom() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     let zoomX = WindowChrome.buttonInsetX + WindowChrome.buttonSize / 2 + (WindowChrome.buttonSize + WindowChrome.buttonSpacing) * 2
@@ -188,14 +188,14 @@ import Testing
     #expect(result == .zoom)
 }
 
-@Test func trafficLightMissesInContent() {
+@Test @MainActor func trafficLightMissesInContent() {
     let wm = WindowManager()
     let id = wm.open(appId: "test", title: "Test", x: 0, y: 0, width: 400, height: 300)
     let result = wm.hitTestTrafficLight(windowId: id, x: 200, y: 150)
     #expect(result == nil)
 }
 
-@Test func minimizedWindowsListedSeparately() {
+@Test @MainActor func minimizedWindowsListedSeparately() {
     let wm = WindowManager()
     let _ = wm.open(appId: "a", title: "A", x: 0, y: 0, width: 400, height: 300)
     let id2 = wm.open(appId: "b", title: "B", x: 50, y: 50, width: 400, height: 300)

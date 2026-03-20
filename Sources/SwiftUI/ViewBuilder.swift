@@ -13,7 +13,7 @@ public struct ViewBuilder {
     }
 
     // Any View expression → resolve body to ViewNode.
-    public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
+    @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] {
         [_resolve(expression)]
     }
 

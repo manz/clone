@@ -124,7 +124,8 @@ extension IPCFontWeight {
 }
 
 /// Swift-side delegate — compositor with window manager, app server, animations, and built-in apps.
-public final class SwiftDesktopDelegate: DesktopDelegate {
+@MainActor
+public final class SwiftDesktopDelegate: @preconcurrency DesktopDelegate {
     private let animationManager = AnimationManager()
     private var mouseX: Double = 0
     private var mouseY: Double = 0
@@ -795,7 +796,7 @@ public final class SwiftDesktopDelegate: DesktopDelegate {
 }
 
 /// Launch the desktop. Call from main.swift.
-public func launchDesktop() throws {
+@MainActor public func launchDesktop() throws {
     let delegate = SwiftDesktopDelegate()
     try runDesktop(delegate: delegate)
 }

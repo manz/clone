@@ -52,7 +52,7 @@ func magnifiedSize(index: Int, mouseX: CGFloat, totalBaseWidth: CGFloat, startX:
 
 // MARK: - Dock Icon
 
-func dockIcon(state: DockState, item: DockItem, size: CGFloat) -> some View {
+@MainActor func dockIcon(state: DockState, item: DockItem, size: CGFloat) -> some View {
     let cornerRadius = size * 0.22
     let isHovered = state.hoveredAppId == item.appId
 
@@ -90,7 +90,7 @@ func dockIcon(state: DockState, item: DockItem, size: CGFloat) -> some View {
 
 // MARK: - Declarative Dock View
 
-func dockView(state: DockState, width: CGFloat, height: CGFloat) -> some View {
+@MainActor func dockView(state: DockState, width: CGFloat, height: CGFloat) -> some View {
     let totalBaseWidth = CGFloat(items.count) * baseIconSize + CGFloat(items.count - 1) * iconPadding
     let startX = (width - totalBaseWidth) / 2
 

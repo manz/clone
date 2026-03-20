@@ -3,6 +3,7 @@ import Foundation
 // MARK: - Button styles
 
 /// A type that applies custom appearance to all buttons within a view.
+@MainActor
 public protocol ButtonStyle {
     associatedtype Body: View
     func makeBody(configuration: Configuration) -> Body
@@ -132,6 +133,7 @@ public struct LinearProgressViewStyle {
 // MARK: - Label styles
 
 /// A type that applies custom appearance to all labels within a view.
+@MainActor
 public protocol LabelStyle {
     associatedtype Body: View
     func makeBody(configuration: LabelStyleConfiguration) -> Body

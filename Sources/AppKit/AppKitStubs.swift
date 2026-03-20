@@ -140,7 +140,7 @@ nonisolated(unsafe) public let NSApp: NSApplication = .shared
 
 // MARK: - NSImage
 
-open class NSImage {
+open class NSImage: @unchecked Sendable {
     public var size: CGSize = _zeroSize
     public init() {}
     public init?(named: String) {}
