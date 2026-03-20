@@ -21,6 +21,7 @@ public struct DragGesture {
 public struct TapGesture {
     public init(count: Int = 1) {}
     public func onEnded(_ action: @escaping () -> Void) -> TapGesture { self }
+    public func modifiers(_ modifiers: EventModifiers) -> TapGesture { self }
 }
 
 /// A gesture that recognizes a long press.

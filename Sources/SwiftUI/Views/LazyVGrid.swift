@@ -6,6 +6,11 @@ public struct GridItem: Sendable {
         case fixed(CGFloat)
         case flexible(minimum: CGFloat, maximum: CGFloat)
         case adaptive(minimum: CGFloat, maximum: CGFloat)
+
+        /// `.flexible()` with defaults — matches Apple's SwiftUI.
+        public static func flexible() -> Size {
+            .flexible(minimum: 10, maximum: .infinity)
+        }
     }
 
     public let size: Size

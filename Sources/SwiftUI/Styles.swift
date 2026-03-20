@@ -79,12 +79,35 @@ public struct RoundedBorderTextFieldStyle { public init() {} }
 
 // MARK: - Picker styles
 
+/// A protocol for picker styles.
+public protocol PickerStyle {}
+
 /// A segmented picker style.
-public struct SegmentedPickerStyle { public init() {} }
+public struct SegmentedPickerStyle: PickerStyle { public init() {} }
 /// A menu picker style.
-public struct MenuPickerStyle { public init() {} }
+public struct MenuPickerStyle: PickerStyle { public init() {} }
 /// The default picker style.
-public struct DefaultPickerStyle { public init() {} }
+public struct DefaultPickerStyle: PickerStyle { public init() {} }
+/// A wheel picker style.
+public struct WheelPickerStyle: PickerStyle { public init() {} }
+/// An inline picker style.
+public struct InlinePickerStyle: PickerStyle { public init() {} }
+
+extension PickerStyle where Self == SegmentedPickerStyle {
+    public static var segmented: SegmentedPickerStyle { SegmentedPickerStyle() }
+}
+extension PickerStyle where Self == MenuPickerStyle {
+    public static var menu: MenuPickerStyle { MenuPickerStyle() }
+}
+extension PickerStyle where Self == DefaultPickerStyle {
+    public static var automatic: DefaultPickerStyle { DefaultPickerStyle() }
+}
+extension PickerStyle where Self == WheelPickerStyle {
+    public static var wheel: WheelPickerStyle { WheelPickerStyle() }
+}
+extension PickerStyle where Self == InlinePickerStyle {
+    public static var inline: InlinePickerStyle { InlinePickerStyle() }
+}
 
 // MARK: - Toggle styles
 

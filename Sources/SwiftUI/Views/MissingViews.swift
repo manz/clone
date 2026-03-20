@@ -163,9 +163,32 @@ public struct Table<Value, Rows, Columns>: View {
     public var body: ViewNode { .empty }
 }
 
+extension Table where Rows == Never, Columns == Never {
+    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+        // stub
+    }
+
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+        // stub
+    }
+
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+        // stub
+    }
+}
+
 /// A column in a table.
-public struct TableColumn<RowValue, Sort, Content: View, Label: View> {
-    public init(_ title: String, value: KeyPath<RowValue, String>) where Content == Text, Label == Text, Sort == Never {}
+public struct TableColumn<RowValue, Sort, Content: View, Label: View>: View {
+    public var body: ViewNode { .empty }
+}
+
+extension TableColumn where Content == Text, Label == Text, Sort == Never {
+    public init(_ title: String, value: KeyPath<RowValue, String>) {}
+    public init(_ title: String, @ViewBuilder content: @escaping (RowValue) -> Content) {}
+}
+
+extension TableColumn where Label == Text, Sort == Never {
+    public init(_ title: String, @ViewBuilder content: @escaping (RowValue) -> Content) {}
 }
 
 // MARK: - ToolbarItem
@@ -222,15 +245,17 @@ public struct ToolbarContentBuilder {
 public protocol Commands {}
 
 /// A group of commands that replaces or augments an existing command group.
-public struct CommandGroup<Content: View>: Commands {
+public struct CommandGroup<Content: View>: Commands, View {
     public init(replacing: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
     public init(after: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
     public init(before: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
+    public var body: ViewNode { .empty }
 }
 
 /// A custom command menu.
-public struct CommandMenu<Content: View>: Commands {
+public struct CommandMenu<Content: View>: Commands, View {
     public init(_ name: String, @ViewBuilder content: () -> Content) {}
+    public var body: ViewNode { .empty }
 }
 
 /// The placement of a command group.

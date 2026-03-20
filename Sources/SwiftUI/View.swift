@@ -51,7 +51,15 @@ public extension View {
         _resolve(self).frame(width: width, height: height)
     }
 
+    func frame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment) -> ViewNode {
+        _resolve(self).frame(width: width, height: height)
+    }
+
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
+        _resolve(self).frame(maxWidth: maxWidth, maxHeight: maxHeight)
+    }
+
+    func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment) -> ViewNode {
         _resolve(self).frame(maxWidth: maxWidth, maxHeight: maxHeight)
     }
 
@@ -105,6 +113,10 @@ public extension View {
 
     func fill(_ color: Color) -> ViewNode {
         _resolve(self).fill(color)
+    }
+
+    func fill<S: View>(_ style: S) -> ViewNode {
+        _resolve(self).fill(style)
     }
 
     func cornerRadius(_ radius: CGFloat) -> ViewNode {
@@ -208,6 +220,10 @@ public extension View {
         _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions)
     }
 
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+        _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions, message: message)
+    }
+
     func searchable(text: Binding<String>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
         _resolve(self).searchable(text: text, placement: placement, prompt: prompt)
     }
@@ -248,6 +264,14 @@ public extension View {
         _resolve(self).safeAreaInset(edge: edge, content: content)
     }
 
+    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self)
+    }
+
+    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        _resolve(self)
+    }
+
     func lineLimit(_ limit: Int?) -> ViewNode {
         _resolve(self).lineLimit(limit)
     }
@@ -268,7 +292,7 @@ public extension View {
         _resolve(self).listStyle(style)
     }
 
-    func pickerStyle<S>(_ style: S) -> ViewNode {
+    func pickerStyle<S: PickerStyle>(_ style: S) -> ViewNode {
         _resolve(self).pickerStyle(style)
     }
 
@@ -408,6 +432,10 @@ public extension View {
         _resolve(self).scrollPosition(id: id)
     }
 
+    func scrollPosition<ID: Hashable>(id: Binding<ID?>, anchor: UnitPoint? = nil) -> ViewNode {
+        _resolve(self).scrollPosition(id: id, anchor: anchor)
+    }
+
     func onKeyPress(_ key: KeyEquivalent, action: @escaping () -> KeyPress.Result) -> ViewNode {
         _resolve(self).onKeyPress(key, action: action)
     }
@@ -456,7 +484,7 @@ public extension View {
         _resolve(self).navigationBarBackButtonHidden(hidden)
     }
 
-    func textSelection<S>(_ selectability: S) -> ViewNode {
+    func textSelection(_ selectability: TextSelectability) -> ViewNode {
         _resolve(self).textSelection(selectability)
     }
 
@@ -478,6 +506,14 @@ public extension View {
 
     func scaleEffect(x: CGFloat = 1, y: CGFloat = 1) -> ViewNode {
         _resolve(self).scaleEffect(x: x, y: y)
+    }
+
+    func scaleEffect(x: CGFloat = 1, y: CGFloat = 1, anchor: UnitPoint = .center) -> ViewNode {
+        _resolve(self).scaleEffect(x: x, y: y)
+    }
+
+    func scaleEffect(_ scale: CGFloat, anchor: UnitPoint) -> ViewNode {
+        _resolve(self).scaleEffect(scale)
     }
 
     func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {

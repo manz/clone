@@ -9,8 +9,18 @@ public extension ViewNode {
         .frame(width: width, height: height, child: self)
     }
 
+    /// `.frame(width:height:alignment:)` — with alignment parameter
+    func frame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment) -> ViewNode {
+        .frame(width: width, height: height, child: self)
+    }
+
     /// `.frame(maxWidth: .infinity)` — fills available space
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
+        .frame(width: maxWidth, height: maxHeight, child: self)
+    }
+
+    /// `.frame(maxWidth:maxHeight:alignment:)` — fills available space with alignment
+    func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment) -> ViewNode {
         .frame(width: maxWidth, height: maxHeight, child: self)
     }
 
@@ -109,6 +119,18 @@ public extension ViewNode {
             return .rect(width: width, height: height, fill: color)
         case .roundedRect(let width, let height, let radius, _):
             return .roundedRect(width: width, height: height, radius: radius, fill: color)
+        default:
+            return self
+        }
+    }
+
+    /// `.fill(_:)` — fills with an arbitrary ShapeStyle/View (extracts first color from gradient).
+    func fill<S: View>(_ style: S) -> ViewNode {
+        // Try to extract a representative color from the style's body
+        let resolved = _resolve(style)
+        switch resolved {
+        case .rect(_, _, let fillColor):
+            return fill(fillColor)
         default:
             return self
         }
@@ -298,6 +320,11 @@ public extension ViewNode {
         self
     }
 
+    /// `.confirmationDialog(_:isPresented:actions:message:)` — no-op on Clone.
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
     /// `.searchable(text:)` — no-op on Clone.
     func searchable(text: Binding<String>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
         self
@@ -349,6 +376,16 @@ public extension ViewNode {
         self
     }
 
+    /// `.safeAreaInset(edge:alignment:spacing:content:)` — no-op on Clone.
+    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.safeAreaInset(edge:alignment:spacing:content:)` — horizontal variant, no-op on Clone.
+    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+        self
+    }
+
     /// `.lineLimit(_:)` — no-op on Clone.
     func lineLimit(_ limit: Int?) -> ViewNode {
         self
@@ -375,7 +412,7 @@ public extension ViewNode {
     }
 
     /// `.pickerStyle(_:)` — no-op on Clone.
-    func pickerStyle<S>(_ style: S) -> ViewNode {
+    func pickerStyle<S: PickerStyle>(_ style: S) -> ViewNode {
         self
     }
 
@@ -540,6 +577,9 @@ public extension ViewNode {
     /// `.scrollPosition(id:)` — no-op on Clone.
     func scrollPosition(id: Binding<Int?>) -> ViewNode { self }
 
+    /// `.scrollPosition(id:anchor:)` — no-op on Clone.
+    func scrollPosition<ID: Hashable>(id: Binding<ID?>, anchor: UnitPoint? = nil) -> ViewNode { self }
+
     /// `.glassEffect(_:)` — no-op on Clone.
     func glassEffect(_ effect: Int?...) -> ViewNode { self }
 
@@ -583,7 +623,7 @@ public extension ViewNode {
     func navigationBarBackButtonHidden(_ hidden: Bool = true) -> ViewNode { self }
 
     /// `.textSelection(_:)` — no-op on Clone.
-    func textSelection<S>(_ selectability: S) -> ViewNode { self }
+    func textSelection(_ selectability: TextSelectability) -> ViewNode { self }
 
     /// `.onMove(perform:)` — no-op on Clone.
     func onMove(perform: ((IndexSet, Int) -> Void)?) -> ViewNode { self }
@@ -596,6 +636,12 @@ public extension ViewNode {
 
     /// `.scaleEffect(x:y:)` — no-op on Clone.
     func scaleEffect(x: CGFloat = 1, y: CGFloat = 1) -> ViewNode { self }
+
+    /// `.scaleEffect(x:y:anchor:)` — no-op on Clone.
+    func scaleEffect(x: CGFloat = 1, y: CGFloat = 1, anchor: UnitPoint = .center) -> ViewNode { self }
+
+    /// `.scaleEffect(_:anchor:)` — no-op on Clone.
+    func scaleEffect(_ scale: CGFloat, anchor: UnitPoint) -> ViewNode { self }
 
     /// `.fullScreenCover(isPresented:content:)` — no-op on Clone.
     func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }

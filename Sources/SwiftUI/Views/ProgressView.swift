@@ -42,4 +42,16 @@ extension ProgressView where Label == ViewNode {
     public init(@ViewBuilder label: () -> [ViewNode]) {
         self.label = .vstack(alignment: .leading, spacing: 0, children: label())
     }
+
+    /// Creates a progress view with value and label/currentValueLabel closures.
+    public init<CurrentValueLabel: View>(value: Double?, total: Double = 1.0, @ViewBuilder label: () -> [ViewNode], @ViewBuilder currentValueLabel: () -> CurrentValueLabel) {
+        let labelNodes = label()
+        self.label = labelNodes.count == 1 ? labelNodes[0] : .vstack(alignment: .leading, spacing: 0, children: labelNodes)
+    }
+
+    /// Creates a progress view with value and label closure.
+    public init(value: Double?, total: Double = 1.0, @ViewBuilder label: () -> [ViewNode]) {
+        let labelNodes = label()
+        self.label = labelNodes.count == 1 ? labelNodes[0] : .vstack(alignment: .leading, spacing: 0, children: labelNodes)
+    }
 }

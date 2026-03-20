@@ -5,7 +5,7 @@ public struct SortDescriptor<Compared> {
     public let key: String
     public let ascending: Bool
 
-    public init(_ keyPath: KeyPath<Compared, some Comparable>, order: SortOrder = .forward) {
+    public init<Value>(_ keyPath: KeyPath<Compared, Value>, order: SortOrder = .forward) {
         self.key = "\(keyPath)"
         self.ascending = order == .forward
     }

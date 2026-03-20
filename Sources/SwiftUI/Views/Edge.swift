@@ -19,3 +19,13 @@ public enum Edge {
         public static let all: Set = [.top, .leading, .bottom, .trailing]
     }
 }
+
+/// Vertical edge (top/bottom).
+public enum VerticalEdge: Sendable {
+    case top, bottom
+}
+
+/// Horizontal edge (leading/trailing).
+public enum HorizontalEdge: Sendable {
+    case leading, trailing
+}

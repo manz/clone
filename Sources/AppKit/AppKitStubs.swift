@@ -1,8 +1,15 @@
 import Foundation
+import CoreGraphics
 
 // MARK: - Minimal AppKit type stubs for compilation.
 // On real macOS these come from Apple's AppKit. Clone's AppKit module shadows it,
 // so we must provide stubs for types that app code references.
+
+// MARK: - NSResponder
+
+open class NSResponder: NSObject {
+    public override init() { super.init() }
+}
 
 // MARK: - NSView
 
@@ -10,11 +17,11 @@ private let _zeroPoint = CGPoint()
 private let _zeroSize = CGSize()
 private let _zeroRect = CGRect()
 
-open class NSView {
+open class NSView: NSResponder {
     public var wantsLayer: Bool = false
     public var frame: CGRect = _zeroRect
-    public init() {}
-    public init(frame: CGRect) { self.frame = frame }
+    public override init() { super.init() }
+    public init(frame: CGRect) { self.frame = frame; super.init() }
 }
 
 // MARK: - NSWindow
@@ -83,6 +90,13 @@ open class NSApplication {
     public func activate(ignoringOtherApps: Bool) {}
     public var mainWindow: NSWindow? { nil }
     public var keyWindow: NSWindow? { nil }
+
+    public static let didBecomeActiveNotification = Notification.Name("NSApplicationDidBecomeActive")
+    public static let willTerminateNotification = Notification.Name("NSApplicationWillTerminate")
+    public static let didFinishLaunchingNotification = Notification.Name("NSApplicationDidFinishLaunching")
+    public static let willResignActiveNotification = Notification.Name("NSApplicationWillResignActive")
+    public static let didHideNotification = Notification.Name("NSApplicationDidHide")
+    public static let didUnhideNotification = Notification.Name("NSApplicationDidUnhide")
 }
 public let NSApp: NSApplication = .shared
 
@@ -93,8 +107,20 @@ open class NSImage {
     public init() {}
     public init?(named: String) {}
     public init(size: CGSize) { self.size = size }
+    public init?(data: Data) {}
     public func lockFocus() {}
     public func unlockFocus() {}
+    public func cgImage(forProposedRect proposedRect: UnsafeMutablePointer<CGRect>?, context: Any?, hints: [NSImageRep.HintKey: Any]?) -> CGImage? { nil }
+    public var tiffRepresentation: Data? { nil }
+}
+
+// MARK: - NSImageRep
+
+open class NSImageRep {
+    public struct HintKey: RawRepresentable, Hashable, Sendable {
+        public let rawValue: String
+        public init(rawValue: String) { self.rawValue = rawValue }
+    }
 }
 
 // MARK: - NSBitmapImageRep
@@ -237,8 +263,24 @@ open class NSHostingController<Content> {
 }
 
 // MARK: - NSItemProvider
+// NSItemProvider is provided by Foundation — no stub needed.
 
-open class NSItemProvider {
+// MARK: - CATransform3D (QuartzCore stubs)
+
+public struct CATransform3D {
+    public var m11: CGFloat = 1, m12: CGFloat = 0, m13: CGFloat = 0, m14: CGFloat = 0
+    public var m21: CGFloat = 0, m22: CGFloat = 1, m23: CGFloat = 0, m24: CGFloat = 0
+    public var m31: CGFloat = 0, m32: CGFloat = 0, m33: CGFloat = 1, m34: CGFloat = 0
+    public var m41: CGFloat = 0, m42: CGFloat = 0, m43: CGFloat = 0, m44: CGFloat = 1
     public init() {}
-    public init(object: Any) {}
 }
+
+public let CATransform3DIdentity = CATransform3D()
+
+public func CATransform3DRotate(_ t: CATransform3D, _ angle: CGFloat, _ x: CGFloat, _ y: CGFloat, _ z: CGFloat) -> CATransform3D { t }
+public func CATransform3DTranslate(_ t: CATransform3D, _ tx: CGFloat, _ ty: CGFloat, _ tz: CGFloat) -> CATransform3D { t }
+public func CATransform3DScale(_ t: CATransform3D, _ sx: CGFloat, _ sy: CGFloat, _ sz: CGFloat) -> CATransform3D { t }
+public func CATransform3DConcat(_ a: CATransform3D, _ b: CATransform3D) -> CATransform3D { a }
+public func CATransform3DMakeRotation(_ angle: CGFloat, _ x: CGFloat, _ y: CGFloat, _ z: CGFloat) -> CATransform3D { CATransform3D() }
+public func CATransform3DMakeTranslation(_ tx: CGFloat, _ ty: CGFloat, _ tz: CGFloat) -> CATransform3D { CATransform3D() }
+public func CATransform3DMakeScale(_ sx: CGFloat, _ sy: CGFloat, _ sz: CGFloat) -> CATransform3D { CATransform3D() }

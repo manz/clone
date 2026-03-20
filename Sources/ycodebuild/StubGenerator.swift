@@ -732,6 +732,12 @@ enum StubGenerator {
         public static let url = UTType("public.url")
         public static let text = UTType("public.plain-text")
         public static let item = UTType("public.item")
+        public static let image = UTType("public.image")
+        public static let movie = UTType("public.movie")
+        public static let video = UTType("public.video")
+        public static let livePhoto = UTType("com.apple.live-photo")
+        public static let json = UTType("public.json")
+        public static let pdf = UTType("com.adobe.pdf")
 
         public var preferredFilenameExtension: String? { nil }
         public init?(filenameExtension: String) { self.identifier = "public.\\(filenameExtension)" }

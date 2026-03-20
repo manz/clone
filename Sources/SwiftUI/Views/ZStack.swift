@@ -5,7 +5,7 @@ import Foundation
 public struct ZStack: View {
     let children: [ViewNode]
 
-    public init(@ViewBuilder content: () -> [ViewNode]) {
+    public init(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) {
         self.children = content()
     }
 
