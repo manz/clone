@@ -709,8 +709,26 @@ public extension ViewNode {
     /// `.formStyle(_:)` — no-op on Clone.
     func formStyle<S>(_ style: S) -> ViewNode { self }
 
+    /// `.zIndex(_:)` — no-op on Clone.
+    func zIndex(_ value: Double) -> ViewNode { self }
+
+    /// `.submitLabel(_:)` — no-op on Clone.
+    func submitLabel(_ label: Any) -> ViewNode { self }
+
+    /// `.colorScheme(_:)` — no-op on Clone.
+    func colorScheme(_ scheme: ColorScheme) -> ViewNode { self }
+
+    /// `.accentColor(_:)` — no-op on Clone.
+    func accentColor(_ color: Color?) -> ViewNode { self }
+
+    /// `.navigationSplitViewColumnWidth(_:)` — no-op on Clone.
+    func navigationSplitViewColumnWidth(_ width: CGFloat) -> ViewNode { self }
+
+    /// `.navigationSplitViewColumnWidth(min:ideal:max:)` — no-op on Clone.
+    func navigationSplitViewColumnWidth(min: CGFloat? = nil, ideal: CGFloat, max: CGFloat? = nil) -> ViewNode { self }
+
     /// `.onDrop(of:isTargeted:perform:)` — no-op on Clone.
-    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([Any]) -> Bool) -> ViewNode { self }
+    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode { self }
 
     /// `.clipShape(_:)` with Shape constraint — no-op on Clone.
     func clipShape<S: Shape>(_ shape: S) -> ViewNode { self }

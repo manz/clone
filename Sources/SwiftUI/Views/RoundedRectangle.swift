@@ -8,7 +8,7 @@ public enum RoundedCornerStyle: Sendable {
     case continuous
 }
 
-public struct RoundedRectangle: View {
+public struct RoundedRectangle: Shape {
     public let cornerRadius: CGFloat
 
     public init(cornerRadius: CGFloat) {
@@ -21,6 +21,16 @@ public struct RoundedRectangle: View {
 
     public init(cornerSize: CGSize, style: RoundedCornerStyle = .circular) {
         self.cornerRadius = min(cornerSize.width, cornerSize.height)
+    }
+
+    public func path(in rect: LayoutFrame) -> ViewNode {
+        .roundedRect(width: rect.width, height: rect.height, radius: cornerRadius, fill: .white)
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.addRoundedRect(in: rect, cornerSize: CGSize(width: cornerRadius, height: cornerRadius))
+        return p
     }
 
     public var body: ViewNode {

@@ -285,7 +285,7 @@ public struct CommandGroupPlacement {
 
 /// A wrapper that you use to integrate an AppKit view into your view hierarchy.
 public protocol NSViewRepresentable: View {
-    associatedtype NSViewType
+    associatedtype NSViewType: NSView
     func makeNSView(context: Context) -> NSViewType
     func updateNSView(_ nsView: NSViewType, context: Context)
 

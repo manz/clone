@@ -604,7 +604,31 @@ public extension View {
         _resolve(self).formStyle(style)
     }
 
-    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([Any]) -> Bool) -> ViewNode {
+    func zIndex(_ value: Double) -> ViewNode {
+        _resolve(self).zIndex(value)
+    }
+
+    func submitLabel(_ label: Any) -> ViewNode {
+        _resolve(self).submitLabel(label)
+    }
+
+    func colorScheme(_ scheme: ColorScheme) -> ViewNode {
+        _resolve(self).colorScheme(scheme)
+    }
+
+    func accentColor(_ color: Color?) -> ViewNode {
+        _resolve(self).accentColor(color)
+    }
+
+    func navigationSplitViewColumnWidth(_ width: CGFloat) -> ViewNode {
+        _resolve(self).navigationSplitViewColumnWidth(width)
+    }
+
+    func navigationSplitViewColumnWidth(min: CGFloat? = nil, ideal: CGFloat, max: CGFloat? = nil) -> ViewNode {
+        _resolve(self).navigationSplitViewColumnWidth(min: min, ideal: ideal, max: max)
+    }
+
+    func onDrop(of types: [String], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode {
         _resolve(self).onDrop(of: types, isTargeted: isTargeted, perform: perform)
     }
 

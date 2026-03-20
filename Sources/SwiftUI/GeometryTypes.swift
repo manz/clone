@@ -66,8 +66,19 @@ public struct Path: View {
 }
 
 /// An ellipse shape.
-public struct Ellipse: View {
+public struct Ellipse: Shape {
     public init() {}
+
+    public func path(in rect: LayoutFrame) -> ViewNode {
+        .roundedRect(width: rect.width, height: rect.height, radius: 1000, fill: .white)
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.addEllipse(in: rect)
+        return p
+    }
+
     public var body: ViewNode { .roundedRect(width: nil, height: nil, radius: 1000, fill: .white) }
 
     public func fill(_ color: Color) -> ViewNode { .roundedRect(width: nil, height: nil, radius: 1000, fill: color) }

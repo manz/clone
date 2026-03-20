@@ -204,6 +204,7 @@ public struct KeyEquivalent: ExpressibleByStringLiteral, Sendable {
 
     public static let `return` = KeyEquivalent("\r")
     public static let escape = KeyEquivalent("\u{1B}")
+    public static let cancelAction = KeyEquivalent("\u{1B}")
     public static let delete = KeyEquivalent("\u{7F}")
     public static let tab = KeyEquivalent("\t")
     public static let space = KeyEquivalent(" ")

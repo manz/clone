@@ -155,6 +155,8 @@ open class NSEvent {
         public static let command = ModifierFlags(rawValue: 1 << 20)
     }
 
+    public static var modifierFlags: ModifierFlags { ModifierFlags(rawValue: 0) }
+
     public static func addLocalMonitorForEvents(matching mask: EventTypeMask, handler: @escaping (NSEvent) -> NSEvent?) -> Any? { nil }
     public static func removeMonitor(_ monitor: Any?) {}
     public var scrollingDeltaX: CGFloat { 0 }

@@ -3,11 +3,17 @@ import Foundation
 /// A 2D shape that can be used as a View.
 public protocol Shape: View {
     func path(in rect: LayoutFrame) -> ViewNode
+    func path(in rect: CGRect) -> Path
 }
 
 extension Shape {
     public var body: ViewNode {
         path(in: LayoutFrame(x: 0, y: 0, width: 0, height: 0))
+    }
+
+    /// Default implementation so existing shapes don't break.
+    public func path(in rect: CGRect) -> Path {
+        Path()
     }
 }
 
@@ -18,6 +24,12 @@ public struct CircleShape: Shape {
     public func path(in rect: LayoutFrame) -> ViewNode {
         let size = min(rect.width, rect.height)
         return .roundedRect(width: size, height: size, radius: size / 2, fill: .white)
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.addEllipse(in: rect)
+        return p
     }
 
     public var body: ViewNode {
