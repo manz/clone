@@ -1265,7 +1265,7 @@ private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 private enum UniffiCallbackInterfaceDesktopDelegate {
     /// Create the VTable using a series of closures.
     /// Swift automatically converts these into C callback functions.
-    static var vtable: UniffiVTableCallbackInterfaceDesktopDelegate = .init(
+    nonisolated(unsafe) static var vtable: UniffiVTableCallbackInterfaceDesktopDelegate = .init(
         onFrame: { (
             uniffiHandle: UInt64,
             surfaceId: UInt64,
@@ -1438,7 +1438,7 @@ private func uniffiCallbackInitDesktopDelegate() {
     @_documentation(visibility: private)
 #endif
 private enum FfiConverterCallbackInterfaceDesktopDelegate {
-    fileprivate static var handleMap = UniffiHandleMap<DesktopDelegate>()
+    nonisolated(unsafe) fileprivate static var handleMap = UniffiHandleMap<DesktopDelegate>()
 }
 
 #if swift(>=5.8)
@@ -1547,7 +1547,7 @@ private enum InitializationResult {
 
 /// Use a global variable to perform the versioning checks. Swift ensures that
 /// the code inside is only computed once.
-private var initializationResult: InitializationResult = {
+nonisolated(unsafe) private var initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 26
     // Get the scaffolding contract version by calling the into the dylib
