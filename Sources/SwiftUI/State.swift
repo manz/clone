@@ -2,41 +2,49 @@ import Foundation
 
 /// Minimal @State property wrapper with dirty tracking.
 /// In a full implementation this would trigger re-renders through the reconciler.
+@MainActor @preconcurrency
 @propertyWrapper
-public final class State<Value> {
-    private var _value: Value
-    private(set) public var isDirty: Bool = false
+public struct State<Value> {
+    private final class Storage {
+        var value: Value
+        var isDirty: Bool = false
+        init(_ value: Value) { self.value = value }
+    }
+    private let storage: Storage
 
     public init(wrappedValue: Value) {
-        self._value = wrappedValue
+        self.storage = Storage(wrappedValue)
     }
 
     /// Compatibility alias used by Apple's SwiftUI.
     public init(initialValue: Value) {
-        self._value = initialValue
+        self.storage = Storage(initialValue)
     }
 
     public var wrappedValue: Value {
-        get { _value }
-        set {
-            _value = newValue
-            isDirty = true
+        get { storage.value }
+        nonmutating set {
+            storage.value = newValue
+            storage.isDirty = true
         }
     }
 
     public var projectedValue: Binding<Value> {
         Binding(
-            get: { self._value },
+            get: { self.storage.value },
             set: { self.wrappedValue = $0 }
         )
     }
 
+    public var isDirty: Bool { storage.isDirty }
+
     public func clearDirty() {
-        isDirty = false
+        storage.isDirty = false
     }
 }
 
 /// Two-way binding to a value.
+@dynamicMemberLookup
 @propertyWrapper
 public struct Binding<Value> {
     private let getter: () -> Value
@@ -62,6 +70,14 @@ public struct Binding<Value> {
     /// Creates a binding with an immutable value.
     public static func constant(_ value: Value) -> Binding<Value> {
         Binding(get: { value }, set: { _ in })
+    }
+
+    /// Dynamic member lookup — `$binding.member` produces `Binding<Member>`.
+    public subscript<Subject>(dynamicMember keyPath: WritableKeyPath<Value, Subject>) -> Binding<Subject> {
+        Binding<Subject>(
+            get: { self.wrappedValue[keyPath: keyPath] },
+            set: { self.wrappedValue[keyPath: keyPath] = $0 }
+        )
     }
 }
 

@@ -17,8 +17,12 @@ public struct AnyView: View {
 public struct Group<Content: View>: View {
     let content: [ViewNode]
 
-    public init(@ViewBuilder content: () -> [ViewNode]) {
-        self.content = content()
+    public init(@ViewBuilder content: () -> Content) {
+        if let nodes = content() as? [ViewNode] {
+            self.content = nodes
+        } else {
+            self.content = [_resolve(content())]
+        }
     }
 
     public var body: ViewNode {

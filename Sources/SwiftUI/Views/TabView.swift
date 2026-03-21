@@ -7,9 +7,10 @@ public struct TabView<SelectionValue: Hashable, Content: View>: View {
     let content: [ViewNode]
 
     /// Creates a tab view with a bound selection value.
-    public init(selection: Binding<SelectionValue>, @ViewBuilder content: () -> [ViewNode]) {
+    public init(selection: Binding<SelectionValue>, @ViewBuilder content: () -> Content) {
         self.selection = selection
-        self.content = content()
+        if let nodes = content() as? [ViewNode] { self.content = nodes }
+        else { self.content = [_resolve(content())] }
     }
 
     public var body: ViewNode {
@@ -23,9 +24,10 @@ public struct TabView<SelectionValue: Hashable, Content: View>: View {
 
 extension TabView where SelectionValue == Int {
     /// Creates a tab view without explicit selection binding.
-    public init(@ViewBuilder content: () -> [ViewNode]) {
+    public init(@ViewBuilder content: () -> Content) {
         self.selection = nil
-        self.content = content()
+        if let nodes = content() as? [ViewNode] { self.content = nodes }
+        else { self.content = [_resolve(content())] }
     }
 }
 
