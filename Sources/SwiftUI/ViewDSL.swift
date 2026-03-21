@@ -427,12 +427,17 @@ public extension ViewNode {
     }
 
     /// `.foregroundStyle(_:_:)` — two-level hierarchy. Maps to primary color.
-    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
-        self
+    func foregroundStyle(_ primary: Color, _ secondary: Color) -> ViewNode {
+        foregroundColor(primary)
     }
 
     /// `.foregroundStyle(_:_:_:)` — three-level hierarchy.
-    func foregroundStyle<S1: View, S2: View, S3: View>(_ primary: S1, _ secondary: S2, _ tertiary: S3) -> ViewNode {
+    func foregroundStyle(_ primary: Color, _ secondary: Color, _ tertiary: Color) -> ViewNode {
+        foregroundColor(primary)
+    }
+
+    /// `.foregroundStyle(_:_:)` — generic View variant.
+    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
         self
     }
 

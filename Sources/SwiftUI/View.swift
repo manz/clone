@@ -304,12 +304,16 @@ public extension View {
         _resolve(self).foregroundStyle(color)
     }
 
-    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
+    func foregroundStyle(_ primary: Color, _ secondary: Color) -> ViewNode {
         _resolve(self).foregroundStyle(primary, secondary)
     }
 
-    func foregroundStyle<S1: View, S2: View, S3: View>(_ primary: S1, _ secondary: S2, _ tertiary: S3) -> ViewNode {
+    func foregroundStyle(_ primary: Color, _ secondary: Color, _ tertiary: Color) -> ViewNode {
         _resolve(self).foregroundStyle(primary, secondary, tertiary)
+    }
+
+    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
+        _resolve(self).foregroundStyle(primary, secondary)
     }
 
     func background<S: View>(_ color: Color, in shape: S) -> ViewNode {
