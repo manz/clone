@@ -63,6 +63,7 @@ let package = Package(
         ),
         .target(
             name: "MediaPlayer",
+            dependencies: ["CloneProtocol"],
             path: "Sources/MediaPlayer"
         ),
         .target(
@@ -72,6 +73,18 @@ let package = Package(
         .target(
             name: "UniformTypeIdentifiers",
             path: "Sources/UniformTypeIdentifiers"
+        ),
+        // Now-playing daemon (library — testable)
+        .target(
+            name: "CloneDaemon",
+            dependencies: ["CloneProtocol"],
+            path: "Sources/CloneDaemon"
+        ),
+        // Now-playing daemon executable
+        .executableTarget(
+            name: "cloned",
+            dependencies: ["CloneDaemon", "CloneProtocol"],
+            path: "Sources/cloned"
         ),
         // UniFFI bridge to Rust GPU engine
         .target(
@@ -113,7 +126,7 @@ let package = Package(
         // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
-            dependencies: ["SwiftUI"],
+            dependencies: ["SwiftUI", "CloneProtocol"],
             path: "Sources/MenuBarApp"
         ),
         .testTarget(
@@ -144,6 +157,11 @@ let package = Package(
             name: "SwiftDataTests",
             dependencies: ["SwiftData"],
             path: "Tests/SwiftDataTests"
+        ),
+        .testTarget(
+            name: "CloneDaemonTests",
+            dependencies: ["CloneDaemon", "CloneProtocol"],
+            path: "Tests/CloneDaemonTests"
         ),
         // ycodebuild — CLI tool for building external apps against Aquax SDK
         .executableTarget(

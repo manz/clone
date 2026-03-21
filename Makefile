@@ -16,6 +16,7 @@ bindings: engine
 		--library target/debug/libclone_engine.dylib \
 		--language swift \
 		--out-dir Sources/EngineBridge
+	cp Sources/EngineBridge/clone_engineFFI.h Sources/CEngine/include/clone_engineFFI.h
 
 # Swift package (libs + compositor)
 swift:

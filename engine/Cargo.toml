@@ -9,7 +9,7 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 wgpu = "28"
 winit = "0.30"
-uniffi = { version = "0.28", features = ["cli"] }
+uniffi = { version = "0.31", features = ["cli"] }
 pollster = "0.4"
 bytemuck = { version = "1.4", features = ["derive"] }
 log = "0.4"

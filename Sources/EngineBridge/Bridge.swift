@@ -165,7 +165,8 @@ public final class SwiftDesktopDelegate: @preconcurrency DesktopDelegate {
             self?.pendingRestores.append(appId)
         }
 
-        // Auto-launch system apps
+        // Auto-launch system services and apps
+        launchApp("cloned")
         launchApp("Dock")
         launchApp("MenuBar")
         launchApp("Finder")

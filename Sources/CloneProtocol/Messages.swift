@@ -77,6 +77,55 @@ public enum CompositorMessage: Codable, Sendable {
     case minimizedApps(appIds: [String])
 }
 
+// MARK: - Daemon (now-playing service)
+
+/// Socket path for the now-playing daemon.
+public let daemonSocketPath = "/tmp/clone-daemon.sock"
+
+/// Typed now-playing info (Codable replacement for [String: Any] in MPNowPlayingInfoCenter).
+public struct NowPlayingInfo: Codable, Sendable, Equatable {
+    public var title: String?
+    public var artist: String?
+    public var albumTitle: String?
+    public var playbackDuration: Double?
+    public var elapsedPlaybackTime: Double?
+    public var playbackRate: Double?  // 0 = paused, 1 = playing
+    public var appId: String
+
+    public init(
+        title: String? = nil, artist: String? = nil, albumTitle: String? = nil,
+        playbackDuration: Double? = nil, elapsedPlaybackTime: Double? = nil,
+        playbackRate: Double? = nil, appId: String
+    ) {
+        self.title = title
+        self.artist = artist
+        self.albumTitle = albumTitle
+        self.playbackDuration = playbackDuration
+        self.elapsedPlaybackTime = elapsedPlaybackTime
+        self.playbackRate = playbackRate
+        self.appId = appId
+    }
+}
+
+/// Remote transport commands for media control.
+public enum RemoteCommand: String, Codable, Sendable {
+    case play, pause, togglePlayPause, nextTrack, previousTrack
+}
+
+/// Client → Daemon
+public enum DaemonRequest: Codable, Sendable {
+    case publishNowPlaying(NowPlayingInfo)
+    case clearNowPlaying
+    case remoteCommand(RemoteCommand)   // MenuBar sends this
+    case observe                         // MenuBar subscribes to updates
+}
+
+/// Daemon → Client
+public enum DaemonResponse: Codable, Sendable {
+    case nowPlayingChanged(NowPlayingInfo?)
+    case remoteCommand(RemoteCommand)    // Daemon forwards to owning app
+}
+
 // MARK: - Wire format: 4-byte length prefix + JSON
 
 public enum WireProtocol {

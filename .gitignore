@@ -19,8 +19,12 @@ DerivedData/
 .vscode/
 .idea/
 
-# Generated bindings
+# Generated bindings (UniFFI)
 Sources/CEngine/include/cloneFFI.h
+Sources/CEngine/include/clone_engineFFI.h
+Sources/EngineBridge/clone_engine.swift
+Sources/EngineBridge/clone_engineFFI.h
+Sources/EngineBridge/clone_engineFFI.modulemap
 Sources/DesktopKit/Generated/
 
 # Claude
