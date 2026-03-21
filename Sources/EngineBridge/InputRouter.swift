@@ -73,7 +73,6 @@ struct InputRouter {
                     if let trafficLight = windowManager.hitTestTrafficLight(windowId: window.id, x: x, y: y) {
                         switch trafficLight {
                         case .close:
-                            appManager.removeExternalWindow(for: window.id)
                             windowManager.close(id: window.id)
                         case .minimize:
                             animateMinimize(windowId: window.id, windowManager: windowManager, animationManager: animationManager)

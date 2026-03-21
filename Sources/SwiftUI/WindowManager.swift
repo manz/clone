@@ -112,6 +112,9 @@ public final class WindowManager {
     private var resizeStartW: CGFloat = 0
     private var resizeStartH: CGFloat = 0
 
+    /// Called when a window is closed — gives the compositor a chance to notify the app.
+    public var onWindowClosed: ((UInt64) -> Void)?
+
     public init() {}
 
     // MARK: - Lifecycle
@@ -131,6 +134,7 @@ public final class WindowManager {
         if focusedWindowId == id {
             focusedWindowId = windows.last(where: { !$0.isMinimized })?.id
         }
+        onWindowClosed?(id)
     }
 
     /// Minimize — hide from desktop, keep in window list (like macOS miniaturize).

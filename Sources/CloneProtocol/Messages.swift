@@ -127,6 +127,10 @@ public enum CompositorMessage: Codable, Sendable {
     case menuAction(itemId: String)
     /// Result of an open-file dialog.
     case openPanelResult(path: String?)
+    /// Compositor tells the app its window was closed (app decides whether to stay alive).
+    case windowClosed
+    /// Compositor tells the app to terminate (Cmd+Q / Quit menu).
+    case terminate
 }
 
 // MARK: - Daemon (now-playing service)

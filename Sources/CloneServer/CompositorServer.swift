@@ -242,7 +242,7 @@ public final class CompositorServer {
         }
     }
 
-    func handleDisconnect(windowId: UInt64) {
+    public func handleDisconnect(windowId: UInt64) {
         lock.lock()
         if let app = apps.removeValue(forKey: windowId) {
             app.stop()
@@ -306,6 +306,20 @@ public final class CompositorServer {
         let app = apps[windowId]
         lock.unlock()
         app?.send(.keyChar(character: character))
+    }
+
+    public func sendWindowClosed(windowId: UInt64) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.windowClosed)
+    }
+
+    public func sendTerminate(windowId: UInt64) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.terminate)
     }
 
     public func sendMenuAction(windowId: UInt64, itemId: String) {

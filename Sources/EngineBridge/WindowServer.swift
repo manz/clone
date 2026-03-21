@@ -19,6 +19,9 @@ public final class WindowServer {
 
     init() {
         appManager.start()
+        windowManager.onWindowClosed = { [appManager] wmWindowId in
+            appManager.closeWindow(wmWindowId: wmWindowId)
+        }
     }
 
     func compositeFrame(width: CGFloat, height: CGFloat) -> [SurfaceFrame] {

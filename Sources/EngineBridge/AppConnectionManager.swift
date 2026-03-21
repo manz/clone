@@ -217,7 +217,11 @@ final class AppConnectionManager {
         // Forward menu actions to the focused app
         if let focusedId = windowManager.focusedWindowId {
             for itemId in pendingMenuActions {
-                sendMenuAction(wmWindowId: focusedId, itemId: itemId)
+                if itemId == "app.quit" {
+                    terminateFocusedApp(windowManager: windowManager)
+                } else {
+                    sendMenuAction(wmWindowId: focusedId, itemId: itemId)
+                }
             }
         }
         pendingMenuActions.removeAll()
@@ -234,10 +238,23 @@ final class AppConnectionManager {
     /// Active file dialog request (rendered by WindowServer).
     var pendingFileDialog: FileDialogRequest?
 
-    func removeExternalWindow(for wmWindowId: UInt64) {
+    /// Notify the app that its window was closed and clean up the mapping.
+    func closeWindow(wmWindowId: UInt64) {
         if let serverWid = externalWindowId(for: wmWindowId) {
+            server.sendWindowClosed(windowId: serverWid)
             externalWindows.removeValue(forKey: serverWid)
         }
+    }
+
+    /// Send terminate to the focused app (Cmd+Q / Quit menu).
+    func terminateFocusedApp(windowManager: WindowManager) {
+        guard let wmId = windowManager.focusedWindowId,
+              let serverWid = externalWindowId(for: wmId) else { return }
+        server.sendTerminate(windowId: serverWid)
+        server.handleDisconnect(windowId: serverWid)
+        externalWindows.removeValue(forKey: serverWid)
+        windowManager.close(id: wmId)
+        updateFocusedAppName(windowManager: windowManager)
     }
 
     func sendPointerMove(wmWindowId: UInt64, localX: Float, localY: Float) {
@@ -310,12 +327,18 @@ final class AppConnectionManager {
     }
 
     func sendSystemState(mouseX: CGFloat, mouseY: CGFloat, minimizedAppIds: [String], focusedWmWindowId: UInt64?) {
-        // Get focused app's menus
+        // Get focused app's menus, prepend the system app menu with Quit
         var focusedMenus: [AppMenu] = []
         if let wmId = focusedWmWindowId,
            let serverWid = externalWindowId(for: wmId) {
             focusedMenus = server.menus(for: serverWid)
         }
+        var appMenuItems: [AppMenuItem] = []
+        if focusedAppName != "Finder" {
+            appMenuItems.append(AppMenuItem(id: "app.quit", title: "Quit \(focusedAppName)", shortcut: "⌘Q"))
+        }
+        let appMenu = AppMenu(title: focusedAppName, items: appMenuItems)
+        focusedMenus.insert(appMenu, at: 0)
 
         for app in server.connectedApps {
             switch app.role {

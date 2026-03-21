@@ -33,6 +33,8 @@ public final class AppClient {
     public var onMenuAction: (@MainActor (String) -> Void)?
     /// Callback when open-file dialog returns a result.
     public var onOpenPanelResult: (@MainActor (String?) -> Void)?
+    /// Callback when the window was closed by the compositor (traffic light close).
+    public var onWindowClosed: (@MainActor () -> Void)?
 
     public init() {}
 
@@ -147,6 +149,12 @@ public final class AppClient {
 
         case .openPanelResult(let path):
             onOpenPanelResult?(path)
+
+        case .windowClosed:
+            onWindowClosed?()
+
+        case .terminate:
+            isConnected = false
         }
     }
 
