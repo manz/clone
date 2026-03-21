@@ -764,9 +764,6 @@ public extension View {
         _ModifiedView(node: _resolve(self).contextMenu(content: content))
     }
 
-    func toolbar(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).toolbar(content: content))
-    }
 
     func accessibilityValue(_ value: String) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).accessibilityValue(value))

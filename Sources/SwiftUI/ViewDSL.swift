@@ -227,10 +227,6 @@ public extension ViewNode {
         return self
     }
 
-    /// `.toolbar { }` — no-op for now (toolbar items are managed by window chrome).
-    func toolbar(@ViewBuilder content: () -> some View) -> ViewNode {
-        self
-    }
 
     /// `.resizable()` — no-op on image stubs, returns self.
     func resizable() -> ViewNode {
