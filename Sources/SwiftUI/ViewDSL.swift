@@ -241,7 +241,7 @@ public extension ViewNode {
     }
 
     /// `.overlay(alignment:content:)` — layers content on top.
-    func overlay(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         .zstack(children: [self] + content())
     }
 
@@ -643,7 +643,7 @@ public extension ViewNode {
     func onDelete(perform: ((IndexSet) -> Void)?) -> ViewNode { self }
 
     /// `.progressViewStyle(_:)` — no-op on Clone.
-    func progressViewStyle<S>(_ style: S) -> ViewNode { self }
+    func progressViewStyle<S: ProgressViewStyle>(_ style: S) -> ViewNode { self }
 
     /// `.scaleEffect(x:y:)` — no-op on Clone.
     func scaleEffect(x: CGFloat = 1, y: CGFloat = 1) -> ViewNode { self }
@@ -773,6 +773,9 @@ public extension ViewNode {
 
     /// `.accessibilityHint(_:)` — no-op on Clone.
     func accessibilityHint(_ hint: String) -> ViewNode { self }
+
+    /// `.blur(radius:opaque:)` — applies a Gaussian blur. No-op on Clone.
+    func blur(radius: CGFloat, opaque: Bool = false) -> ViewNode { self }
 
     /// `.fixedSize()` — prevents the view from being compressed below its ideal size.
     func fixedSize() -> ViewNode { self }

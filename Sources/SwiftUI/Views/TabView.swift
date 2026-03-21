@@ -28,3 +28,24 @@ extension TabView where SelectionValue == Int {
         self.content = content()
     }
 }
+
+/// A single tab in a TabView — matches Apple's SwiftUI Tab (iOS 18+/macOS 15+).
+public struct Tab<Value: Hashable, Content: View>: View {
+    let child: ViewNode
+
+    public init(_ title: String, systemImage: String, value: Value, @ViewBuilder content: () -> Content) {
+        self.child = _resolve(content())
+    }
+
+    public init(_ title: String, systemImage: String, @ViewBuilder content: () -> Content) {
+        self.child = _resolve(content())
+    }
+
+    public var body: ViewNode { child }
+}
+
+extension Tab where Value == Never {
+    public init(_ title: String, systemImage: String, @ViewBuilder content: () -> Content) {
+        self.child = _resolve(content())
+    }
+}

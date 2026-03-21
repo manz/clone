@@ -168,7 +168,7 @@ public extension View {
         _resolve(self).overlay(content: content)
     }
 
-    func overlay(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         _resolve(self).overlay(alignment: alignment, content: content)
     }
 
@@ -508,7 +508,7 @@ public extension View {
         _resolve(self).onDelete(perform: perform)
     }
 
-    func progressViewStyle<S>(_ style: S) -> ViewNode {
+    func progressViewStyle<S: ProgressViewStyle>(_ style: S) -> ViewNode {
         _resolve(self).progressViewStyle(style)
     }
 
@@ -702,6 +702,10 @@ public extension View {
 
     func accessibilityHint(_ hint: String) -> ViewNode {
         _resolve(self).accessibilityHint(hint)
+    }
+
+    func blur(radius: CGFloat, opaque: Bool = false) -> ViewNode {
+        _resolve(self).blur(radius: radius, opaque: opaque)
     }
 
     func fixedSize() -> ViewNode {

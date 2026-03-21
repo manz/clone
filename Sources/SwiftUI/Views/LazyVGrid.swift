@@ -4,12 +4,17 @@ import Foundation
 public struct GridItem: Sendable {
     public enum Size: Sendable {
         case fixed(CGFloat)
-        case flexible(minimum: CGFloat = 10, maximum: CGFloat = .infinity)
-        case adaptive(minimum: CGFloat, maximum: CGFloat = .infinity)
+        case _flexible(minimum: CGFloat, maximum: CGFloat)
+        case _adaptive(minimum: CGFloat, maximum: CGFloat)
 
-        /// `.flexible()` with defaults — matches Apple's SwiftUI.
-        public static func flexible() -> Size {
-            .flexible(minimum: 10, maximum: .infinity)
+        /// `.flexible(minimum:maximum:)` — matches Apple's SwiftUI.
+        public static func flexible(minimum: CGFloat = 10, maximum: CGFloat = .infinity) -> Size {
+            ._flexible(minimum: minimum, maximum: maximum)
+        }
+
+        /// `.adaptive(minimum:maximum:)` — matches Apple's SwiftUI.
+        public static func adaptive(minimum: CGFloat, maximum: CGFloat = .infinity) -> Size {
+            ._adaptive(minimum: minimum, maximum: maximum)
         }
     }
 

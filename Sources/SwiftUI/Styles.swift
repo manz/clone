@@ -66,7 +66,10 @@ public protocol ListStyle {}
 /// A list style with no decoration.
 public struct PlainListStyle: ListStyle { public init() {} }
 /// An inset list style.
-public struct InsetListStyle: ListStyle { public init() {} }
+public struct InsetListStyle: ListStyle {
+    public init() {}
+    public init(alternatesRowBackgrounds: Bool) {}
+}
 /// A grouped list style.
 public struct GroupedListStyle: ListStyle { public init() {} }
 /// A sidebar list style.
@@ -158,15 +161,25 @@ extension ToggleStyle where Self == CheckboxToggleStyle {
 
 // MARK: - ProgressView styles
 
+/// A type that applies custom appearance to progress views.
+public protocol ProgressViewStyle {}
+
 /// A circular progress view style.
-public struct CircularProgressViewStyle {
+public struct CircularProgressViewStyle: ProgressViewStyle {
     public init() {}
     public init(tint: Color) {}
 }
 /// A linear progress view style.
-public struct LinearProgressViewStyle {
+public struct LinearProgressViewStyle: ProgressViewStyle {
     public init() {}
     public init(tint: Color) {}
+}
+
+extension ProgressViewStyle where Self == CircularProgressViewStyle {
+    public static var circular: CircularProgressViewStyle { CircularProgressViewStyle() }
+}
+extension ProgressViewStyle where Self == LinearProgressViewStyle {
+    public static var linear: LinearProgressViewStyle { LinearProgressViewStyle() }
 }
 
 // MARK: - Label styles
@@ -197,4 +210,23 @@ public struct IconOnlyLabelStyle: LabelStyle {
 public struct TitleAndIconLabelStyle: LabelStyle {
     public init() {}
     public func makeBody(configuration: LabelStyleConfiguration) -> some View { EmptyView() }
+}
+
+/// Default label style.
+public struct DefaultLabelStyle: LabelStyle {
+    public init() {}
+    public func makeBody(configuration: LabelStyleConfiguration) -> some View { EmptyView() }
+}
+
+extension LabelStyle where Self == TitleOnlyLabelStyle {
+    public static var titleOnly: TitleOnlyLabelStyle { TitleOnlyLabelStyle() }
+}
+extension LabelStyle where Self == IconOnlyLabelStyle {
+    public static var iconOnly: IconOnlyLabelStyle { IconOnlyLabelStyle() }
+}
+extension LabelStyle where Self == TitleAndIconLabelStyle {
+    public static var titleAndIcon: TitleAndIconLabelStyle { TitleAndIconLabelStyle() }
+}
+extension LabelStyle where Self == DefaultLabelStyle {
+    public static var automatic: DefaultLabelStyle { DefaultLabelStyle() }
 }

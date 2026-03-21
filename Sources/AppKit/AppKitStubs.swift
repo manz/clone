@@ -252,11 +252,12 @@ open class NSWorkspace: @unchecked Sendable {
 // MARK: - NSGraphicsContext
 
 open class NSGraphicsContext {
-    public static var current: NSGraphicsContext? { nil }
+    nonisolated(unsafe) public static var current: NSGraphicsContext? = nil
     public var cgContext: Any? { nil }
     public static func saveGraphicsState() {}
     public static func restoreGraphicsState() {}
     public init() {}
+    public init?(bitmapImageRep: NSBitmapImageRep) {}
 }
 
 // MARK: - NSCursor

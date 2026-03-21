@@ -27,6 +27,20 @@ public struct ModelConfiguration {
         self.isStoredInMemoryOnly = isStoredInMemoryOnly
     }
 
+    /// Named configuration with optional schema and URL — matches Apple's SwiftData API.
+    public init(_ name: String, schema: Schema? = nil, url: URL? = nil, isStoredInMemoryOnly: Bool = false) {
+        self.appId = name
+        self.url = url
+        self.isStoredInMemoryOnly = isStoredInMemoryOnly
+    }
+
+    /// Default configuration.
+    public init() {
+        self.appId = nil
+        self.url = nil
+        self.isStoredInMemoryOnly = false
+    }
+
     /// Resolve the SQLite path.
     public func resolvedPath() -> String {
         if isStoredInMemoryOnly { return ":memory:" }
