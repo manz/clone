@@ -50,6 +50,29 @@ public final class ModelContext: NSObject {
         }
     }
 
+    /// Overload accepting Foundation.Predicate (Apple's public API).
+    /// Converts the expression tree to SQL when possible, falls back to fetch-evaluate-delete.
+    @available(macOS 14, iOS 17, tvOS 17, watchOS 10, *)
+    public func delete<T: PersistentModel>(model: T.Type, where predicate: Foundation.Predicate<T>?) throws {
+        guard let predicate else {
+            try delete(model: model)
+            return
+        }
+        // Try direct SQL conversion first
+        if let sqlPred = PredicateConverter.convert(predicate) {
+            try delete(model: model, where: sqlPred)
+            return
+        }
+        // Fallback: fetch all, evaluate in-memory, delete matches
+        let all = try fetchAll(model)
+        for item in all {
+            if try predicate.evaluate(item) {
+                delete(item)
+            }
+        }
+        try save()
+    }
+
     // MARK: - Fetch
 
     public func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> [T] {

@@ -52,6 +52,6 @@ struct AVPlayerTests {
 
     @Test func currentTimeDefaultsToZero() {
         let player = AVPlayer()
-        #expect(player.currentTime == .zero)
+        #expect(player.currentTime() == .zero)
     }
 }

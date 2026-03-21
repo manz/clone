@@ -84,7 +84,11 @@ public class AVPlayer: NSObject {
         }
     }
 
-    public var currentTime: CMTime {
+    public var automaticallyWaitsToMinimizeStalling: Bool = true
+    public var allowsExternalPlayback: Bool = true
+    public var volume: Float = 1.0
+
+    public func currentTime() -> CMTime {
         guard let rp = rustPlayer else { return .zero }
         return CMTime(seconds: rp.currentTime())
     }

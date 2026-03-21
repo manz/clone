@@ -38,9 +38,19 @@ public class AVPlayerItem: NSObject {
         }
     }
 
+    public var preferredForwardBufferDuration: TimeInterval = 0
+    public var canUseNetworkResourcesForLiveStreamingWhilePaused: Bool = false
+    public var isPlaybackBufferEmpty: Bool { false }
+    public var isPlaybackLikelyToKeepUp: Bool { true }
+    public var error: Error? { nil }
+
     internal func postDidPlayToEndTime() {
         NotificationCenter.default.post(name: Self.didPlayToEndTimeNotification, object: self)
     }
+}
+
+extension NSNotification.Name {
+    public static let AVPlayerItemDidPlayToEndTime = AVPlayerItem.didPlayToEndTimeNotification
 }
 
 private final class ProbeDelegate: AudioPlayerDelegate, @unchecked Sendable {

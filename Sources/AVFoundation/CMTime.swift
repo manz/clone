@@ -8,6 +8,8 @@ public struct CMTime: Equatable, Sendable {
         timescale == 0 ? 0 : Double(value) / Double(timescale)
     }
 
+    public var isValid: Bool { timescale > 0 }
+
     public static let zero = CMTime(value: 0, timescale: 1)
 
     public init(seconds: Double, preferredTimescale: Int32 = 600) {
