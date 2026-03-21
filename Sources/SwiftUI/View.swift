@@ -368,7 +368,7 @@ public extension View {
         _resolve(self)
     }
 
-    func refreshable(action: @escaping @Sendable () async -> Void) -> ViewNode {
+    func refreshable(action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         _resolve(self)
     }
 

@@ -517,7 +517,7 @@ public extension ViewNode {
     }
 
     /// `.refreshable(action:)` — no-op on Clone.
-    func refreshable(action: @escaping @Sendable () async -> Void) -> ViewNode {
+    func refreshable(action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         self
     }
 
