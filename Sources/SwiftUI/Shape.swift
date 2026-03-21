@@ -15,6 +15,11 @@ extension Shape {
     public func path(in rect: CGRect) -> Path {
         Path()
     }
+
+    /// Default LayoutFrame implementation — delegates to CGRect version.
+    public func path(in rect: LayoutFrame) -> ViewNode {
+        .rect(width: rect.width, height: rect.height, fill: .white)
+    }
 }
 
 /// A circle shape.

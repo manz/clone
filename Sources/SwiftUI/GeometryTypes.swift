@@ -1,8 +1,23 @@
 import Foundation
 
 /// A modifier that changes the shape of a view by applying a geometric transform.
-public protocol GeometryEffect: ViewModifier {
+public protocol GeometryEffect: ViewModifier where Body == _ViewModifierContent {
+    var animatableData: AnimatableData { get set }
     func effectValue(size: CGSize) -> ProjectionTransform
+    associatedtype AnimatableData = EmptyAnimatableData
+}
+
+extension GeometryEffect {
+    public func body(content: Content) -> _ViewModifierContent { content }
+    public var animatableData: EmptyAnimatableData {
+        get { EmptyAnimatableData() }
+        set {}
+    }
+}
+
+/// Empty animatable data — default for GeometryEffect.
+public struct EmptyAnimatableData: Sendable {
+    public init() {}
 }
 
 /// A 3x3 matrix for projecting 2D content.

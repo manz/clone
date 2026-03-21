@@ -22,7 +22,7 @@ open class NSView: NSResponder {
     public var frame: CGRect = _zeroRect
     public override init() { super.init() }
     public init(frame: CGRect) { self.frame = frame; super.init() }
-    public func hitTest(_ point: CGPoint) -> NSView? { nil }
+    open func hitTest(_ point: CGPoint) -> NSView? { nil }
     public var subviews: [NSView] = []
     public func addSubview(_ view: NSView) {}
     public func removeFromSuperview() {}

@@ -426,6 +426,16 @@ public extension ViewNode {
         foregroundColor(color)
     }
 
+    /// `.foregroundStyle(_:_:)` — two-level hierarchy. Maps to primary color.
+    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
+        self
+    }
+
+    /// `.foregroundStyle(_:_:_:)` — three-level hierarchy.
+    func foregroundStyle<S1: View, S2: View, S3: View>(_ primary: S1, _ secondary: S2, _ tertiary: S3) -> ViewNode {
+        self
+    }
+
     /// `.background(_:in:)` — background with shape. Renders as ZStack.
     func background<S: View>(_ color: Color, in shape: S) -> ViewNode {
         background(color)
@@ -611,6 +621,9 @@ public extension ViewNode {
     /// `.rotation3DEffect(_:axis:)` — no-op on Clone.
     func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat)) -> ViewNode { self }
 
+    /// `.rotation3DEffect(_:axis:anchor:anchorZ:perspective:)` — no-op on Clone.
+    func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat), anchor: UnitPoint = .center, anchorZ: CGFloat = 0, perspective: CGFloat = 1) -> ViewNode { self }
+
     /// `.labelStyle(_:)` — no-op on Clone.
     func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode { self }
 
@@ -778,6 +791,9 @@ public extension ViewNode {
 
     /// `.blur(radius:opaque:)` — applies a Gaussian blur. No-op on Clone.
     func blur(radius: CGFloat, opaque: Bool = false) -> ViewNode { self }
+
+    /// `.equatable()` — marks the view for equality-based updates. No-op on Clone.
+    func equatable() -> ViewNode { self }
 
     /// `.fixedSize()` — prevents the view from being compressed below its ideal size.
     func fixedSize() -> ViewNode { self }

@@ -304,6 +304,14 @@ public extension View {
         _resolve(self).foregroundStyle(color)
     }
 
+    func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> ViewNode {
+        _resolve(self).foregroundStyle(primary, secondary)
+    }
+
+    func foregroundStyle<S1: View, S2: View, S3: View>(_ primary: S1, _ secondary: S2, _ tertiary: S3) -> ViewNode {
+        _resolve(self).foregroundStyle(primary, secondary, tertiary)
+    }
+
     func background<S: View>(_ color: Color, in shape: S) -> ViewNode {
         _resolve(self).background(color, in: shape)
     }
@@ -462,6 +470,14 @@ public extension View {
 
     func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat)) -> ViewNode {
         _resolve(self).rotation3DEffect(angle, axis: axis)
+    }
+
+    func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat), anchor: UnitPoint = .center, anchorZ: CGFloat = 0, perspective: CGFloat = 1) -> ViewNode {
+        _resolve(self).rotation3DEffect(angle, axis: axis, anchor: anchor, anchorZ: anchorZ, perspective: perspective)
+    }
+
+    func equatable() -> ViewNode {
+        _resolve(self).equatable()
     }
 
     func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode {
