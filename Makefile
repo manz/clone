@@ -43,6 +43,7 @@ apps: swift
 	swift build --target PasswordApp
 	swift build --target TextEditApp
 	swift build --target PreviewApp
+	swift build --target LoginWindow
 	swift build --target keychaind
 
 # Alias

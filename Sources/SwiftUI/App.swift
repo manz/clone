@@ -134,6 +134,9 @@ extension App {
         SystemActions.shared.restoreApp = RestoreAppAction { appId in
             client.send(.restoreApp(appId: appId))
         }
+        SystemActions.shared.sessionReady = SessionReadyAction {
+            client.send(.sessionReady)
+        }
 
         if usesDeclarativeRendering {
             // Declarative path: ViewNode → Layout → Flatten → IPC

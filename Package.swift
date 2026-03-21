@@ -196,6 +196,12 @@ let package = Package(
             dependencies: ["SwiftUI", "CloneProtocol"],
             path: "Sources/PreviewApp"
         ),
+        // Login window (separate process, pre-session)
+        .executableTarget(
+            name: "LoginWindow",
+            dependencies: ["SwiftUI"],
+            path: "Sources/LoginWindowApp"
+        ),
         .testTarget(
             name: "SwiftUITests",
             dependencies: ["SwiftUI"],

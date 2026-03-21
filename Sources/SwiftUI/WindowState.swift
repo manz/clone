@@ -60,12 +60,26 @@ public struct RestoreAppAction {
     }
 }
 
+/// Action to signal the compositor that authentication succeeded.
+public struct SessionReadyAction {
+    private let handler: () -> Void
+
+    public init(_ handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    public func callAsFunction() {
+        handler()
+    }
+}
+
 /// Global system actions — wired up by App.main().
 public final class SystemActions: @unchecked Sendable {
     public static let shared = SystemActions()
 
     public var launchApp = LaunchAppAction { _ in }
     public var restoreApp = RestoreAppAction { _ in }
+    public var sessionReady = SessionReadyAction {}
 
     private init() {}
 }

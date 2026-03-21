@@ -8,6 +8,12 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
+        // Pre-session: all input goes to LoginWindow
+        if !appManager.sessionStarted {
+            appManager.sendToLoginWindow(pointerMove: Float(x), y: Float(y))
+            return
+        }
+
         if windowManager.isResizing {
             windowManager.updateResize(mouseX: x, mouseY: y)
             return
@@ -45,6 +51,11 @@ struct InputRouter {
         appManager: AppConnectionManager,
         animationManager: AnimationManager
     ) {
+        if !appManager.sessionStarted {
+            appManager.sendToLoginWindow(pointerButton: button, pressed: pressed, x: Float(x), y: Float(y))
+            return
+        }
+
         if button == 0 {
             if pressed {
                 mouseDown = true
@@ -136,6 +147,11 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
+        if !appManager.sessionStarted {
+            appManager.sendToLoginWindow(key: keycode, pressed: pressed)
+            return
+        }
+
         guard pressed else { return }
 
         // Forward to focused external app
@@ -161,6 +177,11 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
+        if !appManager.sessionStarted {
+            appManager.sendToLoginWindow(keyChar: character)
+            return
+        }
+
         if let focusedId = windowManager.focusedWindowId {
             appManager.sendKeyChar(wmWindowId: focusedId, character: character)
         }

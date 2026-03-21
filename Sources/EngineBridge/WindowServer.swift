@@ -29,9 +29,26 @@ public final class WindowServer {
         windowManager.screenHeight = height
 
         appManager.processLaunchQueue(windowManager: windowManager, animationManager: animationManager)
+        appManager.requestFrames()
+
+        var frames: [SurfaceFrame] = []
+
+        // Desktop background (wallpaper rendered by engine)
+        frames.append(SurfaceFrame(
+            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
+            commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))]
+        ))
+
+        // Pre-session: only wallpaper + LoginWindow overlay
+        if !appManager.sessionStarted {
+            frames.append(contentsOf: appManager.overlaySurfaces(
+                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
+            ))
+            return frames
+        }
+
         appManager.syncNewApps(windowManager: windowManager)
         appManager.syncResizingDimensions(windowManager: windowManager)
-        appManager.requestFrames()
 
         // Tick animations — complete minimize by actually hiding the window
         for (windowId, wasMinimizing) in animationManager.tick() {
@@ -40,15 +57,7 @@ public final class WindowServer {
             }
         }
 
-        var frames: [SurfaceFrame] = []
-
-        // 1. Desktop background (wallpaper rendered by engine)
-        frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
-            commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))]
-        ))
-
-        // 2. Windows — visible + currently animating
+        // Windows — visible + currently animating
         let visibleWindows = windowManager.windows.filter {
             ($0.isVisible && !$0.isMinimized) || animationManager.isAnimating($0.id)
         }

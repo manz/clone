@@ -256,6 +256,31 @@ final class AppConnectionManager {
         }
     }
 
+    /// Send input to the LoginWindow (pre-session).
+    func sendToLoginWindow(pointerMove x: Float, y: Float) {
+        for app in server.connectedApps where app.role == .loginWindow {
+            server.sendPointerMove(windowId: app.windowId, x: x, y: y)
+        }
+    }
+
+    func sendToLoginWindow(pointerButton button: UInt32, pressed: Bool, x: Float, y: Float) {
+        for app in server.connectedApps where app.role == .loginWindow {
+            server.sendPointerButton(windowId: app.windowId, button: button, pressed: pressed, x: x, y: y)
+        }
+    }
+
+    func sendToLoginWindow(key keycode: UInt32, pressed: Bool) {
+        for app in server.connectedApps where app.role == .loginWindow {
+            server.sendKey(windowId: app.windowId, keycode: keycode, pressed: pressed)
+        }
+    }
+
+    func sendToLoginWindow(keyChar character: String) {
+        for app in server.connectedApps where app.role == .loginWindow {
+            server.sendKeyChar(windowId: app.windowId, character: character)
+        }
+    }
+
     func sendKey(wmWindowId: UInt64, keycode: UInt32, pressed: Bool) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
         server.sendKey(windowId: serverWid, keycode: keycode, pressed: pressed)
@@ -322,6 +347,7 @@ final class AppConnectionManager {
     func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
         for app in server.connectedApps {
+            if app.role == .loginWindow && sessionStarted { continue }
             guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
             let ipcCommands = app.getCommands()
