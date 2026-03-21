@@ -1,7 +1,10 @@
 import Foundation
 
-/// Socket path for the compositor.
-public let compositorSocketPath = "/tmp/clone-compositor.sock"
+/// Socket path for the compositor (XDG_RUNTIME_DIR on Linux, /tmp fallback on macOS).
+public let compositorSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-compositor.sock"
+}()
 
 // MARK: - Render command (Codable, shared between processes)
 
@@ -38,6 +41,8 @@ public enum SurfaceRole: String, Codable, Sendable {
     case dock
     /// Menu bar — pinned to top, topmost, no chrome.
     case menubar
+    /// Login window — fullscreen, no chrome, gates user session.
+    case loginWindow
 }
 
 // MARK: - App menus
@@ -91,6 +96,8 @@ public enum AppMessage: Codable, Sendable {
     case showOpenPanel(allowedTypes: [String])
     /// MenuBar tells compositor a menu item was clicked for the focused app.
     case menuAction(itemId: String)
+    /// LoginWindow tells compositor authentication succeeded — start user session.
+    case sessionReady
 }
 
 // MARK: - Messages: Compositor → App
@@ -125,7 +132,10 @@ public enum CompositorMessage: Codable, Sendable {
 // MARK: - Daemon (now-playing service)
 
 /// Socket path for the now-playing daemon.
-public let daemonSocketPath = "/tmp/clone-daemon.sock"
+public let daemonSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-daemon.sock"
+}()
 
 /// Typed now-playing info (Codable replacement for [String: Any] in MPNowPlayingInfoCenter).
 public struct NowPlayingInfo: Codable, Sendable, Equatable {
@@ -174,7 +184,10 @@ public enum DaemonResponse: Codable, Sendable {
 // MARK: - Keychain service
 
 /// Socket path for the keychain daemon.
-public let keychainSocketPath = "/tmp/clone-keychain.sock"
+public let keychainSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-keychain.sock"
+}()
 
 /// Keychain item class (maps to kSecClass values).
 public enum SecItemClass: String, Codable, Sendable {

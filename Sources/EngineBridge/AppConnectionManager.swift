@@ -49,6 +49,8 @@ final class AppConnectionManager {
     var pendingMenuActions: [String] = []
     var pendingOpenPanels: [(windowId: UInt64, types: [String])] = []
     private var focusedAppName: String = "Finder"
+    private(set) var sessionStarted = false
+    private var pendingSessionReady = false
 
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
@@ -59,6 +61,7 @@ final class AppConnectionManager {
         "com.clone.passwordapp": "PasswordApp",
         "com.clone.texteditapp": "TextEditApp",
         "com.clone.previewapp": "PreviewApp",
+        "com.clone.loginwindow": "LoginWindow",
     ]
 
     func start() {
@@ -81,10 +84,20 @@ final class AppConnectionManager {
         server.onShowOpenPanel = { [weak self] windowId, types in
             self?.pendingOpenPanels.append((windowId, types))
         }
+        server.onSessionReady = { [weak self] in
+            self?.pendingSessionReady = true
+        }
 
-        // Auto-launch system services and apps
+        // Launch pre-session daemons and LoginWindow
         launchApp("cloned")
         launchApp("keychaind")
+        launchApp("LoginWindow")
+    }
+
+    /// Start the user session — launched after LoginWindow signals sessionReady.
+    private func startUserSession() {
+        guard !sessionStarted else { return }
+        sessionStarted = true
         launchApp("Dock")
         launchApp("MenuBar")
         launchApp("Finder")
@@ -119,7 +132,7 @@ final class AppConnectionManager {
     func syncNewApps(windowManager: WindowManager) {
         for app in server.connectedApps {
             if app.appId == "pending" { continue }
-            if app.role != .window { continue }
+            if app.role != .window { continue }  // skip dock, menubar, loginWindow
             if externalWindows[app.windowId] != nil { continue }
 
             let wmId = windowManager.open(
@@ -177,6 +190,11 @@ final class AppConnectionManager {
     }
 
     func processLaunchQueue(windowManager: WindowManager, animationManager: AnimationManager) {
+        if pendingSessionReady {
+            pendingSessionReady = false
+            startUserSession()
+        }
+
         for appId in pendingLaunches {
             if let window = windowManager.windows.first(where: { $0.appId == appId && $0.isVisible && !$0.isMinimized }) {
                 windowManager.focus(id: window.id)
@@ -282,7 +300,7 @@ final class AppConnectionManager {
             case .menubar:
                 app.send(.focusedApp(name: focusedAppName))
                 app.send(.appMenus(appName: focusedAppName, menus: focusedMenus))
-            case .window:
+            case .window, .loginWindow:
                 break
             }
         }
@@ -304,7 +322,7 @@ final class AppConnectionManager {
     func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
         for app in server.connectedApps {
-            guard app.role == .dock || app.role == .menubar else { continue }
+            guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
             let ipcCommands = app.getCommands()
             if !ipcCommands.isEmpty {

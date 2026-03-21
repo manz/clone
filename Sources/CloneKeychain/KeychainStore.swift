@@ -21,7 +21,10 @@ public final class KeychainStore: KeychainStoreProtocol {
     private var db: OpaquePointer?
 
     /// Pass ":memory:" for tests, or a file path for persistence.
-    public init(path: String = "/tmp/clone-keychain.db") {
+    public init(path: String = {
+        let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+        return "\(base)/clone-keychain.db"
+    }()) {
         var db: OpaquePointer?
         guard sqlite3_open(path, &db) == SQLITE_OK else {
             fatalError("Failed to open keychain database at \(path)")

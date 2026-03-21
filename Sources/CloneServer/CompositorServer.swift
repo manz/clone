@@ -196,6 +196,8 @@ public final class CompositorServer {
     public var onMenuAction: ((String) -> Void)?
     /// Callback when an app requests an open-file dialog.
     public var onShowOpenPanel: ((UInt64, [String]) -> Void)?
+    /// Callback when LoginWindow signals authentication succeeded.
+    public var onSessionReady: (() -> Void)?
 
     func handle(message: AppMessage, from app: ConnectedApp) {
         switch message {
@@ -234,6 +236,9 @@ public final class CompositorServer {
 
         case .showOpenPanel(let allowedTypes):
             onShowOpenPanel?(app.windowId, allowedTypes)
+
+        case .sessionReady:
+            onSessionReady?()
         }
     }
 

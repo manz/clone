@@ -5,7 +5,10 @@ import Foundation
 // Security framework, creating a circular dependency. These types are wire-
 // compatible with CloneProtocol's keychain types (same JSON encoding).
 
-let keychainSocketPath = "/tmp/clone-keychain.sock"
+let keychainSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-keychain.sock"
+}()
 
 enum SecItemClass: String, Codable, Sendable {
     case internetPassword, genericPassword, certificate, key, identity
