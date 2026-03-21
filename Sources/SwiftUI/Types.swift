@@ -383,6 +383,20 @@ public enum SymbolRenderingMode: Sendable {
     case monochrome, multicolor, hierarchical, palette
 }
 
+// MARK: - SubmitLabel
+
+public struct SubmitLabel: Sendable {
+    public static let done = SubmitLabel()
+    public static let go = SubmitLabel()
+    public static let send = SubmitLabel()
+    public static let join = SubmitLabel()
+    public static let route = SubmitLabel()
+    public static let search = SubmitLabel()
+    public static let `return` = SubmitLabel()
+    public static let next = SubmitLabel()
+    public static let `continue` = SubmitLabel()
+}
+
 // MARK: - GlassEffectStyle
 
 public struct GlassEffectStyle: Sendable {

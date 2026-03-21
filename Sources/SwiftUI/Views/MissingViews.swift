@@ -111,6 +111,25 @@ extension ContentUnavailableView where Label == ViewNode, Description == ViewNod
     }
 }
 
+extension ContentUnavailableView where Actions == EmptyView {
+    /// `ContentUnavailableView { label } description: { text }` — multi-trailing-closure.
+    public init(@ViewBuilder label: () -> Label, @ViewBuilder description: () -> Description) {
+        self.label = ViewNode.vstack(alignment: .center, spacing: 8, children: [
+            _resolve(label()),
+            _resolve(description()),
+        ])
+    }
+
+    /// `ContentUnavailableView { label } description: { text } actions: { buttons }` — full form.
+    public init(@ViewBuilder label: () -> Label, @ViewBuilder description: () -> Description, @ViewBuilder actions: () -> Actions) {
+        self.label = ViewNode.vstack(alignment: .center, spacing: 8, children: [
+            _resolve(label()),
+            _resolve(description()),
+            _resolve(actions()),
+        ])
+    }
+}
+
 // MARK: - LazyVStack / LazyHStack
 
 /// A lazy vertical stack. On Clone, renders as a regular VStack.

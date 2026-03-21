@@ -29,6 +29,12 @@ extension NavigationLink where Label == Text {
         self.label = Text(titleKey).body
         self.destination = _resolve(destination)
     }
+
+    /// `NavigationLink("title") { destination }` — trailing closure for destination.
+    public init(_ titleKey: String, @ViewBuilder destination: () -> Destination) {
+        self.label = Text(titleKey).body
+        self.destination = _resolve(destination())
+    }
 }
 
 extension NavigationLink where Destination == EmptyView {

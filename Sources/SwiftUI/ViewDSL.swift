@@ -164,6 +164,12 @@ public extension ViewNode {
         return .onTap(id: id, child: self)
     }
 
+    /// `.onTapGesture(count:coordinateSpace:perform:)` — with location.
+    func onTapGesture(count: Int = 1, coordinateSpace: CoordinateSpace = .local, perform handler: @escaping (CGPoint) -> Void) -> ViewNode {
+        let id = TapRegistry.shared.register { handler(.zero) }
+        return .onTap(id: id, child: self)
+    }
+
     /// `.onTapGesture(count:perform:)` — matches Apple's SwiftUI.
     /// On Clone, count > 1 is treated as single tap (no multi-tap detection yet).
     func onTapGesture(count: Int = 1, perform handler: @escaping () -> Void) -> ViewNode {
@@ -202,6 +208,16 @@ public extension ViewNode {
     /// `.contextMenu { }` — attaches a context menu to this view.
     func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         .contextMenu(child: self, menuItems: content())
+    }
+
+    /// `.contextMenu(forSelectionType:menu:)` — context menu for selected items.
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode]) -> ViewNode {
+        self
+    }
+
+    /// `.contextMenu(forSelectionType:menu:primaryAction:)` — with primary action.
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode], primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> ViewNode {
+        self
     }
 
     /// `.navigationTitle(_:)` — sets the window title via WindowState.
@@ -424,6 +440,11 @@ public extension ViewNode {
     /// `.foregroundStyle(_:)` — maps to foregroundColor for single color.
     func foregroundStyle(_ color: Color) -> ViewNode {
         foregroundColor(color)
+    }
+
+    /// `.foregroundStyle(_:)` — accepts any ShapeStyle/View (gradient, etc). No-op on Clone.
+    func foregroundStyle<S: View>(_ style: S) -> ViewNode {
+        self
     }
 
     /// `.foregroundStyle(_:_:)` — two-level hierarchy. Maps to primary color.
@@ -744,7 +765,7 @@ public extension ViewNode {
     func zIndex(_ value: Double) -> ViewNode { self }
 
     /// `.submitLabel(_:)` — no-op on Clone.
-    func submitLabel(_ label: Any) -> ViewNode { self }
+    func submitLabel(_ label: SubmitLabel) -> ViewNode { self }
 
     /// `.colorScheme(_:)` — no-op on Clone.
     func colorScheme(_ scheme: ColorScheme) -> ViewNode { self }

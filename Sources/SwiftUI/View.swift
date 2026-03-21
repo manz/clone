@@ -140,6 +140,10 @@ public extension View {
         _resolve(self).onTapGesture(count: count, perform: handler)
     }
 
+    func onTapGesture(count: Int = 1, coordinateSpace: CoordinateSpace = .local, perform handler: @escaping (CGPoint) -> Void) -> ViewNode {
+        _resolve(self).onTapGesture(count: count, coordinateSpace: coordinateSpace, perform: handler)
+    }
+
     func onHover(_ handler: @escaping (Bool) -> Void) -> ViewNode {
         _resolve(self).onHover(handler)
     }
@@ -302,6 +306,10 @@ public extension View {
 
     func foregroundStyle(_ color: Color) -> ViewNode {
         _resolve(self).foregroundStyle(color)
+    }
+
+    func foregroundStyle<S: View>(_ style: S) -> ViewNode {
+        _resolve(self).foregroundStyle(style)
     }
 
     func foregroundStyle(_ primary: Color, _ secondary: Color) -> ViewNode {
@@ -640,7 +648,7 @@ public extension View {
         _resolve(self).zIndex(value)
     }
 
-    func submitLabel(_ label: Any) -> ViewNode {
+    func submitLabel(_ label: SubmitLabel) -> ViewNode {
         _resolve(self).submitLabel(label)
     }
 
