@@ -14,6 +14,7 @@ public struct Chart<Content>: View {
 @resultBuilder
 public struct ChartContentBuilder {
     public static func buildExpression<C>(_ expression: C) -> C { expression }
+    public static func buildExpression<D, ID: Hashable, Content: View>(_ expression: ForEach<D, ID, Content>) -> ForEach<D, ID, Content> { expression }
     public static func buildBlock<C>(_ content: C) -> C { content }
     public static func buildBlock() -> EmptyChartContent { EmptyChartContent() }
     public static func buildBlock<C0, C1>(_ c0: C0, _ c1: C1) -> ChartTupleContent<(C0, C1)> { ChartTupleContent() }
@@ -85,8 +86,8 @@ public struct PlottableValue<T> {
 // MARK: - Axis
 
 public struct AxisMarks<Content> {
-    public init(values: AxisMarkValues = .automatic, @ChartContentBuilder content: @escaping (AxisValue) -> Content) {}
-    public init(position: AxisMarkPosition = .automatic, values: AxisMarkValues = .automatic, @ChartContentBuilder content: @escaping (AxisValue) -> Content) {}
+    public init(values: AxisMarkValues = .automatic, @ViewBuilder content: @escaping (AxisValue) -> Content) {}
+    public init(position: AxisMarkPosition = .automatic, values: AxisMarkValues = .automatic, @ViewBuilder content: @escaping (AxisValue) -> Content) {}
 }
 extension AxisMarks where Content == Never {
     public init(values: AxisMarkValues = .automatic) {}
