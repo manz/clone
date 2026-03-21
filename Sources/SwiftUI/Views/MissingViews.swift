@@ -301,6 +301,7 @@ public struct ToolbarContentBuilder {
     public static func buildBlock<C: View>(_ content: C) -> C { content }
     public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] { components.flatMap { $0 } }
     @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] { [_resolve(expression)] }
+    @MainActor public static func buildExpression<C: ToolbarContent & View>(_ expression: C) -> [ViewNode] { [_resolve(expression)] }
     public static func buildOptional(_ component: [ViewNode]?) -> [ViewNode] { component ?? [] }
     public static func buildEither(first component: [ViewNode]) -> [ViewNode] { component }
     public static func buildEither(second component: [ViewNode]) -> [ViewNode] { component }

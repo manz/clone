@@ -19,12 +19,20 @@ public final class AppClient {
     public var onPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
     /// Callback for key events.
     public var onKey: (@MainActor (UInt32, Bool) -> Void)?
+    /// Callback for character input (translated from keycode).
+    public var onKeyChar: (@MainActor (String) -> Void)?
     /// Callback when window is created.
     public var onWindowCreated: (@MainActor (UInt64, Float, Float) -> Void)?
     /// Callback when compositor reports focused app name (for menubar).
     public var onFocusedApp: (@MainActor (String) -> Void)?
     /// Callback when compositor reports minimized app IDs (for dock).
     public var onMinimizedApps: (@MainActor ([String]) -> Void)?
+    /// Callback when compositor sends focused app's menus (for menubar).
+    public var onAppMenus: (@MainActor (String, [AppMenu]) -> Void)?
+    /// Callback when a menu item is selected (routed from menubar).
+    public var onMenuAction: (@MainActor (String) -> Void)?
+    /// Callback when open-file dialog returns a result.
+    public var onOpenPanelResult: (@MainActor (String?) -> Void)?
 
     public init() {}
 
@@ -122,11 +130,23 @@ public final class AppClient {
         case .key(let keycode, let pressed):
             onKey?(keycode, pressed)
 
+        case .keyChar(let character):
+            onKeyChar?(character)
+
         case .focusedApp(let name):
             onFocusedApp?(name)
 
         case .minimizedApps(let appIds):
             onMinimizedApps?(appIds)
+
+        case .appMenus(let appName, let menus):
+            onAppMenus?(appName, menus)
+
+        case .menuAction(let itemId):
+            onMenuAction?(itemId)
+
+        case .openPanelResult(let path):
+            onOpenPanelResult?(path)
         }
     }
 

@@ -551,6 +551,24 @@ fileprivate struct FfiConverterString: FfiConverter {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterData: FfiConverterRustBuffer {
+    typealias SwiftType = Data
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        let len: Int32 = try readInt(&buf)
+        return Data(try readBytes(&buf, count: Int(len)))
+    }
+
+    public static func write(_ value: Data, into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        writeBytes(&buf, value)
+    }
+}
+
 
 
 
@@ -906,9 +924,9 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
 
 public enum AudioCommand: Equatable, Hashable {
     
-    case playSound(name: String, volume: Float
+    case playSystemSound(name: String, volume: Float
     )
-    case stopSound(name: String
+    case stopSystemSound(name: String
     )
     case setMasterVolume(volume: Float
     )
@@ -933,10 +951,10 @@ public struct FfiConverterTypeAudioCommand: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .playSound(name: try FfiConverterString.read(from: &buf), volume: try FfiConverterFloat.read(from: &buf)
+        case 1: return .playSystemSound(name: try FfiConverterString.read(from: &buf), volume: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 2: return .stopSound(name: try FfiConverterString.read(from: &buf)
+        case 2: return .stopSystemSound(name: try FfiConverterString.read(from: &buf)
         )
         
         case 3: return .setMasterVolume(volume: try FfiConverterFloat.read(from: &buf)
@@ -950,13 +968,13 @@ public struct FfiConverterTypeAudioCommand: FfiConverterRustBuffer {
         switch value {
         
         
-        case let .playSound(name,volume):
+        case let .playSystemSound(name,volume):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(name, into: &buf)
             FfiConverterFloat.write(volume, into: &buf)
             
         
-        case let .stopSound(name):
+        case let .stopSystemSound(name):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(name, into: &buf)
             
@@ -1169,7 +1187,7 @@ public enum RenderCommand: Equatable, Hashable {
     )
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
     )
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool, maxWidth: Float?
     )
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float
     )
@@ -1181,6 +1199,12 @@ public enum RenderCommand: Equatable, Hashable {
     case setOpacity(value: Float
     )
     case wallpaper(x: Float, y: Float, w: Float, h: Float
+    )
+    case image(textureId: UInt64, x: Float, y: Float, w: Float, h: Float
+    )
+    case registerTexture(textureId: UInt64, width: UInt32, height: UInt32, rgbaData: Data
+    )
+    case unregisterTexture(textureId: UInt64
     )
 
 
@@ -1209,7 +1233,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), isIcon: try FfiConverterBool.read(from: &buf)
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), isIcon: try FfiConverterBool.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
         )
         
         case 4: return .shadow(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), ox: try FfiConverterFloat.read(from: &buf), oy: try FfiConverterFloat.read(from: &buf)
@@ -1227,6 +1251,15 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         )
         
         case 9: return .wallpaper(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        case 10: return .image(textureId: try FfiConverterUInt64.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        case 11: return .registerTexture(textureId: try FfiConverterUInt64.read(from: &buf), width: try FfiConverterUInt32.read(from: &buf), height: try FfiConverterUInt32.read(from: &buf), rgbaData: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 12: return .unregisterTexture(textureId: try FfiConverterUInt64.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -1256,7 +1289,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             
         
-        case let .text(x,y,content,fontSize,color,weight,isIcon):
+        case let .text(x,y,content,fontSize,color,weight,isIcon,maxWidth):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1265,6 +1298,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
             FfiConverterBool.write(isIcon, into: &buf)
+            FfiConverterOptionFloat.write(maxWidth, into: &buf)
             
         
         case let .shadow(x,y,w,h,radius,blur,color,ox,oy):
@@ -1316,6 +1350,28 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(w, into: &buf)
             FfiConverterFloat.write(h, into: &buf)
             
+        
+        case let .image(textureId,x,y,w,h):
+            writeInt(&buf, Int32(10))
+            FfiConverterUInt64.write(textureId, into: &buf)
+            FfiConverterFloat.write(x, into: &buf)
+            FfiConverterFloat.write(y, into: &buf)
+            FfiConverterFloat.write(w, into: &buf)
+            FfiConverterFloat.write(h, into: &buf)
+            
+        
+        case let .registerTexture(textureId,width,height,rgbaData):
+            writeInt(&buf, Int32(11))
+            FfiConverterUInt64.write(textureId, into: &buf)
+            FfiConverterUInt32.write(width, into: &buf)
+            FfiConverterUInt32.write(height, into: &buf)
+            FfiConverterData.write(rgbaData, into: &buf)
+            
+        
+        case let .unregisterTexture(textureId):
+            writeInt(&buf, Int32(12))
+            FfiConverterUInt64.write(textureId, into: &buf)
+            
         }
     }
 }
@@ -1356,6 +1412,11 @@ public protocol DesktopDelegate: AnyObject, Sendable {
     func onPointerButton(surfaceId: UInt64, button: UInt32, pressed: Bool) 
     
     func onKey(surfaceId: UInt64, keycode: UInt32, pressed: Bool) 
+    
+    /**
+     * Forward typed character input (e.g. from winit event.text).
+     */
+    func onKeyChar(surfaceId: UInt64, character: String) 
     
     /**
      * Returns the file path to the desktop wallpaper image, or empty string for none.
@@ -1526,6 +1587,32 @@ fileprivate struct UniffiCallbackInterfaceDesktopDelegate {
                 writeReturn: writeReturn
             )
         },
+        onKeyChar: { (
+            uniffiHandle: UInt64,
+            surfaceId: UInt64,
+            character: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onKeyChar(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     character: try FfiConverterString.lift(character)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
         wallpaperPath: { (
             uniffiHandle: UInt64,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
@@ -1613,6 +1700,30 @@ public func FfiConverterCallbackInterfaceDesktopDelegate_lift(_ handle: UInt64) 
 #endif
 public func FfiConverterCallbackInterfaceDesktopDelegate_lower(_ v: DesktopDelegate) -> UInt64 {
     return FfiConverterCallbackInterfaceDesktopDelegate.lower(v)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
+    typealias SwiftType = Float?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterFloat.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
 }
 
 #if swift(>=5.8)
@@ -1716,7 +1827,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_engine_checksum_method_desktopdelegate_on_key() != 55853) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 58010) {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_key_char() != 3731) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 39346) {
         return InitializationResult.apiChecksumMismatch
     }
 

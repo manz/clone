@@ -6,12 +6,14 @@
     "SwiftData": { "status": "partial" },
     "Charts": { "status": "stub" },
     "MediaPlayer": { "status": "stub" },
+    "AVFoundation": { "status": "partial" },
     "AVKit": { "status": "stub" },
     "UniformTypeIdentifiers": { "status": "stub" },
     "CloneClient": { "status": "internal" },
     "CloneProtocol": { "status": "internal" },
     "CloneServer": { "status": "internal" },
-    "EngineBridge": { "status": "internal" }
+    "EngineBridge": { "status": "internal" },
+    "KeychainServices": { "status": "partial" }
   },
   "system": [
     "Foundation", "Darwin", "Dispatch", "os", "Swift",
@@ -20,7 +22,6 @@
     "CoreGraphics", "QuartzCore", "OSLog",
     "ObjectiveC", "CoreFoundation",
     "Combine",
-    "AVFoundation",
     "CoreData",
     "AuthenticationServices", "LocalAuthentication",
     "NaturalLanguage",

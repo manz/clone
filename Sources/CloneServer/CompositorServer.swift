@@ -9,6 +9,7 @@ public final class ConnectedApp {
     public var width: Float
     public var height: Float
     public var role: SurfaceRole = .window
+    public var menus: [AppMenu] = []
     public private(set) var lastCommands: [IPCRenderCommand] = []
 
     let fd: Int32
@@ -191,6 +192,10 @@ public final class CompositorServer {
     public var onLaunchApp: ((String) -> Void)?
     /// Callback when dock requests restoring a minimized app.
     public var onRestoreApp: ((String) -> Void)?
+    /// Callback when a menubar sends a menu action for the focused app.
+    public var onMenuAction: ((String) -> Void)?
+    /// Callback when an app requests an open-file dialog.
+    public var onShowOpenPanel: ((UInt64, [String]) -> Void)?
 
     func handle(message: AppMessage, from app: ConnectedApp) {
         switch message {
@@ -220,6 +225,15 @@ public final class CompositorServer {
 
         case .restoreApp(let appId):
             onRestoreApp?(appId)
+
+        case .registerMenus(let menus):
+            app.menus = menus
+
+        case .menuAction(let itemId):
+            onMenuAction?(itemId)
+
+        case .showOpenPanel(let allowedTypes):
+            onShowOpenPanel?(app.windowId, allowedTypes)
         }
     }
 
@@ -280,6 +294,35 @@ public final class CompositorServer {
         let app = apps[windowId]
         lock.unlock()
         app?.send(.key(keycode: keycode, pressed: pressed))
+    }
+
+    public func sendKeyChar(windowId: UInt64, character: String) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.keyChar(character: character))
+    }
+
+    public func sendMenuAction(windowId: UInt64, itemId: String) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.menuAction(itemId: itemId))
+    }
+
+    public func sendOpenPanelResult(windowId: UInt64, path: String?) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.openPanelResult(path: path))
+    }
+
+    /// Get menus for a given app window ID.
+    public func menus(for windowId: UInt64) -> [AppMenu] {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        return app?.menus ?? []
     }
 
     public func commands(for windowId: UInt64) -> [IPCRenderCommand] {

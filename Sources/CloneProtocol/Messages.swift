@@ -19,10 +19,13 @@ public enum IPCFontWeight: String, Codable, Sendable {
 public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, isIcon: Bool = false)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, isIcon: Bool = false, maxWidth: Float? = nil)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
     case popClip
+    case image(textureId: UInt64, x: Float, y: Float, w: Float, h: Float)
+    case registerTexture(textureId: UInt64, width: UInt32, height: UInt32, rgbaData: [UInt8])
+    case unregisterTexture(textureId: UInt64)
 }
 
 // MARK: - Surface types
@@ -35,6 +38,34 @@ public enum SurfaceRole: String, Codable, Sendable {
     case dock
     /// Menu bar — pinned to top, topmost, no chrome.
     case menubar
+}
+
+// MARK: - App menus
+
+/// A single menu item within an app menu.
+public struct AppMenuItem: Codable, Sendable, Equatable {
+    public var id: String
+    public var title: String
+    public var shortcut: String?
+    public var isSeparator: Bool
+
+    public init(id: String, title: String, shortcut: String? = nil, isSeparator: Bool = false) {
+        self.id = id; self.title = title; self.shortcut = shortcut; self.isSeparator = isSeparator
+    }
+
+    public static func separator() -> AppMenuItem {
+        AppMenuItem(id: "sep", title: "", isSeparator: true)
+    }
+}
+
+/// A top-level menu (e.g. "File", "Edit") with its dropdown items.
+public struct AppMenu: Codable, Sendable, Equatable {
+    public var title: String
+    public var items: [AppMenuItem]
+
+    public init(title: String, items: [AppMenuItem]) {
+        self.title = title; self.items = items
+    }
 }
 
 // MARK: - Messages: App → Compositor
@@ -54,6 +85,12 @@ public enum AppMessage: Codable, Sendable {
     case launchApp(appId: String)
     /// Dock requests the compositor to restore a minimized window.
     case restoreApp(appId: String)
+    /// App registers its menu bar menus.
+    case registerMenus(menus: [AppMenu])
+    /// App requests an open-file dialog.
+    case showOpenPanel(allowedTypes: [String])
+    /// MenuBar tells compositor a menu item was clicked for the focused app.
+    case menuAction(itemId: String)
 }
 
 // MARK: - Messages: Compositor → App
@@ -75,6 +112,14 @@ public enum CompositorMessage: Codable, Sendable {
     case focusedApp(name: String)
     /// Compositor tells the dock which apps have minimized windows.
     case minimizedApps(appIds: [String])
+    /// Character typed (translated from keycode).
+    case keyChar(character: String)
+    /// Compositor sends the focused app's menus to the menubar.
+    case appMenus(appName: String, menus: [AppMenu])
+    /// A menu item was selected (forwarded from menubar to the focused app).
+    case menuAction(itemId: String)
+    /// Result of an open-file dialog.
+    case openPanelResult(path: String?)
 }
 
 // MARK: - Daemon (now-playing service)
@@ -124,6 +169,116 @@ public enum DaemonRequest: Codable, Sendable {
 public enum DaemonResponse: Codable, Sendable {
     case nowPlayingChanged(NowPlayingInfo?)
     case remoteCommand(RemoteCommand)    // Daemon forwards to owning app
+}
+
+// MARK: - Keychain service
+
+/// Socket path for the keychain daemon.
+public let keychainSocketPath = "/tmp/clone-keychain.sock"
+
+/// Keychain item class (maps to kSecClass values).
+public enum SecItemClass: String, Codable, Sendable {
+    case internetPassword
+    case genericPassword
+    case certificate
+    case key
+    case identity
+}
+
+/// A keychain item.
+public struct KeychainItem: Codable, Sendable, Equatable {
+    public var itemClass: SecItemClass
+    public var service: String?
+    public var account: String?
+    public var server: String?
+    public var label: String?
+    public var valueData: Data?
+    public var accessGroup: String?
+    public var appId: String
+    public var creationDate: Date
+    public var modificationDate: Date
+
+    public init(
+        itemClass: SecItemClass,
+        service: String? = nil,
+        account: String? = nil,
+        server: String? = nil,
+        label: String? = nil,
+        valueData: Data? = nil,
+        accessGroup: String? = nil,
+        appId: String,
+        creationDate: Date = Date(),
+        modificationDate: Date = Date()
+    ) {
+        self.itemClass = itemClass
+        self.service = service
+        self.account = account
+        self.server = server
+        self.label = label
+        self.valueData = valueData
+        self.accessGroup = accessGroup
+        self.appId = appId
+        self.creationDate = creationDate
+        self.modificationDate = modificationDate
+    }
+}
+
+/// Query for searching keychain items.
+public struct KeychainSearchQuery: Codable, Sendable {
+    public var itemClass: SecItemClass?
+    public var service: String?
+    public var account: String?
+    public var server: String?
+    public var matchLimit: MatchLimit
+    public var returnData: Bool
+
+    public enum MatchLimit: String, Codable, Sendable {
+        case one, all
+    }
+
+    public init(
+        itemClass: SecItemClass? = nil,
+        service: String? = nil,
+        account: String? = nil,
+        server: String? = nil,
+        matchLimit: MatchLimit = .one,
+        returnData: Bool = true
+    ) {
+        self.itemClass = itemClass
+        self.service = service
+        self.account = account
+        self.server = server
+        self.matchLimit = matchLimit
+        self.returnData = returnData
+    }
+}
+
+/// Client → Keychain daemon
+public enum KeychainRequest: Codable, Sendable {
+    case add(KeychainItem)
+    case search(KeychainSearchQuery)
+    case update(query: KeychainSearchQuery, attributes: KeychainItem)
+    case delete(KeychainSearchQuery)
+}
+
+/// Keychain daemon → Client
+public enum KeychainResponse: Codable, Sendable {
+    case success
+    case item(KeychainItem)
+    case items([KeychainItem])
+    case error(KeychainErrorCode)
+}
+
+/// Error codes matching Apple's Security framework errSec* constants.
+public enum KeychainErrorCode: Int32, Codable, Sendable {
+    case success = 0
+    case itemNotFound = -25300
+    case duplicateItem = -25299
+    case authFailed = -25293
+    case interactionNotAllowed = -25308
+    case decode = -26275
+    case param = -50
+    case unimplemented = -4
 }
 
 // MARK: - Wire format: 4-byte length prefix + JSON

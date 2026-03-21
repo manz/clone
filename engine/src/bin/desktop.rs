@@ -28,7 +28,7 @@ impl DesktopDelegate for DemoDelegate {
                 x: w / 2.0 - 80.0, y: h / 2.0 - 20.0,
                 content: "Clone Desktop".into(), font_size: 24.0,
                 color: RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                weight: FontWeight::Regular, is_icon: false,
+                weight: FontWeight::Regular, is_icon: false, max_width: None,
             },
             // Dock background
             RenderCommand::RoundedRect {
@@ -62,6 +62,7 @@ impl DesktopDelegate for DemoDelegate {
     fn on_pointer_move(&self, _surface_id: u64, _x: f64, _y: f64) {}
     fn on_pointer_button(&self, _surface_id: u64, _button: u32, _pressed: bool) {}
     fn on_key(&self, _surface_id: u64, _keycode: u32, _pressed: bool) {}
+    fn on_key_char(&self, _surface_id: u64, _character: String) {}
     fn wallpaper_path(&self) -> String { String::new() }
 }
 

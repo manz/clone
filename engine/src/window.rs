@@ -7,16 +7,14 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 
 use crate::ffi::{DesktopDelegate, EngineError};
-use crate::renderer::DesktopRenderer;
-use crate::surface_compositor::{CompositeWindow, SurfaceCompositor};
+use crate::render_server::RenderServer;
 
 struct GpuState {
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: wgpu::Surface<'static>,
     surface_config: wgpu::SurfaceConfiguration,
-    renderer: DesktopRenderer,
-    compositor: SurfaceCompositor,
+    render_server: RenderServer,
 }
 
 struct App {
@@ -80,14 +78,11 @@ impl App {
         };
         surface.configure(&device, &surface_config);
 
-        let mut renderer = DesktopRenderer::new(surface_format);
-        renderer.init_pipelines(&device, &queue);
-
-        let compositor = SurfaceCompositor::new(&device, surface_format);
+        let mut render_server = RenderServer::new(&device, &queue, surface_format);
 
         let wallpaper_path = self.delegate.wallpaper_path();
         if !wallpaper_path.is_empty() {
-            renderer.load_wallpaper(&device, &queue, &wallpaper_path);
+            render_server.load_wallpaper(&device, &queue, &wallpaper_path);
         }
 
         self.gpu = Some(GpuState {
@@ -95,8 +90,7 @@ impl App {
             queue,
             surface,
             surface_config,
-            renderer,
-            compositor,
+            render_server,
         });
         self.window = Some(window);
 
@@ -119,6 +113,7 @@ impl App {
         // Ask Swift for per-surface frames
         let surface_frames = self.delegate.on_composite_frame(logical_w, logical_h);
 
+        // F12 frame dump (debug concern of the event loop)
         if self.dump_next_frame {
             self.dump_next_frame = false;
             let path = "/tmp/clone-frame-dump.txt";
@@ -145,39 +140,7 @@ impl App {
             log::info!("Dumped {} surfaces to {}", surface_frames.len(), path);
         }
 
-        // Ensure offscreen textures exist for each surface
-        let mut active_ids: Vec<u64> = Vec::new();
-        for sf in &surface_frames {
-            let phys_w = (sf.desc.width * scale) as u32;
-            let phys_h = (sf.desc.height * scale) as u32;
-            gpu.compositor.ensure_surface(&gpu.device, sf.desc.surface_id, phys_w, phys_h);
-            active_ids.push(sf.desc.surface_id);
-        }
-        gpu.compositor.gc(&active_ids);
-
-        // Render each surface's commands into its offscreen texture
-        for sf in &surface_frames {
-            // Overlays (dock, menubar) have semi-transparent backgrounds
-            // and need transparent clear so they don't obscure content below.
-            let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
-                match cmd {
-                    crate::commands::RenderCommand::Rect { color, .. } |
-                    crate::commands::RenderCommand::RoundedRect { color, .. } => color.a < 1.0,
-                    _ => true,
-                }
-            });
-            gpu.compositor.render_to_surface(
-                sf.desc.surface_id,
-                &mut gpu.renderer,
-                &gpu.device,
-                &gpu.queue,
-                &sf.commands,
-                scale,
-                has_transparent_bg,
-            );
-        }
-
-        // Composite onto screen
+        // Get screen texture
         let surface_texture = match gpu.surface.get_current_texture() {
             Ok(t) => t,
             Err(e) => {
@@ -190,56 +153,16 @@ impl App {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        // Clear screen
-        {
-            let mut encoder = gpu.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("screen_clear"),
-            });
-            {
-                let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("screen_clear_pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &screen_view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0, g: 0.0, b: 0.0, a: 1.0,
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                        depth_slice: None,
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
-            }
-            gpu.queue.submit([encoder.finish()]);
-        }
-
-        // Composite surfaces back-to-front (each submitted separately)
-        let composite_windows: Vec<CompositeWindow> = surface_frames
-            .iter()
-            .map(|sf| CompositeWindow {
-                surface_id: sf.desc.surface_id,
-                x: sf.desc.x * scale,
-                y: sf.desc.y * scale,
-                width: sf.desc.width * scale,
-                height: sf.desc.height * scale,
-                corner_radius: sf.desc.corner_radius * scale,
-                opacity: sf.desc.opacity,
-            })
-            .collect();
-
-        gpu.compositor.composite(
+        gpu.render_server.render_frame(
             &gpu.device,
             &gpu.queue,
             &screen_view,
             physical_size.width,
             physical_size.height,
-            &composite_windows,
+            scale,
+            &surface_frames,
         );
+
         surface_texture.present();
     }
 }
@@ -311,9 +234,18 @@ impl ApplicationHandler for App {
                         log::info!("Will dump next frame to /tmp/clone-frame-dump.txt");
                     }
                     self.delegate.on_key(0, code as u32, pressed);
-                    if let Some(w) = &self.window {
-                        w.request_redraw();
+                }
+                // Forward character input (text typed events)
+                if event.state == winit::event::ElementState::Pressed {
+                    if let Some(text) = &event.text {
+                        let s = text.to_string();
+                        if !s.is_empty() {
+                            self.delegate.on_key_char(0, s);
+                        }
                     }
+                }
+                if let Some(w) = &self.window {
+                    w.request_redraw();
                 }
             }
             _ => {}

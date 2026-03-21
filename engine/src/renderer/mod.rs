@@ -213,10 +213,11 @@ impl DesktopRenderer {
                         params: [radius * scale, blur * scale, ox * scale, oy * scale],
                     });
                 }
-                RenderCommand::Text { x, y, content, font_size, color, weight, is_icon } => {
+                RenderCommand::Text { x, y, content, font_size, color, weight, is_icon, max_width } => {
                     if let Some(tr) = &mut self.text_renderer {
+                        let scaled_max_width = max_width.map(|mw| mw * scale);
                         let g = tr.shape_text(
-                            content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon,
+                            content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon, scaled_max_width,
                         );
                         glyphs.extend(g);
                     }
@@ -233,6 +234,11 @@ impl DesktopRenderer {
                         }
                     }
                 }
+                RenderCommand::Image { .. } => {
+                    // TODO: ImagePipeline — currently a no-op
+                }
+                RenderCommand::RegisterTexture { .. } => {}
+                RenderCommand::UnregisterTexture { .. } => {}
                 _ => {}
             }
         }

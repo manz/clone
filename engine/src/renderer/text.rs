@@ -228,9 +228,14 @@ impl TextRenderer {
         color: &RgbaColor,
         weight: &crate::commands::FontWeight,
         is_icon: bool,
+        max_width: Option<f32>,
     ) -> Vec<GlyphInstance> {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(&mut self.font_system, metrics);
+
+        if let Some(mw) = max_width {
+            buffer.set_size(&mut self.font_system, Some(mw), None);
+        }
 
         let cosmic_weight = match weight {
             crate::commands::FontWeight::Regular => Weight::NORMAL,

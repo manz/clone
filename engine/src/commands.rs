@@ -60,6 +60,7 @@ pub enum RenderCommand {
         color: RgbaColor,
         weight: FontWeight,
         is_icon: bool,
+        max_width: Option<f32>,
     },
     Shadow {
         x: f32,
@@ -97,6 +98,22 @@ pub enum RenderCommand {
         y: f32,
         w: f32,
         h: f32,
+    },
+    Image {
+        texture_id: u64,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    },
+    RegisterTexture {
+        texture_id: u64,
+        width: u32,
+        height: u32,
+        rgba_data: Vec<u8>,
+    },
+    UnregisterTexture {
+        texture_id: u64,
     },
 }
 
@@ -173,6 +190,7 @@ mod tests {
                 color: color.clone(),
                 weight: FontWeight::Regular,
                 is_icon: false,
+                max_width: None,
             },
             RenderCommand::PushClip {
                 x: 0.0,

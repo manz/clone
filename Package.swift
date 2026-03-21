@@ -16,6 +16,11 @@ let package = Package(
         .library(name: "MediaPlayer", targets: ["MediaPlayer"]),
         .library(name: "AVKit", targets: ["AVKit"]),
         .library(name: "UniformTypeIdentifiers", targets: ["UniformTypeIdentifiers"]),
+        .library(name: "AVFoundation", targets: ["AVFoundation"]),
+        // On macOS, Foundation imports the system Security.framework, so we
+        // can't name our target "Security" without a circular dep. On Linux
+        // (where there is no system Security) this will be renamed to "Security".
+        .library(name: "KeychainServices", targets: ["KeychainServices"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
@@ -24,6 +29,30 @@ let package = Package(
         .systemLibrary(
             name: "clone_engineFFI",
             path: "Sources/CEngine"
+        ),
+        // Audio FFI C bridge
+        .systemLibrary(
+            name: "clone_audioFFI",
+            path: "Sources/CAudio"
+        ),
+        // Audio UniFFI-generated Swift bindings
+        .target(
+            name: "AudioBridge",
+            dependencies: ["clone_audioFFI"],
+            path: "Sources/AudioBridge",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", "target/debug",
+                    "-lclone_audio",
+                    "-Xlinker", "-rpath", "-Xlinker", "target/debug",
+                ]),
+            ]
+        ),
+        // AVFoundation — real implementation backed by Rust audio engine
+        .target(
+            name: "AVFoundation",
+            dependencies: ["AudioBridge"],
+            path: "Sources/AVFoundation"
         ),
         // Shared IPC protocol
         .target(
@@ -86,6 +115,26 @@ let package = Package(
             dependencies: ["CloneDaemon", "CloneProtocol"],
             path: "Sources/cloned"
         ),
+        // Keychain daemon (library — testable)
+        .target(
+            name: "CloneKeychain",
+            dependencies: ["CSQLite", "CloneProtocol"],
+            path: "Sources/CloneKeychain"
+        ),
+        // Keychain daemon executable
+        .executableTarget(
+            name: "keychaind",
+            dependencies: ["CloneKeychain", "CloneProtocol"],
+            path: "Sources/keychaind"
+        ),
+        // Security framework shim (Keychain Services API)
+        // Named KeychainServices on macOS to avoid circular dep with Foundation→Security.
+        // On Linux this becomes the "Security" module since there's no system Security.
+        .target(
+            name: "KeychainServices",
+            dependencies: [],
+            path: "Sources/KeychainServices"
+        ),
         // UniFFI bridge to Rust GPU engine
         .target(
             name: "EngineBridge",
@@ -126,8 +175,26 @@ let package = Package(
         // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
-            dependencies: ["SwiftUI", "CloneProtocol"],
+            dependencies: ["SwiftUI", "CloneProtocol", "CloneClient"],
             path: "Sources/MenuBarApp"
+        ),
+        // Password app (separate process)
+        .executableTarget(
+            name: "PasswordApp",
+            dependencies: ["SwiftUI"],
+            path: "Sources/PasswordApp"
+        ),
+        // TextEdit app (separate process)
+        .executableTarget(
+            name: "TextEditApp",
+            dependencies: ["SwiftUI", "CloneProtocol"],
+            path: "Sources/TextEditApp"
+        ),
+        // Preview app (separate process)
+        .executableTarget(
+            name: "PreviewApp",
+            dependencies: ["SwiftUI", "CloneProtocol"],
+            path: "Sources/PreviewApp"
         ),
         .testTarget(
             name: "SwiftUITests",
@@ -162,6 +229,21 @@ let package = Package(
             name: "CloneDaemonTests",
             dependencies: ["CloneDaemon", "CloneProtocol"],
             path: "Tests/CloneDaemonTests"
+        ),
+        .testTarget(
+            name: "AVFoundationTests",
+            dependencies: ["AVFoundation"],
+            path: "Tests/AVFoundationTests"
+        ),
+        .testTarget(
+            name: "CloneKeychainTests",
+            dependencies: ["CloneKeychain", "CloneProtocol"],
+            path: "Tests/CloneKeychainTests"
+        ),
+        .testTarget(
+            name: "SecurityTests",
+            dependencies: ["KeychainServices"],
+            path: "Tests/SecurityTests"
         ),
         // ycodebuild — CLI tool for building external apps against Aquax SDK
         .executableTarget(
