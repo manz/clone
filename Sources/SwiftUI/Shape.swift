@@ -42,9 +42,9 @@ public struct CircleShape: Shape {
     }
 }
 
-/// Free function matching SwiftUI API.
-public func Circle() -> ViewNode {
-    .roundedRect(width: nil, height: nil, radius: 1000, fill: .white)
+/// Free function matching SwiftUI API — returns Shape, not ViewNode.
+public func Circle() -> CircleShape {
+    CircleShape()
 }
 
 /// A capsule shape (fully rounded ends).
@@ -61,9 +61,9 @@ public struct CapsuleShape: Shape {
     }
 }
 
-/// Free function matching SwiftUI API.
-public func Capsule() -> ViewNode {
-    .roundedRect(width: nil, height: nil, radius: 1000, fill: .white)
+/// Free function matching SwiftUI API — returns Shape, not ViewNode.
+public func Capsule() -> CapsuleShape {
+    CapsuleShape()
 }
 
 /// A rectangle shape (already exists as a free function in ViewDSL).
