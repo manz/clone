@@ -11,6 +11,11 @@ let package = Package(
         // shadowing macOS's real AppKit in the dependency resolver)
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
+        // Stub modules for Apple frameworks Clone doesn't implement
+        .library(name: "Charts", targets: ["Charts"]),
+        .library(name: "MediaPlayer", targets: ["MediaPlayer"]),
+        .library(name: "AVKit", targets: ["AVKit"]),
+        .library(name: "UniformTypeIdentifiers", targets: ["UniformTypeIdentifiers"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
@@ -49,6 +54,24 @@ let package = Package(
             dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
+        ),
+        // Stub modules — shadow Apple frameworks that Clone doesn't implement
+        .target(
+            name: "Charts",
+            dependencies: ["SwiftUI"],
+            path: "Sources/Charts"
+        ),
+        .target(
+            name: "MediaPlayer",
+            path: "Sources/MediaPlayer"
+        ),
+        .target(
+            name: "AVKit",
+            path: "Sources/AVKit"
+        ),
+        .target(
+            name: "UniformTypeIdentifiers",
+            path: "Sources/UniformTypeIdentifiers"
         ),
         // UniFFI bridge to Rust GPU engine
         .target(

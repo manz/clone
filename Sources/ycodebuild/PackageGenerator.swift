@@ -16,46 +16,25 @@ enum PackageGenerator {
         let sourcePath = URL(fileURLWithPath: outputDir).appendingPathComponent(sourceDir).path
         let excludes = findExcludes(in: sourcePath)
 
-        // SDK products exposed by Clone's Package.swift.
+        // All SDK modules are now products of the Clone package (including stub modules).
         // AppKit is a transitive dependency of SwiftUI, not a separate product.
         var sdkDeps: [String] = []
-        if sdkModules.contains("SwiftUI") {
-            sdkDeps.append("SwiftUI")
+        if sdkModules.contains("SwiftUI") { sdkDeps.append("SwiftUI") }
+        if sdkModules.contains("SwiftData") { sdkDeps.append("SwiftData") }
+
+        // Stub modules are also Clone products now
+        for stub in stubs.sorted() {
+            sdkDeps.append(stub)
         }
-        if sdkModules.contains("SwiftData") {
-            sdkDeps.append("SwiftData")
-        }
 
-        // Stubs that need SwiftUI as a dependency
-        let stubsNeedingSwiftUI: Set<String> = ["Charts"]
-
-        let sortedStubs = stubs.sorted()
-
-        // Generate stub target entries
-        let stubTargets = sortedStubs.map { stub in
-            if stubsNeedingSwiftUI.contains(stub) {
-                return "        .target(name: \"\(stub)\", dependencies: [.product(name: \"SwiftUI\", package: \"clone\")], path: \".aquax/stubs/\(stub)\")"
-            }
-            return "        .target(name: \"\(stub)\", path: \".aquax/stubs/\(stub)\")"
-        }.joined(separator: ",\n")
-
-        // SDK product dependencies
-        let sdkProductDeps = sdkDeps.map { dep in
+        // Generate SDK product dependencies
+        let depsSection = sdkDeps.map { dep in
             "            .product(name: \"\(dep)\", package: \"clone\")"
         }.joined(separator: ",\n")
-
-        // Stub dependency refs
-        let stubDeps = sortedStubs.map { "            \"\($0)\"" }.joined(separator: ",\n")
 
         // Exclude list
         let excludeList = excludes.map { "            \"\($0)\"" }.joined(separator: ",\n")
         let excludeSection = excludes.isEmpty ? "" : ",\n            exclude: [\n\(excludeList)\n            ]"
-
-        // All deps
-        var allDeps = [String]()
-        if !sdkProductDeps.isEmpty { allDeps.append(sdkProductDeps) }
-        if !stubDeps.isEmpty { allDeps.append(stubDeps) }
-        let depsSection = allDeps.joined(separator: ",\n")
 
         let packageSwift = """
         // swift-tools-version: 6.0
@@ -69,8 +48,6 @@ enum PackageGenerator {
                 .package(path: "\(sdkPath)"),
             ],
             targets: [
-        \(stubTargets),
-
                 .executableTarget(
                     name: "\(target)",
                     dependencies: [

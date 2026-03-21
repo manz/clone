@@ -4,6 +4,10 @@
     "SwiftUI": { "status": "partial" },
     "AppKit": { "status": "partial" },
     "SwiftData": { "status": "partial" },
+    "Charts": { "status": "stub" },
+    "MediaPlayer": { "status": "stub" },
+    "AVKit": { "status": "stub" },
+    "UniformTypeIdentifiers": { "status": "stub" },
     "CloneClient": { "status": "internal" },
     "CloneProtocol": { "status": "internal" },
     "CloneServer": { "status": "internal" },
@@ -28,7 +32,7 @@
     "CoreSpotlight",
     "Intents", "AppIntents",
     "WebKit", "SafariServices",
-    "CoreML", "Vision", "NaturalLanguage",
+    "CoreML", "Vision",
     "Metal", "MetalKit",
     "SceneKit", "SpriteKit", "ARKit", "RealityKit",
     "GameKit", "GameController",
@@ -37,10 +41,5 @@
     "WidgetKit", "ActivityKit",
     "UIKit"
   ],
-  "stubs": [
-    "Charts",
-    "MediaPlayer",
-    "AVKit",
-    "UniformTypeIdentifiers"
-  ]
+  "stubs": []
 }

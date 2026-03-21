@@ -28,11 +28,15 @@ struct YCodeBuild {
             print("ycodebuild: unknown (will attempt stub): \(classified.unknown.sorted().joined(separator: ", "))")
         }
 
-        let allStubs = classified.stubs.union(classified.unknown)
+        // SDK stubs are now proper targets in Clone — only generate stubs for truly unknown modules
+        let unknownStubs = classified.unknown
+        if !unknownStubs.isEmpty {
+            let stubsDir = aquaxDir.appendingPathComponent("stubs")
+            try StubGenerator.generate(modules: unknownStubs, outputDir: stubsDir.path)
+        }
 
-        // Generate stubs
-        let stubsDir = aquaxDir.appendingPathComponent("stubs")
-        try StubGenerator.generate(modules: allStubs, outputDir: stubsDir.path)
+        // SDK-provided stubs (Charts, MediaPlayer, etc.) are referenced as Clone products
+        let sdkStubs = classified.stubs
 
         // Generate Package.swift
         let relativeSourceDir = sourceDirURL.lastPathComponent
@@ -41,7 +45,7 @@ struct YCodeBuild {
             target: target,
             sdkPath: sdkPath,
             sourceDir: relativeSourceDir,
-            stubs: allStubs,
+            stubs: sdkStubs,
             sdkModules: classified.sdk,
             outputDir: packageDir.path,
             aquaxDir: aquaxDir.path
