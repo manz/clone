@@ -233,8 +233,7 @@ extension WindowGroup: _WindowGroupProtocol {
 /// Convert any View to a ViewNode by recursively evaluating body.
 @MainActor
 func _viewToNode<V: View>(_ view: V) -> ViewNode {
-    if let node = view as? ViewNode { return node }
-    return _viewToNode(view.body)
+    _resolve(view)
 }
 
 /// Resolve the app ID from the executable name.
