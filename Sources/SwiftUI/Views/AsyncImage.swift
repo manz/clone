@@ -42,9 +42,4 @@ public struct AsyncImage<Content: View>: _PrimitiveView {
     }
 }
 
-/// Conditional content type — used to satisfy generic constraints.
-public enum _ConditionalContent<TrueContent: View, FalseContent: View>: _PrimitiveView {
-    case first(TrueContent)
-    case second(FalseContent)
-    public var _nodeRepresentation: ViewNode { .empty }
-}
+// _ConditionalContent is defined in ViewBuilder.swift

@@ -5,8 +5,11 @@ import Foundation
 public struct ZStack: _PrimitiveView {
     let children: [ViewNode]
 
-    public init(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init<Content: View>(
+        alignment: Alignment = .center,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {

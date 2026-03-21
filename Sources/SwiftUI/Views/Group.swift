@@ -2,9 +2,9 @@ import Foundation
 
 /// A type-erased view that allows any view to be used where `some View` is expected.
 public struct AnyView: _PrimitiveView {
-    let node: ViewNode
+    nonisolated(unsafe) let node: ViewNode
 
-    public init<V: View>(_ view: V) {
+    nonisolated public init<V: View>(_ view: V) {
         self.node = _resolve(view)
     }
 

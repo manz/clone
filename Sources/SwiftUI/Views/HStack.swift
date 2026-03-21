@@ -7,14 +7,14 @@ public struct HStack: _PrimitiveView {
     let spacing: CGFloat
     let children: [ViewNode]
 
-    public init(
+    public init<Content: View>(
         alignment: VAlignment = .center,
         spacing: CGFloat = 8,
-        @ViewBuilder content: () -> [ViewNode]
+        @ViewBuilder content: () -> Content
     ) {
         self.alignment = alignment
         self.spacing = spacing
-        self.children = content()
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {
