@@ -24,11 +24,11 @@ impl AudioEngine {
 
     pub fn process_command(&mut self, command: AudioCommand) {
         match command {
-            AudioCommand::PlaySound { name, volume: _ } => {
+            AudioCommand::PlaySystemSound { name, volume: _ } => {
                 log::debug!("Playing sound: {name}");
                 self.sounds_played.push(name);
             }
-            AudioCommand::StopSound { name } => {
+            AudioCommand::StopSystemSound { name } => {
                 log::debug!("Stopping sound: {name}");
                 self.sounds_played.retain(|s| s != &name);
             }
@@ -82,12 +82,12 @@ mod tests {
     #[test]
     fn play_and_stop_tracks_sounds() {
         let mut engine = AudioEngine::new();
-        engine.process_command(AudioCommand::PlaySound {
+        engine.process_command(AudioCommand::PlaySystemSound {
             name: "click".into(),
             volume: 1.0,
         });
         assert_eq!(engine.sounds_played.len(), 1);
-        engine.process_command(AudioCommand::StopSound {
+        engine.process_command(AudioCommand::StopSystemSound {
             name: "click".into(),
         });
         assert!(engine.sounds_played.is_empty());

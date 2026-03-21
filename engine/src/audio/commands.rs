@@ -2,8 +2,8 @@
 
 #[derive(Clone, Debug, PartialEq, uniffi::Enum)]
 pub enum AudioCommand {
-    PlaySound { name: String, volume: f32 },
-    StopSound { name: String },
+    PlaySystemSound { name: String, volume: f32 },
+    StopSystemSound { name: String },
     SetMasterVolume { volume: f32 },
 }
 
@@ -13,11 +13,11 @@ mod tests {
 
     #[test]
     fn audio_command_play() {
-        let cmd = AudioCommand::PlaySound {
+        let cmd = AudioCommand::PlaySystemSound {
             name: "click".into(),
             volume: 0.8,
         };
-        if let AudioCommand::PlaySound { name, volume } = cmd {
+        if let AudioCommand::PlaySystemSound { name, volume } = cmd {
             assert_eq!(name, "click");
             assert_eq!(volume, 0.8);
         }
@@ -33,11 +33,11 @@ mod tests {
     #[test]
     fn audio_command_variants() {
         let commands: Vec<AudioCommand> = vec![
-            AudioCommand::PlaySound {
+            AudioCommand::PlaySystemSound {
                 name: "alert".into(),
                 volume: 1.0,
             },
-            AudioCommand::StopSound {
+            AudioCommand::StopSystemSound {
                 name: "alert".into(),
             },
             AudioCommand::SetMasterVolume { volume: 0.7 },

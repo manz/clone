@@ -27,5 +27,11 @@ Sources/EngineBridge/clone_engineFFI.h
 Sources/EngineBridge/clone_engineFFI.modulemap
 Sources/DesktopKit/Generated/
 
+# Generated audio bindings (UniFFI)
+Sources/CAudio/include/clone_audioFFI.h
+Sources/AudioBridge/clone_audio.swift
+Sources/AudioBridge/clone_audioFFI.h
+Sources/AudioBridge/clone_audioFFI.modulemap
+
 # Claude
 .claude/

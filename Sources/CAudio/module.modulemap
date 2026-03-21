@@ -1,0 +1,4 @@
+module clone_audioFFI {
+    header "include/clone_audioFFI.h"
+    export *
+}
