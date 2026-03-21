@@ -23,6 +23,8 @@ public struct EmptyAnimatableData: Sendable {
 /// A 3x3 matrix for projecting 2D content.
 public struct ProjectionTransform {
     public init() {}
+    public init(_ transform: CGAffineTransform) {}
+    public init(_ transform: CATransform3D) {}
 }
 
 /// A geometric angle.

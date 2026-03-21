@@ -146,6 +146,7 @@ open class NSImage: @unchecked Sendable {
     public init?(named: String) {}
     public init(size: CGSize) { self.size = size }
     public init?(data: Data) {}
+    public init(cgImage: CGImage, size: CGSize) { self.size = size }
     public func lockFocus() {}
     public func unlockFocus() {}
     public func cgImage(forProposedRect proposedRect: UnsafeMutablePointer<CGRect>?, context: Any?, hints: [NSImageRep.HintKey: Any]?) -> CGImage? { nil }
@@ -168,7 +169,7 @@ open class NSImageRep {
 
 // MARK: - NSBitmapImageRep
 
-open class NSBitmapImageRep {
+open class NSBitmapImageRep: NSImageRep {
     public enum FileType: UInt { case png, jpeg, tiff }
     public struct PropertyKey: RawRepresentable, Hashable, Sendable {
         public let rawValue: String
@@ -176,7 +177,17 @@ open class NSBitmapImageRep {
         public static let compressionFactor = PropertyKey(rawValue: "compressionFactor")
     }
     public init?(data: Data) {}
+    public init?(bitmapDataPlanes planes: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>?, pixelsWide width: Int, pixelsHigh height: Int, bitsPerSample bps: Int, samplesPerPixel spp: Int, hasAlpha alpha: Bool, isPlanar: Bool, colorSpaceName: NSColorSpaceName, bytesPerRow rBytes: Int, bitsPerPixel pBits: Int) {}
     public func representation(using fileType: FileType, properties: [PropertyKey: Any]) -> Data? { nil }
+    public var cgImage: CGImage? { nil }
+}
+
+/// NSColorSpaceName — string constants for color space names.
+public struct NSColorSpaceName: RawRepresentable, Hashable, Sendable {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public static let deviceRGB = NSColorSpaceName(rawValue: "NSDeviceRGBColorSpace")
+    public static let calibratedRGB = NSColorSpaceName(rawValue: "NSCalibratedRGBColorSpace")
 }
 
 // MARK: - NSEvent
@@ -311,6 +322,34 @@ open class NSHostingController<Content>: NSViewController {
 
 // MARK: - NSItemProvider
 // NSItemProvider is provided by Foundation — no stub needed.
+
+// MARK: - UTType stubs (UniformTypeIdentifiers)
+
+public struct UTType: Hashable, Sendable {
+    public let identifier: String
+    public init(_ identifier: String) { self.identifier = identifier }
+
+    public static let fileURL = UTType("public.file-url")
+    public static let url = UTType("public.url")
+    public static let image = UTType("public.image")
+    public static let png = UTType("public.png")
+    public static let jpeg = UTType("public.jpeg")
+    public static let audio = UTType("public.audio")
+    public static let mp3 = UTType("public.mp3")
+    public static let mpeg4Audio = UTType("public.mpeg-4-audio")
+    public static let movie = UTType("public.movie")
+    public static let text = UTType("public.plain-text")
+    public static let data = UTType("public.data")
+    public static let json = UTType("public.json")
+    public static let xml = UTType("public.xml")
+    public static let pdf = UTType("com.adobe.pdf")
+}
+
+// MARK: - NSRect (alias for CGRect)
+
+public typealias NSRect = CGRect
+public typealias NSPoint = CGPoint
+public typealias NSSize = CGSize
 
 // MARK: - CATransform3D (QuartzCore stubs)
 

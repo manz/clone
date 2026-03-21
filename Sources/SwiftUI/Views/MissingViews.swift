@@ -326,17 +326,19 @@ public struct CommandGroupPlacement: Sendable {
 // MARK: - NSViewRepresentable
 
 /// A wrapper that you use to integrate an AppKit view into your view hierarchy.
+@MainActor @preconcurrency
 public protocol NSViewRepresentable: View {
     associatedtype NSViewType: NSView
-    func makeNSView(context: Context) -> NSViewType
-    func updateNSView(_ nsView: NSViewType, context: Context)
+    @MainActor func makeNSView(context: Context) -> NSViewType
+    @MainActor func updateNSView(_ nsView: NSViewType, context: Context)
 
     typealias Context = NSViewRepresentableContext<Self>
 }
 
-/// Context for an NSViewRepresentable.
+/// Context for an NSViewRepresentable — includes coordinator support.
 public struct NSViewRepresentableContext<Representable> {
     public var environment: EnvironmentValues { EnvironmentValues() }
+    public var coordinator: Any { () }
 }
 
 extension NSViewRepresentable {
