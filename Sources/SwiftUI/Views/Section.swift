@@ -83,6 +83,25 @@ public struct Section: View {
         self.child = .vstack(alignment: .leading, spacing: 0, children: children)
     }
 
+    /// `Section { content } footer: { footer }` — content with footer, no header.
+    public init(@ViewBuilder content: () -> [ViewNode], @ViewBuilder footer: () -> [ViewNode]) {
+        let footerNodes = footer()
+        let footerNode = footerNodes.count == 1 ? footerNodes[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: footerNodes)
+        var children: [ViewNode] = []
+        let rows = content()
+        for (i, row) in rows.enumerated() {
+            children.append(row)
+            if i < rows.count - 1 {
+                children.append(
+                    ViewNode.rect(width: nil, height: 1, fill: WindowChrome.overlay)
+                        .padding(.leading, 12)
+                )
+            }
+        }
+        children.append(footerNode)
+        self.child = .vstack(alignment: .leading, spacing: 0, children: children)
+    }
+
     public var body: ViewNode {
         child
     }

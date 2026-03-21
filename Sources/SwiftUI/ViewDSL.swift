@@ -755,6 +755,9 @@ public extension ViewNode {
     /// `.mask(content:)` — no-op on Clone.
     func mask<V: View>(@ViewBuilder _ mask: () -> V) -> ViewNode { self }
 
+    /// `.mask(_:)` — direct View variant.
+    @MainActor func mask<V: View>(_ mask: V) -> ViewNode { self }
+
     /// `.controlSize(_:)` — no-op on Clone.
     func controlSize(_ size: ControlSize) -> ViewNode { self }
 

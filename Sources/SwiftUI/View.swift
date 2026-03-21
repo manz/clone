@@ -639,6 +639,10 @@ public extension View {
         _resolve(self).mask(mask)
     }
 
+    func mask<V: View>(_ mask: V) -> ViewNode {
+        _resolve(self).mask(mask)
+    }
+
     func controlSize(_ size: ControlSize) -> ViewNode {
         _resolve(self).controlSize(size)
     }

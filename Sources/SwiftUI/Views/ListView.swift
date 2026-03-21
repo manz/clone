@@ -39,6 +39,11 @@ public struct List: View {
         self.children = content()
     }
 
+    /// `List(selection: $value) { ... }` — non-optional selection binding.
+    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> [ViewNode]) {
+        self.children = content()
+    }
+
     public var body: ViewNode {
         .list(children: children)
     }
