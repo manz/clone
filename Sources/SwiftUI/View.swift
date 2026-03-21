@@ -556,7 +556,7 @@ public extension View {
         _resolve(self).scrollIndicators(visibility)
     }
 
-    func popover(isPresented: Binding<Bool>, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         _resolve(self).popover(isPresented: isPresented, content: content)
     }
 

@@ -383,6 +383,16 @@ public enum SymbolRenderingMode: Sendable {
     case monochrome, multicolor, hierarchical, palette
 }
 
+// MARK: - GlassEffectStyle
+
+public struct GlassEffectStyle: Sendable {
+    public static let regular = GlassEffectStyle()
+    public static let thin = GlassEffectStyle()
+    public static let thick = GlassEffectStyle()
+
+    public func interactive() -> GlassEffectStyle { self }
+}
+
 // MARK: - SubmitTriggers
 
 public struct SubmitTriggers: OptionSet, Sendable {

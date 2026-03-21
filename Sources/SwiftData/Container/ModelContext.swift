@@ -39,6 +39,17 @@ public final class ModelContext: NSObject {
         try container.connection.execute(sql, parameters: [])
     }
 
+    /// Delete instances matching a predicate. Matches Apple's `context.delete(model:where:)`.
+    public func delete<T: PersistentModel>(model: T.Type, where predicate: Predicate<T>?) throws {
+        let schema = T.schema
+        if let predicate = predicate {
+            let sql = "DELETE FROM \(schema.name) WHERE \(predicate.sql)"
+            try container.connection.execute(sql, parameters: predicate.parameters)
+        } else {
+            try delete(model: model)
+        }
+    }
+
     // MARK: - Fetch
 
     public func fetch<T: PersistentModel>(_ descriptor: FetchDescriptor<T>) throws -> [T] {

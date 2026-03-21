@@ -30,3 +30,19 @@ extension NavigationLink where Label == Text {
         self.destination = _resolve(destination)
     }
 }
+
+extension NavigationLink where Destination == EmptyView {
+    /// `NavigationLink(value:) { label }` — value-based navigation (NavigationStack).
+    public init<V: Hashable>(value: V?, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(label())
+        self.destination = EmptyView().body
+    }
+}
+
+extension NavigationLink where Label == Text, Destination == EmptyView {
+    /// `NavigationLink("title", value:)` — value-based with text label.
+    public init<V: Hashable>(_ titleKey: String, value: V?) {
+        self.label = Text(titleKey).body
+        self.destination = EmptyView().body
+    }
+}

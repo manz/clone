@@ -482,7 +482,7 @@ public extension ViewNode {
     }
 
     /// `.rotationEffect(_:)` — no-op on Clone.
-    func rotationEffect(_ angle: Any) -> ViewNode {
+    func rotationEffect(_ angle: Angle) -> ViewNode {
         self
     }
 
@@ -586,7 +586,9 @@ public extension ViewNode {
     func scrollPosition<ID: Hashable>(id: Binding<ID?>, anchor: UnitPoint? = nil) -> ViewNode { self }
 
     /// `.glassEffect(_:)` — no-op on Clone.
-    func glassEffect(_ effect: Int?...) -> ViewNode { self }
+    func glassEffect<S: View>(_ style: GlassEffectStyle = .regular, in shape: S) -> ViewNode { self }
+    /// `.glassEffect(_:)` — no-op on Clone.
+    func glassEffect(_ style: GlassEffectStyle = .regular) -> ViewNode { self }
 
     /// `.onKeyPress(_:action:)` — no-op on Clone.
     func onKeyPress(_ key: KeyEquivalent, action: @escaping () -> KeyPress.Result) -> ViewNode { self }
@@ -676,7 +678,7 @@ public extension ViewNode {
     func scrollIndicators(_ visibility: ScrollIndicatorVisibility) -> ViewNode { self }
 
     /// `.popover(isPresented:content:)` — no-op on Clone.
-    func popover(isPresented: Binding<Bool>, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
+    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
 
     /// `.focused(_:equals:)` — no-op on Clone.
     func focused<V: Hashable>(_ binding: Binding<V?>, equals value: V) -> ViewNode { self }
