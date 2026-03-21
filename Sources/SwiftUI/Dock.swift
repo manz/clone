@@ -71,7 +71,7 @@ public struct Dock {
                     icon
                 })
             } else {
-                return _resolve(icon)
+                return icon
             }
         }
 
@@ -79,9 +79,9 @@ public struct Dock {
         let dockBgHeight = Self.dockHeight + Self.padding * 2
 
         return .zstack(children: [
-            _resolve(RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(WindowChrome.dock)
-                .frame(width: totalWidth, height: dockBgHeight)),
+                .frame(width: totalWidth, height: dockBgHeight),
             ViewNode.hstack(alignment: .bottom, spacing: Self.padding, children: iconNodes),
         ])
     }

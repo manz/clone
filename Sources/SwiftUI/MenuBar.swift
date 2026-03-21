@@ -16,7 +16,7 @@ public struct MenuBar {
     }
 
     public func body() -> ViewNode {
-        _resolve(ZStack {
+        ZStack {
             RoundedRectangle(cornerRadius: 0)
                 .fill(WindowChrome.menuBar)
                 .frame(width: screenWidth, height: Self.height)
@@ -32,6 +32,6 @@ public struct MenuBar {
                 Text(clock).font(.system(size: 13)).foregroundColor(.primary)
             }
         }
-        .frame(width: screenWidth, height: Self.height))
+        .frame(width: screenWidth, height: Self.height)
     }
 }

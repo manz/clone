@@ -384,6 +384,13 @@ public final class WindowManager {
 
     // MARK: - Rendering
 
+    /// Render a single window's chrome (no app content — content is overlaid by the compositor).
+    public func renderSingle(window: ManagedWindow, isFocused: Bool, showTrafficLightSymbols: Bool) -> ViewNode {
+        windowChrome(window: window, isFocused: isFocused,
+                    showTrafficLightSymbols: showTrafficLightSymbols,
+                    content: ViewNode.empty)
+    }
+
     public func render(contentProvider: (ManagedWindow) -> ViewNode) -> [ViewNode] {
         windows.filter({ $0.isVisible && !$0.isMinimized }).map { window in
             let content = contentProvider(window)
@@ -443,7 +450,7 @@ public final class WindowManager {
 
         // Title bar background
         nodes.append(
-            _resolve(RoundedRectangle(cornerRadius: 0).fill(bg).frame(width: w, height: h))
+            RoundedRectangle(cornerRadius: 0).fill(bg).frame(width: w, height: h)
         )
 
         // Traffic lights — positioned explicitly
@@ -462,9 +469,9 @@ public final class WindowManager {
         // Title text — centered
         let titleColor = isFocused ? Color.primary : Color.secondary
         nodes.append(
-            _resolve(Text(window.title).font(.system(size: 13)).foregroundColor(titleColor)
+            Text(window.title).font(.system(size: 13)).foregroundColor(titleColor)
                 .padding(.top, (h - 13) / 2)
-                .padding(.leading, w / 2 - CGFloat(window.title.count) * 4))
+                .padding(.leading, w / 2 - CGFloat(window.title.count) * 4)
         )
 
         return ViewNode.zstack(children: nodes).frame(width: w, height: h)
@@ -473,7 +480,7 @@ public final class WindowManager {
     private func trafficLightButton(color: Color, symbol: String?) -> ViewNode {
         let size = WindowChrome.buttonSize
         if let symbol {
-            return _resolve(ZStack {
+            return ZStack {
                 RoundedRectangle(cornerRadius: size / 2)
                     .fill(color)
                     .frame(width: size, height: size)
@@ -481,11 +488,11 @@ public final class WindowManager {
                     .font(.system(size: size * 0.7, weight: .bold))
                     .foregroundColor(Color(r: 0, g: 0, b: 0, a: 0.5))
             }
-            .frame(width: size, height: size))
+            .frame(width: size, height: size)
         } else {
-            return _resolve(RoundedRectangle(cornerRadius: size / 2)
+            return RoundedRectangle(cornerRadius: size / 2)
                 .fill(color)
-                .frame(width: size, height: size))
+                .frame(width: size, height: size)
         }
     }
 }

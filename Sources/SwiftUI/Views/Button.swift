@@ -8,9 +8,9 @@ public struct Button: View {
     /// `Button("Tap") { action }` — label string variant.
     public init(_ label: String, role: ButtonRole? = nil, action: @escaping () -> Void) {
         let color: Color = role == .destructive ? .red : .blue
-        self.child = _resolve(Text(label)
+        self.child = Text(label)
             .foregroundColor(color)
-            .onTapGesture(action))
+            .onTapGesture(action)
     }
 
     /// `Button("title", systemImage: "icon") { action }` — label + SF Symbol variant.

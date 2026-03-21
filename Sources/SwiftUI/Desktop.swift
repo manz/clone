@@ -17,8 +17,8 @@ public struct Desktop {
 
     public func body() -> ViewNode {
         // Just the wallpaper — dock and menubar are rendered by the compositor on top of windows
-        _resolve(Rectangle()
+        Rectangle()
             .fill(WindowChrome.base)
-            .frame(width: screenWidth, height: screenHeight))
+            .frame(width: screenWidth, height: screenHeight)
     }
 }
