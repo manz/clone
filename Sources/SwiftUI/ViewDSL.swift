@@ -759,7 +759,7 @@ public extension ViewNode {
     func controlSize(_ size: ControlSize) -> ViewNode { self }
 
     /// `.formStyle(_:)` — no-op on Clone.
-    func formStyle<S>(_ style: S) -> ViewNode { self }
+    func formStyle<S: FormStyle>(_ style: S) -> ViewNode { self }
 
     /// `.zIndex(_:)` — no-op on Clone.
     func zIndex(_ value: Double) -> ViewNode { self }

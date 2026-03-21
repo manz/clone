@@ -640,7 +640,7 @@ public extension View {
         _resolve(self).controlSize(size)
     }
 
-    func formStyle<S>(_ style: S) -> ViewNode {
+    func formStyle<S: FormStyle>(_ style: S) -> ViewNode {
         _resolve(self).formStyle(style)
     }
 

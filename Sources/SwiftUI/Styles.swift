@@ -82,6 +82,7 @@ extension ListStyle where Self == PlainListStyle {
 }
 extension ListStyle where Self == InsetListStyle {
     public static var inset: InsetListStyle { InsetListStyle() }
+    public static func inset(alternatesRowBackgrounds: Bool) -> InsetListStyle { InsetListStyle(alternatesRowBackgrounds: alternatesRowBackgrounds) }
 }
 extension ListStyle where Self == GroupedListStyle {
     public static var grouped: GroupedListStyle { GroupedListStyle() }
@@ -229,4 +230,22 @@ extension LabelStyle where Self == TitleAndIconLabelStyle {
 }
 extension LabelStyle where Self == DefaultLabelStyle {
     public static var automatic: DefaultLabelStyle { DefaultLabelStyle() }
+}
+
+// MARK: - Form styles
+
+public protocol FormStyle {}
+
+public struct DefaultFormStyle: FormStyle { public init() {} }
+public struct GroupedFormStyle: FormStyle { public init() {} }
+public struct ColumnsFormStyle: FormStyle { public init() {} }
+
+extension FormStyle where Self == DefaultFormStyle {
+    public static var automatic: DefaultFormStyle { DefaultFormStyle() }
+}
+extension FormStyle where Self == GroupedFormStyle {
+    public static var grouped: GroupedFormStyle { GroupedFormStyle() }
+}
+extension FormStyle where Self == ColumnsFormStyle {
+    public static var columns: ColumnsFormStyle { ColumnsFormStyle() }
 }
