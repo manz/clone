@@ -228,7 +228,7 @@ public struct ModelActorMacro: MemberMacro {
     ) throws -> [DeclSyntax] {
         return [
             "public let modelContainer: ModelContainer",
-            "public var modelContext: ModelContext { modelContainer.mainContext() }",
+            "public var modelContext: ModelContext { modelContainer.mainContext }",
             "public init(modelContainer: ModelContainer) { self.modelContainer = modelContainer }",
         ]
     }

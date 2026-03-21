@@ -4,8 +4,8 @@ import Foundation
 public struct GridItem: Sendable {
     public enum Size: Sendable {
         case fixed(CGFloat)
-        case flexible(minimum: CGFloat, maximum: CGFloat)
-        case adaptive(minimum: CGFloat, maximum: CGFloat)
+        case flexible(minimum: CGFloat = 10, maximum: CGFloat = .infinity)
+        case adaptive(minimum: CGFloat, maximum: CGFloat = .infinity)
 
         /// `.flexible()` with defaults — matches Apple's SwiftUI.
         public static func flexible() -> Size {

@@ -46,8 +46,20 @@ public macro ModelActor() = #externalMacro(module: "SwiftDataMacros", type: "Mod
 
 // MARK: - Schema type (used by migration plans)
 
-public enum Schema {
+public struct Schema: Sendable {
     public typealias Version = SchemaVersion
+
+    public let modelTypes: [any PersistentModel.Type]
+
+    /// `Schema([StoredTrack.self, StoredArtist.self])` — constructs schema from types.
+    public init(_ types: [any PersistentModel.Type]) {
+        self.modelTypes = types
+    }
+
+    /// Variadic convenience: `Schema(StoredTrack.self, StoredArtist.self)`.
+    public init(_ types: any PersistentModel.Type...) {
+        self.modelTypes = types
+    }
 }
 
 public struct SchemaVersion: Hashable {

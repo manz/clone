@@ -22,8 +22,20 @@ public final class ModelContainer: NSObject {
         try self.init(for: Array(types), configuration: config)
     }
 
-    /// The shared main context.
-    public func mainContext() -> ModelContext {
+    /// Array configurations convenience: `ModelContainer(for: [...], configurations: [config])`
+    public convenience init(for types: [any PersistentModel.Type], configurations: [ModelConfiguration]) throws {
+        let config = configurations.first ?? ModelConfiguration(isStoredInMemoryOnly: true)
+        try self.init(for: types, configuration: config)
+    }
+
+    /// Schema convenience: `ModelContainer(for: schema, configurations: config)`
+    public convenience init(for schema: Schema, configurations: ModelConfiguration...) throws {
+        let config = configurations.first ?? ModelConfiguration(isStoredInMemoryOnly: true)
+        try self.init(for: schema.modelTypes, configuration: config)
+    }
+
+    /// The shared main context (property — matches Apple's SwiftData API).
+    public var mainContext: ModelContext {
         if let ctx = _mainContext { return ctx }
         let ctx = ModelContext(container: self)
         _mainContext = ctx

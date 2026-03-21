@@ -7,7 +7,7 @@
 /// A property wrapper that instantiates and owns an observable object.
 @MainActor @preconcurrency
 @propertyWrapper
-public final class StateObject<ObjectType: ObservableObject> {
+public struct StateObject<ObjectType: ObservableObject> {
     public var wrappedValue: ObjectType
 
     public init(wrappedValue: ObjectType) {
@@ -22,7 +22,7 @@ public final class StateObject<ObjectType: ObservableObject> {
 /// A property wrapper that subscribes to an observable object.
 @MainActor @preconcurrency
 @propertyWrapper
-public final class ObservedObject<ObjectType: ObservableObject> {
+public struct ObservedObject<ObjectType: ObservableObject> {
     public var wrappedValue: ObjectType
 
     public init(wrappedValue: ObjectType) {
@@ -33,7 +33,15 @@ public final class ObservedObject<ObjectType: ObservableObject> {
         Wrapper(object: wrappedValue)
     }
 
+    @dynamicMemberLookup
     public struct Wrapper {
         public let object: ObjectType
+
+        public subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<ObjectType, Value>) -> Binding<Value> {
+            Binding(
+                get: { object[keyPath: keyPath] },
+                set: { object[keyPath: keyPath] = $0 }
+            )
+        }
     }
 }

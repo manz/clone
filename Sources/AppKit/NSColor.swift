@@ -22,6 +22,11 @@ public final class NSColor: @unchecked Sendable {
         self.init(red, green, blue, alpha)
     }
 
+    /// `NSColor(named:)` — returns a color by name from the asset catalog. Stub: returns clear.
+    public convenience init?(named name: String) {
+        self.init(0, 0, 0, 0)
+    }
+
     private static func adaptive(dark: NSColor, light: NSColor) -> NSColor {
         NSAppearance.shared.isDark ? dark : light
     }
@@ -231,4 +236,49 @@ public final class NSColor: @unchecked Sendable {
     public static let white = NSColor(1.0, 1.0, 1.0)
     public static let black = NSColor(0.0, 0.0, 0.0)
     public static let clear = NSColor(0.0, 0.0, 0.0, 0.0)
+
+    // MARK: - Colorspace init
+
+    /// `NSColor(colorSpace:components:count:)` — creates from colorspace components.
+    public convenience init(colorSpace: NSColorSpace, components: UnsafePointer<CGFloat>, count: Int) {
+        if count >= 4 {
+            self.init(components[0], components[1], components[2], components[3])
+        } else if count >= 3 {
+            self.init(components[0], components[1], components[2])
+        } else {
+            self.init(0, 0, 0)
+        }
+    }
+
+    /// `NSColor(white:alpha:)` — grayscale convenience.
+    public convenience init(white: CGFloat, alpha: CGFloat) {
+        self.init(white, white, white, alpha)
+    }
+
+    /// `NSColor(hue:saturation:brightness:alpha:)` — HSB init stub (approximate).
+    public convenience init(hue: CGFloat, saturation: CGFloat, brightness: CGFloat, alpha: CGFloat) {
+        // Simplified HSB→RGB for stub purposes
+        let c = brightness * saturation
+        let x = c * (1 - abs(fmod(hue * 6, 2) - 1))
+        let m = brightness - c
+        let (r, g, b): (CGFloat, CGFloat, CGFloat)
+        let h6 = hue * 6
+        if h6 < 1 { (r, g, b) = (c, x, 0) }
+        else if h6 < 2 { (r, g, b) = (x, c, 0) }
+        else if h6 < 3 { (r, g, b) = (0, c, x) }
+        else if h6 < 4 { (r, g, b) = (0, x, c) }
+        else if h6 < 5 { (r, g, b) = (x, 0, c) }
+        else { (r, g, b) = (c, 0, x) }
+        self.init(r + m, g + m, b + m, alpha)
+    }
+}
+
+// MARK: - NSColorSpace
+
+/// Minimal NSColorSpace stub — matches Apple's API surface.
+public final class NSColorSpace: @unchecked Sendable {
+    public static let deviceRGB = NSColorSpace()
+    public static let sRGB = NSColorSpace()
+    public static let genericRGB = NSColorSpace()
+    public static let deviceCMYK = NSColorSpace()
 }

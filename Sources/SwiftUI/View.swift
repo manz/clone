@@ -192,11 +192,11 @@ public extension View {
         _resolve(self).onDisappear(perform: action)
     }
 
-    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
+    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         _resolve(self).task(priority: priority, action)
     }
 
-    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
+    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         _resolve(self).task(id: id, priority: priority, action)
     }
 
@@ -216,11 +216,11 @@ public extension View {
         _resolve(self).alert(title, isPresented: isPresented, actions: actions, message: message)
     }
 
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
         _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions)
     }
 
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
         _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions, message: message)
     }
 
@@ -276,11 +276,11 @@ public extension View {
         _resolve(self).lineLimit(limit)
     }
 
-    func multilineTextAlignment(_ alignment: HAlignment) -> ViewNode {
+    func multilineTextAlignment(_ alignment: TextAlignment) -> ViewNode {
         _resolve(self).multilineTextAlignment(alignment)
     }
 
-    func textFieldStyle<S>(_ style: S) -> ViewNode {
+    func textFieldStyle<S: TextFieldStyle>(_ style: S) -> ViewNode {
         _resolve(self).textFieldStyle(style)
     }
 
@@ -288,7 +288,7 @@ public extension View {
         _resolve(self).buttonStyle(style)
     }
 
-    func listStyle<S>(_ style: S) -> ViewNode {
+    func listStyle<S: ListStyle>(_ style: S) -> ViewNode {
         _resolve(self).listStyle(style)
     }
 
@@ -296,7 +296,7 @@ public extension View {
         _resolve(self).pickerStyle(style)
     }
 
-    func toggleStyle<S>(_ style: S) -> ViewNode {
+    func toggleStyle<S: ToggleStyle>(_ style: S) -> ViewNode {
         _resolve(self).toggleStyle(style)
     }
 
@@ -360,7 +360,11 @@ public extension View {
         _resolve(self).onSubmit(action)
     }
 
-    func swipeActions(edge: Any? = nil, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func onSubmit(of triggers: SubmitTriggers = .text, _ action: @escaping () -> Void) -> ViewNode {
+        _resolve(self).onSubmit(of: triggers, action)
+    }
+
+    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         _resolve(self)
     }
 
@@ -440,8 +444,12 @@ public extension View {
         _resolve(self).onKeyPress(key, action: action)
     }
 
-    func symbolEffect<E>(_ effect: E) -> ViewNode {
+    func symbolEffect(_ effect: SymbolEffect) -> ViewNode {
         _resolve(self).symbolEffect(effect)
+    }
+
+    func symbolEffect<V: Equatable>(_ effect: SymbolEffect, value: V) -> ViewNode {
+        _resolve(self).symbolEffect(effect, value: value)
     }
 
     func gridCellUnsizedAxes(_ axes: Axis) -> ViewNode {
@@ -466,6 +474,10 @@ public extension View {
 
     func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode {
         _resolve(self).toolbar(content)
+    }
+
+    func toolbar(removing: ToolbarDefaultItemKind?) -> ViewNode {
+        _resolve(self).toolbar(removing: removing)
     }
 
     func presentationDetents(_ detents: Set<PresentationDetent>) -> ViewNode {
@@ -680,15 +692,43 @@ public extension View {
         _resolve(self).accessibilityIdentifier(identifier)
     }
 
-    func navigationSplitViewStyle<S>(_ style: S) -> ViewNode {
+    func navigationSplitViewStyle<S: NavigationSplitViewStyleProtocol>(_ style: S) -> ViewNode {
         _resolve(self).navigationSplitViewStyle(style)
     }
 
-    func symbolRenderingMode(_ mode: Any?) -> ViewNode {
+    func symbolRenderingMode(_ mode: SymbolRenderingMode?) -> ViewNode {
         _resolve(self).symbolRenderingMode(mode)
     }
 
     func accessibilityHint(_ hint: String) -> ViewNode {
         _resolve(self).accessibilityHint(hint)
+    }
+
+    func fixedSize() -> ViewNode {
+        _resolve(self).fixedSize()
+    }
+
+    func fixedSize(horizontal: Bool = true, vertical: Bool = true) -> ViewNode {
+        _resolve(self).fixedSize(horizontal: horizontal, vertical: vertical)
+    }
+
+    func containerRelativeFrame(_ axes: Axis) -> ViewNode {
+        _resolve(self).containerRelativeFrame(axes)
+    }
+
+    func containerRelativeFrame(_ axes: Axis, alignment: Alignment) -> ViewNode {
+        _resolve(self).containerRelativeFrame(axes, alignment: alignment)
+    }
+
+    func draggable<T>(_ payload: @autoclosure () -> T) -> ViewNode {
+        _resolve(self)
+    }
+
+    func dropDestination<T>(for type: T.Type, action: @escaping ([T], CGPoint) -> Bool) -> ViewNode {
+        _resolve(self)
+    }
+
+    func handlesExternalEvents(preferring: Set<String>, allowing: Set<String>) -> ViewNode {
+        _resolve(self)
     }
 }

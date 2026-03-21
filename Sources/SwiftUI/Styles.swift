@@ -60,23 +60,52 @@ extension ButtonStyle where Self == BorderedProminentButtonStyle {
 
 // MARK: - List styles
 
+/// A type that applies custom appearance to lists.
+public protocol ListStyle {}
+
 /// A list style with no decoration.
-public struct PlainListStyle { public init() {} }
+public struct PlainListStyle: ListStyle { public init() {} }
 /// An inset list style.
-public struct InsetListStyle { public init() {} }
+public struct InsetListStyle: ListStyle { public init() {} }
 /// A grouped list style.
-public struct GroupedListStyle { public init() {} }
+public struct GroupedListStyle: ListStyle { public init() {} }
 /// A sidebar list style.
-public struct SidebarListStyle { public init() {} }
+public struct SidebarListStyle: ListStyle { public init() {} }
 /// An inset grouped list style.
-public struct InsetGroupedListStyle { public init() {} }
+public struct InsetGroupedListStyle: ListStyle { public init() {} }
+
+extension ListStyle where Self == PlainListStyle {
+    public static var plain: PlainListStyle { PlainListStyle() }
+}
+extension ListStyle where Self == InsetListStyle {
+    public static var inset: InsetListStyle { InsetListStyle() }
+}
+extension ListStyle where Self == GroupedListStyle {
+    public static var grouped: GroupedListStyle { GroupedListStyle() }
+}
+extension ListStyle where Self == SidebarListStyle {
+    public static var sidebar: SidebarListStyle { SidebarListStyle() }
+}
+extension ListStyle where Self == InsetGroupedListStyle {
+    public static var insetGrouped: InsetGroupedListStyle { InsetGroupedListStyle() }
+}
 
 // MARK: - TextField styles
 
+/// A type that applies custom appearance to text fields.
+public protocol TextFieldStyle {}
+
 /// A text field style with no decoration.
-public struct PlainTextFieldStyle { public init() {} }
+public struct PlainTextFieldStyle: TextFieldStyle { public init() {} }
 /// A text field style with a rounded border.
-public struct RoundedBorderTextFieldStyle { public init() {} }
+public struct RoundedBorderTextFieldStyle: TextFieldStyle { public init() {} }
+
+extension TextFieldStyle where Self == PlainTextFieldStyle {
+    public static var plain: PlainTextFieldStyle { PlainTextFieldStyle() }
+}
+extension TextFieldStyle where Self == RoundedBorderTextFieldStyle {
+    public static var roundedBorder: RoundedBorderTextFieldStyle { RoundedBorderTextFieldStyle() }
+}
 
 // MARK: - Picker styles
 
@@ -112,10 +141,20 @@ extension PickerStyle where Self == InlinePickerStyle {
 
 // MARK: - Toggle styles
 
+/// A type that applies custom appearance to toggles.
+public protocol ToggleStyle {}
+
 /// A toggle displayed as a switch.
-public struct SwitchToggleStyle { public init() {} }
+public struct SwitchToggleStyle: ToggleStyle { public init() {} }
 /// A toggle displayed as a checkbox.
-public struct CheckboxToggleStyle { public init() {} }
+public struct CheckboxToggleStyle: ToggleStyle { public init() {} }
+
+extension ToggleStyle where Self == SwitchToggleStyle {
+    public static var `switch`: SwitchToggleStyle { SwitchToggleStyle() }
+}
+extension ToggleStyle where Self == CheckboxToggleStyle {
+    public static var checkbox: CheckboxToggleStyle { CheckboxToggleStyle() }
+}
 
 // MARK: - ProgressView styles
 

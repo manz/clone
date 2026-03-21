@@ -353,15 +353,47 @@ public struct AccessibilityTraits: OptionSet, Sendable {
 
 // MARK: - NavigationSplitViewStyle
 
-public struct BalancedNavigationSplitViewStyle {
+public protocol NavigationSplitViewStyleProtocol {}
+
+public struct BalancedNavigationSplitViewStyle: NavigationSplitViewStyleProtocol {
     public init() {}
 }
 
-public struct ProminentDetailNavigationSplitViewStyle {
+public struct ProminentDetailNavigationSplitViewStyle: NavigationSplitViewStyleProtocol {
     public init() {}
 }
 
-extension View {
+public struct AutomaticNavigationSplitViewStyle: NavigationSplitViewStyleProtocol {
+    public init() {}
+}
+
+extension NavigationSplitViewStyleProtocol where Self == BalancedNavigationSplitViewStyle {
     public static var balanced: BalancedNavigationSplitViewStyle { .init() }
+}
+extension NavigationSplitViewStyleProtocol where Self == ProminentDetailNavigationSplitViewStyle {
     public static var prominentDetail: ProminentDetailNavigationSplitViewStyle { .init() }
+}
+extension NavigationSplitViewStyleProtocol where Self == AutomaticNavigationSplitViewStyle {
+    public static var automatic: AutomaticNavigationSplitViewStyle { .init() }
+}
+
+// MARK: - SymbolRenderingMode
+
+public enum SymbolRenderingMode: Sendable {
+    case monochrome, multicolor, hierarchical, palette
+}
+
+// MARK: - SubmitTriggers
+
+public struct SubmitTriggers: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let text = SubmitTriggers(rawValue: 1 << 0)
+    public static let search = SubmitTriggers(rawValue: 1 << 1)
+}
+
+// MARK: - SymbolEffect
+
+public enum SymbolEffect: Sendable {
+    case pulse, bounce, variableColor, scale, appear, disappear, replace
 }

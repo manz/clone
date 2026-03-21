@@ -76,7 +76,7 @@ import Foundation
 @Test func complexPredicateEndToEnd() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     for (name, path, pinned) in [
         ("Docs", "/docs", true),

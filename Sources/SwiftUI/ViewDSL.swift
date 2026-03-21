@@ -275,14 +275,14 @@ public extension ViewNode {
 
     /// `.task { }` — executes an async closure when the view appears.
     /// On Clone, launches the task immediately (no cancellation on disappear).
-    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
-        Task(priority: priority) { await action() }
+    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
+        Task(priority: priority) { @MainActor in await action() }
         return self
     }
 
     /// `.task(id:_:)` — executes an async closure when id changes.
-    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @Sendable () async -> Void) -> ViewNode {
-        Task(priority: priority) { await action() }
+    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
+        Task(priority: priority) { @MainActor in await action() }
         return self
     }
 
@@ -316,12 +316,12 @@ public extension ViewNode {
     }
 
     /// `.confirmationDialog(_:isPresented:actions:)` — no-op on Clone.
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
         self
     }
 
     /// `.confirmationDialog(_:isPresented:actions:message:)` — no-op on Clone.
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Any? = nil, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
         self
     }
 
@@ -392,12 +392,12 @@ public extension ViewNode {
     }
 
     /// `.multilineTextAlignment(_:)` — no-op on Clone.
-    func multilineTextAlignment(_ alignment: HAlignment) -> ViewNode {
+    func multilineTextAlignment(_ alignment: TextAlignment) -> ViewNode {
         self
     }
 
     /// `.textFieldStyle(_:)` — no-op on Clone.
-    func textFieldStyle<S>(_ style: S) -> ViewNode {
+    func textFieldStyle<S: TextFieldStyle>(_ style: S) -> ViewNode {
         self
     }
 
@@ -407,7 +407,7 @@ public extension ViewNode {
     }
 
     /// `.listStyle(_:)` — no-op on Clone.
-    func listStyle<S>(_ style: S) -> ViewNode {
+    func listStyle<S: ListStyle>(_ style: S) -> ViewNode {
         self
     }
 
@@ -417,7 +417,7 @@ public extension ViewNode {
     }
 
     /// `.toggleStyle(_:)` — no-op on Clone.
-    func toggleStyle<S>(_ style: S) -> ViewNode {
+    func toggleStyle<S: ToggleStyle>(_ style: S) -> ViewNode {
         self
     }
 
@@ -506,8 +506,13 @@ public extension ViewNode {
         self
     }
 
+    /// `.onSubmit(of:_:)` — no-op on Clone.
+    func onSubmit(of triggers: SubmitTriggers = .text, _ action: @escaping () -> Void) -> ViewNode {
+        self
+    }
+
     /// `.swipeActions(edge:content:)` — no-op on Clone.
-    func swipeActions(edge: Any? = nil, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
         self
     }
 
@@ -517,7 +522,7 @@ public extension ViewNode {
     }
 
     /// `.symbolRenderingMode(_:)` — no-op on Clone.
-    func symbolRenderingMode(_ mode: Any?) -> ViewNode {
+    func symbolRenderingMode(_ mode: SymbolRenderingMode?) -> ViewNode {
         self
     }
 
@@ -587,7 +592,10 @@ public extension ViewNode {
     func onKeyPress(_ key: KeyEquivalent, action: @escaping () -> KeyPress.Result) -> ViewNode { self }
 
     /// `.symbolEffect(_:)` — no-op on Clone.
-    func symbolEffect<E>(_ effect: E) -> ViewNode { self }
+    func symbolEffect(_ effect: SymbolEffect) -> ViewNode { self }
+
+    /// `.symbolEffect(_:value:)` — no-op on Clone.
+    func symbolEffect<V: Equatable>(_ effect: SymbolEffect, value: V) -> ViewNode { self }
 
     /// `.gridCellUnsizedAxes(_:)` — no-op on Clone.
     func gridCellUnsizedAxes(_ axes: Axis) -> ViewNode { self }
@@ -609,6 +617,9 @@ public extension ViewNode {
 
     /// `.toolbar(_:)` — toolbar with ToolbarContent.
     func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode { self }
+
+    /// `.toolbar(removing:)` — removes default toolbar items. No-op on Clone.
+    func toolbar(removing: ToolbarDefaultItemKind?) -> ViewNode { self }
 
     /// `.presentationDetents(_:)` — no-op on Clone.
     func presentationDetents(_ detents: Swift.Set<PresentationDetent>) -> ViewNode { self }
@@ -758,10 +769,31 @@ public extension ViewNode {
     func accessibilityIdentifier(_ identifier: String) -> ViewNode { self }
 
     /// `.navigationSplitViewStyle(_:)` — no-op on Clone.
-    func navigationSplitViewStyle<S>(_ style: S) -> ViewNode { self }
+    func navigationSplitViewStyle<S: NavigationSplitViewStyleProtocol>(_ style: S) -> ViewNode { self }
 
     /// `.accessibilityHint(_:)` — no-op on Clone.
     func accessibilityHint(_ hint: String) -> ViewNode { self }
+
+    /// `.fixedSize()` — prevents the view from being compressed below its ideal size.
+    func fixedSize() -> ViewNode { self }
+
+    /// `.fixedSize(horizontal:vertical:)` — prevents compression on specified axes.
+    func fixedSize(horizontal: Bool = true, vertical: Bool = true) -> ViewNode { self }
+
+    /// `.containerRelativeFrame(_:)` — no-op on Clone.
+    func containerRelativeFrame(_ axes: Axis) -> ViewNode { self }
+
+    /// `.containerRelativeFrame(_:alignment:)` — no-op on Clone.
+    func containerRelativeFrame(_ axes: Axis, alignment: Alignment) -> ViewNode { self }
+
+    /// `.draggable(_:)` — no-op on Clone.
+    func draggable<T>(_ payload: @autoclosure () -> T) -> ViewNode { self }
+
+    /// `.dropDestination(for:action:)` — no-op on Clone.
+    func dropDestination<T>(for type: T.Type, action: @escaping ([T], CGPoint) -> Bool) -> ViewNode { self }
+
+    /// `.handlesExternalEvents(preferring:allowing:)` — no-op on Clone.
+    func handlesExternalEvents(preferring: Swift.Set<String>, allowing: Swift.Set<String>) -> ViewNode { self }
 
 }
 

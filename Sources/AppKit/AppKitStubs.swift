@@ -304,9 +304,8 @@ open class NSTextView: NSView {
 
 // MARK: - NSHostingController
 
-open class NSHostingController<Content> {
-    public var view: NSView = NSView()
-    public init(rootView: Content) {}
+open class NSHostingController<Content>: NSViewController {
+    public init(rootView: Content) { super.init() }
 }
 
 // MARK: - NSItemProvider

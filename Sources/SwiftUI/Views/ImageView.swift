@@ -16,7 +16,7 @@ public struct Image: View {
     }
 
     /// `Image(nsImage:)` — creates an image from an NSImage. Stub: uses empty name.
-    public init(nsImage: Any) {
+    public init(nsImage: NSImage) {
         self.name = ""
     }
 
@@ -49,5 +49,5 @@ public struct Image: View {
     public func antialiased(_ isAntialiased: Bool) -> Image { self }
 
     /// `.symbolRenderingMode(_:)` — no-op on Clone.
-    public func symbolRenderingMode(_ mode: Any?) -> Image { self }
+    public func symbolRenderingMode(_ mode: SymbolRenderingMode?) -> Image { self }
 }

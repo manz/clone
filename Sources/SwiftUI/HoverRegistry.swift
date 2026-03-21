@@ -1,7 +1,7 @@
 import Foundation
 
 /// Phase of a continuous hover interaction — matches Apple's `HoverPhase`.
-public enum HoverPhase {
+public enum HoverPhase: Equatable {
     case active(CGPoint)
     case ended
 }

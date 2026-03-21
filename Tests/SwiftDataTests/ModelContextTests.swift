@@ -33,7 +33,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func insertAndFetch() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     let bm = Bookmark()
     bm.name = "Projects"
@@ -53,7 +53,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func fetchWithPredicate() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     for (name, pinned) in [("Alpha", false), ("Beta", true), ("Gamma", true)] {
         let bm = Bookmark()
@@ -78,7 +78,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func deleteModel() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     let bm = Bookmark()
     bm.name = "ToDelete"
@@ -99,7 +99,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func fetchWithSortAndLimit() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     for name in ["Charlie", "Alpha", "Delta", "Beta"] {
         let bm = Bookmark()
@@ -122,7 +122,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func fetchCount() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     for i in 0..<3 {
         let bm = Bookmark()
@@ -139,7 +139,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func updateViaInsertOrReplace() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
 
     let bm = Bookmark()
     bm.name = "Original"
@@ -159,7 +159,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 @Test func saveGenerationIncrementsOnSave() throws {
     let container = try ModelContainer(for: [Bookmark.self],
                                        configuration: ModelConfiguration(isStoredInMemoryOnly: true))
-    let context = container.mainContext()
+    let context = container.mainContext
     #expect(context.generation == 0)
 
     let bm = Bookmark()

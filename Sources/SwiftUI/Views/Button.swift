@@ -13,6 +13,15 @@ public struct Button: View {
             .onTapGesture(action)
     }
 
+    /// `Button("title", systemImage: "icon") { action }` — label + SF Symbol variant.
+    public init(_ label: String, systemImage: String, role: ButtonRole? = nil, action: @escaping () -> Void) {
+        let color: Color = role == .destructive ? .red : .blue
+        self.child = HStack(alignment: .center, spacing: 4) {
+            Image(systemName: systemImage)
+            Text(label).foregroundColor(color)
+        }.body.onTapGesture(action)
+    }
+
     /// `Button(action: { }) { label }` — custom label variant.
     public init(role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) {
         let content = label()

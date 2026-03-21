@@ -33,14 +33,20 @@ public struct TextEditor: View {
 /// A control for incrementing or decrementing a value.
 public struct Stepper<Label: View>: View {
     let label: ViewNode
-    public init(value: Binding<Int>, in range: ClosedRange<Int> = 0...100, @ViewBuilder label: () -> Label) {
+    public init(value: Binding<Int>, in range: ClosedRange<Int> = 0...100, step: Int = 1, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(label())
+    }
+    public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1, @ViewBuilder label: () -> Label) {
         self.label = _resolve(label())
     }
     public var body: ViewNode { label }
 }
 
 extension Stepper where Label == Text {
-    public init(_ title: String, value: Binding<Int>, in range: ClosedRange<Int> = 0...100) {
+    public init(_ title: String, value: Binding<Int>, in range: ClosedRange<Int> = 0...100, step: Int = 1) {
+        self.label = Text(title).body
+    }
+    public init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1) {
         self.label = Text(title).body
     }
 }
@@ -220,6 +226,11 @@ public struct ToolbarItemPlacement: Sendable {
     public static let navigationBarTrailing = ToolbarItemPlacement()
     public static let bottomBar = ToolbarItemPlacement()
     public static let keyboard = ToolbarItemPlacement()
+    public static let topBarLeading = ToolbarItemPlacement()
+    public static let topBarTrailing = ToolbarItemPlacement()
+    public static let principal = ToolbarItemPlacement()
+    public static let search = ToolbarItemPlacement()
+    public static let sidebarToggle = ToolbarItemPlacement()
 }
 
 /// A protocol for toolbar content.
@@ -227,6 +238,14 @@ public struct ToolbarItemPlacement: Sendable {
 public protocol ToolbarContent {
     associatedtype Body: View
     var body: Body { get }
+}
+
+/// Make [ViewNode] conform to ToolbarContent so @ToolbarContentBuilder works.
+extension Array: ToolbarContent where Element == ViewNode {}
+
+/// Kind of default toolbar item that can be removed.
+public struct ToolbarDefaultItemKind: Sendable {
+    public static let sidebarToggle = ToolbarDefaultItemKind()
 }
 
 /// A result builder for toolbar content.

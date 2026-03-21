@@ -8,11 +8,11 @@ import Foundation
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
 #if canImport(clone_engineFFI)
-    import clone_engineFFI
+import clone_engineFFI
 #endif
 
-private extension RustBuffer {
-    /// Allocate a new buffer, copying the contents of a `UInt8` array.
+fileprivate extension RustBuffer {
+    // Allocate a new buffer, copying the contents of a `UInt8` array.
     init(bytes: [UInt8]) {
         let rbuf = bytes.withUnsafeBufferPointer { ptr in
             RustBuffer.from(ptr)
@@ -21,21 +21,21 @@ private extension RustBuffer {
     }
 
     static func empty() -> RustBuffer {
-        RustBuffer(capacity: 0, len: 0, data: nil)
+        RustBuffer(capacity: 0, len:0, data: nil)
     }
 
     static func from(_ ptr: UnsafeBufferPointer<UInt8>) -> RustBuffer {
         try! rustCall { ffi_clone_engine_rustbuffer_from_bytes(ForeignBytes(bufferPointer: ptr), $0) }
     }
 
-    /// Frees the buffer in place.
-    /// The buffer must not be used after this is called.
+    // Frees the buffer in place.
+    // The buffer must not be used after this is called.
     func deallocate() {
         try! rustCall { ffi_clone_engine_rustbuffer_free(self, $0) }
     }
 }
 
-private extension ForeignBytes {
+fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
@@ -48,7 +48,7 @@ private extension ForeignBytes {
 // Helper classes/extensions that don't change.
 // Someday, this will be in a library of its own.
 
-private extension Data {
+fileprivate extension Data {
     init(rustBuffer: RustBuffer) {
         self.init(
             bytesNoCopy: rustBuffer.data!,
@@ -72,15 +72,15 @@ private extension Data {
 //
 // Instead, the read() method and these helper functions input a tuple of data
 
-private func createReader(data: Data) -> (data: Data, offset: Data.Index) {
+fileprivate func createReader(data: Data) -> (data: Data, offset: Data.Index) {
     (data: data, offset: 0)
 }
 
-/// Reads an integer at the current offset, in big-endian order, and advances
-/// the offset on success. Throws if reading the integer would move the
-/// offset past the end of the buffer.
-private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
-    let range = reader.offset ..< reader.offset + MemoryLayout<T>.size
+// Reads an integer at the current offset, in big-endian order, and advances
+// the offset on success. Throws if reading the integer would move the
+// offset past the end of the buffer.
+fileprivate func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
+    let range = reader.offset..<reader.offset + MemoryLayout<T>.size
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
@@ -90,38 +90,38 @@ private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: 
         return value as! T
     }
     var value: T = 0
-    let _ = withUnsafeMutableBytes(of: &value) { reader.data.copyBytes(to: $0, from: range) }
+    let _ = withUnsafeMutableBytes(of: &value, { reader.data.copyBytes(to: $0, from: range)})
     reader.offset = range.upperBound
     return value.bigEndian
 }
 
-/// Reads an arbitrary number of bytes, to be used to read
-/// raw bytes, this is useful when lifting strings
-private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> [UInt8] {
-    let range = reader.offset ..< (reader.offset + count)
+// Reads an arbitrary number of bytes, to be used to read
+// raw bytes, this is useful when lifting strings
+fileprivate func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> Array<UInt8> {
+    let range = reader.offset..<(reader.offset+count)
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
     var value = [UInt8](repeating: 0, count: count)
-    value.withUnsafeMutableBufferPointer { buffer in
+    value.withUnsafeMutableBufferPointer({ buffer in
         reader.data.copyBytes(to: buffer, from: range)
-    }
+    })
     reader.offset = range.upperBound
     return value
 }
 
-/// Reads a float at the current offset.
-private func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
-    return try Float(bitPattern: readInt(&reader))
+// Reads a float at the current offset.
+fileprivate func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
+    return Float(bitPattern: try readInt(&reader))
 }
 
-/// Reads a float at the current offset.
-private func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
-    return try Double(bitPattern: readInt(&reader))
+// Reads a float at the current offset.
+fileprivate func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
+    return Double(bitPattern: try readInt(&reader))
 }
 
-/// Indicates if the offset has reached the end of the buffer.
-private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
+// Indicates if the offset has reached the end of the buffer.
+fileprivate func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
     return reader.offset < reader.data.count
 }
 
@@ -129,34 +129,34 @@ private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
 // struct, but we use standalone functions instead in order to make external
 // types work.  See the above discussion on Readers for details.
 
-private func createWriter() -> [UInt8] {
+fileprivate func createWriter() -> [UInt8] {
     return []
 }
 
-private func writeBytes<S: Sequence>(_ writer: inout [UInt8], _ byteArr: S) where S.Element == UInt8 {
+fileprivate func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
     writer.append(contentsOf: byteArr)
 }
 
-/// Writes an integer in big-endian order.
-///
-/// Warning: make sure what you are trying to write
-/// is in the correct type!
-private func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
+// Writes an integer in big-endian order.
+//
+// Warning: make sure what you are trying to write
+// is in the correct type!
+fileprivate func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
     var value = value.bigEndian
     withUnsafeBytes(of: &value) { writer.append(contentsOf: $0) }
 }
 
-private func writeFloat(_ writer: inout [UInt8], _ value: Float) {
+fileprivate func writeFloat(_ writer: inout [UInt8], _ value: Float) {
     writeInt(&writer, value.bitPattern)
 }
 
-private func writeDouble(_ writer: inout [UInt8], _ value: Double) {
+fileprivate func writeDouble(_ writer: inout [UInt8], _ value: Double) {
     writeInt(&writer, value.bitPattern)
 }
 
-/// Protocol for types that transfer other types across the FFI. This is
-/// analogous to the Rust trait of the same name.
-private protocol FfiConverter {
+// Protocol for types that transfer other types across the FFI. This is
+// analogous to the Rust trait of the same name.
+fileprivate protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
 
@@ -166,33 +166,33 @@ private protocol FfiConverter {
     static func write(_ value: SwiftType, into buf: inout [UInt8])
 }
 
-/// Types conforming to `Primitive` pass themselves directly over the FFI.
-private protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType {}
+// Types conforming to `Primitive` pass themselves directly over the FFI.
+fileprivate protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType { }
 
 extension FfiConverterPrimitive {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ value: FfiType) throws -> SwiftType {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> FfiType {
         return value
     }
 }
 
-/// Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
-/// Used for complex types where it's hard to write a custom lift/lower.
-private protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
+// Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
+// Used for complex types where it's hard to write a custom lift/lower.
+fileprivate protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
 
 extension FfiConverterRustBuffer {
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lift(_ buf: RustBuffer) throws -> SwiftType {
         var reader = createReader(data: Data(rustBuffer: buf))
         let value = try read(from: &reader)
@@ -203,19 +203,18 @@ extension FfiConverterRustBuffer {
         return value
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ value: SwiftType) -> RustBuffer {
-        var writer = createWriter()
-        write(value, into: &writer)
-        return RustBuffer(bytes: writer)
+          var writer = createWriter()
+          write(value, into: &writer)
+          return RustBuffer(bytes: writer)
     }
 }
-
-/// An error type for FFI errors. These errors occur at the UniFFI level, not
-/// the library level.
-private enum UniffiInternalError: LocalizedError {
+// An error type for FFI errors. These errors occur at the UniFFI level, not
+// the library level.
+fileprivate enum UniffiInternalError: LocalizedError {
     case bufferOverflow
     case incompleteData
     case unexpectedOptionalTag
@@ -226,7 +225,7 @@ private enum UniffiInternalError: LocalizedError {
     case unexpectedStaleHandle
     case rustPanic(_ message: String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .bufferOverflow: return "Reading the requested value would read past the end of the buffer"
         case .incompleteData: return "The buffer still has data after lifting its containing value"
@@ -241,24 +240,24 @@ private enum UniffiInternalError: LocalizedError {
     }
 }
 
-private extension NSLock {
+fileprivate extension NSLock {
     func withLock<T>(f: () throws -> T) rethrows -> T {
-        lock()
+        self.lock()
         defer { self.unlock() }
         return try f()
     }
 }
 
-private let CALL_SUCCESS: Int8 = 0
-private let CALL_ERROR: Int8 = 1
-private let CALL_UNEXPECTED_ERROR: Int8 = 2
-private let CALL_CANCELLED: Int8 = 3
+fileprivate let CALL_SUCCESS: Int8 = 0
+fileprivate let CALL_ERROR: Int8 = 1
+fileprivate let CALL_UNEXPECTED_ERROR: Int8 = 2
+fileprivate let CALL_CANCELLED: Int8 = 3
 
-private extension RustCallStatus {
+fileprivate extension RustCallStatus {
     init() {
         self.init(
             code: CALL_SUCCESS,
-            errorBuf: RustBuffer(
+            errorBuf: RustBuffer.init(
                 capacity: 0,
                 len: 0,
                 data: nil
@@ -274,8 +273,7 @@ private func rustCall<T>(_ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
 
 private func rustCallWithError<T, E: Swift.Error>(
     _ errorHandler: @escaping (RustBuffer) throws -> E,
-    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
-) throws -> T {
+    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
     try makeRustCall(callback, errorHandler: errorHandler)
 }
 
@@ -283,8 +281,8 @@ private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
-    uniffiEnsureInitialized()
-    var callStatus = RustCallStatus()
+    uniffiEnsureCloneEngineInitialized()
+    var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
     return returnedVal
@@ -295,44 +293,44 @@ private func uniffiCheckCallStatus<E: Swift.Error>(
     errorHandler: ((RustBuffer) throws -> E)?
 ) throws {
     switch callStatus.code {
-    case CALL_SUCCESS:
-        return
+        case CALL_SUCCESS:
+            return
 
-    case CALL_ERROR:
-        if let errorHandler = errorHandler {
-            throw try errorHandler(callStatus.errorBuf)
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.unexpectedRustCallError
-        }
+        case CALL_ERROR:
+            if let errorHandler = errorHandler {
+                throw try errorHandler(callStatus.errorBuf)
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.unexpectedRustCallError
+            }
 
-    case CALL_UNEXPECTED_ERROR:
-        // When the rust code sees a panic, it tries to construct a RustBuffer
-        // with the message.  But if that code panics, then it just sends back
-        // an empty buffer.
-        if callStatus.errorBuf.len > 0 {
-            throw try UniffiInternalError.rustPanic(FfiConverterString.lift(callStatus.errorBuf))
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.rustPanic("Rust panic")
-        }
+        case CALL_UNEXPECTED_ERROR:
+            // When the rust code sees a panic, it tries to construct a RustBuffer
+            // with the message.  But if that code panics, then it just sends back
+            // an empty buffer.
+            if callStatus.errorBuf.len > 0 {
+                throw UniffiInternalError.rustPanic(try FfiConverterString.lift(callStatus.errorBuf))
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.rustPanic("Rust panic")
+            }
 
-    case CALL_CANCELLED:
-        fatalError("Cancellation not supported yet")
+        case CALL_CANCELLED:
+            fatalError("Cancellation not supported yet")
 
-    default:
-        throw UniffiInternalError.unexpectedRustCallStatusCode
+        default:
+            throw UniffiInternalError.unexpectedRustCallStatusCode
     }
 }
 
 private func uniffiTraitInterfaceCall<T>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void
+    writeReturn: (T) -> ()
 ) {
     do {
         try writeReturn(makeCall())
-    } catch {
+    } catch let error {
         callStatus.pointee.code = CALL_UNEXPECTED_ERROR
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
@@ -341,7 +339,7 @@ private func uniffiTraitInterfaceCall<T>(
 private func uniffiTraitInterfaceCallWithError<T, E>(
     callStatus: UnsafeMutablePointer<RustCallStatus>,
     makeCall: () throws -> T,
-    writeReturn: (T) -> Void,
+    writeReturn: (T) -> (),
     lowerError: (E) -> RustBuffer
 ) {
     do {
@@ -354,27 +352,46 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
+// Initial value and increment amount for handles. 
+// These ensure that SWIFT handles always have the lowest bit set
+fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
+fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
 
-private class UniffiHandleMap<T> {
-    private var map: [UInt64: T] = [:]
+fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
+    // All mutation happens with this lock held, which is why we implement @unchecked Sendable.
     private let lock = NSLock()
-    private var currentHandle: UInt64 = 1
+    private var map: [UInt64: T] = [:]
+    private var currentHandle: UInt64 = UNIFFI_HANDLEMAP_INITIAL
 
     func insert(obj: T) -> UInt64 {
         lock.withLock {
-            let handle = currentHandle
-            currentHandle += 1
-            map[handle] = obj
-            return handle
+            return doInsert(obj)
         }
     }
 
-    func get(handle: UInt64) throws -> T {
+    // Low-level insert function, this assumes `lock` is held.
+    private func doInsert(_ obj: T) -> UInt64 {
+        let handle = currentHandle
+        currentHandle += UNIFFI_HANDLEMAP_DELTA
+        map[handle] = obj
+        return handle
+    }
+
+     func get(handle: UInt64) throws -> T {
         try lock.withLock {
             guard let obj = map[handle] else {
                 throw UniffiInternalError.unexpectedStaleHandle
             }
             return obj
+        }
+    }
+
+     func clone(handle: UInt64) throws -> UInt64 {
+        try lock.withLock {
+            guard let obj = map[handle] else {
+                throw UniffiInternalError.unexpectedStaleHandle
+            }
+            return doInsert(obj)
         }
     }
 
@@ -389,108 +406,118 @@ private class UniffiHandleMap<T> {
     }
 
     var count: Int {
-        map.count
+        get {
+            map.count
+        }
     }
 }
 
+
 // Public interface members begin here.
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterUInt32: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
         return try lift(readInt(&buf))
     }
 
-    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterUInt64: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
         return try lift(readInt(&buf))
     }
 
-    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterFloat: FfiConverterPrimitive {
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
         return try lift(readFloat(&buf))
     }
 
-    static func write(_ value: Float, into buf: inout [UInt8]) {
+    public static func write(_ value: Float, into buf: inout [UInt8]) {
         writeFloat(&buf, lower(value))
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterDouble: FfiConverterPrimitive {
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
         return try lift(readDouble(&buf))
     }
 
-    static func write(_ value: Double, into buf: inout [UInt8]) {
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
         writeDouble(&buf, lower(value))
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterBool: FfiConverter {
+fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
 
-    static func lift(_ value: Int8) throws -> Bool {
+    public static func lift(_ value: Int8) throws -> Bool {
         return value != 0
     }
 
-    static func lower(_ value: Bool) -> Int8 {
+    public static func lower(_ value: Bool) -> Int8 {
         return value ? 1 : 0
     }
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
         return try lift(readInt(&buf))
     }
 
-    static func write(_ value: Bool, into buf: inout [UInt8]) {
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterString: FfiConverter {
+fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
 
-    static func lift(_ value: RustBuffer) throws -> String {
+    public static func lift(_ value: RustBuffer) throws -> String {
         defer {
             value.deallocate()
         }
@@ -501,7 +528,7 @@ private struct FfiConverterString: FfiConverter {
         return String(bytes: bytes, encoding: String.Encoding.utf8)!
     }
 
-    static func lower(_ value: String) -> RustBuffer {
+    public static func lower(_ value: String) -> RustBuffer {
         return value.utf8CString.withUnsafeBufferPointer { ptr in
             // The swift string gives us int8_t, we want uint8_t.
             ptr.withMemoryRebound(to: UInt8.self) { ptr in
@@ -512,211 +539,205 @@ private struct FfiConverterString: FfiConverter {
         }
     }
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return try String(bytes: readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
     }
 
-    static func write(_ value: String, into buf: inout [UInt8]) {
+    public static func write(_ value: String, into buf: inout [UInt8]) {
         let len = Int32(value.utf8.count)
         writeInt(&buf, len)
         writeBytes(&buf, value.utf8)
     }
 }
 
-public protocol DesktopEngineProtocol: AnyObject {
+
+
+
+public protocol DesktopEngineProtocol: AnyObject, Sendable {
+    
     /**
      * Draw a single frame: ask Swift for commands, render them.
      */
-    func drawFrame(surfaceTextureViewHack: UInt64, width: UInt32, height: UInt32) throws
-
+    func drawFrame(surfaceTextureViewHack: UInt64, width: UInt32, height: UInt32) throws 
+    
     /**
      * Get the delegate's render commands for a given surface size.
      */
-    func getCommands(width: UInt32, height: UInt32) -> [RenderCommand]
+    func getCommands(width: UInt32, height: UInt32)  -> [RenderCommand]
+    
 }
+open class DesktopEngine: DesktopEngineProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
 
-open class DesktopEngine:
-    DesktopEngineProtocol
-{
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    // Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
-    public struct NoPointer {
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
         public init() {}
     }
 
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-    public required init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
     }
 
     // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
     //
     // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
-    public init(noPointer _: NoPointer) {
-        pointer = nil
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_clone_engine_fn_clone_desktopengine(self.pointer, $0) }
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_clone_engine_fn_clone_desktopengine(self.handle, $0) }
     }
-
-    public convenience init(delegate: DesktopDelegate) throws {
-        let pointer =
-            try rustCallWithError(FfiConverterTypeEngineError.lift) {
-                uniffi_clone_engine_fn_constructor_desktopengine_new(
-                    FfiConverterCallbackInterfaceDesktopDelegate.lower(delegate), $0
-                )
-            }
-        self.init(unsafeFromRawPointer: pointer)
-    }
+public convenience init(delegate: DesktopDelegate)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeEngineError_lift) {
+    uniffi_clone_engine_fn_constructor_desktopengine_new(
+        FfiConverterCallbackInterfaceDesktopDelegate_lower(delegate),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
 
     deinit {
-        guard let pointer = pointer else {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
             return
         }
 
-        try! rustCall { uniffi_clone_engine_fn_free_desktopengine(pointer, $0) }
+        try! rustCall { uniffi_clone_engine_fn_free_desktopengine(handle, $0) }
     }
 
+    
+
+    
     /**
      * Draw a single frame: ask Swift for commands, render them.
      */
-    open func drawFrame(surfaceTextureViewHack: UInt64, width: UInt32, height: UInt32) throws {
-        try rustCallWithError(FfiConverterTypeEngineError.lift) {
-            uniffi_clone_engine_fn_method_desktopengine_draw_frame(self.uniffiClonePointer(),
-                                                                   FfiConverterUInt64.lower(surfaceTextureViewHack),
-                                                                   FfiConverterUInt32.lower(width),
-                                                                   FfiConverterUInt32.lower(height), $0)
-        }
-    }
-
+open func drawFrame(surfaceTextureViewHack: UInt64, width: UInt32, height: UInt32)throws   {try rustCallWithError(FfiConverterTypeEngineError_lift) {
+    uniffi_clone_engine_fn_method_desktopengine_draw_frame(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(surfaceTextureViewHack),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),$0
+    )
+}
+}
+    
     /**
      * Get the delegate's render commands for a given surface size.
      */
-    open func getCommands(width: UInt32, height: UInt32) -> [RenderCommand] {
-        return try! FfiConverterSequenceTypeRenderCommand.lift(try! rustCall {
-            uniffi_clone_engine_fn_method_desktopengine_get_commands(self.uniffiClonePointer(),
-                                                                     FfiConverterUInt32.lower(width),
-                                                                     FfiConverterUInt32.lower(height), $0)
-        })
-    }
+open func getCommands(width: UInt32, height: UInt32) -> [RenderCommand]  {
+    return try!  FfiConverterSequenceTypeRenderCommand.lift(try! rustCall() {
+    uniffi_clone_engine_fn_method_desktopengine_get_commands(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),$0
+    )
+})
+}
+    
+
+    
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeDesktopEngine: FfiConverter {
-    typealias FfiType = UnsafeMutableRawPointer
+    typealias FfiType = UInt64
     typealias SwiftType = DesktopEngine
 
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> DesktopEngine {
-        return DesktopEngine(unsafeFromRawPointer: pointer)
+    public static func lift(_ handle: UInt64) throws -> DesktopEngine {
+        return DesktopEngine(unsafeFromHandle: handle)
     }
 
-    public static func lower(_ value: DesktopEngine) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
+    public static func lower(_ value: DesktopEngine) -> UInt64 {
+        return value.uniffiCloneHandle()
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DesktopEngine {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if ptr == nil {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
     }
 
     public static func write(_ value: DesktopEngine, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+        writeInt(&buf, lower(value))
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDesktopEngine_lift(_ pointer: UnsafeMutableRawPointer) throws -> DesktopEngine {
-    return try FfiConverterTypeDesktopEngine.lift(pointer)
+public func FfiConverterTypeDesktopEngine_lift(_ handle: UInt64) throws -> DesktopEngine {
+    return try FfiConverterTypeDesktopEngine.lift(handle)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-public func FfiConverterTypeDesktopEngine_lower(_ value: DesktopEngine) -> UnsafeMutableRawPointer {
+public func FfiConverterTypeDesktopEngine_lower(_ value: DesktopEngine) -> UInt64 {
     return FfiConverterTypeDesktopEngine.lower(value)
 }
 
-public struct RgbaColor {
+
+
+
+public struct RgbaColor: Equatable, Hashable {
     public var r: Float
     public var g: Float
     public var b: Float
     public var a: Float
 
-    /// Default memberwise initializers are never public by default, so we
-    /// declare one manually.
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
     public init(r: Float, g: Float, b: Float, a: Float) {
         self.r = r
         self.g = g
         self.b = b
         self.a = a
     }
+
+    
+
+    
 }
 
-extension RgbaColor: Equatable, Hashable {
-    public static func == (lhs: RgbaColor, rhs: RgbaColor) -> Bool {
-        if lhs.r != rhs.r {
-            return false
-        }
-        if lhs.g != rhs.g {
-            return false
-        }
-        if lhs.b != rhs.b {
-            return false
-        }
-        if lhs.a != rhs.a {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(r)
-        hasher.combine(g)
-        hasher.combine(b)
-        hasher.combine(a)
-    }
-}
+#if compiler(>=6)
+extension RgbaColor: Sendable {}
+#endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeRgbaColor: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RgbaColor {
         return
             try RgbaColor(
-                r: FfiConverterFloat.read(from: &buf),
-                g: FfiConverterFloat.read(from: &buf),
-                b: FfiConverterFloat.read(from: &buf),
+                r: FfiConverterFloat.read(from: &buf), 
+                g: FfiConverterFloat.read(from: &buf), 
+                b: FfiConverterFloat.read(from: &buf), 
                 a: FfiConverterFloat.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: RgbaColor, into buf: inout [UInt8]) {
@@ -727,25 +748,27 @@ public struct FfiConverterTypeRgbaColor: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeRgbaColor_lift(_ buf: RustBuffer) throws -> RgbaColor {
     return try FfiConverterTypeRgbaColor.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeRgbaColor_lower(_ value: RgbaColor) -> RustBuffer {
     return FfiConverterTypeRgbaColor.lower(value)
 }
 
+
 /**
  * Flat render commands — Swift builds these, Rust draws them at absolute coordinates.
  * Describes a surface to composite onto the screen.
  */
-public struct SurfaceDesc {
+public struct SurfaceDesc: Equatable, Hashable {
     public var surfaceId: UInt64
     public var x: Float
     public var y: Float
@@ -754,8 +777,8 @@ public struct SurfaceDesc {
     public var cornerRadius: Float
     public var opacity: Float
 
-    /// Default memberwise initializers are never public by default, so we
-    /// declare one manually.
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
     public init(surfaceId: UInt64, x: Float, y: Float, width: Float, height: Float, cornerRadius: Float, opacity: Float) {
         self.surfaceId = surfaceId
         self.x = x
@@ -765,60 +788,31 @@ public struct SurfaceDesc {
         self.cornerRadius = cornerRadius
         self.opacity = opacity
     }
+
+    
+
+    
 }
 
-extension SurfaceDesc: Equatable, Hashable {
-    public static func == (lhs: SurfaceDesc, rhs: SurfaceDesc) -> Bool {
-        if lhs.surfaceId != rhs.surfaceId {
-            return false
-        }
-        if lhs.x != rhs.x {
-            return false
-        }
-        if lhs.y != rhs.y {
-            return false
-        }
-        if lhs.width != rhs.width {
-            return false
-        }
-        if lhs.height != rhs.height {
-            return false
-        }
-        if lhs.cornerRadius != rhs.cornerRadius {
-            return false
-        }
-        if lhs.opacity != rhs.opacity {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(surfaceId)
-        hasher.combine(x)
-        hasher.combine(y)
-        hasher.combine(width)
-        hasher.combine(height)
-        hasher.combine(cornerRadius)
-        hasher.combine(opacity)
-    }
-}
+#if compiler(>=6)
+extension SurfaceDesc: Sendable {}
+#endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeSurfaceDesc: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SurfaceDesc {
         return
             try SurfaceDesc(
-                surfaceId: FfiConverterUInt64.read(from: &buf),
-                x: FfiConverterFloat.read(from: &buf),
-                y: FfiConverterFloat.read(from: &buf),
-                width: FfiConverterFloat.read(from: &buf),
-                height: FfiConverterFloat.read(from: &buf),
-                cornerRadius: FfiConverterFloat.read(from: &buf),
+                surfaceId: FfiConverterUInt64.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                width: FfiConverterFloat.read(from: &buf), 
+                height: FfiConverterFloat.read(from: &buf), 
+                cornerRadius: FfiConverterFloat.read(from: &buf), 
                 opacity: FfiConverterFloat.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: SurfaceDesc, into buf: inout [UInt8]) {
@@ -832,62 +826,55 @@ public struct FfiConverterTypeSurfaceDesc: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSurfaceDesc_lift(_ buf: RustBuffer) throws -> SurfaceDesc {
     return try FfiConverterTypeSurfaceDesc.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSurfaceDesc_lower(_ value: SurfaceDesc) -> RustBuffer {
     return FfiConverterTypeSurfaceDesc.lower(value)
 }
 
+
 /**
  * A surface's render commands bundled with its layout.
  */
-public struct SurfaceFrame {
+public struct SurfaceFrame: Equatable, Hashable {
     public var desc: SurfaceDesc
     public var commands: [RenderCommand]
 
-    /// Default memberwise initializers are never public by default, so we
-    /// declare one manually.
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
     public init(desc: SurfaceDesc, commands: [RenderCommand]) {
         self.desc = desc
         self.commands = commands
     }
+
+    
+
+    
 }
 
-extension SurfaceFrame: Equatable, Hashable {
-    public static func == (lhs: SurfaceFrame, rhs: SurfaceFrame) -> Bool {
-        if lhs.desc != rhs.desc {
-            return false
-        }
-        if lhs.commands != rhs.commands {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(desc)
-        hasher.combine(commands)
-    }
-}
+#if compiler(>=6)
+extension SurfaceFrame: Sendable {}
+#endif
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SurfaceFrame {
         return
             try SurfaceFrame(
-                desc: FfiConverterTypeSurfaceDesc.read(from: &buf),
+                desc: FfiConverterTypeSurfaceDesc.read(from: &buf), 
                 commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: SurfaceFrame, into buf: inout [UInt8]) {
@@ -896,15 +883,16 @@ public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSurfaceFrame_lift(_ buf: RustBuffer) throws -> SurfaceFrame {
     return try FfiConverterTypeSurfaceFrame.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuffer {
     return FfiConverterTypeSurfaceFrame.lower(value)
@@ -912,18 +900,31 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-/* 
+/**
  * Audio commands sent from Swift to the Rust audio engine.
  */
 
-public enum AudioCommand {
-    case playSound(name: String, volume: Float)
-    case stopSound(name: String)
-    case setMasterVolume(volume: Float)
+public enum AudioCommand: Equatable, Hashable {
+    
+    case playSound(name: String, volume: Float
+    )
+    case stopSound(name: String
+    )
+    case setMasterVolume(volume: Float
+    )
+
+
+
+
+
 }
 
+#if compiler(>=6)
+extension AudioCommand: Sendable {}
+#endif
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeAudioCommand: FfiConverterRustBuffer {
     typealias SwiftType = AudioCommand
@@ -931,58 +932,88 @@ public struct FfiConverterTypeAudioCommand: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AudioCommand {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-        case 1: return try .playSound(name: FfiConverterString.read(from: &buf), volume: FfiConverterFloat.read(from: &buf))
-
-        case 2: return try .stopSound(name: FfiConverterString.read(from: &buf))
-
-        case 3: return try .setMasterVolume(volume: FfiConverterFloat.read(from: &buf))
-
+        
+        case 1: return .playSound(name: try FfiConverterString.read(from: &buf), volume: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        case 2: return .stopSound(name: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .setMasterVolume(volume: try FfiConverterFloat.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: AudioCommand, into buf: inout [UInt8]) {
         switch value {
-        case let .playSound(name, volume):
+        
+        
+        case let .playSound(name,volume):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(name, into: &buf)
             FfiConverterFloat.write(volume, into: &buf)
-
+            
+        
         case let .stopSound(name):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(name, into: &buf)
-
+            
+        
         case let .setMasterVolume(volume):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(volume, into: &buf)
+            
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeAudioCommand_lift(_ buf: RustBuffer) throws -> AudioCommand {
     return try FfiConverterTypeAudioCommand.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeAudioCommand_lower(_ value: AudioCommand) -> RustBuffer {
     return FfiConverterTypeAudioCommand.lower(value)
 }
 
-extension AudioCommand: Equatable, Hashable {}
 
-public enum EngineError {
-    case GpuInitFailed(reason: String)
-    case SurfaceError(reason: String)
-    case RenderError(reason: String)
+
+public enum EngineError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case GpuInitFailed(reason: String
+    )
+    case SurfaceError(reason: String
+    )
+    case RenderError(reason: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
 }
 
+#if compiler(>=6)
+extension EngineError: Sendable {}
+#endif
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeEngineError: FfiConverterRustBuffer {
     typealias SwiftType = EngineError
@@ -990,56 +1021,86 @@ public struct FfiConverterTypeEngineError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EngineError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-        case 1: return try .GpuInitFailed(
-                reason: FfiConverterString.read(from: &buf)
+
+        
+
+        
+        case 1: return .GpuInitFailed(
+            reason: try FfiConverterString.read(from: &buf)
             )
-        case 2: return try .SurfaceError(
-                reason: FfiConverterString.read(from: &buf)
+        case 2: return .SurfaceError(
+            reason: try FfiConverterString.read(from: &buf)
             )
-        case 3: return try .RenderError(
-                reason: FfiConverterString.read(from: &buf)
+        case 3: return .RenderError(
+            reason: try FfiConverterString.read(from: &buf)
             )
-        default: throw UniffiInternalError.unexpectedEnumCase
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: EngineError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
+        
+        
         case let .GpuInitFailed(reason):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(reason, into: &buf)
-
+            
+        
         case let .SurfaceError(reason):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(reason, into: &buf)
-
+            
+        
         case let .RenderError(reason):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(reason, into: &buf)
+            
         }
     }
 }
 
-extension EngineError: Equatable, Hashable {}
 
-extension EngineError: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEngineError_lift(_ buf: RustBuffer) throws -> EngineError {
+    return try FfiConverterTypeEngineError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEngineError_lower(_ value: EngineError) -> RustBuffer {
+    return FfiConverterTypeEngineError.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
-public enum FontWeight {
+public enum FontWeight: Equatable, Hashable {
+    
     case regular
     case medium
     case semibold
     case bold
+
+
+
+
+
 }
 
+#if compiler(>=6)
+extension FontWeight: Sendable {}
+#endif
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
     typealias SwiftType = FontWeight
@@ -1047,68 +1108,93 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FontWeight {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+        
         case 1: return .regular
-
+        
         case 2: return .medium
-
+        
         case 3: return .semibold
-
+        
         case 4: return .bold
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: FontWeight, into buf: inout [UInt8]) {
         switch value {
+        
+        
         case .regular:
             writeInt(&buf, Int32(1))
-
+        
+        
         case .medium:
             writeInt(&buf, Int32(2))
-
+        
+        
         case .semibold:
             writeInt(&buf, Int32(3))
-
+        
+        
         case .bold:
             writeInt(&buf, Int32(4))
+        
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFontWeight_lift(_ buf: RustBuffer) throws -> FontWeight {
     return try FfiConverterTypeFontWeight.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeFontWeight_lower(_ value: FontWeight) -> RustBuffer {
     return FfiConverterTypeFontWeight.lower(value)
 }
 
-extension FontWeight: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
-public enum RenderCommand {
-    case rect(x: Float, y: Float, w: Float, h: Float, color: RgbaColor)
-    case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool)
-    case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float)
-    case blurRect(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, tint: RgbaColor)
-    case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
+public enum RenderCommand: Equatable, Hashable {
+    
+    case rect(x: Float, y: Float, w: Float, h: Float, color: RgbaColor
+    )
+    case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
+    )
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool
+    )
+    case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float
+    )
+    case blurRect(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, tint: RgbaColor
+    )
+    case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float
+    )
     case popClip
-    case setOpacity(value: Float)
-    case wallpaper(x: Float, y: Float, w: Float, h: Float)
+    case setOpacity(value: Float
+    )
+    case wallpaper(x: Float, y: Float, w: Float, h: Float
+    )
+
+
+
+
+
 }
 
+#if compiler(>=6)
+extension RenderCommand: Sendable {}
+#endif
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
     typealias SwiftType = RenderCommand
@@ -1116,39 +1202,51 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RenderCommand {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-        case 1: return try .rect(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf))
-
-        case 2: return try .roundedRect(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf))
-
-        case 3: return try .text(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), content: FfiConverterString.read(from: &buf), fontSize: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf), weight: FfiConverterTypeFontWeight.read(from: &buf), isIcon: FfiConverterBool.read(from: &buf))
-
-        case 4: return try .shadow(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf), blur: FfiConverterFloat.read(from: &buf), color: FfiConverterTypeRgbaColor.read(from: &buf), ox: FfiConverterFloat.read(from: &buf), oy: FfiConverterFloat.read(from: &buf))
-
-        case 5: return try .blurRect(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf), blur: FfiConverterFloat.read(from: &buf), tint: FfiConverterTypeRgbaColor.read(from: &buf))
-
-        case 6: return try .pushClip(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf), radius: FfiConverterFloat.read(from: &buf))
-
+        
+        case 1: return .rect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
+        )
+        
+        case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
+        )
+        
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), isIcon: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 4: return .shadow(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), ox: try FfiConverterFloat.read(from: &buf), oy: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        case 5: return .blurRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), tint: try FfiConverterTypeRgbaColor.read(from: &buf)
+        )
+        
+        case 6: return .pushClip(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf)
+        )
+        
         case 7: return .popClip
-
-        case 8: return try .setOpacity(value: FfiConverterFloat.read(from: &buf))
-
-        case 9: return try .wallpaper(x: FfiConverterFloat.read(from: &buf), y: FfiConverterFloat.read(from: &buf), w: FfiConverterFloat.read(from: &buf), h: FfiConverterFloat.read(from: &buf))
-
+        
+        case 8: return .setOpacity(value: try FfiConverterFloat.read(from: &buf)
+        )
+        
+        case 9: return .wallpaper(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: RenderCommand, into buf: inout [UInt8]) {
         switch value {
-        case let .rect(x, y, w, h, color):
+        
+        
+        case let .rect(x,y,w,h,color):
             writeInt(&buf, Int32(1))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
             FfiConverterFloat.write(h, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
-
-        case let .roundedRect(x, y, w, h, radius, color):
+            
+        
+        case let .roundedRect(x,y,w,h,radius,color):
             writeInt(&buf, Int32(2))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1156,8 +1254,9 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(h, into: &buf)
             FfiConverterFloat.write(radius, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
-
-        case let .text(x, y, content, fontSize, color, weight, isIcon):
+            
+        
+        case let .text(x,y,content,fontSize,color,weight,isIcon):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1166,8 +1265,9 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
             FfiConverterBool.write(isIcon, into: &buf)
-
-        case let .shadow(x, y, w, h, radius, blur, color, ox, oy):
+            
+        
+        case let .shadow(x,y,w,h,radius,blur,color,ox,oy):
             writeInt(&buf, Int32(4))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1178,8 +1278,9 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterFloat.write(ox, into: &buf)
             FfiConverterFloat.write(oy, into: &buf)
-
-        case let .blurRect(x, y, w, h, radius, blur, tint):
+            
+        
+        case let .blurRect(x,y,w,h,radius,blur,tint):
             writeInt(&buf, Int32(5))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1188,84 +1289,105 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(radius, into: &buf)
             FfiConverterFloat.write(blur, into: &buf)
             FfiConverterTypeRgbaColor.write(tint, into: &buf)
-
-        case let .pushClip(x, y, w, h, radius):
+            
+        
+        case let .pushClip(x,y,w,h,radius):
             writeInt(&buf, Int32(6))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
             FfiConverterFloat.write(h, into: &buf)
             FfiConverterFloat.write(radius, into: &buf)
-
+            
+        
         case .popClip:
             writeInt(&buf, Int32(7))
-
+        
+        
         case let .setOpacity(value):
             writeInt(&buf, Int32(8))
             FfiConverterFloat.write(value, into: &buf)
-
-        case let .wallpaper(x, y, w, h):
+            
+        
+        case let .wallpaper(x,y,w,h):
             writeInt(&buf, Int32(9))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
             FfiConverterFloat.write(h, into: &buf)
+            
         }
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeRenderCommand_lift(_ buf: RustBuffer) throws -> RenderCommand {
     return try FfiConverterTypeRenderCommand.lift(buf)
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
 public func FfiConverterTypeRenderCommand_lower(_ value: RenderCommand) -> RustBuffer {
     return FfiConverterTypeRenderCommand.lower(value)
 }
 
-extension RenderCommand: Equatable, Hashable {}
 
-public protocol DesktopDelegate: AnyObject {
+
+
+
+public protocol DesktopDelegate: AnyObject, Sendable {
+    
     /**
      * Old flat API — still used for backwards compat, returns ALL commands.
      */
-    func onFrame(surfaceId: UInt64, width: UInt32, height: UInt32) -> [RenderCommand]
-
+    func onFrame(surfaceId: UInt64, width: UInt32, height: UInt32)  -> [RenderCommand]
+    
     /**
      * New compositor API — returns per-surface commands for the compositor.
      */
-    func onCompositeFrame(width: UInt32, height: UInt32) -> [SurfaceFrame]
-
-    func onPointerMove(surfaceId: UInt64, x: Double, y: Double)
-
-    func onPointerButton(surfaceId: UInt64, button: UInt32, pressed: Bool)
-
-    func onKey(surfaceId: UInt64, keycode: UInt32, pressed: Bool)
-
+    func onCompositeFrame(width: UInt32, height: UInt32)  -> [SurfaceFrame]
+    
+    func onPointerMove(surfaceId: UInt64, x: Double, y: Double) 
+    
+    func onPointerButton(surfaceId: UInt64, button: UInt32, pressed: Bool) 
+    
+    func onKey(surfaceId: UInt64, keycode: UInt32, pressed: Bool) 
+    
     /**
      * Returns the file path to the desktop wallpaper image, or empty string for none.
      */
-    func wallpaperPath() -> String
+    func wallpaperPath()  -> String
+    
 }
 
-/// Magic number for the Rust proxy to call using the same mechanism as every other method,
-/// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
-/// Put the implementation in a struct so we don't pollute the top-level namespace
-private enum UniffiCallbackInterfaceDesktopDelegate {
-    /// Create the VTable using a series of closures.
-    /// Swift automatically converts these into C callback functions.
-    nonisolated(unsafe) static var vtable: UniffiVTableCallbackInterfaceDesktopDelegate = .init(
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDesktopDelegate {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceDesktopDelegate] = [UniffiVTableCallbackInterfaceDesktopDelegate(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterCallbackInterfaceDesktopDelegate.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DesktopDelegate: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterCallbackInterfaceDesktopDelegate.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DesktopDelegate: handle missing in uniffiClone")
+            }
+        },
         onFrame: { (
             uniffiHandle: UInt64,
             surfaceId: UInt64,
@@ -1279,13 +1401,14 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
                 guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.onFrame(
-                    surfaceId: FfiConverterUInt64.lift(surfaceId),
-                    width: FfiConverterUInt32.lift(width),
-                    height: FfiConverterUInt32.lift(height)
+                return uniffiObj.onFrame(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     width: try FfiConverterUInt32.lift(width),
+                     height: try FfiConverterUInt32.lift(height)
                 )
             }
 
+            
             let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeRenderCommand.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
@@ -1305,12 +1428,13 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
                 guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.onCompositeFrame(
-                    width: FfiConverterUInt32.lift(width),
-                    height: FfiConverterUInt32.lift(height)
+                return uniffiObj.onCompositeFrame(
+                     width: try FfiConverterUInt32.lift(width),
+                     height: try FfiConverterUInt32.lift(height)
                 )
             }
 
+            
             let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeSurfaceFrame.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
@@ -1323,21 +1447,22 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
             surfaceId: UInt64,
             x: Double,
             y: Double,
-            _: UnsafeMutableRawPointer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
             let makeCall = {
-                () throws in
+                () throws -> () in
                 guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.onPointerMove(
-                    surfaceId: FfiConverterUInt64.lift(surfaceId),
-                    x: FfiConverterDouble.lift(x),
-                    y: FfiConverterDouble.lift(y)
+                return uniffiObj.onPointerMove(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     x: try FfiConverterDouble.lift(x),
+                     y: try FfiConverterDouble.lift(y)
                 )
             }
 
+            
             let writeReturn = { () }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
@@ -1350,21 +1475,22 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
             surfaceId: UInt64,
             button: UInt32,
             pressed: Int8,
-            _: UnsafeMutableRawPointer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
             let makeCall = {
-                () throws in
+                () throws -> () in
                 guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.onPointerButton(
-                    surfaceId: FfiConverterUInt64.lift(surfaceId),
-                    button: FfiConverterUInt32.lift(button),
-                    pressed: FfiConverterBool.lift(pressed)
+                return uniffiObj.onPointerButton(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     button: try FfiConverterUInt32.lift(button),
+                     pressed: try FfiConverterBool.lift(pressed)
                 )
             }
 
+            
             let writeReturn = { () }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
@@ -1377,21 +1503,22 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
             surfaceId: UInt64,
             keycode: UInt32,
             pressed: Int8,
-            _: UnsafeMutableRawPointer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
             let makeCall = {
-                () throws in
+                () throws -> () in
                 guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.onKey(
-                    surfaceId: FfiConverterUInt64.lift(surfaceId),
-                    keycode: FfiConverterUInt32.lift(keycode),
-                    pressed: FfiConverterBool.lift(pressed)
+                return uniffiObj.onKey(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     keycode: try FfiConverterUInt32.lift(keycode),
+                     pressed: try FfiConverterBool.lift(pressed)
                 )
             }
 
+            
             let writeReturn = { () }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
@@ -1413,78 +1540,88 @@ private enum UniffiCallbackInterfaceDesktopDelegate {
                 )
             }
 
+            
             let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
                 writeReturn: writeReturn
             )
-        },
-        uniffiFree: { (uniffiHandle: UInt64) in
-            let result = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.remove(handle: uniffiHandle)
-            if result == nil {
-                print("Uniffi callback interface DesktopDelegate: handle missing in uniffiFree")
-            }
         }
-    )
+    )]
 }
 
 private func uniffiCallbackInitDesktopDelegate() {
-    uniffi_clone_engine_fn_init_callback_vtable_desktopdelegate(&UniffiCallbackInterfaceDesktopDelegate.vtable)
+    uniffi_clone_engine_fn_init_callback_vtable_desktopdelegate(UniffiCallbackInterfaceDesktopDelegate.vtable)
 }
 
 // FfiConverter protocol for callback interfaces
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private enum FfiConverterCallbackInterfaceDesktopDelegate {
-    nonisolated(unsafe) fileprivate static var handleMap = UniffiHandleMap<DesktopDelegate>()
+fileprivate struct FfiConverterCallbackInterfaceDesktopDelegate {
+    fileprivate static let handleMap = UniffiHandleMap<DesktopDelegate>()
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceDesktopDelegate : FfiConverter {
+    typealias SwiftType = DesktopDelegate
+    typealias FfiType = UInt64
 
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-extension FfiConverterCallbackInterfaceDesktopDelegate: FfiConverter {
-    typealias SwiftType = DesktopDelegate
-    typealias FfiType = UInt64
-
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
     public static func lift(_ handle: UInt64) throws -> SwiftType {
         try handleMap.get(handle: handle)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
         let handle: UInt64 = try readInt(&buf)
         return try lift(handle)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func lower(_ v: SwiftType) -> UInt64 {
         return handleMap.insert(obj: v)
     }
 
-    #if swift(>=5.8)
-        @_documentation(visibility: private)
-    #endif
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
     public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(v))
     }
 }
 
+
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeSurfaceFrame: FfiConverterRustBuffer {
+public func FfiConverterCallbackInterfaceDesktopDelegate_lift(_ handle: UInt64) throws -> DesktopDelegate {
+    return try FfiConverterCallbackInterfaceDesktopDelegate.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceDesktopDelegate_lower(_ v: DesktopDelegate) -> UInt64 {
+    return FfiConverterCallbackInterfaceDesktopDelegate.lower(v)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSurfaceFrame: FfiConverterRustBuffer {
     typealias SwiftType = [SurfaceFrame]
 
-    static func write(_ value: [SurfaceFrame], into buf: inout [UInt8]) {
+    public static func write(_ value: [SurfaceFrame], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
@@ -1492,24 +1629,24 @@ private struct FfiConverterSequenceTypeSurfaceFrame: FfiConverterRustBuffer {
         }
     }
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SurfaceFrame] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SurfaceFrame] {
         let len: Int32 = try readInt(&buf)
         var seq = [SurfaceFrame]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeSurfaceFrame.read(from: &buf))
+            seq.append(try FfiConverterTypeSurfaceFrame.read(from: &buf))
         }
         return seq
     }
 }
 
 #if swift(>=5.8)
-    @_documentation(visibility: private)
+@_documentation(visibility: private)
 #endif
-private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
     typealias SwiftType = [RenderCommand]
 
-    static func write(_ value: [RenderCommand], into buf: inout [UInt8]) {
+    public static func write(_ value: [RenderCommand], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for item in value {
@@ -1517,26 +1654,24 @@ private struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
         }
     }
 
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RenderCommand] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RenderCommand] {
         let len: Int32 = try readInt(&buf)
         var seq = [RenderCommand]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterTypeRenderCommand.read(from: &buf))
+            seq.append(try FfiConverterTypeRenderCommand.read(from: &buf))
         }
         return seq
     }
 }
-
 /**
  * Run the desktop engine with a winit window. This blocks the current thread.
  */
-public func runDesktop(delegate: DesktopDelegate) throws {
-    try rustCallWithError(FfiConverterTypeEngineError.lift) {
-        uniffi_clone_engine_fn_func_run_desktop(
-            FfiConverterCallbackInterfaceDesktopDelegate.lower(delegate), $0
-        )
-    }
+public func runDesktop(delegate: DesktopDelegate)throws   {try rustCallWithError(FfiConverterTypeEngineError_lift) {
+    uniffi_clone_engine_fn_func_run_desktop(
+        FfiConverterCallbackInterfaceDesktopDelegate_lower(delegate),$0
+    )
+}
 }
 
 private enum InitializationResult {
@@ -1544,45 +1679,44 @@ private enum InitializationResult {
     case contractVersionMismatch
     case apiChecksumMismatch
 }
-
-/// Use a global variable to perform the versioning checks. Swift ensures that
-/// the code inside is only computed once.
-nonisolated(unsafe) private var initializationResult: InitializationResult = {
+// Use a global variable to perform the versioning checks. Swift ensures that
+// the code inside is only computed once.
+private let initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
-    let bindings_contract_version = 26
+    let bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
     let scaffolding_contract_version = ffi_clone_engine_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_clone_engine_checksum_func_run_desktop() != 58614 {
+    if (uniffi_clone_engine_checksum_func_run_desktop() != 49037) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopengine_draw_frame() != 25589 {
+    if (uniffi_clone_engine_checksum_method_desktopengine_draw_frame() != 58114) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopengine_get_commands() != 16839 {
+    if (uniffi_clone_engine_checksum_method_desktopengine_get_commands() != 61640) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_constructor_desktopengine_new() != 28100 {
+    if (uniffi_clone_engine_checksum_constructor_desktopengine_new() != 52589) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_frame() != 53352 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_frame() != 42895) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_composite_frame() != 41677 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_composite_frame() != 44835) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_move() != 19377 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_move() != 1832) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_button() != 45088 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_pointer_button() != 33261) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_on_key() != 31331 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_key() != 55853) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 42373 {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 58010) {
         return InitializationResult.apiChecksumMismatch
     }
 
@@ -1590,7 +1724,9 @@ nonisolated(unsafe) private var initializationResult: InitializationResult = {
     return InitializationResult.ok
 }()
 
-private func uniffiEnsureInitialized() {
+// Make the ensure init function public so that other modules which have external type references to
+// our types can call it.
+public func uniffiEnsureCloneEngineInitialized() {
     switch initializationResult {
     case .ok:
         break

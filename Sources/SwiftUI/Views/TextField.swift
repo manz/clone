@@ -10,6 +10,16 @@ public struct TextField: View {
         self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
     }
 
+    /// `TextField("Placeholder", text:, onEditingChanged:)` — with editing callback.
+    public init(_ placeholder: String, text: Binding<String>, onEditingChanged: @escaping (Bool) -> Void) {
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+    }
+
+    /// `TextField("Placeholder", text:, onCommit:)` — with commit callback.
+    public init(_ placeholder: String, text: Binding<String>, onCommit: @escaping () -> Void) {
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+    }
+
     public var body: ViewNode {
         child
     }
