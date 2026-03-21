@@ -57,12 +57,12 @@ public struct LazyVGrid: _PrimitiveView {
         alignment: HAlignment = .center,
         spacing: CGFloat? = nil,
         pinnedViews: Set<PinnedScrollableViews> = [],
-        @ViewBuilder content: () -> [ViewNode]
+        @ViewBuilder content: () -> some View
     ) {
         self.columns = columns
         self.alignment = alignment
         self.spacing = spacing ?? 8
-        self.children = content()
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {
@@ -102,12 +102,12 @@ public struct LazyHGrid: _PrimitiveView {
         alignment: VAlignment = .center,
         spacing: CGFloat? = nil,
         pinnedViews: Set<PinnedScrollableViews> = [],
-        @ViewBuilder content: () -> [ViewNode]
+        @ViewBuilder content: () -> some View
     ) {
         self.rows = rows
         self.alignment = alignment
         self.spacing = spacing ?? 8
-        self.children = content()
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {

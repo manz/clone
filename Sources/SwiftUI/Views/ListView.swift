@@ -5,8 +5,8 @@ import Foundation
 public struct List: _PrimitiveView {
     let children: [ViewNode]
 
-    public init(@ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init(@ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     /// `List(data) { item in ... }` — data-driven list. Data must be Identifiable.
@@ -30,18 +30,18 @@ public struct List: _PrimitiveView {
     }
 
     /// `List(selection:) { ... }` — static list with selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue?>?, @ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue?>?, @ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     /// `List(selection: Set) { ... }` — static list with multi-selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<Set<SelectionValue>>?, @ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init<SelectionValue: Hashable>(selection: Binding<Set<SelectionValue>>?, @ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     /// `List(selection: $value) { ... }` — non-optional selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {

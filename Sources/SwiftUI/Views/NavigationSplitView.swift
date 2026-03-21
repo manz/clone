@@ -12,13 +12,13 @@ public struct NavigationSplitView: _PrimitiveView {
 
     public init(
         sidebarWidth: CGFloat = 220,
-        @ViewBuilder sidebar: () -> [ViewNode],
-        @ViewBuilder detail: () -> [ViewNode]
+        @ViewBuilder sidebar: () -> some View,
+        @ViewBuilder detail: () -> some View
     ) {
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
         ])
     }
 
@@ -26,13 +26,13 @@ public struct NavigationSplitView: _PrimitiveView {
     public init(
         columnVisibility: Binding<NavigationSplitViewVisibility>,
         sidebarWidth: CGFloat = 220,
-        @ViewBuilder sidebar: () -> [ViewNode],
-        @ViewBuilder detail: () -> [ViewNode]
+        @ViewBuilder sidebar: () -> some View,
+        @ViewBuilder detail: () -> some View
     ) {
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
         ])
     }
 
@@ -40,16 +40,16 @@ public struct NavigationSplitView: _PrimitiveView {
     public init(
         columnVisibility: Binding<NavigationSplitViewVisibility> = .constant(.automatic),
         sidebarWidth: CGFloat = 220,
-        @ViewBuilder sidebar: () -> [ViewNode],
-        @ViewBuilder content: () -> [ViewNode],
-        @ViewBuilder detail: () -> [ViewNode]
+        @ViewBuilder sidebar: () -> some View,
+        @ViewBuilder content: () -> some View,
+        @ViewBuilder detail: () -> some View
     ) {
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebar()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: content()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(content())),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detail()),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
         ])
     }
 

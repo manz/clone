@@ -9,13 +9,13 @@ public struct NavigationLink<Label: View, Destination: View>: _PrimitiveView {
     /// `NavigationLink(destination: SomeView()) { Text("Go") }`
     public init(destination: Destination, @ViewBuilder label: () -> Label) {
         self.destination = _resolve(destination)
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
     }
 
     /// `NavigationLink { label } destination: { dest }`
     public init(@ViewBuilder destination: () -> Destination, @ViewBuilder label: () -> Label) {
         self.destination = _resolve(destination())
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
     }
 
     public var _nodeRepresentation: ViewNode {
@@ -40,7 +40,7 @@ extension NavigationLink where Label == Text {
 extension NavigationLink where Destination == EmptyView {
     /// `NavigationLink(value:) { label }` — value-based navigation (NavigationStack).
     public init<V: Hashable>(value: V?, @ViewBuilder label: () -> Label) {
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
         self.destination = _resolve(EmptyView())
     }
 }

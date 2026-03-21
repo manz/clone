@@ -224,11 +224,11 @@ public extension View {
         _ModifiedView(node: _resolve(self))
     }
 
-    func overlay(@ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func overlay(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).overlay(content: content))
     }
 
-    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).overlay(alignment: alignment, content: content))
     }
 
@@ -260,27 +260,27 @@ public extension View {
         _ModifiedView(node: _resolve(self).task(id: id, priority: priority, action))
     }
 
-    func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).sheet(isPresented: isPresented, onDismiss: onDismiss, content: content))
     }
 
-    func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> [ViewNode]) -> _ModifiedView<Self> {
+    func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).sheet(item: item, onDismiss: onDismiss, content: content))
     }
 
-    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).alert(title, isPresented: isPresented, actions: actions))
     }
 
-    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> some View, @ViewBuilder message: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).alert(title, isPresented: isPresented, actions: actions, message: message))
     }
 
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions))
     }
 
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> some View, @ViewBuilder message: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions, message: message))
     }
 
@@ -316,7 +316,7 @@ public extension View {
         _ModifiedView(node: _resolve(self).transition(t))
     }
 
-    func tabItem(@ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func tabItem(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).tabItem(content: content))
     }
 
@@ -328,15 +328,15 @@ public extension View {
         _ModifiedView(node: _resolve(self))
     }
 
-    func safeAreaInset(edge: Edge.Set, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func safeAreaInset(edge: Edge.Set, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).safeAreaInset(edge: edge, content: content))
     }
 
-    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 
-    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 
@@ -396,11 +396,11 @@ public extension View {
         _ModifiedView(node: _resolve(self).background(view))
     }
 
-    func background(@ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func background(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).background(content: content))
     }
 
-    func background(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func background(alignment: HAlignment = .center, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).background(alignment: alignment, content: content))
     }
 
@@ -448,7 +448,7 @@ public extension View {
         _ModifiedView(node: _resolve(self).onSubmit(of: triggers, action))
     }
 
-    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 
@@ -472,7 +472,7 @@ public extension View {
         _ModifiedView(node: _resolve(self).keyboardShortcut(key, modifiers: modifiers))
     }
 
-    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> [ViewNode]) -> _ModifiedView<Self> {
+    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).navigationDestination(for: type, destination: destination))
     }
 
@@ -620,7 +620,7 @@ public extension View {
         _ModifiedView(node: _resolve(self).scaleEffect(scale))
     }
 
-    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).fullScreenCover(isPresented: isPresented, onDismiss: onDismiss, content: content))
     }
 
@@ -648,7 +648,7 @@ public extension View {
         _ModifiedView(node: _resolve(self).scrollIndicators(visibility))
     }
 
-    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).popover(isPresented: isPresented, content: content))
     }
 
@@ -672,11 +672,11 @@ public extension View {
         _ModifiedView(node: _resolve(self).onChange(of: value, action))
     }
 
-    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).navigationDestination(isPresented: isPresented, destination: destination))
     }
 
-    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> [ViewNode]) -> _ModifiedView<Self> {
+    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).navigationDestination(item: item, destination: destination))
     }
 
@@ -760,11 +760,11 @@ public extension View {
         _ModifiedView(node: _resolve(self))
     }
 
-    func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func contextMenu(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).contextMenu(content: content))
     }
 
-    func toolbar(@ViewBuilder content: () -> [ViewNode]) -> _ModifiedView<Self> {
+    func toolbar(@ViewBuilder content: () -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).toolbar(content: content))
     }
 
@@ -856,11 +856,11 @@ public extension View {
         _ModifiedView(node: _resolve(self).scaledToFill())
     }
 
-    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode]) -> _ModifiedView<Self> {
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> some View) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 
-    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode], primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> _ModifiedView<Self> {
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> some View, primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 }

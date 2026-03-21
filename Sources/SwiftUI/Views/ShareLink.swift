@@ -24,7 +24,7 @@ extension ShareLink where PreviewImage == Never, PreviewIcon == Never, Label == 
 
 extension ShareLink where PreviewImage == Never, PreviewIcon == Never, Data == URL {
     /// Creates a share link with a URL item.
-    public init(item: URL, @ViewBuilder label: () -> [ViewNode]) {
-        self.label = .hstack(alignment: .center, spacing: 0, children: label())
+    public init(item: URL, @ViewBuilder label: () -> some View) {
+        self.label = .hstack(alignment: .center, spacing: 0, children: _flattenToNodes(label()))
     }
 }

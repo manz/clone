@@ -19,13 +19,13 @@ public struct Slider: _PrimitiveView {
         self.child = .slider(value: CGFloat(value.wrappedValue), range: cgRange, label: .empty)
     }
 
-    public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...1, step: Double? = nil, @ViewBuilder label: () -> [ViewNode]) {
+    public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...1, step: Double? = nil, @ViewBuilder label: () -> some View) {
         let cgRange = CGFloat(range.lowerBound)...CGFloat(range.upperBound)
-        let labelNode = label()
+        let labelNode = _flattenToNodes(label())
         self.child = .slider(value: CGFloat(value.wrappedValue), range: cgRange, label: labelNode.count == 1 ? labelNode[0] : .empty)
     }
 
-    public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...1, step: Double? = nil, @ViewBuilder label: () -> [ViewNode], @ViewBuilder minimumValueLabel: () -> [ViewNode], @ViewBuilder maximumValueLabel: () -> [ViewNode]) {
+    public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...1, step: Double? = nil, @ViewBuilder label: () -> some View, @ViewBuilder minimumValueLabel: () -> [ViewNode], @ViewBuilder maximumValueLabel: () -> [ViewNode]) {
         let cgRange = CGFloat(range.lowerBound)...CGFloat(range.upperBound)
         self.child = .slider(value: CGFloat(value.wrappedValue), range: cgRange, label: .empty)
     }

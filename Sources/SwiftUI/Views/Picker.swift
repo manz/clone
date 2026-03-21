@@ -8,9 +8,9 @@ public struct Picker<SelectionValue: Hashable>: _PrimitiveView {
     public init(
         _ title: String,
         selection: Binding<SelectionValue>,
-        @ViewBuilder content: () -> [ViewNode]
+        @ViewBuilder content: () -> some View
     ) {
-        self.child = .picker(selection: "\(selection.wrappedValue)", label: _resolve(Text(title)), children: content())
+        self.child = .picker(selection: "\(selection.wrappedValue)", label: _resolve(Text(title)), children: _flattenToNodes(content()))
     }
 
     public var _nodeRepresentation: ViewNode {

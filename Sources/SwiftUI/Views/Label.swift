@@ -23,9 +23,9 @@ public struct Label: _PrimitiveView {
     }
 
     /// `Label { Text("Wi-Fi") } icon: { Image(systemName: "wifi") }` — multi-closure pattern.
-    public init(@ViewBuilder title: () -> [ViewNode], @ViewBuilder icon: () -> [ViewNode]) {
-        let titleContent = title()
-        let iconContent = icon()
+    public init(@ViewBuilder title: () -> some View, @ViewBuilder icon: () -> some View) {
+        let titleContent = _flattenToNodes(title())
+        let iconContent = _flattenToNodes(icon())
         let titleNode = titleContent.count == 1 ? titleContent[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: titleContent)
         let iconNode = iconContent.count == 1 ? iconContent[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: iconContent)
         self.child = .hstack(alignment: .center, spacing: 8, children: [iconNode, titleNode])

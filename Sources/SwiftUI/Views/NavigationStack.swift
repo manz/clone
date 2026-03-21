@@ -6,18 +6,18 @@ import Foundation
 public struct NavigationStack: _PrimitiveView {
     let children: [ViewNode]
 
-    public init(@ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init(@ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     /// `NavigationStack(path:) { content }` — programmatic navigation with a binding path.
-    public init(path: Binding<NavigationPath>, @ViewBuilder content: () -> [ViewNode]) {
-        self.children = content()
+    public init(path: Binding<NavigationPath>, @ViewBuilder content: () -> some View) {
+        self.children = _flattenToNodes(content())
     }
 
     /// `NavigationStack(path: Binding<[T]>) { content }` — programmatic navigation with typed path.
-    public init<Data: MutableCollection & RangeReplaceableCollection & RandomAccessCollection>(path: Binding<Data>, @ViewBuilder content: () -> [ViewNode]) where Data.Element: Hashable {
-        self.children = content()
+    public init<Data: MutableCollection & RangeReplaceableCollection & RandomAccessCollection>(path: Binding<Data>, @ViewBuilder content: () -> some View) where Data.Element: Hashable {
+        self.children = _flattenToNodes(content())
     }
 
     public var _nodeRepresentation: ViewNode {

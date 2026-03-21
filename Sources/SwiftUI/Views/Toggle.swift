@@ -6,8 +6,8 @@ public struct Toggle: _PrimitiveView {
     let child: ViewNode
 
     /// `Toggle(isOn:) { label }` — renders static representation.
-    public init(isOn: Binding<Bool>, @ViewBuilder label: () -> [ViewNode]) {
-        let labelContent = label()
+    public init(isOn: Binding<Bool>, @ViewBuilder label: () -> some View) {
+        let labelContent = _flattenToNodes(label())
         let labelNode = labelContent.count == 1 ? labelContent[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: labelContent)
         self.child = .toggle(isOn: isOn.wrappedValue, label: labelNode)
     }

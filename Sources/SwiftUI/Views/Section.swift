@@ -7,7 +7,7 @@ public struct Section: _PrimitiveView {
 
     public init(
         _ header: String? = nil,
-        @ViewBuilder content: () -> [ViewNode]
+        @ViewBuilder content: () -> some View
     ) {
         var children: [ViewNode] = []
         if let header {
@@ -15,7 +15,7 @@ public struct Section: _PrimitiveView {
                 ViewNode.text(header, fontSize: 12, color: .secondary, weight: .semibold)
             )
         }
-        let rows = content()
+        let rows = _flattenToNodes(content())
         for (i, row) in rows.enumerated() {
             children.append(row)
             if i < rows.count - 1 {
@@ -29,9 +29,9 @@ public struct Section: _PrimitiveView {
     }
 
     /// `Section(header:) { content }` — header parameter label variant.
-    public init<H: View>(header: H, @ViewBuilder content: () -> [ViewNode]) {
+    public init<H: View>(header: H, @ViewBuilder content: () -> some View) {
         var children: [ViewNode] = [_resolve(header)]
-        let rows = content()
+        let rows = _flattenToNodes(content())
         for (i, row) in rows.enumerated() {
             children.append(row)
             if i < rows.count - 1 {
@@ -45,11 +45,11 @@ public struct Section: _PrimitiveView {
     }
 
     /// `Section { content } header: { header }` — Apple's multi-trailing-closure pattern.
-    public init(@ViewBuilder content: () -> [ViewNode], @ViewBuilder header: () -> [ViewNode]) {
-        let headerNodes = header()
+    public init(@ViewBuilder content: () -> some View, @ViewBuilder header: () -> some View) {
+        let headerNodes = _flattenToNodes(header())
         let headerNode = headerNodes.count == 1 ? headerNodes[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: headerNodes)
         var children: [ViewNode] = [headerNode]
-        let rows = content()
+        let rows = _flattenToNodes(content())
         for (i, row) in rows.enumerated() {
             children.append(row)
             if i < rows.count - 1 {
@@ -63,13 +63,13 @@ public struct Section: _PrimitiveView {
     }
 
     /// `Section { content } header: { header } footer: { footer }` — with footer.
-    public init(@ViewBuilder content: () -> [ViewNode], @ViewBuilder header: () -> [ViewNode], @ViewBuilder footer: () -> [ViewNode]) {
-        let headerNodes = header()
+    public init(@ViewBuilder content: () -> some View, @ViewBuilder header: () -> some View, @ViewBuilder footer: () -> some View) {
+        let headerNodes = _flattenToNodes(header())
         let headerNode = headerNodes.count == 1 ? headerNodes[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: headerNodes)
-        let footerNodes = footer()
+        let footerNodes = _flattenToNodes(footer())
         let footerNode = footerNodes.count == 1 ? footerNodes[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: footerNodes)
         var children: [ViewNode] = [headerNode]
-        let rows = content()
+        let rows = _flattenToNodes(content())
         for (i, row) in rows.enumerated() {
             children.append(row)
             if i < rows.count - 1 {
@@ -84,11 +84,11 @@ public struct Section: _PrimitiveView {
     }
 
     /// `Section { content } footer: { footer }` — content with footer, no header.
-    public init(@ViewBuilder content: () -> [ViewNode], @ViewBuilder footer: () -> [ViewNode]) {
-        let footerNodes = footer()
+    public init(@ViewBuilder content: () -> some View, @ViewBuilder footer: () -> some View) {
+        let footerNodes = _flattenToNodes(footer())
         let footerNode = footerNodes.count == 1 ? footerNodes[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: footerNodes)
         var children: [ViewNode] = []
-        let rows = content()
+        let rows = _flattenToNodes(content())
         for (i, row) in rows.enumerated() {
             children.append(row)
             if i < rows.count - 1 {

@@ -160,7 +160,7 @@ public struct _ForEachView<Element: View>: _PrimitiveView {
 // MARK: - Flatten any View tree to [ViewNode]
 
 /// Flattens a View (possibly TupleView, ForEach, etc.) into a flat array of ViewNodes.
-@MainActor func _flattenToNodes<V: View>(_ view: V) -> [ViewNode] {
+func _flattenToNodes<V: View>(_ view: V) -> [ViewNode] {
     if let tuple = view as? any _TupleViewProtocol {
         return tuple._flatNodes
     }
@@ -174,11 +174,11 @@ public struct _ForEachView<Element: View>: _PrimitiveView {
 }
 
 /// Protocol to extract children from TupleView without knowing T.
-@MainActor protocol _TupleViewProtocol {
+protocol _TupleViewProtocol {
     var _flatNodes: [ViewNode] { get }
 }
 
-extension TupleView: _TupleViewProtocol {
+extension TupleView: @preconcurrency _TupleViewProtocol {
     var _flatNodes: [ViewNode] {
         var nodes: [ViewNode] = []
         Mirror(reflecting: value).children.forEach { child in
@@ -191,11 +191,11 @@ extension TupleView: _TupleViewProtocol {
 }
 
 /// Protocol to extract children from _ForEachView.
-@MainActor protocol _ForEachProtocol {
+protocol _ForEachProtocol {
     var _flatNodes: [ViewNode] { get }
 }
 
-extension _ForEachView: _ForEachProtocol {
+extension _ForEachView: @preconcurrency _ForEachProtocol {
     var _flatNodes: [ViewNode] {
         views.map { _resolve($0) }
     }

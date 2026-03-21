@@ -37,10 +37,10 @@ public struct TextEditor: _PrimitiveView {
 public struct Stepper<Label: View>: _PrimitiveView {
     let label: ViewNode
     public init(value: Binding<Int>, in range: ClosedRange<Int> = 0...100, step: Int = 1, @ViewBuilder label: () -> Label) {
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
     }
     public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1, @ViewBuilder label: () -> Label) {
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
     }
     public var _nodeRepresentation: ViewNode { label }
 }
@@ -59,7 +59,7 @@ extension Stepper where Label == Text {
 /// A control for navigating to a URL.
 public struct Link<Label: View>: _PrimitiveView {
     let label: ViewNode
-    public init(destination: URL, @ViewBuilder label: () -> Label) { self.label = _resolve(label()) }
+    public init(destination: URL, @ViewBuilder label: () -> Label) { self.label = _resolve(_flattenToNodes(label())) }
     public var _nodeRepresentation: ViewNode { label }
 }
 
@@ -74,7 +74,7 @@ public struct LabeledContent<Label: View, Content: View>: _PrimitiveView {
     let label: ViewNode
     let content: ViewNode
     public init(@ViewBuilder content: () -> Content, @ViewBuilder label: () -> Label) {
-        self.label = _resolve(label())
+        self.label = _resolve(_flattenToNodes(label()))
         self.content = _resolve(content())
     }
     public var _nodeRepresentation: ViewNode { .hstack(alignment: .center, spacing: 8, children: [label, .spacer(minLength: 0), content]) }
@@ -115,7 +115,7 @@ extension ContentUnavailableView where Actions == EmptyView {
     /// `ContentUnavailableView { label } description: { text }` — multi-trailing-closure.
     public init(@ViewBuilder label: () -> Label, @ViewBuilder description: () -> Description) {
         self.label = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-            _resolve(label()),
+            _resolve(_flattenToNodes(label())),
             _resolve(description()),
         ])
     }
@@ -123,7 +123,7 @@ extension ContentUnavailableView where Actions == EmptyView {
     /// `ContentUnavailableView { label } description: { text } actions: { buttons }` — full form.
     public init(@ViewBuilder label: () -> Label, @ViewBuilder description: () -> Description, @ViewBuilder actions: () -> Actions) {
         self.label = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-            _resolve(label()),
+            _resolve(_flattenToNodes(label())),
             _resolve(description()),
             _resolve(actions()),
         ])
@@ -135,8 +135,8 @@ extension ContentUnavailableView where Actions == EmptyView {
 /// A lazy vertical stack. On Clone, renders as a regular VStack.
 public struct LazyVStack: _PrimitiveView {
     let content: [ViewNode]
-    public init(alignment: HAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> [ViewNode]) {
-        self.content = content()
+    public init(alignment: HAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> some View) {
+        self.content = _flattenToNodes(content())
     }
     public var _nodeRepresentation: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
 }
@@ -144,8 +144,8 @@ public struct LazyVStack: _PrimitiveView {
 /// A lazy horizontal stack. On Clone, renders as a regular HStack.
 public struct LazyHStack: _PrimitiveView {
     let content: [ViewNode]
-    public init(alignment: VAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> [ViewNode]) {
-        self.content = content()
+    public init(alignment: VAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> some View) {
+        self.content = _flattenToNodes(content())
     }
     public var _nodeRepresentation: ViewNode { .hstack(alignment: .center, spacing: 8, children: content) }
 }
@@ -192,15 +192,15 @@ public struct Table<Value, Rows, Columns>: _PrimitiveView {
 }
 
 extension Table where Rows == Never, Columns == Never {
-    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder columns: () -> some View) where Data.Element == Value {
         // stub
     }
 
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder columns: () -> some View) where Data.Element == Value {
         // stub
     }
 
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>, @ViewBuilder columns: () -> [ViewNode]) where Data.Element == Value {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>, @ViewBuilder columns: () -> some View) where Data.Element == Value {
         // stub
     }
 }

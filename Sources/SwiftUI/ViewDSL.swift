@@ -207,17 +207,17 @@ public extension ViewNode {
     }
 
     /// `.contextMenu { }` — attaches a context menu to this view.
-    func contextMenu(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-        .contextMenu(child: self, menuItems: content())
+    func contextMenu(@ViewBuilder content: () -> some View) -> ViewNode {
+        .contextMenu(child: self, menuItems: _flattenToNodes(content()))
     }
 
     /// `.contextMenu(forSelectionType:menu:)` — context menu for selected items.
-    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode]) -> ViewNode {
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> some View) -> ViewNode {
         self
     }
 
     /// `.contextMenu(forSelectionType:menu:primaryAction:)` — with primary action.
-    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> [ViewNode], primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> ViewNode {
+    func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> some View, primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> ViewNode {
         self
     }
 
@@ -228,7 +228,7 @@ public extension ViewNode {
     }
 
     /// `.toolbar { }` — no-op for now (toolbar items are managed by window chrome).
-    func toolbar(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func toolbar(@ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
@@ -253,13 +253,13 @@ public extension ViewNode {
     }
 
     /// `.overlay { content }` — layers content on top, like a ZStack.
-    func overlay(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-        .zstack(children: [self] + content())
+    func overlay(@ViewBuilder content: () -> some View) -> ViewNode {
+        .zstack(children: [self] + _flattenToNodes(content()))
     }
 
     /// `.overlay(alignment:content:)` — layers content on top.
-    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-        .zstack(children: [self] + content())
+    func overlay(alignment: Alignment = .center, @ViewBuilder content: () -> some View) -> ViewNode {
+        .zstack(children: [self] + _flattenToNodes(content()))
     }
 
     /// `.overlay(_:)` — layers a single view on top.
@@ -305,40 +305,40 @@ public extension ViewNode {
 
     /// `.sheet(isPresented:onDismiss:content:)` — presents a modal sheet.
     /// On Clone, renders content as overlay when presented.
-    func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         if isPresented.wrappedValue {
-            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: content())
+            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: _flattenToNodes(content()))
             return .zstack(children: [self, sheetContent])
         }
         return self
     }
 
     /// `.sheet(item:onDismiss:content:)` — presents a sheet for an optional item.
-    func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> [ViewNode]) -> ViewNode {
+    func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> some View) -> ViewNode {
         if let value = item.wrappedValue {
-            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: content(value))
+            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: _flattenToNodes(content(value)))
             return .zstack(children: [self, sheetContent])
         }
         return self
     }
 
     /// `.alert(_:isPresented:actions:)` — no-op on Clone.
-    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> some View) -> ViewNode {
         self
     }
 
     /// `.alert(_:isPresented:actions:message:)` — no-op on Clone.
-    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+    func alert(_ title: String, isPresented: Binding<Bool>, @ViewBuilder actions: () -> some View, @ViewBuilder message: () -> some View) -> ViewNode {
         self
     }
 
     /// `.confirmationDialog(_:isPresented:actions:)` — no-op on Clone.
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> some View) -> ViewNode {
         self
     }
 
     /// `.confirmationDialog(_:isPresented:actions:message:)` — no-op on Clone.
-    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> [ViewNode], @ViewBuilder message: () -> [ViewNode]) -> ViewNode {
+    func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> some View, @ViewBuilder message: () -> some View) -> ViewNode {
         self
     }
 
@@ -384,7 +384,7 @@ public extension ViewNode {
     }
 
     /// `.tabItem { }` — stores a tab label. No-op rendering on Clone.
-    func tabItem(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func tabItem(@ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
@@ -399,17 +399,17 @@ public extension ViewNode {
     }
 
     /// `.safeAreaInset(edge:content:)` — no-op on Clone.
-    func safeAreaInset(edge: Edge.Set, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func safeAreaInset(edge: Edge.Set, @ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
     /// `.safeAreaInset(edge:alignment:spacing:content:)` — no-op on Clone.
-    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func safeAreaInset(edge: VerticalEdge, alignment: HAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
     /// `.safeAreaInset(edge:alignment:spacing:content:)` — horizontal variant, no-op on Clone.
-    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func safeAreaInset(edge: HorizontalEdge, alignment: VAlignment = .center, spacing: CGFloat? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
@@ -479,13 +479,13 @@ public extension ViewNode {
     }
 
     /// `.background(content:)` — background with arbitrary view content.
-    func background(@ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-        .zstack(children: content() + [self])
+    func background(@ViewBuilder content: () -> some View) -> ViewNode {
+        .zstack(children: _flattenToNodes(content()) + [self])
     }
 
     /// `.background(alignment:content:)` — background with view content.
-    func background(alignment: HAlignment = .center, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
-        .zstack(children: content() + [self])
+    func background(alignment: HAlignment = .center, @ViewBuilder content: () -> some View) -> ViewNode {
+        .zstack(children: _flattenToNodes(content()) + [self])
     }
 
     /// `.help(_:)` — tooltip text. No-op on Clone.
@@ -559,7 +559,7 @@ public extension ViewNode {
     }
 
     /// `.swipeActions(edge:content:)` — no-op on Clone.
-    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> [ViewNode]) -> ViewNode {
+    func swipeActions(edge: HorizontalEdge = .trailing, allowsFullSwipe: Bool = true, @ViewBuilder content: () -> some View) -> ViewNode {
         self
     }
 
@@ -588,13 +588,13 @@ public extension ViewNode {
     func keyboardShortcut(_ key: KeyEquivalent, modifiers: EventModifiers = .command) -> ViewNode { self }
 
     /// `.navigationDestination(for:destination:)` — no-op on Clone.
-    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> [ViewNode]) -> ViewNode { self }
+    func navigationDestination<D: Hashable>(for type: D.Type, @ViewBuilder destination: @escaping (D) -> some View) -> ViewNode { self }
 
     /// `.navigationDestination(isPresented:destination:)` — no-op on Clone.
-    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> [ViewNode]) -> ViewNode { self }
+    func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> some View) -> ViewNode { self }
 
     /// `.navigationDestination(item:destination:)` — no-op on Clone.
-    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> [ViewNode]) -> ViewNode { self }
+    func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> some View) -> ViewNode { self }
 
     /// `.onReceive(_:perform:)` — no-op on Clone. Uses Combine Publisher protocol.
     func onReceive<P: Publisher>(_ publisher: P, perform action: @escaping (P.Output) -> Void) -> ViewNode { self }
@@ -707,7 +707,7 @@ public extension ViewNode {
     func scaleEffect(_ scale: CGFloat, anchor: UnitPoint) -> ViewNode { self }
 
     /// `.fullScreenCover(isPresented:content:)` — no-op on Clone.
-    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
+    func fullScreenCover(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> ViewNode { self }
 
     /// `.navigationBarTitleDisplayMode(_:)` — no-op on Clone.
     func navigationBarTitleDisplayMode(_ displayMode: NavigationBarItem.TitleDisplayMode) -> ViewNode { self }
@@ -728,7 +728,7 @@ public extension ViewNode {
     func scrollIndicators(_ visibility: ScrollIndicatorVisibility) -> ViewNode { self }
 
     /// `.popover(isPresented:content:)` — no-op on Clone.
-    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> [ViewNode]) -> ViewNode { self }
+    func popover(isPresented: Binding<Bool>, arrowEdge: Edge = .top, @ViewBuilder content: () -> some View) -> ViewNode { self }
 
     /// `.focused(_:equals:)` — no-op on Clone.
     func focused<V: Hashable>(_ binding: Binding<V?>, equals value: V) -> ViewNode { self }

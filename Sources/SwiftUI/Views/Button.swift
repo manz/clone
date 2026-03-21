@@ -23,8 +23,8 @@ public struct Button: _PrimitiveView {
     }
 
     /// `Button(action: { }) { label }` — custom label variant.
-    public init(role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> [ViewNode]) {
-        let content = label()
+    public init(role: ButtonRole? = nil, action: @escaping () -> Void, @ViewBuilder label: () -> some View) {
+        let content = _flattenToNodes(label())
         let labelNode = content.count == 1 ? content[0] : ViewNode.hstack(alignment: .center, spacing: 4, children: content)
         self.child = labelNode.onTapGesture(action)
     }
