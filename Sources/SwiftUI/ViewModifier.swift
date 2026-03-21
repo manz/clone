@@ -10,9 +10,9 @@ public protocol ViewModifier {
 
 /// A view wrapper used as the `Content` type in `ViewModifier.body(content:)`.
 /// User code calls modifiers on this type (e.g. `.frame()`, `.padding()`).
-public struct _ViewModifierContent: View {
+public struct _ViewModifierContent: _PrimitiveView {
     let node: ViewNode
-    public var body: ViewNode { node }
+    public var _nodeRepresentation: ViewNode { node }
 }
 
 extension View {

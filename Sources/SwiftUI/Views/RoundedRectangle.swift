@@ -33,7 +33,7 @@ public struct RoundedRectangle: Shape {
         return p
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: .white)
     }
 }

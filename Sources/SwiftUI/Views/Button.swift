@@ -2,7 +2,7 @@ import Foundation
 
 /// A control that initiates an action.
 /// Matches Apple's SwiftUI `Button` struct.
-public struct Button: View {
+public struct Button: _PrimitiveView {
     let child: ViewNode
 
     /// `Button("Tap") { action }` — label string variant.
@@ -16,10 +16,10 @@ public struct Button: View {
     /// `Button("title", systemImage: "icon") { action }` — label + SF Symbol variant.
     public init(_ label: String, systemImage: String, role: ButtonRole? = nil, action: @escaping () -> Void) {
         let color: Color = role == .destructive ? .red : .blue
-        self.child = HStack(alignment: .center, spacing: 4) {
+        self.child = _resolve(HStack(alignment: .center, spacing: 4) {
             Image(systemName: systemImage)
             Text(label).foregroundColor(color)
-        }.body.onTapGesture(action)
+        }).onTapGesture(action)
     }
 
     /// `Button(action: { }) { label }` — custom label variant.
@@ -29,7 +29,7 @@ public struct Button: View {
         self.child = labelNode.onTapGesture(action)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

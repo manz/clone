@@ -3,38 +3,38 @@ import Foundation
 // MARK: - Form
 
 /// A container for grouping controls used for data entry.
-public struct Form<Content: View>: View {
+public struct Form<Content: View>: _PrimitiveView {
     let content: [ViewNode]
     public init(@ViewBuilder content: () -> Content) {
         if let nodes = content() as? [ViewNode] { self.content = nodes }
         else { self.content = [_resolve(content())] }
     }
-    public var body: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
+    public var _nodeRepresentation: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
 }
 
 // MARK: - SecureField
 
 /// A text field that hides its input.
-public struct SecureField: View {
+public struct SecureField: _PrimitiveView {
     let placeholder: String
     let text: Binding<String>
     public init(_ placeholder: String, text: Binding<String>) { self.placeholder = placeholder; self.text = text }
-    public var body: ViewNode { .textField(placeholder: placeholder, text: text.wrappedValue) }
+    public var _nodeRepresentation: ViewNode { .textField(placeholder: placeholder, text: text.wrappedValue) }
 }
 
 // MARK: - TextEditor
 
 /// A view that displays a long-form editable text interface.
-public struct TextEditor: View {
+public struct TextEditor: _PrimitiveView {
     let text: Binding<String>
     public init(text: Binding<String>) { self.text = text }
-    public var body: ViewNode { .textField(placeholder: "", text: text.wrappedValue) }
+    public var _nodeRepresentation: ViewNode { .textField(placeholder: "", text: text.wrappedValue) }
 }
 
 // MARK: - Stepper
 
 /// A control for incrementing or decrementing a value.
-public struct Stepper<Label: View>: View {
+public struct Stepper<Label: View>: _PrimitiveView {
     let label: ViewNode
     public init(value: Binding<Int>, in range: ClosedRange<Int> = 0...100, step: Int = 1, @ViewBuilder label: () -> Label) {
         self.label = _resolve(label())
@@ -42,71 +42,71 @@ public struct Stepper<Label: View>: View {
     public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1, @ViewBuilder label: () -> Label) {
         self.label = _resolve(label())
     }
-    public var body: ViewNode { label }
+    public var _nodeRepresentation: ViewNode { label }
 }
 
 extension Stepper where Label == Text {
     public init(_ title: String, value: Binding<Int>, in range: ClosedRange<Int> = 0...100, step: Int = 1) {
-        self.label = Text(title).body
+        self.label = _resolve(Text(title))
     }
     public init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1) {
-        self.label = Text(title).body
+        self.label = _resolve(Text(title))
     }
 }
 
 // MARK: - Link
 
 /// A control for navigating to a URL.
-public struct Link<Label: View>: View {
+public struct Link<Label: View>: _PrimitiveView {
     let label: ViewNode
     public init(destination: URL, @ViewBuilder label: () -> Label) { self.label = _resolve(label()) }
-    public var body: ViewNode { label }
+    public var _nodeRepresentation: ViewNode { label }
 }
 
 extension Link where Label == Text {
-    public init(_ title: String, destination: URL) { self.label = Text(title).body }
+    public init(_ title: String, destination: URL) { self.label = _resolve(Text(title)) }
 }
 
 // MARK: - LabeledContent
 
 /// A container for attaching a label to a value-bearing view.
-public struct LabeledContent<Label: View, Content: View>: View {
+public struct LabeledContent<Label: View, Content: View>: _PrimitiveView {
     let label: ViewNode
     let content: ViewNode
     public init(@ViewBuilder content: () -> Content, @ViewBuilder label: () -> Label) {
         self.label = _resolve(label())
         self.content = _resolve(content())
     }
-    public var body: ViewNode { .hstack(alignment: .center, spacing: 8, children: [label, .spacer(minLength: 0), content]) }
+    public var _nodeRepresentation: ViewNode { .hstack(alignment: .center, spacing: 8, children: [label, .spacer(minLength: 0), content]) }
 }
 
 extension LabeledContent where Label == Text {
     public init(_ title: String, @ViewBuilder content: () -> Content) {
-        self.label = Text(title).body
+        self.label = _resolve(Text(title))
         self.content = _resolve(content())
     }
 }
 
 extension LabeledContent where Label == Text, Content == Text {
     public init(_ title: String, value: String) {
-        self.label = Text(title).body
-        self.content = Text(value).body
+        self.label = _resolve(Text(title))
+        self.content = _resolve(Text(value))
     }
 }
 
 // MARK: - ContentUnavailableView
 
 /// A view that indicates content is unavailable.
-public struct ContentUnavailableView<Label: View, Description: View, Actions: View>: View {
+public struct ContentUnavailableView<Label: View, Description: View, Actions: View>: _PrimitiveView {
     let label: ViewNode
-    public var body: ViewNode { label }
+    public var _nodeRepresentation: ViewNode { label }
 }
 
 extension ContentUnavailableView where Label == ViewNode, Description == ViewNode, Actions == ViewNode {
     public init(_ title: String, systemImage: String, description: Text? = nil) {
         self.label = ViewNode.vstack(alignment: .center, spacing: 8, children: [
-            Image(systemName: systemImage).body,
-            Text(title).body,
+            _resolve(Image(systemName: systemImage)),
+            _resolve(Text(title)),
         ])
     }
 }
@@ -133,30 +133,30 @@ extension ContentUnavailableView where Actions == EmptyView {
 // MARK: - LazyVStack / LazyHStack
 
 /// A lazy vertical stack. On Clone, renders as a regular VStack.
-public struct LazyVStack: View {
+public struct LazyVStack: _PrimitiveView {
     let content: [ViewNode]
     public init(alignment: HAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> [ViewNode]) {
         self.content = content()
     }
-    public var body: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
+    public var _nodeRepresentation: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
 }
 
 /// A lazy horizontal stack. On Clone, renders as a regular HStack.
-public struct LazyHStack: View {
+public struct LazyHStack: _PrimitiveView {
     let content: [ViewNode]
     public init(alignment: VAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> [ViewNode]) {
         self.content = content()
     }
-    public var body: ViewNode { .hstack(alignment: .center, spacing: 8, children: content) }
+    public var _nodeRepresentation: ViewNode { .hstack(alignment: .center, spacing: 8, children: content) }
 }
 
 // MARK: - ScrollViewReader / ScrollViewProxy
 
 /// A view whose child is defined as a function of a scroll view proxy.
-public struct ScrollViewReader<Content: View>: View {
+public struct ScrollViewReader<Content: View>: _PrimitiveView {
     let content: (ScrollViewProxy) -> Content
     public init(@ViewBuilder content: @escaping (ScrollViewProxy) -> Content) { self.content = content }
-    public var body: ViewNode { _resolve(content(ScrollViewProxy())) }
+    public var _nodeRepresentation: ViewNode { _resolve(content(ScrollViewProxy())) }
 }
 
 /// A proxy value that supports programmatic scrolling.
@@ -167,10 +167,10 @@ public struct ScrollViewProxy {
 // MARK: - NavigationView (deprecated but still used)
 
 /// A deprecated view for presenting a stack of views.
-public struct NavigationView<Content: View>: View {
+public struct NavigationView<Content: View>: _PrimitiveView {
     let content: ViewNode
     public init(@ViewBuilder content: () -> Content) { self.content = _resolve(content()) }
-    public var body: ViewNode { content }
+    public var _nodeRepresentation: ViewNode { content }
 }
 
 // MARK: - NavigationPath
@@ -187,8 +187,8 @@ public struct NavigationPath {
 // MARK: - Table (stub)
 
 /// A container that presents rows of data in columns.
-public struct Table<Value, Rows, Columns>: View {
-    public var body: ViewNode { .empty }
+public struct Table<Value, Rows, Columns>: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 
 extension Table where Rows == Never, Columns == Never {
@@ -223,8 +223,8 @@ public struct TableColumnBuilder<RowValue, Sort> {
 }
 
 /// A column in a table.
-public struct TableColumn<RowValue, Sort, Content: View, Label: View>: View {
-    public var body: ViewNode { .empty }
+public struct TableColumn<RowValue, Sort, Content: View, Label: View>: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 
 extension TableColumn where Content == Text, Label == Text, Sort == Never {
@@ -246,9 +246,9 @@ extension TableColumn {
 // MARK: - ToolbarItem
 
 /// A model that represents an item in a toolbar.
-public struct ToolbarItem<ID, Content: View>: View {
+public struct ToolbarItem<ID, Content: View>: _PrimitiveView {
     let content: ViewNode
-    public var body: ViewNode { content }
+    public var _nodeRepresentation: ViewNode { content }
 }
 
 extension ToolbarItem where ID == Void {
@@ -311,17 +311,17 @@ public struct ToolbarContentBuilder {
 public protocol Commands {}
 
 /// A group of commands that replaces or augments an existing command group.
-public struct CommandGroup<Content: View>: Commands, View {
+public struct CommandGroup<Content: View>: Commands, _PrimitiveView {
     public init(replacing: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
     public init(after: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
     public init(before: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 
 /// A custom command menu.
-public struct CommandMenu<Content: View>: Commands, View {
+public struct CommandMenu<Content: View>: Commands, _PrimitiveView {
     public init(_ name: String, @ViewBuilder content: () -> Content) {}
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 
 /// The placement of a command group.
@@ -366,6 +366,6 @@ public struct NSViewRepresentableContext<Representable> {
 }
 
 extension NSViewRepresentable {
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 

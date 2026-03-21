@@ -1,13 +1,13 @@
 import Foundation
 
 /// A 2D shape that can be used as a View.
-public protocol Shape: View {
+public protocol Shape: _PrimitiveView {
     func path(in rect: LayoutFrame) -> ViewNode
     func path(in rect: CGRect) -> Path
 }
 
 extension Shape {
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         path(in: LayoutFrame(x: 0, y: 0, width: 0, height: 0))
     }
 
@@ -37,7 +37,7 @@ public struct CircleShape: Shape {
         return p
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .roundedRect(width: nil, height: nil, radius: 1000, fill: .white)
     }
 }
@@ -56,7 +56,7 @@ public struct CapsuleShape: Shape {
         return .roundedRect(width: rect.width, height: rect.height, radius: radius, fill: .white)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .roundedRect(width: nil, height: nil, radius: 1000, fill: .white)
     }
 }
@@ -74,7 +74,7 @@ public struct RectangleShape: Shape {
         .rect(width: rect.width, height: rect.height, fill: .white)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: .white)
     }
 }
@@ -91,7 +91,7 @@ public struct RoundedRectangleShape: Shape {
         .roundedRect(width: rect.width, height: rect.height, radius: cornerRadius, fill: .white)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: .white)
     }
 }

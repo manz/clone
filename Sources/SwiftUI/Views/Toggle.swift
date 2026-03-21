@@ -2,7 +2,7 @@ import Foundation
 
 /// A control that toggles between on and off states.
 /// Matches Apple's SwiftUI `Toggle` struct.
-public struct Toggle: View {
+public struct Toggle: _PrimitiveView {
     let child: ViewNode
 
     /// `Toggle(isOn:) { label }` — renders static representation.
@@ -17,7 +17,7 @@ public struct Toggle: View {
         self.child = .toggle(isOn: isOn.wrappedValue, label: _resolve(Text(title)))
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

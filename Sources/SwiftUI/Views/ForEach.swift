@@ -36,8 +36,8 @@ extension ForEach where Data == Range<Int> {
 
 // MARK: - View conformance
 
-extension ForEach: View {
-    public var body: ViewNode {
+extension ForEach: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode {
         if nodes.count == 1 { return nodes[0] }
         return .vstack(alignment: .leading, spacing: 0, children: nodes)
     }

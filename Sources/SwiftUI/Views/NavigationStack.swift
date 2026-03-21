@@ -3,7 +3,7 @@ import Foundation
 /// A view that displays a root view and enables programmatic navigation.
 /// Matches Apple's SwiftUI `NavigationStack` struct.
 /// Navigation state is window-managed on Clone.
-public struct NavigationStack: View {
+public struct NavigationStack: _PrimitiveView {
     let children: [ViewNode]
 
     public init(@ViewBuilder content: () -> [ViewNode]) {
@@ -20,7 +20,7 @@ public struct NavigationStack: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .navigationStack(children: children)
     }
 }

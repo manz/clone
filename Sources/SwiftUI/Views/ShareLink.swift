@@ -2,10 +2,10 @@ import Foundation
 
 /// A view that controls a sharing presentation.
 /// No-op on Clone — renders the label only.
-public struct ShareLink<Data, PreviewImage, PreviewIcon, Label: View>: View {
+public struct ShareLink<Data, PreviewImage, PreviewIcon, Label: View>: _PrimitiveView {
     let label: ViewNode
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         label
     }
 }
@@ -13,12 +13,12 @@ public struct ShareLink<Data, PreviewImage, PreviewIcon, Label: View>: View {
 extension ShareLink where PreviewImage == Never, PreviewIcon == Never, Label == ViewNode, Data == String {
     /// Creates a share link with a string item and default label.
     public init(item: String) {
-        self.label = Text("Share").body
+        self.label = _resolve(Text("Share"))
     }
 
     /// Creates a share link with a string item and text label.
     public init(_ titleKey: String, item: String) {
-        self.label = Text(titleKey).body
+        self.label = _resolve(Text(titleKey))
     }
 }
 

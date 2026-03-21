@@ -2,7 +2,7 @@ import Foundation
 
 /// A standard label for user interface items, consisting of an icon and a title.
 /// Matches Apple's SwiftUI `Label` struct.
-public struct Label: View {
+public struct Label: _PrimitiveView {
     let child: ViewNode
 
     /// `Label("Wi-Fi", systemImage: "wifi")` — icon + text. Matches Apple's SwiftUI.
@@ -31,7 +31,7 @@ public struct Label: View {
         self.child = .hstack(alignment: .center, spacing: 8, children: [iconNode, titleNode])
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

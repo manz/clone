@@ -2,7 +2,7 @@ import Foundation
 
 /// A view that displays one or more lines of read-only text.
 /// Matches Apple's SwiftUI `Text` struct.
-public struct Text: View {
+public struct Text: _PrimitiveView {
     var content: String
     var fontSize: CGFloat = 14
     var color: Color = .primary
@@ -12,7 +12,7 @@ public struct Text: View {
         self.content = content
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .text(content, fontSize: fontSize, color: color, weight: fontWeight)
     }
 

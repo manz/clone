@@ -2,7 +2,7 @@ import Foundation
 
 /// A control that displays an editable text interface.
 /// Matches Apple's SwiftUI `TextField` struct.
-public struct TextField: View {
+public struct TextField: _PrimitiveView {
     let child: ViewNode
 
     /// `TextField("Placeholder", text:)` — text input box with placeholder.
@@ -40,7 +40,7 @@ public struct TextField: View {
         self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

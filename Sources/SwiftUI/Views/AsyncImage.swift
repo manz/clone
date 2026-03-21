@@ -9,7 +9,7 @@ public enum AsyncImagePhase {
 
 /// A view that asynchronously loads and displays an image.
 /// On Clone, this always shows the placeholder (no network loading).
-public struct AsyncImage<Content: View>: View {
+public struct AsyncImage<Content: View>: _PrimitiveView {
     let node: ViewNode
 
     /// Creates an async image with a URL. Shows a gray placeholder.
@@ -37,14 +37,14 @@ public struct AsyncImage<Content: View>: View {
         self.node = _resolve(content(.empty))
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         node
     }
 }
 
 /// Conditional content type — used to satisfy generic constraints.
-public enum _ConditionalContent<TrueContent: View, FalseContent: View>: View {
+public enum _ConditionalContent<TrueContent: View, FalseContent: View>: _PrimitiveView {
     case first(TrueContent)
     case second(FalseContent)
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }

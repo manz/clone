@@ -6,41 +6,61 @@
 @_exported import UniformTypeIdentifiers
 #endif
 
-/// The core protocol for SwiftUI views.
+/// The core protocol for SwiftUI views — matches Apple's SwiftUI.
 @preconcurrency @MainActor
 public protocol View {
     associatedtype Body: View
-    var body: Body { get }
+    @ViewBuilder var body: Body { get }
 }
 
-/// ViewNode is the terminal View — its body is itself.
-extension ViewNode: View {
-    public typealias Body = ViewNode
-    // Override @ViewBuilder — terminal, not built
-    nonisolated public var body: ViewNode { self }
+/// Never as terminal View — required for @ViewBuilder on protocol.
+extension Never: View {
+    public typealias Body = Never
+    public var body: Never { fatalError() }
 }
 
-/// [ViewNode] as a View — allows @ViewBuilder closures to work with `some View`.
+// MARK: - _PrimitiveView
+
+/// Protocol for framework-internal views that resolve directly to ViewNode.
+/// Body is Never so @ViewBuilder is harmless (fatalError() → Never bypasses result builder).
+public protocol _PrimitiveView: View where Body == Never {
+    var _nodeRepresentation: ViewNode { get }
+}
+
+extension _PrimitiveView {
+    public var body: Never { fatalError() }
+}
+
+/// ViewNode is the terminal primitive.
+extension ViewNode: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { self }
+}
+
+/// [ViewNode] as a View.
 extension Array: View where Element == ViewNode {
-    public typealias Body = ViewNode
-    nonisolated public var body: ViewNode {
+    public typealias Body = Never
+    public var body: Never { fatalError() }
+}
+extension Array: _PrimitiveView where Element == ViewNode {
+    public var _nodeRepresentation: ViewNode {
         if count == 1 { return self[0] }
         return .vstack(alignment: .leading, spacing: 0, children: self)
     }
 }
 
-/// Color as a View — renders as a filled rect.
-extension Color: View {
-    public typealias Body = ViewNode
-    nonisolated public var body: ViewNode {
+/// Color as a View.
+extension Color: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: self)
     }
 }
 
 // MARK: - View → ViewNode materialization
 
-/// Resolves any View to its terminal ViewNode by walking the body chain.
+/// Resolves any View to its terminal ViewNode.
+/// Checks _PrimitiveView first to avoid calling body on Never-bodied types.
 func _resolve<V: View>(_ view: V) -> ViewNode {
+    if let primitive = view as? _PrimitiveView { return primitive._nodeRepresentation }
     if let node = view as? ViewNode { return node }
     return _resolve(view.body)
 }
@@ -48,10 +68,9 @@ func _resolve<V: View>(_ view: V) -> ViewNode {
 // MARK: - Modified View wrapper
 
 /// Opaque wrapper for modifier chains. Hides ViewNode from the public API surface.
-public struct _ModifiedView<Content: View>: View {
-    public typealias Body = ViewNode
+public struct _ModifiedView<Content: View>: _PrimitiveView {
     @usableFromInline let node: ViewNode
-    @inlinable public var body: ViewNode { node }
+    public var _nodeRepresentation: ViewNode { node }
     @usableFromInline init(node: ViewNode) { self.node = node }
 }
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// A view that displays an image. Matches Apple's SwiftUI `Image` struct.
 /// Currently renders as a colored placeholder rect (no real image loading).
-public struct Image: View {
+public struct Image: _PrimitiveView {
     let name: String
 
     /// `Image(systemName:)` — SF Symbol stub.
@@ -20,7 +20,7 @@ public struct Image: View {
         self.name = ""
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .image(name: name, width: nil, height: nil)
     }
 

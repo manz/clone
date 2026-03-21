@@ -2,7 +2,7 @@ import Foundation
 
 /// A view that switches between multiple child views using a tab bar.
 /// Matches Apple's SwiftUI `TabView` struct.
-public struct TabView<SelectionValue: Hashable, Content: View>: View {
+public struct TabView<SelectionValue: Hashable, Content: View>: _PrimitiveView {
     let selection: Binding<SelectionValue>?
     let content: [ViewNode]
 
@@ -13,7 +13,7 @@ public struct TabView<SelectionValue: Hashable, Content: View>: View {
         else { self.content = [_resolve(content())] }
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         // Render as VStack: content area on top, tab bar on bottom
         .vstack(alignment: .leading, spacing: 0, children: [
             // Content area — show all children stacked (selection filtering requires state tracking)
@@ -32,7 +32,7 @@ extension TabView where SelectionValue == Int {
 }
 
 /// A single tab in a TabView — matches Apple's SwiftUI Tab (iOS 18+/macOS 15+).
-public struct Tab<Value: Hashable, Content: View>: View {
+public struct Tab<Value: Hashable, Content: View>: _PrimitiveView {
     let child: ViewNode
 
     public init(_ title: String, systemImage: String, value: Value, @ViewBuilder content: () -> Content) {
@@ -43,7 +43,7 @@ public struct Tab<Value: Hashable, Content: View>: View {
         self.child = _resolve(content())
     }
 
-    public var body: ViewNode { child }
+    public var _nodeRepresentation: ViewNode { child }
 }
 
 extension Tab where Value == Never {

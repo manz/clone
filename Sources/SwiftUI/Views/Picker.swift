@@ -2,7 +2,7 @@ import Foundation
 
 /// A control for selecting from a set of mutually exclusive values.
 /// Matches Apple's SwiftUI `Picker` struct.
-public struct Picker<SelectionValue: Hashable>: View {
+public struct Picker<SelectionValue: Hashable>: _PrimitiveView {
     let child: ViewNode
 
     public init(
@@ -13,7 +13,7 @@ public struct Picker<SelectionValue: Hashable>: View {
         self.child = .picker(selection: "\(selection.wrappedValue)", label: _resolve(Text(title)), children: content())
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

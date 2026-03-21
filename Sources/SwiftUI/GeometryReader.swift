@@ -52,7 +52,7 @@ public final class GeometryReaderRegistry: @unchecked Sendable {
 
 /// `GeometryReader { proxy in ... }` — SwiftUI-style constructor.
 /// Registers the closure and returns a `.geometryReader(id:)` ViewNode.
-public struct GeometryReader<Content: View>: View {
+public struct GeometryReader<Content: View>: _PrimitiveView {
     let child: ViewNode
 
     public init(@ViewBuilder content: @escaping (GeometryProxy) -> Content) {
@@ -70,7 +70,7 @@ public struct GeometryReader<Content: View>: View {
         self.child = .geometryReader(id: id)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

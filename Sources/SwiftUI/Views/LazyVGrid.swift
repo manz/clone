@@ -46,7 +46,7 @@ public struct GridItem: Sendable {
 
 /// A container that arranges its children in a vertically scrolling grid.
 /// On Clone, renders as a simple VStack of HStacks (no lazy loading).
-public struct LazyVGrid: View {
+public struct LazyVGrid: _PrimitiveView {
     let columns: [GridItem]
     let alignment: HAlignment
     let spacing: CGFloat
@@ -65,7 +65,7 @@ public struct LazyVGrid: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         let columnCount = max(columns.count, 1)
         var rows: [[ViewNode]] = []
         var currentRow: [ViewNode] = []
@@ -91,7 +91,7 @@ public struct LazyVGrid: View {
 
 /// A container that arranges its children in a horizontally scrolling grid.
 /// On Clone, renders as a simple HStack of VStacks (no lazy loading).
-public struct LazyHGrid: View {
+public struct LazyHGrid: _PrimitiveView {
     let rows: [GridItem]
     let alignment: VAlignment
     let spacing: CGFloat
@@ -110,7 +110,7 @@ public struct LazyHGrid: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         let rowCount = max(rows.count, 1)
         var columns: [[ViewNode]] = []
         var currentCol: [ViewNode] = []

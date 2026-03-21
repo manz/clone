@@ -2,7 +2,7 @@ import Foundation
 
 /// A container that presents rows of data in a single column.
 /// Matches Apple's SwiftUI `List` struct.
-public struct List: View {
+public struct List: _PrimitiveView {
     let children: [ViewNode]
 
     public init(@ViewBuilder content: () -> [ViewNode]) {
@@ -44,7 +44,7 @@ public struct List: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .list(children: children)
     }
 }

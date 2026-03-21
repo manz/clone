@@ -2,10 +2,10 @@ import Foundation
 
 /// A view that shows the progress toward completion of a task.
 /// Matches Apple's SwiftUI `ProgressView` struct.
-public struct ProgressView<Label: View>: View {
+public struct ProgressView<Label: View>: _PrimitiveView {
     let label: ViewNode
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         // Render as a horizontal bar with a label
         .hstack(alignment: .center, spacing: 8, children: [
             // Simple progress bar placeholder
@@ -23,7 +23,7 @@ extension ProgressView where Label == Text {
 
     /// Creates a progress view with a text label.
     public init(_ titleKey: String) {
-        self.label = Text(titleKey).body
+        self.label = _resolve(Text(titleKey))
     }
 
     /// Creates a progress view with a progress value.
@@ -33,7 +33,7 @@ extension ProgressView where Label == Text {
 
     /// Creates a progress view with a label and value.
     public init(_ titleKey: String, value: Double?, total: Double = 1.0) {
-        self.label = Text(titleKey).body
+        self.label = _resolve(Text(titleKey))
     }
 }
 

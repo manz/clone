@@ -15,7 +15,7 @@ public struct Rectangle: Shape {
         return p
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: .white)
     }
 }

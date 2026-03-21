@@ -7,7 +7,7 @@ public enum NavigationSplitViewVisibility: Sendable {
 
 /// A view that presents views in two or three columns.
 /// Matches Apple's SwiftUI `NavigationSplitView` struct.
-public struct NavigationSplitView: View {
+public struct NavigationSplitView: _PrimitiveView {
     let child: ViewNode
 
     public init(
@@ -53,7 +53,7 @@ public struct NavigationSplitView: View {
         ])
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

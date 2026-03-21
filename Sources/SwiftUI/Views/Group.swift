@@ -1,20 +1,20 @@
 import Foundation
 
 /// A type-erased view that allows any view to be used where `some View` is expected.
-public struct AnyView: View {
+public struct AnyView: _PrimitiveView {
     let node: ViewNode
 
     public init<V: View>(_ view: V) {
         self.node = _resolve(view)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         node
     }
 }
 
 /// A transparent grouping container that doesn't affect layout.
-public struct Group<Content: View>: View {
+public struct Group<Content: View>: _PrimitiveView {
     let content: [ViewNode]
 
     public init(@ViewBuilder content: () -> Content) {
@@ -25,7 +25,7 @@ public struct Group<Content: View>: View {
         }
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         if content.count == 1 {
             return content[0]
         }
@@ -34,7 +34,7 @@ public struct Group<Content: View>: View {
 }
 
 /// An empty view that takes no space.
-public struct EmptyView: View {
+public struct EmptyView: _PrimitiveView {
     public init() {}
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }

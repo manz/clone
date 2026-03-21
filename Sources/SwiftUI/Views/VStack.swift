@@ -2,7 +2,7 @@ import Foundation
 
 /// A view that arranges its children in a vertical line.
 /// Matches Apple's SwiftUI `VStack` struct.
-public struct VStack: View {
+public struct VStack: _PrimitiveView {
     let alignment: HAlignment
     let spacing: CGFloat
     let children: [ViewNode]
@@ -17,7 +17,7 @@ public struct VStack: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .vstack(alignment: alignment, spacing: spacing, children: children)
     }
 }

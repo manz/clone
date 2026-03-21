@@ -46,6 +46,10 @@ public struct ViewBuilder {
     public static func buildArray(_ components: [[ViewNode]]) -> [ViewNode] {
         components.flatMap { $0 }
     }
+
+    // Never support — allows Body == Never with @ViewBuilder on View protocol
+    public static func buildExpression(_ expression: Never) -> Never {}
+    public static func buildBlock(_ n: Never) -> Never {}
 }
 
 // Convenience initializers using ViewBuilder

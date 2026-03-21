@@ -2,7 +2,7 @@ import Foundation
 
 /// A scrollable view. Matches Apple's SwiftUI `ScrollView` struct.
 /// Currently renders as VStack (scrolling not yet implemented).
-public struct ScrollView<Content: View>: View {
+public struct ScrollView<Content: View>: _PrimitiveView {
     let axis: Axis
     let children: [ViewNode]
 
@@ -16,7 +16,7 @@ public struct ScrollView<Content: View>: View {
         else { self.children = [_resolve(content())] }
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .scrollView(axis: axis, children: children)
     }
 }

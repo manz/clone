@@ -20,32 +20,32 @@ public struct Gradient: Sendable {
 }
 
 /// A linear gradient. Renders as a flat color until gradient rendering is implemented.
-public struct LinearGradient: View {
+public struct LinearGradient: _PrimitiveView {
     let gradient: Gradient
     public init(gradient: Gradient, startPoint: UnitPoint, endPoint: UnitPoint) { self.gradient = gradient }
     public init(colors: [Color], startPoint: UnitPoint, endPoint: UnitPoint) { self.gradient = Gradient(colors: colors) }
     public init(stops: [Gradient.Stop], startPoint: UnitPoint, endPoint: UnitPoint) { self.gradient = Gradient(stops: stops) }
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: gradient.stops.first?.color ?? .clear)
     }
 }
 
 /// A radial gradient. Renders as a flat color until gradient rendering is implemented.
-public struct RadialGradient: View {
+public struct RadialGradient: _PrimitiveView {
     let gradient: Gradient
     public init(gradient: Gradient, center: UnitPoint, startRadius: CGFloat, endRadius: CGFloat) { self.gradient = gradient }
     public init(colors: [Color], center: UnitPoint, startRadius: CGFloat, endRadius: CGFloat) { self.gradient = Gradient(colors: colors) }
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: gradient.stops.first?.color ?? .clear)
     }
 }
 
 /// An angular (conic) gradient. Renders as a flat color until gradient rendering is implemented.
-public struct AngularGradient: View {
+public struct AngularGradient: _PrimitiveView {
     let gradient: Gradient
     public init(gradient: Gradient, center: UnitPoint) { self.gradient = gradient }
     public init(colors: [Color], center: UnitPoint) { self.gradient = Gradient(colors: colors) }
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .rect(width: nil, height: nil, fill: gradient.stops.first?.color ?? .clear)
     }
 }

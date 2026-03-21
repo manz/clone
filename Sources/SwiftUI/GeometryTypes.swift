@@ -61,7 +61,7 @@ public struct StrokeStyle: Sendable {
 }
 
 /// A 2D shape that you can use as part of drawing a view.
-public struct Path: View {
+public struct Path: _PrimitiveView {
     public init() {}
     public init(_ callback: (inout Path) -> Void) { var p = Path(); callback(&p) }
 
@@ -79,7 +79,7 @@ public struct Path: View {
     public func stroke(_ color: Color, style: StrokeStyle) -> ViewNode { .empty }
     public func fill(_ color: Color) -> ViewNode { .empty }
 
-    public var body: ViewNode { .empty }
+    public var _nodeRepresentation: ViewNode { .empty }
 }
 
 /// An ellipse shape.
@@ -96,7 +96,7 @@ public struct Ellipse: Shape {
         return p
     }
 
-    public var body: ViewNode { .roundedRect(width: nil, height: nil, radius: 1000, fill: .white) }
+    public var _nodeRepresentation: ViewNode { .roundedRect(width: nil, height: nil, radius: 1000, fill: .white) }
 
     public func fill(_ color: Color) -> ViewNode { .roundedRect(width: nil, height: nil, radius: 1000, fill: color) }
     public func stroke(_ color: Color, lineWidth: CGFloat = 1) -> ViewNode { .empty }

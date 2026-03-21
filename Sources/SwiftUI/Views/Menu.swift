@@ -2,7 +2,7 @@ import Foundation
 
 /// A control for presenting a menu of actions.
 /// Matches Apple's SwiftUI `Menu` struct.
-public struct Menu: View {
+public struct Menu: _PrimitiveView {
     let child: ViewNode
 
     /// `Menu("Label") { ... }` — collapsed menu with children.
@@ -17,7 +17,7 @@ public struct Menu: View {
         self.child = .menu(label: "Menu", children: items)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 
 /// A container view that groups content with an optional header.
 /// Matches Apple's SwiftUI `Section` struct.
-public struct Section: View {
+public struct Section: _PrimitiveView {
     let child: ViewNode
 
     public init(
@@ -102,7 +102,7 @@ public struct Section: View {
         self.child = .vstack(alignment: .leading, spacing: 0, children: children)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }

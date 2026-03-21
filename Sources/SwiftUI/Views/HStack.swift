@@ -2,7 +2,7 @@ import Foundation
 
 /// A view that arranges its children in a horizontal line.
 /// Matches Apple's SwiftUI `HStack` struct.
-public struct HStack: View {
+public struct HStack: _PrimitiveView {
     let alignment: VAlignment
     let spacing: CGFloat
     let children: [ViewNode]
@@ -17,7 +17,7 @@ public struct HStack: View {
         self.children = content()
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         .hstack(alignment: alignment, spacing: spacing, children: children)
     }
 }

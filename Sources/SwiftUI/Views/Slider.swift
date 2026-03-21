@@ -2,7 +2,7 @@ import Foundation
 
 /// A control for selecting a value from a bounded range.
 /// Matches Apple's SwiftUI `Slider` struct.
-public struct Slider: View {
+public struct Slider: _PrimitiveView {
     let child: ViewNode
 
     public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...1, step: Double? = nil) {
@@ -48,7 +48,7 @@ public struct Slider: View {
         self.child = .slider(value: CGFloat(value.wrappedValue), range: cgRange, label: .empty)
     }
 
-    public var body: ViewNode {
+    public var _nodeRepresentation: ViewNode {
         child
     }
 }
