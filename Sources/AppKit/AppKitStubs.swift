@@ -323,8 +323,9 @@ open class NSHostingController<Content>: NSViewController {
 // MARK: - NSItemProvider
 // NSItemProvider is provided by Foundation — no stub needed.
 
-// MARK: - UTType stubs (UniformTypeIdentifiers)
+// MARK: - UTType stubs (Linux only — macOS has UniformTypeIdentifiers)
 
+#if !canImport(UniformTypeIdentifiers)
 public struct UTType: Hashable, Sendable {
     public let identifier: String
     public init(_ identifier: String) { self.identifier = identifier }
@@ -341,9 +342,8 @@ public struct UTType: Hashable, Sendable {
     public static let text = UTType("public.plain-text")
     public static let data = UTType("public.data")
     public static let json = UTType("public.json")
-    public static let xml = UTType("public.xml")
-    public static let pdf = UTType("com.adobe.pdf")
 }
+#endif
 
 // MARK: - NSRect (alias for CGRect)
 
