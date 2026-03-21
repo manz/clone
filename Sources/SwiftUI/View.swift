@@ -2,6 +2,9 @@
 // This matches Apple's SwiftUI behavior.
 @_exported import Foundation
 @_exported import AppKit
+#if canImport(UniformTypeIdentifiers)
+@_exported import UniformTypeIdentifiers
+#endif
 
 /// The core protocol for SwiftUI views.
 @preconcurrency @MainActor
@@ -668,7 +671,7 @@ public extension View {
         _resolve(self).navigationSplitViewColumnWidth(min: min, ideal: ideal, max: max)
     }
 
-    func onDrop(of types: [Any], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode {
+    func onDrop(of types: [UTType], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode {
         _resolve(self).onDrop(of: types, isTargeted: isTargeted, perform: perform)
     }
 
