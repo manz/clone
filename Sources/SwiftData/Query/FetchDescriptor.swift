@@ -23,12 +23,12 @@ public enum SortOrder: Sendable {
 
 /// Describes a fetch operation: predicate + sort + limit.
 public struct FetchDescriptor<T: PersistentModel> {
-    public var predicate: Predicate<T>?
+    public var predicate: _SQLPredicate<T>?
     public var sortDescriptors: [SortDescriptor<T>]
     public var fetchLimit: Int?
     public var fetchOffset: Int?
 
-    public init(predicate: Predicate<T>? = nil,
+    public init(predicate: _SQLPredicate<T>? = nil,
                 sortBy: [SortDescriptor<T>] = [],
                 limit: Int? = nil,
                 offset: Int? = nil) {

@@ -11,45 +11,45 @@ public struct Column<Model: PersistentModel, Value> {
 
 // MARK: - Equatable Operators
 
-public func == <M, V: Equatable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) = ?", parameters: [rhs.sqliteValue])
+public func == <M, V: Equatable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) = ?", parameters: [rhs.sqliteValue])
 }
 
-public func != <M, V: Equatable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) != ?", parameters: [rhs.sqliteValue])
+public func != <M, V: Equatable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) != ?", parameters: [rhs.sqliteValue])
 }
 
 // MARK: - Comparable Operators
 
-public func > <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) > ?", parameters: [rhs.sqliteValue])
+public func > <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) > ?", parameters: [rhs.sqliteValue])
 }
 
-public func < <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) < ?", parameters: [rhs.sqliteValue])
+public func < <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) < ?", parameters: [rhs.sqliteValue])
 }
 
-public func >= <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) >= ?", parameters: [rhs.sqliteValue])
+public func >= <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) >= ?", parameters: [rhs.sqliteValue])
 }
 
-public func <= <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> Predicate<M> where V: SQLiteBindable {
-    Predicate(sql: "\(lhs.name) <= ?", parameters: [rhs.sqliteValue])
+public func <= <M, V: Comparable>(lhs: Column<M, V>, rhs: V) -> _SQLPredicate<M> where V: SQLiteBindable {
+    _SQLPredicate(sql: "\(lhs.name) <= ?", parameters: [rhs.sqliteValue])
 }
 
 // MARK: - String-specific Operators
 
 extension Column where Value == String {
-    public func contains(_ substring: String) -> Predicate<Model> {
-        Predicate(sql: "\(name) LIKE ?", parameters: [.text("%\(substring)%")])
+    public func contains(_ substring: String) -> _SQLPredicate<Model> {
+        _SQLPredicate(sql: "\(name) LIKE ?", parameters: [.text("%\(substring)%")])
     }
 
-    public func hasPrefix(_ prefix: String) -> Predicate<Model> {
-        Predicate(sql: "\(name) LIKE ?", parameters: [.text("\(prefix)%")])
+    public func hasPrefix(_ prefix: String) -> _SQLPredicate<Model> {
+        _SQLPredicate(sql: "\(name) LIKE ?", parameters: [.text("\(prefix)%")])
     }
 
-    public func hasSuffix(_ suffix: String) -> Predicate<Model> {
-        Predicate(sql: "\(name) LIKE ?", parameters: [.text("%\(suffix)")])
+    public func hasSuffix(_ suffix: String) -> _SQLPredicate<Model> {
+        _SQLPredicate(sql: "\(name) LIKE ?", parameters: [.text("%\(suffix)")])
     }
 }
 

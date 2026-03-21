@@ -40,7 +40,7 @@ public final class ModelContext: NSObject {
     }
 
     /// Delete instances matching a predicate. Matches Apple's `context.delete(model:where:)`.
-    public func delete<T: PersistentModel>(model: T.Type, where predicate: Predicate<T>?) throws {
+    public func delete<T: PersistentModel>(model: T.Type, where predicate: _SQLPredicate<T>?) throws {
         let schema = T.schema
         if let predicate = predicate {
             let sql = "DELETE FROM \(schema.name) WHERE \(predicate.sql)"

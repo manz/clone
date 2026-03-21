@@ -22,7 +22,7 @@ public macro Attribute(_ options: Any?...) = #externalMacro(module: "SwiftDataMa
 /// Uses a single generic parameter (not variadic) since Clone predicates always filter one model type.
 /// Fully qualified to avoid ambiguity with Foundation.Predicate.
 @freestanding(expression)
-public macro Predicate<T: PersistentModel>(_ body: (T) -> Bool) -> SwiftData.Predicate<T>? = #externalMacro(module: "SwiftDataMacros", type: "PredicateMacro")
+public macro Predicate<T: PersistentModel>(_ body: (T) -> Bool) -> SwiftData._SQLPredicate<T>? = #externalMacro(module: "SwiftDataMacros", type: "PredicateMacro")
 
 /// Marks properties for indexing (attached form).
 @attached(peer)

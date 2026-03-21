@@ -1,7 +1,7 @@
 import Foundation
 
-/// A type-safe SQL predicate with bound parameters.
-public struct Predicate<Model: PersistentModel> {
+/// A type-safe SQL predicate with bound parameters (internal to Clone's SwiftData).
+public struct _SQLPredicate<Model: PersistentModel> {
     public let sql: String
     public let parameters: [SQLiteValue]
 
@@ -13,14 +13,14 @@ public struct Predicate<Model: PersistentModel> {
 
 // MARK: - Combinators
 
-public func && <M: PersistentModel>(lhs: Predicate<M>, rhs: Predicate<M>) -> Predicate<M> {
-    Predicate(sql: "(\(lhs.sql)) AND (\(rhs.sql))", parameters: lhs.parameters + rhs.parameters)
+public func && <M: PersistentModel>(lhs: _SQLPredicate<M>, rhs: _SQLPredicate<M>) -> _SQLPredicate<M> {
+    _SQLPredicate(sql: "(\(lhs.sql)) AND (\(rhs.sql))", parameters: lhs.parameters + rhs.parameters)
 }
 
-public func || <M: PersistentModel>(lhs: Predicate<M>, rhs: Predicate<M>) -> Predicate<M> {
-    Predicate(sql: "(\(lhs.sql)) OR (\(rhs.sql))", parameters: lhs.parameters + rhs.parameters)
+public func || <M: PersistentModel>(lhs: _SQLPredicate<M>, rhs: _SQLPredicate<M>) -> _SQLPredicate<M> {
+    _SQLPredicate(sql: "(\(lhs.sql)) OR (\(rhs.sql))", parameters: lhs.parameters + rhs.parameters)
 }
 
-public prefix func ! <M: PersistentModel>(pred: Predicate<M>) -> Predicate<M> {
-    Predicate(sql: "NOT (\(pred.sql))", parameters: pred.parameters)
+public prefix func ! <M: PersistentModel>(pred: _SQLPredicate<M>) -> _SQLPredicate<M> {
+    _SQLPredicate(sql: "NOT (\(pred.sql))", parameters: pred.parameters)
 }

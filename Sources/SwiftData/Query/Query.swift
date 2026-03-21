@@ -10,7 +10,7 @@ public final class Query<T: PersistentModel> {
     private weak var context: ModelContext?
 
     public init(sort sortDescriptors: [SortDescriptor<T>] = [],
-                predicate: Predicate<T>? = nil,
+                predicate: _SQLPredicate<T>? = nil,
                 limit: Int? = nil) {
         self.descriptor = FetchDescriptor(
             predicate: predicate,

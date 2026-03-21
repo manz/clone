@@ -141,14 +141,16 @@ public struct ChartDomain {
 // MARK: - Chart Modifiers
 
 extension Chart {
-    public func chartXAxis(@ChartContentBuilder content: () -> some Any) -> Chart { self }
-    public func chartYAxis(@ChartContentBuilder content: () -> some Any) -> Chart { self }
+    public func chartXAxis<A>(@ChartContentBuilder content: () -> A) -> Chart { self }
+    public func chartYAxis<A>(@ChartContentBuilder content: () -> A) -> Chart { self }
     public func chartXScale(domain: ChartDomain) -> Chart { self }
+    public func chartXScale<T: Comparable>(domain: ClosedRange<T>) -> Chart { self }
     public func chartYScale(domain: ChartDomain) -> Chart { self }
+    public func chartYScale<T: Comparable>(domain: ClosedRange<T>) -> Chart { self }
     public func chartForegroundStyleScale(_ mapping: [String: Color]) -> Chart { self }
     public func chartForegroundStyleScale<S>(_ scale: S) -> Chart { self }
     public func chartLegend(_ visibility: Visibility) -> Chart { self }
-    public func chartLegend(position: Any? = nil) -> Chart { self }
+    public func chartLegend(position: AnnotationPosition = .automatic) -> Chart { self }
     public func chartPlotStyle<S: View>(@ViewBuilder content: (ChartPlotContent) -> S) -> Chart { self }
 }
 
