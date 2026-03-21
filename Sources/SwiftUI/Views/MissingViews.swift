@@ -219,6 +219,13 @@ extension TableColumn where Label == Text, Sort == Never {
     public init(_ title: String, @ViewBuilder content: @escaping (RowValue) -> Content) {}
 }
 
+extension TableColumn {
+    /// `.width(_:)` — sets column width. No-op on Clone.
+    public func width(_ width: CGFloat? = nil) -> TableColumn { self }
+    /// `.width(min:ideal:max:)` — sets column width range. No-op on Clone.
+    public func width(min: CGFloat? = nil, ideal: CGFloat? = nil, max: CGFloat? = nil) -> TableColumn { self }
+}
+
 // MARK: - ToolbarItem
 
 /// A model that represents an item in a toolbar.

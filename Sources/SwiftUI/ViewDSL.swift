@@ -341,6 +341,16 @@ public extension ViewNode {
         self
     }
 
+    /// `.searchable(text:isPresented:)` — no-op on Clone.
+    func searchable(text: Binding<String>, isPresented: Binding<Bool>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
+        self
+    }
+
+    /// `.searchable(text:isPresented:isSearchFieldFocused:)` — no-op on Clone.
+    func searchable(text: Binding<String>, isPresented: Binding<Bool> = .constant(false), isSearchFieldFocused: Binding<Bool>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
+        self
+    }
+
     /// `.searchable(text:)` — no-op on Clone.
     func searchable(text: Binding<String>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
         self
@@ -642,7 +652,7 @@ public extension ViewNode {
     func strikethrough(_ active: Bool = true, color: Color? = nil) -> ViewNode { self }
 
     /// `.textContentType(_:)` — no-op on Clone.
-    func textContentType<T>(_ type: T?) -> ViewNode { self }
+    func textContentType(_ type: NSTextContentType?) -> ViewNode { self }
 
     /// `.rotation3DEffect(_:axis:)` — no-op on Clone.
     func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat)) -> ViewNode { self }

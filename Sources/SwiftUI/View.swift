@@ -231,6 +231,14 @@ public extension View {
         _resolve(self).confirmationDialog(title, isPresented: isPresented, titleVisibility: titleVisibility, actions: actions, message: message)
     }
 
+    func searchable(text: Binding<String>, isPresented: Binding<Bool>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
+        _resolve(self).searchable(text: text, isPresented: isPresented, placement: placement, prompt: prompt)
+    }
+
+    func searchable(text: Binding<String>, isPresented: Binding<Bool> = .constant(false), isSearchFieldFocused: Binding<Bool>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
+        _resolve(self).searchable(text: text, isPresented: isPresented, isSearchFieldFocused: isSearchFieldFocused, placement: placement, prompt: prompt)
+    }
+
     func searchable(text: Binding<String>, placement: Any? = nil, prompt: String? = nil) -> ViewNode {
         _resolve(self).searchable(text: text, placement: placement, prompt: prompt)
     }
@@ -683,7 +691,7 @@ public extension View {
         _resolve(self).clipShape(shape)
     }
 
-    func textContentType<T>(_ type: T?) -> ViewNode {
+    func textContentType(_ type: NSTextContentType?) -> ViewNode {
         _resolve(self).textContentType(type)
     }
 

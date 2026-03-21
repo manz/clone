@@ -158,6 +158,10 @@ open class NSImage: @unchecked Sendable {
     public enum CompositingOperation: UInt { case sourceOver, copy }
 }
 
+// NSImage drag/drop: on real macOS, NSImage conforms to NSItemProviderReading/Writing.
+// Clone's stub NSImage isn't NSObject-based so can't conform to those ObjC protocols.
+// Apps using `canLoadObject(ofClass: NSImage.self)` will need `#if canImport(CloneClient)` guards.
+
 // MARK: - NSImageRep
 
 open class NSImageRep {
@@ -344,6 +348,20 @@ public struct UTType: Hashable, Sendable {
     public static let json = UTType("public.json")
 }
 #endif
+
+// MARK: - NSTextContentType
+
+public struct NSTextContentType: RawRepresentable, Hashable, Sendable {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+    public static let username = NSTextContentType(rawValue: "username")
+    public static let password = NSTextContentType(rawValue: "password")
+    public static let newPassword = NSTextContentType(rawValue: "newPassword")
+    public static let oneTimeCode = NSTextContentType(rawValue: "oneTimeCode")
+    public static let emailAddress = NSTextContentType(rawValue: "emailAddress")
+    public static let URL = NSTextContentType(rawValue: "URL")
+    public static let name = NSTextContentType(rawValue: "name")
+}
 
 // MARK: - NSRect (alias for CGRect)
 
