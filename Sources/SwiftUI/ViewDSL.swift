@@ -669,6 +669,7 @@ public extension ViewNode {
     /// `.toolbar(_:)` — toolbar with ToolbarContent.
     func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode { self }
 
+
     /// `.toolbar(removing:)` — removes default toolbar items. No-op on Clone.
     func toolbar(removing: ToolbarDefaultItemKind?) -> ViewNode { self }
 

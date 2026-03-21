@@ -205,6 +205,23 @@ extension Table where Rows == Never, Columns == Never {
     }
 }
 
+extension Table {
+    /// `Table(data, selection:) { columns }` — generic content variant.
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @TableColumnBuilder<Value, Never> columns: () -> Columns) where Data.Element == Value, Rows == Never {
+        // stub
+    }
+}
+
+/// Result builder for table columns.
+@resultBuilder
+public struct TableColumnBuilder<RowValue, Sort> {
+    public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] { components.flatMap { $0 } }
+    @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] { [_resolve(expression)] }
+    public static func buildOptional(_ component: [ViewNode]?) -> [ViewNode] { component ?? [] }
+    public static func buildEither(first component: [ViewNode]) -> [ViewNode] { component }
+    public static func buildEither(second component: [ViewNode]) -> [ViewNode] { component }
+}
+
 /// A column in a table.
 public struct TableColumn<RowValue, Sort, Content: View, Label: View>: View {
     public var body: ViewNode { .empty }

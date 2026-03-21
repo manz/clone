@@ -349,6 +349,16 @@ public struct UTType: Hashable, Sendable {
 }
 #endif
 
+// MARK: - AVKit stubs (Linux only — macOS has real AVKit)
+
+#if !canImport(AVKit)
+open class AVRoutePickerView: NSView {
+    public var isRoutePickerButtonBordered: Bool = true
+    public var prioritizesVideoDevices: Bool = false
+    public override init() { super.init() }
+}
+#endif
+
 // MARK: - NSTextContentType
 
 public struct NSTextContentType: RawRepresentable, Hashable, Sendable {
