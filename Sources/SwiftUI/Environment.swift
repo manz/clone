@@ -196,30 +196,40 @@ public struct SceneStorage<Value> {
 // MARK: - @FocusState
 
 /// A property wrapper for focus tracking. No-op on Clone.
+@MainActor @preconcurrency
 @propertyWrapper
-public final class FocusState<Value: Hashable> {
-    public var wrappedValue: Value
+public struct FocusState<Value: Hashable> {
+    private final class Storage {
+        var value: Value
+        init(_ value: Value) { self.value = value }
+    }
+    private let storage: Storage
+
+    public var wrappedValue: Value {
+        get { storage.value }
+        nonmutating set { storage.value = newValue }
+    }
 
     public var projectedValue: Binding<Value> {
         Binding(
-            get: { self.wrappedValue },
+            get: { self.storage.value },
             set: { self.wrappedValue = $0 }
         )
     }
 
     public init(wrappedValue: Value) {
-        self.wrappedValue = wrappedValue
+        self.storage = Storage(wrappedValue)
     }
 }
 
 extension FocusState where Value == Bool {
-    public convenience init() {
+    public init() {
         self.init(wrappedValue: false)
     }
 }
 
 extension FocusState where Value: ExpressibleByNilLiteral {
-    public convenience init() {
+    public init() {
         self.init(wrappedValue: nil)
     }
 }

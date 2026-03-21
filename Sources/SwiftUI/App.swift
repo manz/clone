@@ -59,6 +59,18 @@ public protocol App {
     /// Called on key events.
     func onKey(keycode: UInt32, pressed: Bool)
 
+    /// Called when a character is typed (translated from keycode).
+    func onKeyChar(character: String)
+
+    /// Called when a menu item is selected from the menu bar.
+    func onMenuAction(itemId: String)
+
+    /// Called when an open-file dialog returns a result.
+    func onOpenPanelResult(path: String?)
+
+    /// Called when compositor sends the focused app's menus (for menubar).
+    func onAppMenus(appName: String, menus: [AppMenu])
+
     /// Called when compositor reports the focused app name (menubar).
     func onFocusedApp(name: String)
 
@@ -86,6 +98,10 @@ extension App {
     public func onPointerMove(x: CGFloat, y: CGFloat) {}
     public func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {}
     public func onKey(keycode: UInt32, pressed: Bool) {}
+    public func onKeyChar(character: String) {}
+    public func onMenuAction(itemId: String) {}
+    public func onOpenPanelResult(path: String?) {}
+    public func onAppMenus(appName: String, menus: [AppMenu]) {}
     public func onFocusedApp(name: String) {}
     public func onMinimizedApps(appIds: [String]) {}
 
@@ -132,8 +148,12 @@ extension App {
                 TapRegistry.shared.clear()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
-                let viewTree = windowGroup.buildViewNode()
+                var viewTree = windowGroup.buildViewNode()
                     .background(config.role == .window ? WindowChrome.surface : .clear)
+                // Overlay open panel if active
+                if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
+                    viewTree = .zstack(children: [viewTree, panelOverlay])
+                }
                 let layoutNode = Layout.layout(
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: width, height: height)
@@ -148,6 +168,10 @@ extension App {
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
                 let y = CGFloat(py)
+                // Open panel intercepts clicks when active
+                if button == 0 && pressed && handleOpenPanelClick(x: x, y: y, width: CGFloat(app.client.width), height: CGFloat(app.client.height)) {
+                    return
+                }
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 if button == 0 && pressed {
                     TapRegistry.shared.clear()
@@ -170,6 +194,7 @@ extension App {
                 }
             }
             app.client.onPointerMove = { px, py in
+                updateOpenPanelMouse(x: CGFloat(px), y: CGFloat(py))
                 app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
                 let cw = CGFloat(app.client.width)
                 let ch = CGFloat(app.client.height)
@@ -188,23 +213,47 @@ extension App {
                 let width = CGFloat(w)
                 let height = CGFloat(h)
                 WindowState.shared.update(width: width, height: height)
-                return app.render(width: width, height: height) ?? []
+                var cmds = app.render(width: width, height: height) ?? []
+                // Overlay open panel if active
+                if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
+                    let frame = LayoutFrame(x: 0, y: 0, width: width, height: height)
+                    let layoutNode = Layout.layout(panelOverlay, in: frame)
+                    cmds.append(contentsOf: CommandFlattener.flatten(layoutNode).map { $0.toIPC() })
+                }
+                return cmds
             }
             app.client.onPointerButton = { button, pressed, px, py in
+                if button == 0 && pressed && handleOpenPanelClick(x: CGFloat(px), y: CGFloat(py), width: CGFloat(app.client.width), height: CGFloat(app.client.height)) {
+                    return
+                }
                 app.onPointerButton(button: button, pressed: pressed, x: CGFloat(px), y: CGFloat(py))
             }
             app.client.onPointerMove = { px, py in
+                updateOpenPanelMouse(x: CGFloat(px), y: CGFloat(py))
                 app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
             }
         }
         app.client.onKey = { keycode, pressed in
+            if pressed && handleOpenPanelKey(keycode: keycode) { return }
             app.onKey(keycode: keycode, pressed: pressed)
+        }
+        app.client.onKeyChar = { character in
+            app.onKeyChar(character: character)
+        }
+        app.client.onMenuAction = { itemId in
+            app.onMenuAction(itemId: itemId)
+        }
+        app.client.onOpenPanelResult = { path in
+            app.onOpenPanelResult(path: path)
         }
         app.client.onFocusedApp = { name in
             app.onFocusedApp(name: name)
         }
         app.client.onMinimizedApps = { appIds in
             app.onMinimizedApps(appIds: appIds)
+        }
+        app.client.onAppMenus = { name, menus in
+            app.onAppMenus(appName: name, menus: menus)
         }
 
         fputs("\(title) connected to compositor\n", stderr)

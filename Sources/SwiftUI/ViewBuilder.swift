@@ -2,6 +2,9 @@ import Foundation
 
 @resultBuilder
 public struct ViewBuilder {
+    // Empty block — for `#if ... #endif` that produces nothing on current platform.
+    public static func buildBlock() -> [ViewNode] { [] }
+
     // A block component is always [ViewNode] — a flat list of nodes.
     public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] {
         components.flatMap { $0 }

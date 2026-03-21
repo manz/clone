@@ -540,8 +540,8 @@ public extension View {
         _ModifiedView(node: _resolve(self).listRowBackground(view))
     }
 
-    func toolbar<C: ToolbarContent>(_ content: () -> C) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).toolbar(content))
+    func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
     }
 
     func toolbar(removing: ToolbarDefaultItemKind?) -> _ModifiedView<Self> {

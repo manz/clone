@@ -297,6 +297,7 @@ public struct ToolbarDefaultItemKind: Sendable {
 /// A result builder for toolbar content.
 @resultBuilder
 public struct ToolbarContentBuilder {
+    public static func buildBlock() -> [ViewNode] { [] }
     public static func buildBlock<C: View>(_ content: C) -> C { content }
     public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] { components.flatMap { $0 } }
     @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] { [_resolve(expression)] }

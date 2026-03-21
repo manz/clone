@@ -667,8 +667,7 @@ public extension ViewNode {
     func listRowBackground<V: View>(_ view: V?) -> ViewNode { self }
 
     /// `.toolbar(_:)` — toolbar with ToolbarContent.
-    func toolbar<C: ToolbarContent>(_ content: () -> C) -> ViewNode { self }
-
+    func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C) -> ViewNode { self }
 
     /// `.toolbar(removing:)` — removes default toolbar items. No-op on Clone.
     func toolbar(removing: ToolbarDefaultItemKind?) -> ViewNode { self }
