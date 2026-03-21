@@ -352,7 +352,7 @@ public struct CommandGroupPlacement: Sendable {
 /// A wrapper that you use to integrate an AppKit view into your view hierarchy.
 @MainActor @preconcurrency
 public protocol NSViewRepresentable: _PrimitiveView {
-    associatedtype NSViewType: NSView
+    associatedtype NSViewType
     @MainActor func makeNSView(context: Context) -> NSViewType
     @MainActor func updateNSView(_ nsView: NSViewType, context: Context)
 

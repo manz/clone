@@ -2,6 +2,7 @@ import Foundation
 
 /// A modifier that you apply to a view or another view modifier,
 /// producing a different version of the original value.
+@preconcurrency @MainActor
 public protocol ViewModifier {
     associatedtype Body: View
     typealias Content = _ViewModifierContent
