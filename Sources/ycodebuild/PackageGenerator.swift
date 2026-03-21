@@ -16,15 +16,27 @@ enum PackageGenerator {
         let sourcePath = URL(fileURLWithPath: outputDir).appendingPathComponent(sourceDir).path
         let excludes = findExcludes(in: sourcePath)
 
-        // All SDK modules are now products of the Clone package (including stub modules).
+        // SDK modules that are exported as products in Clone's Package.swift.
         // AppKit is a transitive dependency of SwiftUI, not a separate product.
-        var sdkDeps: [String] = []
-        if sdkModules.contains("SwiftUI") { sdkDeps.append("SwiftUI") }
-        if sdkModules.contains("SwiftData") { sdkDeps.append("SwiftData") }
+        // Internal modules (CloneClient, CloneProtocol, etc.) are not app dependencies.
+        let exportedProducts: Set<String> = [
+            "SwiftUI", "SwiftData", "Charts",
+            "MediaPlayer", "AVKit", "UniformTypeIdentifiers",
+            "AVFoundation", "KeychainServices",
+        ]
 
-        // Stub modules are also Clone products now
+        var sdkDeps: [String] = []
+        for module in sdkModules.sorted() {
+            if exportedProducts.contains(module) {
+                sdkDeps.append(module)
+            }
+        }
+
+        // Stub modules are also Clone products
         for stub in stubs.sorted() {
-            sdkDeps.append(stub)
+            if !sdkDeps.contains(stub) {
+                sdkDeps.append(stub)
+            }
         }
 
         // Generate SDK product dependencies

@@ -62,14 +62,6 @@ public struct GeometryReader<Content: View>: _PrimitiveView {
         self.child = .geometryReader(id: id)
     }
 
-    /// Convenience init with non-ViewBuilder closure for backwards compatibility.
-    public init(_ content: @escaping (GeometryProxy) -> Content) {
-        let id = GeometryReaderRegistry.shared.register { proxy in
-            _resolve(content(proxy))
-        }
-        self.child = .geometryReader(id: id)
-    }
-
     public var _nodeRepresentation: ViewNode {
         child
     }

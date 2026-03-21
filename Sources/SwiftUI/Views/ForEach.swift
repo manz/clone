@@ -32,6 +32,12 @@ extension ForEach where Data == Range<Int>, ID == Int {
     }
 }
 
+// _ForEachProtocol conformance so _flattenToNodes extracts children directly
+// instead of falling through to _nodeRepresentation's vstack wrapper.
+extension ForEach: @preconcurrency _ForEachProtocol {
+    public var _flatNodes: [ViewNode] { nodes }
+}
+
 // \.self id convenience
 extension ForEach where Data: RandomAccessCollection, Data.Element: Hashable, ID == Data.Element {
     public init(_ data: Data, id: KeyPath<Data.Element, Data.Element>, @ViewBuilder content: @escaping (Data.Element) -> Content) {

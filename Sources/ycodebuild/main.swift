@@ -28,10 +28,15 @@ struct YCodeBuild {
             print("ycodebuild: unknown (will attempt stub): \(classified.unknown.sorted().joined(separator: ", "))")
         }
 
+        // Clean stale stubs from previous runs
+        let stubsDir = aquaxDir.appendingPathComponent("stubs")
+        if FileManager.default.fileExists(atPath: stubsDir.path) {
+            try FileManager.default.removeItem(at: stubsDir)
+        }
+
         // SDK stubs are now proper targets in Clone — only generate stubs for truly unknown modules
         let unknownStubs = classified.unknown
         if !unknownStubs.isEmpty {
-            let stubsDir = aquaxDir.appendingPathComponent("stubs")
             try StubGenerator.generate(modules: unknownStubs, outputDir: stubsDir.path)
         }
 
