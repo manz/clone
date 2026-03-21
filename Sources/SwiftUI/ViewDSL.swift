@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // MARK: - Modifier chains on ViewNode
 
@@ -595,8 +596,8 @@ public extension ViewNode {
     /// `.navigationDestination(item:destination:)` — no-op on Clone.
     func navigationDestination<Item: Hashable>(item: Binding<Item?>, @ViewBuilder destination: @escaping (Item) -> [ViewNode]) -> ViewNode { self }
 
-    /// `.onReceive(_:perform:)` — no-op on Clone.
-    func onReceive<P>(_ publisher: P, perform action: @escaping (P) -> Void) -> ViewNode { self }
+    /// `.onReceive(_:perform:)` — no-op on Clone. Uses Combine Publisher protocol.
+    func onReceive<P: Publisher>(_ publisher: P, perform action: @escaping (P.Output) -> Void) -> ViewNode { self }
 
     /// `.simultaneousGesture(_:)` — no-op on Clone.
     func simultaneousGesture<G>(_ gesture: G) -> ViewNode { self }

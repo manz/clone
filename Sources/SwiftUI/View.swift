@@ -65,6 +65,30 @@ func _resolve<V: View>(_ view: V) -> ViewNode {
     return _resolve(view.body)
 }
 
+// MARK: - AttributedString SwiftUI extensions
+
+extension AttributedString {
+    /// SwiftUI foregroundColor on AttributedString — matches Apple's SwiftUI.
+    public var foregroundColor: Color? {
+        get { nil }
+        set { /* no-op on Clone */ }
+    }
+
+    /// SwiftUI strikethroughStyle on AttributedString.
+    public var strikethroughStyle: Text.LineStyle? {
+        get { nil }
+        set { /* no-op on Clone */ }
+    }
+}
+
+extension Text {
+    /// Line style for strikethrough/underline.
+    public struct LineStyle: Sendable {
+        public static let single = LineStyle()
+        public init() {}
+    }
+}
+
 // MARK: - Modified View wrapper
 
 /// Opaque wrapper for modifier chains. Hides ViewNode from the public API surface.
@@ -452,8 +476,8 @@ public extension View {
         _ModifiedView(node: _resolve(self).navigationDestination(for: type, destination: destination))
     }
 
-    func onReceive<P>(_ publisher: P, perform action: @escaping (P) -> Void) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).onReceive(publisher, perform: action))
+    func onReceive<P: Publisher>(_ publisher: P, perform action: @escaping (P.Output) -> Void) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
     }
 
     func simultaneousGesture<G>(_ gesture: G) -> _ModifiedView<Self> {
