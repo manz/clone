@@ -112,6 +112,12 @@ enum PackageGenerator {
                 continue
             }
 
+            // Exclude test files — they belong in test targets, not the app
+            if !isDir && filename.hasSuffix("Tests.swift") {
+                excludes.append(rel)
+                continue
+            }
+
             if !isDir && excludedExtensions.contains(ext) {
                 excludes.append(rel)
             }
