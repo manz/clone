@@ -13,6 +13,7 @@ public struct Chart<Content>: View {
 
 @resultBuilder
 public struct ChartContentBuilder {
+    public static func buildExpression<C>(_ expression: C) -> C { expression }
     public static func buildBlock<C>(_ content: C) -> C { content }
     public static func buildBlock() -> EmptyChartContent { EmptyChartContent() }
     public static func buildBlock<C0, C1>(_ c0: C0, _ c1: C1) -> ChartTupleContent<(C0, C1)> { ChartTupleContent() }
@@ -33,7 +34,9 @@ public enum ChartEither<T, F> { case first(T), second(F) }
 
 // MARK: - Mark Types
 
-public struct BarMark {
+public struct BarMark: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
+    // Original inits below
     public init(x: PlottableValue<String>? = nil, y: PlottableValue<Double>? = nil) {}
     public init(x: PlottableValue<Double>? = nil, y: PlottableValue<String>? = nil) {}
     public init(x: PlottableValue<Int>? = nil, y: PlottableValue<Double>? = nil) {}
@@ -43,24 +46,28 @@ public struct BarMark {
     public func annotation<Content: View>(position: AnnotationPosition = .automatic, @ViewBuilder content: () -> Content) -> BarMark { self }
 }
 
-public struct LineMark {
+public struct LineMark: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
     public init(x: PlottableValue<String>? = nil, y: PlottableValue<Double>? = nil) {}
     public init(x: PlottableValue<Double>? = nil, y: PlottableValue<Double>? = nil) {}
     public func foregroundStyle(_ color: Color) -> LineMark { self }
     public func interpolationMethod(_ method: InterpolationMethod) -> LineMark { self }
 }
 
-public struct AreaMark {
+public struct AreaMark: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
     public init(x: PlottableValue<String>? = nil, y: PlottableValue<Double>? = nil) {}
     public func foregroundStyle(_ color: Color) -> AreaMark { self }
 }
 
-public struct PointMark {
+public struct PointMark: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
     public init(x: PlottableValue<String>? = nil, y: PlottableValue<Double>? = nil) {}
     public func foregroundStyle(_ color: Color) -> PointMark { self }
 }
 
-public struct RuleMark {
+public struct RuleMark: _PrimitiveView {
+    public var _nodeRepresentation: ViewNode { .empty }
     public init(y: PlottableValue<Double>? = nil) {}
     public init(x: PlottableValue<Double>? = nil) {}
     public func foregroundStyle(_ color: Color) -> RuleMark { self }
