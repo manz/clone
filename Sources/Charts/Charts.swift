@@ -104,7 +104,7 @@ public struct AxisMarkValues: Sendable {
 
 public struct AxisValue {
     public var index: Int { 0 }
-    public func as_<T>(_ type: T.Type) -> T? { nil }
+    public func `as`<T>(_ type: T.Type) -> T? { nil }
 }
 
 public struct AxisValueLabel<Content: View>: View {
@@ -122,6 +122,7 @@ public struct AxisGridLine: View {
     public init() {}
     public init(stroke: StrokeStyle) {}
     public func foregroundStyle(_ color: Color) -> AxisGridLine { self }
+    public func foregroundStyle<S: View>(_ style: S) -> AxisGridLine { self }
     public var body: some View { EmptyView() }
 }
 

@@ -47,6 +47,18 @@ public struct ViewBuilder {
         TupleView((c0, c1, c2, c3, c4, c5, c6, c7, c8, c9))
     }
 
+    // MARK: - buildPartialBlock (allows unlimited children)
+
+    public static func buildPartialBlock<C: View>(first content: C) -> C { content }
+
+    public static func buildPartialBlock<C0: View, C1: View>(accumulated: C0, next: C1) -> TupleView<(C0, C1)> {
+        TupleView((accumulated, next))
+    }
+
+    public static func buildPartialBlock<T, C: View>(accumulated: TupleView<T>, next: C) -> TupleView<(TupleView<T>, C)> {
+        TupleView((accumulated, next))
+    }
+
     // Never
     public static func buildBlock(_ n: Never) -> Never {}
 
