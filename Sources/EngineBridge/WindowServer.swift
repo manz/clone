@@ -32,7 +32,6 @@ public final class WindowServer {
         windowManager.screenHeight = height
 
         appManager.processLaunchQueue(windowManager: windowManager, animationManager: animationManager)
-        appManager.requestFrames()
 
         var frames: [SurfaceFrame] = []
 
@@ -126,6 +125,10 @@ public final class WindowServer {
         // Send state updates to dock and menubar
         let minimizedIds = windowManager.minimizedWindows.map(\.appId)
         appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), minimizedAppIds: minimizedIds, focusedWmWindowId: windowManager.focusedWindowId)
+
+        // Request frames for NEXT render cycle (double-buffered).
+        // Apps respond asynchronously — we use their previous response for this frame.
+        appManager.requestFrames()
 
         return frames
     }

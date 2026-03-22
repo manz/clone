@@ -153,24 +153,51 @@ public final class AppClient {
         }
     }
 
-    /// Run the event loop. Blocks the current thread.
-    public func runLoop() {
-        // Set blocking for the main loop
-        let flags = fcntl(socketFd, F_GETFL)
-        fcntl(socketFd, F_SETFL, flags & ~O_NONBLOCK)
+    private var readSource: DispatchSourceRead?
 
-        while isConnected {
-            var buf = [UInt8](repeating: 0, count: 65536)
+    /// Run the event loop. Non-blocking — uses GCD DispatchSource for socket reads
+    /// and dispatchMain() so URLSession, async/await, and timers all work.
+    public func runLoop() {
+        let fd = socketFd
+        // Non-blocking for GCD
+        let flags = fcntl(fd, F_GETFL)
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
+        source.setEventHandler { [weak self] in
+            MainActor.assumeIsolated {
+                self?.readAvailableData()
+            }
+        }
+        source.setCancelHandler { [weak self] in
+            MainActor.assumeIsolated {
+                self?.isConnected = false
+            }
+        }
+        source.resume()
+        self.readSource = source
+
+        // dispatchMain() never returns — processes all GCD sources including our socket
+        dispatchMain()
+    }
+
+    private func readAvailableData() {
+        var buf = [UInt8](repeating: 0, count: 65536)
+        while true {
             let bytesRead = posix_read(socketFd, &buf, buf.count)
             if bytesRead > 0 {
                 readBuffer.append(contentsOf: buf[0..<bytesRead])
-                while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
-                    readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-                    handle(msg)
-                }
-            } else {
+            } else if bytesRead == 0 {
+                readSource?.cancel()
                 isConnected = false
+                return
+            } else {
+                break // EAGAIN — no more data
             }
+        }
+        while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
+            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+            handle(msg)
         }
     }
 
