@@ -164,14 +164,14 @@ public final class AppClient {
         fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.readAvailableData()
+        source.setEventHandler {
+            MainActor.assumeIsolated { [self] in
+                self.readAvailableData()
             }
         }
-        source.setCancelHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.isConnected = false
+        source.setCancelHandler {
+            MainActor.assumeIsolated { [self] in
+                self.isConnected = false
             }
         }
         source.resume()
