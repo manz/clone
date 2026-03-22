@@ -215,7 +215,10 @@ public struct FocusState<Value: Hashable> {
         )
     }
 
-    public init(wrappedValue: Value) {}
+    // NO init(wrappedValue:) — this is intentional.
+    // Without it, Swift excludes @FocusState from memberwise init synthesis,
+    // matching Apple's behavior. FocusState is always default-initialized via init().
+    public init() {}
 
     private static var _defaultValue: Value {
         if Value.self == Bool.self { return false as! Value }
