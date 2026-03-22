@@ -184,11 +184,14 @@ public final class AppClient {
         source.resume()
         self.readSource = source
 
-        // Run the RunLoop — this processes BOTH DispatchSource events AND GCD callbacks
-        // (URLSession, async/await, timers). Unlike dispatchMain(), RunLoop.run() processes
-        // sources synchronously, so frame responses are sent before the compositor renders.
+        // Run the RunLoop — this processes BOTH socket reads AND GCD callbacks
+        // (URLSession, async/await, timers).
         while isConnected {
-            RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.016))
+            // Poll socket first — ensures frame requests are processed immediately
+            // before the compositor times out waiting for a response.
+            readAvailableData()
+            // Then process GCD callbacks (URLSession, timers, async)
+            RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
         }
     }
 
