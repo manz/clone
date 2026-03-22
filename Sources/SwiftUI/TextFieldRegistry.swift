@@ -103,7 +103,6 @@ public final class TextFieldRegistry: @unchecked Sendable {
                 return
             }
         }
-        // Clicked outside all text fields — unfocus
         focusedId = nil
     }
 
