@@ -123,14 +123,14 @@ public enum Layout {
 
         case .rect(let width, let height, _):
             return MeasuredSize(
-                width: width ?? constraint.maxWidth,
-                height: height ?? constraint.maxHeight
+                width: width ?? 0,  // nil = flexible, sized by parent
+                height: height ?? 0
             )
 
         case .roundedRect(let width, let height, _, _):
             return MeasuredSize(
-                width: width ?? constraint.maxWidth,
-                height: height ?? constraint.maxHeight
+                width: width ?? 0,
+                height: height ?? 0
             )
 
         case .blur:
