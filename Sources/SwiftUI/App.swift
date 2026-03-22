@@ -151,6 +151,7 @@ extension App {
                 TapRegistry.shared.clear()
                 TextFieldRegistry.shared.clear()
                 OnceRegistry.shared.resetCounter()
+                TagRegistry.shared.clear()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
