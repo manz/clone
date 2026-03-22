@@ -212,7 +212,7 @@ public enum Layout {
             let labelSize = measure(label, constraint: constraint)
             return MeasuredSize(width: labelSize.width + 100, height: max(labelSize.height, 30))
 
-        case .textField(let placeholder, _):
+        case .textField(let placeholder, _, _):
             let charWidth: CGFloat = 14 * 0.6
             let width = charWidth * CGFloat(placeholder.count) + 16
             return MeasuredSize(width: max(width, 200), height: 30)
@@ -328,8 +328,16 @@ public enum Layout {
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
+        case .textField(_, _, let registryId):
+            let size = measure(node, constraint: constraint)
+            let leafFrame = LayoutFrame(x: frame.x, y: frame.y, width: size.width, height: size.height)
+            if registryId > 0 {
+                TextFieldRegistry.shared.setFrame(id: registryId, frame: leafFrame)
+            }
+            return LayoutNode(frame: leafFrame, node: node)
+
         default:
-            // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker, textField
+            // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker
             let size = measure(node, constraint: constraint)
             let leafFrame = LayoutFrame(x: frame.x, y: frame.y, width: size.width, height: size.height)
             return LayoutNode(frame: leafFrame, node: node)

@@ -7,17 +7,20 @@ public struct TextField: _PrimitiveView {
 
     /// `TextField("Placeholder", text:)` — text input box with placeholder.
     public init(_ placeholder: String, text: Binding<String>) {
-        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+        let id = TextFieldRegistry.shared.register(binding: text, placeholder: placeholder)
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
     /// `TextField("Placeholder", text:, onEditingChanged:)` — with editing callback.
     public init(_ placeholder: String, text: Binding<String>, onEditingChanged: @escaping (Bool) -> Void) {
-        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+        let id = TextFieldRegistry.shared.register(binding: text, placeholder: placeholder)
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
     /// `TextField("Placeholder", text:, onCommit:)` — with commit callback.
     public init(_ placeholder: String, text: Binding<String>, onCommit: @escaping () -> Void) {
-        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+        let id = TextFieldRegistry.shared.register(binding: text, placeholder: placeholder)
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
     /// `TextField("Label", value:, format:)` — value binding with format style.
@@ -32,12 +35,14 @@ public struct TextField: _PrimitiveView {
 
     /// `TextField("Label", text:, prompt:)` — with prompt.
     public init(_ placeholder: String, text: Binding<String>, prompt: Text?) {
-        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+        let id = TextFieldRegistry.shared.register(binding: text, placeholder: placeholder)
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
     /// `TextField("Label", text:, axis:)` — with expansion axis.
     public init(_ placeholder: String, text: Binding<String>, axis: Axis) {
-        self.child = .textField(placeholder: placeholder, text: text.wrappedValue)
+        let id = TextFieldRegistry.shared.register(binding: text, placeholder: placeholder)
+        self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
     public var _nodeRepresentation: ViewNode {

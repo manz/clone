@@ -166,7 +166,7 @@ public enum CommandFlattener {
                 kind: .roundedRect(radius: 8, color: Color.white.withAlpha(opacity))
             ))
 
-        case .textField(let placeholder, let text):
+        case .textField(let placeholder, let text, let registryId):
             // Background box
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y, width: frame.width, height: frame.height,

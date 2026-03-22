@@ -149,6 +149,7 @@ extension App {
                 let height = CGFloat(h)
                 GeometryReaderRegistry.shared.clear()
                 TapRegistry.shared.clear()
+                TextFieldRegistry.shared.clear()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
@@ -166,14 +167,7 @@ extension App {
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
-                let commands = CommandFlattener.flatten(layoutNode)
-                fputs("DEBUG commands: \(commands.count) render commands\n", stderr)
-                if commands.count < 50 {
-                    for (i, cmd) in commands.enumerated() {
-                        fputs("  [\(i)] \(cmd)\n", stderr)
-                    }
-                }
-                return commands.map { $0.toIPC() }
+                return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
             }
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
@@ -196,6 +190,8 @@ extension App {
                     if let tapId = layoutNode.hitTestTap(x: x, y: y) {
                         TapRegistry.shared.fire(id: tapId)
                     }
+                    // Text field focus
+                    TextFieldRegistry.shared.handleClick(x: x, y: y)
                     // Propagate title changes from tap handlers (e.g. navigation).
                     if WindowState.shared.titleDidChange(),
                        let newTitle = WindowState.shared.navigationTitle {
@@ -245,9 +241,24 @@ extension App {
         }
         app.client.onKey = { keycode, pressed in
             if pressed && handleOpenPanelKey(keycode: keycode) { return }
+            // Text field key handling
+            if pressed {
+                switch keycode {
+                case 51: // Backspace
+                    TextFieldRegistry.shared.handleBackspace()
+                case 48: // Tab
+                    TextFieldRegistry.shared.handleTab()
+                case 36: // Return
+                    TextFieldRegistry.shared.handleReturn()
+                default:
+                    break
+                }
+            }
             app.onKey(keycode: keycode, pressed: pressed)
         }
         app.client.onKeyChar = { character in
+            // Route to focused text field first
+            TextFieldRegistry.shared.handleKeyChar(character)
             app.onKeyChar(character: character)
         }
         app.client.onMenuAction = { itemId in
@@ -285,11 +296,7 @@ extension WindowGroup: _WindowGroupProtocol {
     var windowTitle: String { title }
 
     func buildViewNode() -> ViewNode {
-        let view = content()
-        fputs("DEBUG buildViewNode: content() type = \(type(of: view))\n", stderr)
-        let node = _viewToNode(view)
-        fputs("DEBUG buildViewNode: node = \(String(describing: node).prefix(2000))\n", stderr)
-        return node
+        _viewToNode(content())
     }
 }
 

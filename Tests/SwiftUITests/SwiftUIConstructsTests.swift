@@ -104,7 +104,7 @@ import Testing
 @Test @MainActor func textFieldCreatesNode() {
     let binding = Binding(get: { "" }, set: { _ in })
     let node = _resolve(TextField("Search...", text: binding))
-    if case .textField(let placeholder, let text) = node {
+    if case .textField(let placeholder, let text, _) = node {
         #expect(placeholder == "Search...")
         #expect(text == "")
     } else {

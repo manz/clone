@@ -62,9 +62,7 @@ extension Color: _PrimitiveView {
 func _resolve<V: View>(_ view: V) -> ViewNode {
     if let primitive = view as? _PrimitiveView { return primitive._nodeRepresentation }
     if let node = view as? ViewNode { return node }
-    let body = view.body
-    fputs("  _resolve: \(type(of: view)) → body type \(type(of: body))\n", stderr)
-    return _resolve(body)
+    return _resolve(view.body)
 }
 
 // MARK: - AttributedString SwiftUI extensions

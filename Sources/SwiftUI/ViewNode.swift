@@ -31,7 +31,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case toggle(isOn: Bool, label: ViewNode)
     case slider(value: CGFloat, range: ClosedRange<CGFloat>, label: ViewNode)
     case picker(selection: String, label: ViewNode, children: [ViewNode])
-    case textField(placeholder: String, text: String)
+    case textField(placeholder: String, text: String, registryId: UInt64 = 0)
     case navigationStack(children: [ViewNode])
     case menu(label: String, children: [ViewNode])
     case contextMenu(child: ViewNode, menuItems: [ViewNode])
