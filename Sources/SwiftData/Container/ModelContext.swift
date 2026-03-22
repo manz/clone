@@ -100,7 +100,15 @@ public final class ModelContext: NSObject {
         }
 
         let rows = try container.connection.query(sql, parameters: params)
-        return rows.compactMap { hydrator.hydrate(T.self, from: $0) }
+        // Deduplicate by primary key (id) to prevent crashes from duplicate business keys
+        var seen = Set<String>()
+        return rows.compactMap { row -> T? in
+            guard let model = hydrator.hydrate(T.self, from: row) else { return nil }
+            let id = model.persistentModelID.id.uuidString
+            guard !seen.contains(id) else { return nil }
+            seen.insert(id)
+            return model
+        }
     }
 
     /// Fetch all instances of a model type.

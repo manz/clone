@@ -19,12 +19,14 @@ public struct PropertySchema: Sendable {
     public let type: PropertyType
     public let isOptional: Bool
     public let defaultValue: String?
+    public let isUnique: Bool
 
-    public init(name: String, type: PropertyType, isOptional: Bool = false, defaultValue: String? = nil) {
+    public init(name: String, type: PropertyType, isOptional: Bool = false, defaultValue: String? = nil, isUnique: Bool = false) {
         self.name = name
         self.type = type
         self.isOptional = isOptional
         self.defaultValue = defaultValue
+        self.isUnique = isUnique
     }
 
     /// SQL type for this property.
@@ -92,6 +94,9 @@ public struct ModelSchema: Sendable {
             var col = "\(prop.name) \(prop.sqlType)"
             if !prop.isOptional {
                 col += " NOT NULL"
+            }
+            if prop.isUnique {
+                col += " UNIQUE"
             }
             if let def = prop.defaultValue {
                 col += " DEFAULT \(def)"
