@@ -1,5 +1,16 @@
 import Foundation
 
+/// Grid column specification for Layout.
+public struct GridColumnSpec: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
+        case fixed(CGFloat)
+        case flexible(min: CGFloat, max: CGFloat)
+        case adaptive(min: CGFloat, max: CGFloat)
+    }
+    public let kind: Kind
+    public init(_ kind: Kind) { self.kind = kind }
+}
+
 /// Core view vocabulary — the entire UI is described as a tree of ViewNode values.
 /// Fully value-typed, Equatable, trivially diffable.
 ///
@@ -32,6 +43,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case slider(value: CGFloat, range: ClosedRange<CGFloat>, label: ViewNode)
     case picker(selection: String, label: ViewNode, children: [ViewNode])
     case textField(placeholder: String, text: String, registryId: UInt64 = 0)
+    case grid(columns: [GridColumnSpec], spacing: CGFloat, children: [ViewNode])
     case navigationStack(children: [ViewNode])
     case menu(label: String, children: [ViewNode])
     case contextMenu(child: ViewNode, menuItems: [ViewNode])

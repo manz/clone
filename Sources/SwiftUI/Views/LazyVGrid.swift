@@ -66,26 +66,17 @@ public struct LazyVGrid: _PrimitiveView {
     }
 
     public var _nodeRepresentation: ViewNode {
-        let columnCount = max(columns.count, 1)
-        var rows: [[ViewNode]] = []
-        var currentRow: [ViewNode] = []
-
-        for child in children {
-            currentRow.append(child)
-            if currentRow.count >= columnCount {
-                rows.append(currentRow)
-                currentRow = []
+        let specs = columns.map { col -> GridColumnSpec in
+            switch col.size {
+            case .fixed(let size):
+                return GridColumnSpec(.fixed(size))
+            case ._flexible(let min, let max):
+                return GridColumnSpec(.flexible(min: min, max: max))
+            case ._adaptive(let min, let max):
+                return GridColumnSpec(.adaptive(min: min, max: max))
             }
         }
-        if !currentRow.isEmpty {
-            rows.append(currentRow)
-        }
-
-        let rowNodes: [ViewNode] = rows.map { row in
-            .hstack(alignment: .top, spacing: spacing, children: row)
-        }
-
-        return .vstack(alignment: alignment, spacing: spacing, children: rowNodes)
+        return .grid(columns: specs, spacing: spacing, children: children)
     }
 }
 

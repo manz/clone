@@ -193,6 +193,21 @@ public enum Layout {
         case .list(let children):
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
+        case .grid(let columns, let spacing, let children):
+            let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
+            let rowCount = (children.count + colCount - 1) / colCount
+            let colWidth = (constraint.maxWidth - spacing * CGFloat(colCount - 1)) / CGFloat(colCount)
+            // Measure first child to estimate row height
+            let rowHeight: CGFloat
+            if let first = children.first {
+                let childSize = measure(first, constraint: SizeConstraint(maxWidth: colWidth, maxHeight: constraint.maxHeight))
+                rowHeight = childSize.height
+            } else {
+                rowHeight = 0
+            }
+            let totalHeight = CGFloat(rowCount) * rowHeight + CGFloat(max(0, rowCount - 1)) * spacing
+            return MeasuredSize(width: constraint.maxWidth, height: totalHeight)
+
         case .image(_, let width, let height, _):
             // SF Symbols default to ~17pt (body font size) when no explicit size
             let defaultSize: CGFloat = 17
@@ -305,6 +320,9 @@ public enum Layout {
 
         case .list(let children):
             return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+
+        case .grid(let columns, let spacing, let children):
+            return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)
 
         case .navigationStack(let children):
             return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
@@ -557,5 +575,61 @@ public enum Layout {
             return layout(child, in: childFrame)
         }
         return LayoutNode(frame: frame, node: .zstack(children: children), children: layoutChildren)
+    }
+
+    // MARK: - Grid
+
+    /// Compute column count for adaptive grids.
+    static func gridColumnCount(_ columns: [GridColumnSpec], availableWidth: CGFloat, spacing: CGFloat) -> Int {
+        guard let first = columns.first else { return 1 }
+        switch first.kind {
+        case .adaptive(let min, _):
+            // How many columns of minWidth fit?
+            let count = max(1, Int((availableWidth + spacing) / (min + spacing)))
+            return count
+        case .fixed:
+            return columns.count
+        case .flexible:
+            return columns.count
+        }
+    }
+
+    /// Layout children in a grid.
+    private static func layoutGrid(
+        columns: [GridColumnSpec], spacing: CGFloat, children: [ViewNode], in frame: LayoutFrame
+    ) -> LayoutNode {
+        let colCount = gridColumnCount(columns, availableWidth: frame.width, spacing: spacing)
+        let colWidth = (frame.width - spacing * CGFloat(max(0, colCount - 1))) / CGFloat(colCount)
+
+        var layoutChildren: [LayoutNode] = []
+        var y = frame.y
+
+        // Process children in rows
+        var i = 0
+        while i < children.count {
+            var rowHeight: CGFloat = 0
+            var rowLayouts: [LayoutNode] = []
+
+            for col in 0..<colCount {
+                guard i < children.count else { break }
+                let child = children[i]
+                let x = frame.x + CGFloat(col) * (colWidth + spacing)
+                let childConstraint = SizeConstraint(maxWidth: colWidth, maxHeight: frame.height - (y - frame.y))
+                let childSize = measure(child, constraint: childConstraint)
+                let childFrame = LayoutFrame(x: x, y: y, width: colWidth, height: childSize.height)
+                rowLayouts.append(layout(child, in: childFrame))
+                rowHeight = max(rowHeight, childSize.height)
+                i += 1
+            }
+
+            layoutChildren.append(contentsOf: rowLayouts)
+            y += rowHeight + spacing
+        }
+
+        return LayoutNode(
+            frame: frame,
+            node: .grid(columns: columns, spacing: spacing, children: children),
+            children: layoutChildren
+        )
     }
 }
