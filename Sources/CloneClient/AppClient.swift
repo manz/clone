@@ -28,53 +28,53 @@ public final class AppClient {
     public var onFocusedApp: (@MainActor (String) -> Void)?
     /// Callback when compositor reports minimized app IDs (for dock).
     public var onMinimizedApps: (@MainActor ([String]) -> Void)?
-    /// Callback when compositor sends focused app's menus (for menubar).
+    /// Callback when compositor sends app menus.
     public var onAppMenus: (@MainActor (String, [AppMenu]) -> Void)?
-    /// Callback when a menu item is selected (routed from menubar).
+    /// Callback when a menu item is selected.
     public var onMenuAction: (@MainActor (String) -> Void)?
-    /// Callback when open-file dialog returns a result.
+    /// Callback for open panel result.
     public var onOpenPanelResult: (@MainActor (String?) -> Void)?
-    /// Callback when the window was closed by the compositor (traffic light close).
+    /// Callback when window is closed by compositor.
     public var onWindowClosed: (@MainActor () -> Void)?
 
     public init() {}
 
-    /// Connect to the compositor and register the app.
     public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
-        socketFd = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
-        guard socketFd >= 0 else {
-            throw AppClientError.socketFailed
-        }
+        let path = "/tmp/clone-compositor.sock"
+        socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard socketFd >= 0 else { throw NSError(domain: "AppClient", code: 1) }
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
-        compositorSocketPath.withCString { ptr in
-            withUnsafeMutablePointer(to: &addr.sun_path) { pathPtr in
-                pathPtr.withMemoryRebound(to: CChar.self, capacity: 104) { dest in
-                    _ = strlcpy(dest, ptr, 104)
-                }
+        withUnsafeMutablePointer(to: &addr.sun_path) { ptr in
+            path.withCString { cstr in
+                _ = memcpy(ptr, cstr, min(path.count, 104))
             }
         }
-
+        let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                posix_connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                Foundation.connect(socketFd, sockPtr, addrLen)
             }
         }
-        guard result == 0 else {
-            posix_close(socketFd)
-            throw AppClientError.connectFailed
-        }
-
+        guard result == 0 else { throw NSError(domain: "AppClient", code: 2) }
         isConnected = true
-        self.width = width
-        self.height = height
 
-        // Send register message
+        // Register with compositor
         send(.register(appId: appId, title: title, width: width, height: height, role: role))
+
+        // Set non-blocking for initial read
+        let flags = fcntl(socketFd, F_GETFL)
+        fcntl(socketFd, F_SETFL, flags | O_NONBLOCK)
+
+        // Wait for windowCreated response (poll briefly)
+        for _ in 0..<100 {
+            poll()
+            if windowId != 0 { break }
+            usleep(10_000) // 10ms
+        }
     }
 
-    /// Send a message to the compositor.
     public func send(_ message: AppMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
         data.withUnsafeBytes { ptr in
@@ -92,26 +92,20 @@ public final class AppClient {
         let bytesRead = posix_read(socketFd, &buf, buf.count)
         if bytesRead > 0 {
             readBuffer.append(contentsOf: buf[0..<bytesRead])
-        } else if bytesRead == 0 {
-            // Connection closed
-            isConnected = false
-            return
-        }
-
-        // Decode messages
-        while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
-            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-            handle(msg)
+            while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
+                readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+                handle(msg)
+            }
         }
     }
 
-    private func handle(_ message: CompositorMessage) {
-        switch message {
-        case .windowCreated(let wid, let w, let h):
-            windowId = wid
+    func handle(_ msg: CompositorMessage) {
+        switch msg {
+        case .windowCreated(let id, let w, let h):
+            windowId = id
             width = w
             height = h
-            onWindowCreated?(wid, w, h)
+            onWindowCreated?(id, w, h)
 
         case .resize(let w, let h):
             width = w
@@ -159,62 +153,36 @@ public final class AppClient {
         }
     }
 
-    private var readSource: DispatchSourceRead?
-
-    /// Run the event loop. Uses RunLoop to allow GCD/URLSession/async callbacks
-    /// while still processing socket data promptly.
+    /// Run the event loop. Blocking read with periodic RunLoop drain for GCD/async.
     public func runLoop() {
-        // Set non-blocking for polling reads
-        let fd = socketFd
-        let flags = fcntl(fd, F_GETFL)
-        fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+        // Set blocking for synchronous reads
+        let flags = fcntl(socketFd, F_GETFL)
+        fcntl(socketFd, F_SETFL, flags & ~O_NONBLOCK)
 
-        // Use a CFFileDescriptor + RunLoop source so reads integrate with the RunLoop
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
-        source.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.readAvailableData()
-            }
-        }
-        source.setCancelHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.isConnected = false
-            }
-        }
-        source.resume()
-        self.readSource = source
-
-        // Run the RunLoop — this processes BOTH socket reads AND GCD callbacks
-        // (URLSession, async/await, timers).
         while isConnected {
-            // Poll socket first — ensures frame requests are processed immediately
-            // before the compositor times out waiting for a response.
-            readAvailableData()
-            // Then process GCD callbacks (URLSession, timers, async)
-            RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
-        }
-    }
+            // Use select() with timeout so we periodically drain the RunLoop
+            var readSet = fd_set()
+            fdZero(&readSet)
+            fdSet(socketFd, &readSet)
+            var timeout = timeval(tv_sec: 0, tv_usec: 16_000) // 16ms
 
-    private func readAvailableData() {
-        var buf = [UInt8](repeating: 0, count: 65536)
-        while true {
-            let bytesRead = posix_read(socketFd, &buf, buf.count)
-            if bytesRead > 0 {
-                readBuffer.append(contentsOf: buf[0..<bytesRead])
-            } else if bytesRead == 0 {
-                // EOF — compositor disconnected
-                readSource?.cancel()
-                isConnected = false
-                return
-            } else {
-                // EAGAIN/EWOULDBLOCK — no more data right now
-                break
+            let ready = select(socketFd + 1, &readSet, nil, nil, &timeout)
+            if ready > 0 {
+                // Data available — read and process
+                var buf = [UInt8](repeating: 0, count: 65536)
+                let bytesRead = posix_read(socketFd, &buf, buf.count)
+                if bytesRead > 0 {
+                    readBuffer.append(contentsOf: buf[0..<bytesRead])
+                    while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
+                        readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+                        handle(msg)
+                    }
+                } else {
+                    isConnected = false
+                }
             }
-        }
-        // Process all complete messages
-        while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
-            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-            handle(msg)
+            // Drain the RunLoop — processes GCD callbacks, URLSession responses, timers
+            while RunLoop.main.run(mode: .default, before: Date()) {}
         }
     }
 
@@ -228,16 +196,19 @@ public final class AppClient {
         }
         isConnected = false
     }
-
-    nonisolated deinit {
-        // deinit is nonisolated; perform raw socket cleanup directly.
-        if socketFd >= 0 {
-            posix_close(socketFd)
-        }
-    }
 }
 
-public enum AppClientError: Error {
-    case socketFailed
-    case connectFailed
+// MARK: - fd_set helpers (macOS)
+
+private func fdZero(_ set: inout fd_set) {
+    bzero(&set, MemoryLayout<fd_set>.size)
+}
+
+private func fdSet(_ fd: Int32, _ set: inout fd_set) {
+    let intOffset = Int(fd / 32)
+    let bitOffset = Int(fd % 32)
+    withUnsafeMutableBytes(of: &set) { buf in
+        let ints = buf.baseAddress!.assumingMemoryBound(to: Int32.self)
+        ints[intOffset] |= Int32(1 << bitOffset)
+    }
 }
