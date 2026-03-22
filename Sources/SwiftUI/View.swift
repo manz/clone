@@ -62,10 +62,7 @@ extension Color: _PrimitiveView {
 func _resolve<V: View>(_ view: V) -> ViewNode {
     if let primitive = view as? _PrimitiveView { return primitive._nodeRepresentation }
     if let node = view as? ViewNode { return node }
-    StateGraph.shared.pushView(String(describing: V.self))
-    let result = _resolve(view.body)
-    StateGraph.shared.popView()
-    return result
+    return _resolve(view.body)
 }
 
 // MARK: - AttributedString SwiftUI extensions

@@ -11,8 +11,8 @@
 public struct StateObject<ObjectType: ObservableObject> {
     private let slot: StateGraph.Slot
 
-    public init(wrappedValue: ObjectType) {
-        self.slot = StateGraph.shared.slot(initialValue: wrappedValue)
+    public init(wrappedValue: ObjectType, file: String = #fileID, line: Int = #line) {
+        self.slot = StateGraph.shared.slot(initialValue: wrappedValue, file: file, line: line)
     }
 
     public var wrappedValue: ObjectType {

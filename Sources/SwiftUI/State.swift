@@ -1,19 +1,19 @@
 import Foundation
 
 /// @State property wrapper with persistent storage across frame rebuilds.
-/// Uses StateGraph to maintain values across view tree reconstructions.
+/// Uses StateGraph keyed by source location for stable identity.
 @MainActor @preconcurrency
 @propertyWrapper
 public struct State<Value> {
     private let slot: StateGraph.Slot
 
-    public init(wrappedValue: Value) {
-        self.slot = StateGraph.shared.slot(initialValue: wrappedValue)
+    public init(wrappedValue: Value, file: String = #fileID, line: Int = #line) {
+        self.slot = StateGraph.shared.slot(initialValue: wrappedValue, file: file, line: line)
     }
 
     /// Compatibility alias used by Apple's SwiftUI.
-    public init(initialValue: Value) {
-        self.slot = StateGraph.shared.slot(initialValue: initialValue)
+    public init(initialValue: Value, file: String = #fileID, line: Int = #line) {
+        self.slot = StateGraph.shared.slot(initialValue: initialValue, file: file, line: line)
     }
 
     public var wrappedValue: Value {
