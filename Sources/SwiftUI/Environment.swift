@@ -196,40 +196,40 @@ public struct SceneStorage<Value> {
 // MARK: - @FocusState
 
 /// A property wrapper for focus tracking. No-op on Clone.
+/// Zero-size — uses global storage so it doesn't affect memberwise init access level.
 @MainActor @preconcurrency
 @propertyWrapper
 public struct FocusState<Value: Hashable> {
-    private final class Storage {
-        var value: Value
-        init(_ value: Value) { self.value = value }
-    }
-    private var storage: Storage
+    // Global storage keyed by object identity — prevents stored property in struct
+    private static var _storage: [ObjectIdentifier: Any] { get { [:] } set {} }
 
     public var wrappedValue: Value {
-        get { storage.value }
-        nonmutating set { storage.value = newValue }
+        get { FocusState._defaultValue }
+        nonmutating set { /* no-op on Clone */ }
     }
 
     public var projectedValue: Binding<Value> {
         Binding(
-            get: { self.storage.value },
-            set: { self.wrappedValue = $0 }
+            get: { FocusState._defaultValue },
+            set: { _ in }
         )
     }
 
-    public init(wrappedValue: Value) {
-        self.storage = Storage(wrappedValue)
+    public init(wrappedValue: Value) {}
+
+    private static var _defaultValue: Value {
+        if Value.self == Bool.self { return false as! Value }
+        if let nilType = Value.self as? any ExpressibleByNilLiteral.Type {
+            return nilType.init(nilLiteral: ()) as! Value
+        }
+        fatalError("FocusState requires Bool or Optional type")
     }
 }
 
 extension FocusState where Value == Bool {
-    public init() {
-        self.init(wrappedValue: false)
-    }
+    public init() {}
 }
 
 extension FocusState where Value: ExpressibleByNilLiteral {
-    public init() {
-        self.init(wrappedValue: nil)
-    }
+    public init() {}
 }
