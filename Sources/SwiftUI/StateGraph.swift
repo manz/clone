@@ -18,19 +18,32 @@ public final class StateGraph: @unchecked Sendable {
         public init(_ value: Any) { self.value = value }
     }
 
-    private var slots: [Int: Slot] = [:]
+    private var slots: [String: Slot] = [:]
     private var counter: Int = 0
+    private var typeStack: [String] = []
 
     private init() {}
 
+    /// Push a view type onto the stack (called when resolving a View body).
+    public func pushView(_ type: String) {
+        typeStack.append(type)
+    }
+
+    /// Pop a view type from the stack.
+    public func popView() {
+        if !typeStack.isEmpty { typeStack.removeLast() }
+    }
+
     /// Get or create a state slot.
-    /// First call for a given counter position: creates slot with `initialValue`.
+    /// Key combines the type stack path + counter for uniqueness.
+    /// First call: creates slot with `initialValue`.
     /// Subsequent calls: returns existing slot, `initialValue` is ignored.
     public func slot(initialValue: Any) -> Slot {
-        let key = counter
+        let path = typeStack.joined(separator: "/")
+        let key = "\(path)#\(counter)"
         counter += 1
 
-        if let existing = slots[key] {
+        if let existing = slots[key], type(of: existing.value) == type(of: initialValue) {
             return existing
         }
 
@@ -42,6 +55,7 @@ public final class StateGraph: @unchecked Sendable {
     /// Reset counter for next frame. Does NOT clear slots.
     public func resetCounter() {
         counter = 0
+        typeStack.removeAll()
     }
 
     /// Full reset (for tests).
