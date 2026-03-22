@@ -153,48 +153,48 @@ public final class AppClient {
         }
     }
 
-    private var readSource: DispatchSourceRead?
+    private let ioQueue = DispatchQueue(label: "clone.app.io")
 
-    /// Run the event loop. Non-blocking — uses GCD DispatchSource for socket reads
-    /// and dispatchMain() so URLSession, async/await, and timers all work.
+    /// Run the event loop. Socket reads on background queue, callbacks on MainActor.
+    /// Main thread stays free for URLSession, async/await, timers.
     public func runLoop() {
         let fd = socketFd
-        // Non-blocking for GCD
         let flags = fcntl(fd, F_GETFL)
         fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
-        source.setEventHandler {
-            MainActor.assumeIsolated { [self] in
-                self.readAvailableData()
-            }
-        }
-        source.setCancelHandler {
-            MainActor.assumeIsolated { [self] in
-                self.isConnected = false
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: ioQueue)
+        source.setEventHandler { [self] in
+            var buf = [UInt8](repeating: 0, count: 65536)
+            while true {
+                let n = posix_read(fd, &buf, buf.count)
+                if n > 0 {
+                    let data = Data(buf[0..<n])
+                    DispatchQueue.main.async {
+                        MainActor.assumeIsolated {
+                            self.processData(data)
+                        }
+                    }
+                } else if n == 0 {
+                    DispatchQueue.main.async {
+                        MainActor.assumeIsolated {
+                            self.isConnected = false
+                        }
+                    }
+                    return
+                } else {
+                    break
+                }
             }
         }
         source.resume()
-        self.readSource = source
 
-        // dispatchMain() never returns — processes all GCD sources including our socket
+        // Run the main RunLoop forever — processes main queue dispatches,
+        // URLSession callbacks, async/await, timers.
         dispatchMain()
     }
 
-    private func readAvailableData() {
-        var buf = [UInt8](repeating: 0, count: 65536)
-        while true {
-            let bytesRead = posix_read(socketFd, &buf, buf.count)
-            if bytesRead > 0 {
-                readBuffer.append(contentsOf: buf[0..<bytesRead])
-            } else if bytesRead == 0 {
-                readSource?.cancel()
-                isConnected = false
-                return
-            } else {
-                break // EAGAIN — no more data
-            }
-        }
+    private func processData(_ data: Data) {
+        readBuffer.append(data)
         while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
             readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
             handle(msg)
