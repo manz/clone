@@ -1,0 +1,7 @@
+.build/
+target/
+.git/
+.agents/
+.claude/
+*.qcow2
+*.utm

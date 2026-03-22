@@ -1,0 +1,95 @@
+# Lima VM config for Clone development
+# Ubuntu 24.04 base with Swift + Rust toolchains
+#
+# Usage:
+#   limactl create --name clone nix/lima.yaml
+#   limactl start clone
+#   limactl shell clone
+
+# Ubuntu 24.04 LTS (aarch64)
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+# Apple Virtualization.framework — virtiofs + GPU
+vmType: "vz"
+
+# VM resources
+cpus: 4
+memory: "8GiB"
+disk: "40GiB"
+
+# Share Clone source tree
+mounts:
+  - location: "~/Projects/clone"
+    mountPoint: "/mnt/clone"
+    writable: true
+
+# Provision — install Swift, Rust, and system deps on first boot
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -euo pipefail
+
+      # Skip if already provisioned
+      if [ -f /etc/clone-provisioned ]; then
+        echo "Already provisioned."
+        exit 0
+      fi
+
+      echo "=== Clone VM provisioning ==="
+
+      # System packages
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update -qq
+      apt-get install -y -qq \
+        build-essential pkg-config cmake \
+        git curl wget \
+        sqlite3 libsqlite3-dev \
+        libvulkan-dev vulkan-tools mesa-vulkan-drivers \
+        libwayland-dev wayland-protocols libxkbcommon-dev \
+        libasound2-dev libpipewire-0.3-dev \
+        fontconfig libfontconfig1-dev libfreetype-dev \
+        fonts-liberation fonts-noto \
+        zsh htop
+
+      # Swift — official toolchain from swift.org
+      SWIFT_VERSION="6.2.4"
+      SWIFT_PLATFORM="ubuntu2404-aarch64"
+      SWIFT_URL="https://download.swift.org/swift-${SWIFT_VERSION}-release/ubuntu2404-aarch64/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz"
+      echo "Installing Swift ${SWIFT_VERSION}..."
+      curl -fsSL "$SWIFT_URL" | tar xz -C /opt
+      ln -sfn /opt/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}/usr/bin/swift /usr/local/bin/swift
+      ln -sfn /opt/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}/usr/bin/swiftc /usr/local/bin/swiftc
+
+      # Rust — via rustup
+      echo "Installing Rust..."
+      su - $(logname) -c 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+
+      # Create system directories
+      mkdir -p /Applications
+      mkdir -p /System/Library/Frameworks
+
+      touch /etc/clone-provisioned
+      echo "=== Provisioning complete ==="
+      echo "Run: cd /mnt/clone && make all && make sdk"
+
+  # Symlink SDK frameworks + app bundles from shared mount
+  - mode: system
+    script: |
+      #!/bin/bash
+      # Link frameworks if SDK was built
+      if [ -d /mnt/clone/.build/sdk/System/Library/Frameworks ]; then
+        for fw in /mnt/clone/.build/sdk/System/Library/Frameworks/*.framework; do
+          name=$(basename "$fw")
+          ln -sfn "$fw" "/System/Library/Frameworks/$name"
+        done
+      fi
+      # Link app bundles if assembled
+      if [ -d /mnt/clone/.build/bundles ]; then
+        for app in /mnt/clone/.build/bundles/*.app; do
+          name=$(basename "$app")
+          ln -sfn "$app" "/Applications/$name"
+        done
+      fi

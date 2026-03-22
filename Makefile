@@ -1,4 +1,4 @@
-.PHONY: all engine bindings audio audio-bindings swift apps build test clean
+.PHONY: all engine bindings audio audio-bindings swift apps build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
 # Build everything: engine → bindings → audio → audio-bindings → libs + apps
 all: bindings audio-bindings swift apps
@@ -60,6 +60,46 @@ test-swift:
 # Run all tests
 test: test-rust test-swift
 
+# Assemble SDK frameworks (.framework bundles with .dylib/.so + .swiftmodule)
+sdk: swift
+	./scripts/build-sdk.sh debug
+
+sdk-release: bindings audio-bindings
+	swift build -c release
+	./scripts/build-sdk.sh release
+
+# --- Docker (Linux build environment) ---
+
+docker-build:
+	docker build -t clone-sdk .
+
+docker-sdk: docker-build
+	docker run --rm -v $(PWD):/clone clone-sdk bash -c 'make all && make sdk'
+
+docker-apps: docker-build
+	docker run --rm -v $(PWD):/clone clone-sdk make apps
+
+# --- VM (NixOS via Lima) ---
+
+vm-create:
+	limactl create --name clone nix/lima.yaml
+
+vm-start:
+	limactl start clone
+
+vm-stop:
+	limactl stop clone
+
+vm-ssh:
+	limactl shell clone
+
+vm-build:
+	limactl shell clone -- bash -c 'cd /mnt/clone && make all && make sdk'
+
+vm-run:
+	limactl shell clone -- bash -c 'cd /mnt/clone && sudo nixos-rebuild switch --flake .#clone'
+
 clean:
 	cargo clean
 	swift package clean
+	rm -rf .build/sdk
