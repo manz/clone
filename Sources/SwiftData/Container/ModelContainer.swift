@@ -2,7 +2,7 @@ import Foundation
 
 /// Creates a database and tables from model schemas. Manages the SQLite connection.
 @objc(Clone_ModelContainer)
-public final class ModelContainer: NSObject {
+public final class ModelContainer: NSObject, @unchecked Sendable {
     public let connection: SQLiteConnection
     public let schemas: [ModelSchema]
     private let configuration: ModelConfiguration
