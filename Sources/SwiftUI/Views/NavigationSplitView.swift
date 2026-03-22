@@ -15,10 +15,13 @@ public struct NavigationSplitView: _PrimitiveView {
         @ViewBuilder sidebar: () -> some View,
         @ViewBuilder detail: () -> some View
     ) {
+        let sidebarNodes = _flattenToNodes(sidebar())
+        let detailNodes = _flattenToNodes(detail())
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
+            ViewNode.frame(width: sidebarWidth, height: nil, child:
+                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
         ])
     }
 
@@ -29,10 +32,13 @@ public struct NavigationSplitView: _PrimitiveView {
         @ViewBuilder sidebar: () -> some View,
         @ViewBuilder detail: () -> some View
     ) {
+        let sidebarNodes = _flattenToNodes(sidebar())
+        let detailNodes = _flattenToNodes(detail())
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
+            ViewNode.frame(width: sidebarWidth, height: nil, child:
+                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
         ])
     }
 
@@ -44,12 +50,16 @@ public struct NavigationSplitView: _PrimitiveView {
         @ViewBuilder content: () -> some View,
         @ViewBuilder detail: () -> some View
     ) {
+        let sidebarNodes = _flattenToNodes(sidebar())
+        let contentNodes = _flattenToNodes(content())
+        let detailNodes = _flattenToNodes(detail())
         self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(sidebar())),
+            ViewNode.frame(width: sidebarWidth, height: nil, child:
+                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(content())),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: contentNodes),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: _flattenToNodes(detail())),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
         ])
     }
 
