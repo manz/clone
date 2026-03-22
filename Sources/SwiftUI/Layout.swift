@@ -276,10 +276,10 @@ public enum Layout {
         case .frame(let width, let height, let child):
             let childSize = measure(child, constraint: constraint)
             let w = width ?? childSize.width
-            let h = height ?? childSize.height
-            // Center the sized frame within the proposed frame (matches Apple's SwiftUI)
-            let cx = frame.x + (frame.width - w) / 2
-            let cy = frame.y + (frame.height - h) / 2
+            let h = height ?? frame.height  // nil height = fill parent (Apple behavior)
+            // Center horizontally if width is explicit, top-align vertically
+            let cx = width != nil ? frame.x + (frame.width - w) / 2 : frame.x
+            let cy = frame.y  // Top-aligned — Apple's .frame() doesn't center vertically
             let childFrame = LayoutFrame(x: cx, y: cy, width: w, height: h)
             let childLayout = layout(child, in: childFrame)
             return LayoutNode(frame: childFrame, node: node, children: [childLayout])
