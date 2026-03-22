@@ -1,0 +1,74 @@
+site_name: Clone
+
+repo_url: https://github.com/manz/clone
+edit_uri: edit/master/docs/docs
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+  palette:
+    - media: "(prefers-color-scheme)"
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Building: building.md
+      - Running: running.md
+  - Architecture:
+      - Overview: architecture.md
+      - Rendering Pipeline: rendering.md
+      - IPC Protocol: ipc.md
+  - SDK:
+      - SwiftUI API: swiftui.md
+      - App Bundles: app-bundles.md
+      - Frameworks: frameworks.md
+  - Linux:
+      - Docker Build: docker.md
+      - NixOS Image: nixos.md
+  - Development:
+      - Contributing: contributing.md
