@@ -407,10 +407,13 @@ public enum Layout {
                 let x: CGFloat
                 switch alignment {
                 case .leading: x = frame.x
-                case .center: x = frame.x + (frame.width - size.width) / 2
+                case .center:
+                    let w = min(size.width, frame.width)
+                    x = frame.x + (frame.width - w) / 2
                 case .trailing: x = frame.x + frame.width - size.width
                 }
-                let childFrame = LayoutFrame(x: x, y: y, width: size.width, height: size.height)
+                let childWidth = min(size.width, frame.width)
+                let childFrame = LayoutFrame(x: x.isFinite ? x : frame.x, y: y, width: childWidth, height: size.height)
                 layoutChildren.append(layout(child, in: childFrame))
                 y += size.height
             }
@@ -488,10 +491,13 @@ public enum Layout {
                 let y: CGFloat
                 switch alignment {
                 case .top: y = frame.y
-                case .center: y = frame.y + (frame.height - size.height) / 2
+                case .center:
+                    let h = min(size.height, frame.height)
+                    y = frame.y + (frame.height - h) / 2
                 case .bottom: y = frame.y + frame.height - size.height
                 }
-                let childFrame = LayoutFrame(x: x, y: y, width: size.width, height: size.height)
+                let childHeight = min(size.height, frame.height)
+                let childFrame = LayoutFrame(x: x, y: y.isFinite ? y : frame.y, width: size.width, height: childHeight)
                 layoutChildren.append(layout(child, in: childFrame))
                 x += size.width
             }
@@ -523,9 +529,11 @@ public enum Layout {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
         let layoutChildren = children.map { child -> LayoutNode in
             let size = measure(child, constraint: constraint)
-            let cx = frame.x + (frame.width - size.width) / 2
-            let cy = frame.y + (frame.height - size.height) / 2
-            let childFrame = LayoutFrame(x: cx, y: cy, width: size.width, height: size.height)
+            let w = min(size.width, frame.width)
+            let h = min(size.height, frame.height)
+            let cx = frame.x + (frame.width - w) / 2
+            let cy = frame.y + (frame.height - h) / 2
+            let childFrame = LayoutFrame(x: cx.isFinite ? cx : frame.x, y: cy.isFinite ? cy : frame.y, width: w, height: h)
             return layout(child, in: childFrame)
         }
         return LayoutNode(frame: frame, node: .zstack(children: children), children: layoutChildren)
