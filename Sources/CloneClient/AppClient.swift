@@ -153,52 +153,38 @@ public final class AppClient {
         }
     }
 
-    private let ioQueue = DispatchQueue(label: "clone.app.io")
-
-    /// Run the event loop. Socket reads on background queue, callbacks on MainActor.
-    /// Main thread stays free for URLSession, async/await, timers.
+    /// Run the event loop. Non-blocking reads on a tight timer,
+    /// main thread stays alive for GCD/URLSession/async.
     public func runLoop() {
         let fd = socketFd
         let flags = fcntl(fd, F_GETFL)
         fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: ioQueue)
-        source.setEventHandler { [self] in
+        // Poll socket every 1ms via GCD timer on main queue
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(1))
+        timer.setEventHandler { [self] in
             var buf = [UInt8](repeating: 0, count: 65536)
             while true {
                 let n = posix_read(fd, &buf, buf.count)
                 if n > 0 {
-                    let data = Data(buf[0..<n])
-                    DispatchQueue.main.async {
-                        MainActor.assumeIsolated {
-                            self.processData(data)
-                        }
-                    }
+                    self.readBuffer.append(contentsOf: buf[0..<n])
                 } else if n == 0 {
-                    DispatchQueue.main.async {
-                        MainActor.assumeIsolated {
-                            self.isConnected = false
-                        }
-                    }
+                    self.isConnected = false
+                    timer.cancel()
                     return
                 } else {
                     break
                 }
             }
+            while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: self.readBuffer) {
+                self.readBuffer = self.readBuffer.subdata(in: consumed..<self.readBuffer.count)
+                self.handle(msg)
+            }
         }
-        source.resume()
+        timer.resume()
 
-        // Run the main RunLoop forever — processes main queue dispatches,
-        // URLSession callbacks, async/await, timers.
         dispatchMain()
-    }
-
-    private func processData(_ data: Data) {
-        readBuffer.append(data)
-        while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
-            readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-            handle(msg)
-        }
     }
 
     public func disconnect() {
