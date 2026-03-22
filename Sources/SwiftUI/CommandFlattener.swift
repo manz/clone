@@ -25,10 +25,10 @@ public enum CommandFlattener {
     public static func flatten(_ layoutNode: LayoutNode) -> [FlatRenderCommand] {
         var commands: [FlatRenderCommand] = []
         flattenNode(layoutNode, into: &commands, opacity: 1.0)
-        // Filter out commands with invalid coordinates
+        // Only filter truly invalid coordinates (NaN/inf)
         return commands.filter { cmd in
             cmd.x.isFinite && cmd.y.isFinite && cmd.width.isFinite && cmd.height.isFinite
-                && cmd.width > 0 && cmd.height > 0
+                && cmd.width >= 0 && cmd.height >= 0
         }
     }
 
