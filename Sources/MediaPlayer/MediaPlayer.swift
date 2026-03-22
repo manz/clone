@@ -1,6 +1,7 @@
 // Aquax SDK: MediaPlayer
 // Now-playing and remote command types, wired to the cloned daemon.
 import Foundation
+import PosixShim
 import CloneProtocol
 
 // MARK: - Daemon client (internal)
@@ -18,7 +19,7 @@ final class DaemonClient: @unchecked Sendable {
     var onResponse: ((DaemonResponse) -> Void)?
 
     func connect() -> Bool {
-        socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        socketFd = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
         guard socketFd >= 0 else { return false }
 
         var addr = sockaddr_un()
@@ -33,11 +34,11 @@ final class DaemonClient: @unchecked Sendable {
 
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Darwin.connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                posix_connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard result == 0 else {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
             return false
         }
@@ -55,7 +56,7 @@ final class DaemonClient: @unchecked Sendable {
         source.setCancelHandler { [weak self] in
             guard let self else { return }
             if self.socketFd >= 0 {
-                Darwin.close(self.socketFd)
+                posix_close(self.socketFd)
                 self.socketFd = -1
             }
             self.isConnected = false
@@ -69,13 +70,13 @@ final class DaemonClient: @unchecked Sendable {
     func send(_ request: DaemonRequest) {
         guard isConnected, let data = try? WireProtocol.encode(request) else { return }
         data.withUnsafeBytes { ptr in
-            _ = Darwin.write(socketFd, ptr.baseAddress!, data.count)
+            _ = posix_write(socketFd, ptr.baseAddress!, data.count)
         }
     }
 
     private func handleReadable() {
         var buf = [UInt8](repeating: 0, count: 65536)
-        let bytesRead = Darwin.read(socketFd, &buf, buf.count)
+        let bytesRead = posix_read(socketFd, &buf, buf.count)
         guard bytesRead > 0 else {
             readSource?.cancel()
             readSource = nil
@@ -98,7 +99,7 @@ final class DaemonClient: @unchecked Sendable {
         readSource?.cancel()
         readSource = nil
         if socketFd >= 0 {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
         }
         isConnected = false

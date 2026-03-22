@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 
 // MARK: - Internal IPC types (mirrors CloneProtocol keychain types)
 // Security can't import CloneProtocol because Foundation imports the system
@@ -119,7 +120,7 @@ final class KeychainClient: KeychainClientProtocol, @unchecked Sendable {
     private(set) var isConnected = false
 
     func connect() -> Bool {
-        socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        socketFd = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
         guard socketFd >= 0 else { return false }
 
         var addr = sockaddr_un()
@@ -134,11 +135,11 @@ final class KeychainClient: KeychainClientProtocol, @unchecked Sendable {
 
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Darwin.connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                posix_connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard result == 0 else {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
             return false
         }
@@ -151,13 +152,13 @@ final class KeychainClient: KeychainClientProtocol, @unchecked Sendable {
 
         guard let data = try? Wire.encode(request) else { return .error(.param) }
         data.withUnsafeBytes { ptr in
-            _ = Darwin.write(socketFd, ptr.baseAddress!, data.count)
+            _ = posix_write(socketFd, ptr.baseAddress!, data.count)
         }
 
         var buffer = Data()
         var buf = [UInt8](repeating: 0, count: 65536)
         while true {
-            let n = Darwin.read(socketFd, &buf, buf.count)
+            let n = posix_read(socketFd, &buf, buf.count)
             guard n > 0 else { return .error(.itemNotFound) }
             buffer.append(contentsOf: buf[0..<n])
             if let (response, _) = Wire.decode(KeychainResponse.self, from: buffer) {
@@ -168,7 +169,7 @@ final class KeychainClient: KeychainClientProtocol, @unchecked Sendable {
 
     func disconnect() {
         if socketFd >= 0 {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
         }
         isConnected = false

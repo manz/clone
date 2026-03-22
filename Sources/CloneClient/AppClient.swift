@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneProtocol
 
 /// Client library for apps to connect to the Clone compositor.
@@ -40,7 +41,7 @@ public final class AppClient {
 
     /// Connect to the compositor and register the app.
     public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
-        socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        socketFd = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
         guard socketFd >= 0 else {
             throw AppClientError.socketFailed
         }
@@ -57,11 +58,11 @@ public final class AppClient {
 
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Darwin.connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                posix_connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard result == 0 else {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             throw AppClientError.connectFailed
         }
 
@@ -77,7 +78,7 @@ public final class AppClient {
     public func send(_ message: AppMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
         data.withUnsafeBytes { ptr in
-            _ = Darwin.write(socketFd, ptr.baseAddress!, data.count)
+            _ = posix_write(socketFd, ptr.baseAddress!, data.count)
         }
     }
 
@@ -88,7 +89,7 @@ public final class AppClient {
         fcntl(socketFd, F_SETFL, flags | O_NONBLOCK)
 
         var buf = [UInt8](repeating: 0, count: 65536)
-        let bytesRead = Darwin.read(socketFd, &buf, buf.count)
+        let bytesRead = posix_read(socketFd, &buf, buf.count)
         if bytesRead > 0 {
             readBuffer.append(contentsOf: buf[0..<bytesRead])
         } else if bytesRead == 0 {
@@ -166,7 +167,7 @@ public final class AppClient {
 
         while isConnected {
             var buf = [UInt8](repeating: 0, count: 65536)
-            let bytesRead = Darwin.read(socketFd, &buf, buf.count)
+            let bytesRead = posix_read(socketFd, &buf, buf.count)
             if bytesRead > 0 {
                 readBuffer.append(contentsOf: buf[0..<bytesRead])
                 while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
@@ -184,7 +185,7 @@ public final class AppClient {
             send(.close)
         }
         if socketFd >= 0 {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
         }
         isConnected = false
@@ -193,7 +194,7 @@ public final class AppClient {
     nonisolated deinit {
         // deinit is nonisolated; perform raw socket cleanup directly.
         if socketFd >= 0 {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
         }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneProtocol
 
 /// Role of a connected daemon client.
@@ -28,7 +29,7 @@ final class ConnectedDaemonClient {
             self?.handleReadable()
         }
         source.setCancelHandler { [fd] in
-            Darwin.close(fd)
+            posix_close(fd)
         }
         source.resume()
         readSource = source
@@ -36,7 +37,7 @@ final class ConnectedDaemonClient {
 
     private func handleReadable() {
         var buf = [UInt8](repeating: 0, count: 65536)
-        let bytesRead = Darwin.read(fd, &buf, buf.count)
+        let bytesRead = posix_read(fd, &buf, buf.count)
         guard bytesRead > 0 else {
             readSource?.cancel()
             readSource = nil
@@ -55,7 +56,7 @@ final class ConnectedDaemonClient {
     func send(_ message: DaemonResponse) {
         guard let data = try? WireProtocol.encode(message) else { return }
         data.withUnsafeBytes { ptr in
-            _ = Darwin.write(fd, ptr.baseAddress!, data.count)
+            _ = posix_write(fd, ptr.baseAddress!, data.count)
         }
     }
 
@@ -85,7 +86,7 @@ public final class DaemonServer {
     public func start() throws {
         unlink(socketPath)
 
-        serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
+        serverSocket = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
         guard serverSocket >= 0 else { throw DaemonError.socketFailed }
 
         let flags = fcntl(serverSocket, F_GETFL)
@@ -103,16 +104,16 @@ public final class DaemonServer {
 
         let bindResult = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                bind(serverSocket, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                posix_bind(serverSocket, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard bindResult == 0 else {
-            Darwin.close(serverSocket)
+            posix_close(serverSocket)
             throw DaemonError.bindFailed
         }
 
-        guard listen(serverSocket, 8) == 0 else {
-            Darwin.close(serverSocket)
+        guard posix_listen(serverSocket, 8) == 0 else {
+            posix_close(serverSocket)
             throw DaemonError.listenFailed
         }
 
@@ -130,7 +131,7 @@ public final class DaemonServer {
             var addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
             let clientFd = withUnsafeMutablePointer(to: &clientAddr) { ptr in
                 ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                    accept(serverSocket, sockPtr, &addrLen)
+                    posix_accept(serverSocket, sockPtr, &addrLen)
                 }
             }
             guard clientFd >= 0 else { break }
@@ -210,7 +211,7 @@ public final class DaemonServer {
         publisher = nil
         lock.unlock()
         if serverSocket >= 0 {
-            Darwin.close(serverSocket)
+            posix_close(serverSocket)
             serverSocket = -1
         }
         unlink(socketPath)

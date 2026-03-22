@@ -7,7 +7,7 @@ private let sharedClient = KeychainClient()
 
 /// Add an item to the keychain.
 @discardableResult
-public func SecItemAdd(_ attributes: CFDictionary, _ result: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus {
+public func SecItemAdd(_ attributes: NSDictionary, _ result: UnsafeMutablePointer<AnyObject?>?) -> OSStatus {
     let dict = attributes as! [String: Any]
     guard let item = keychainItemFromDict(dict) else { return errSecParam }
 
@@ -21,7 +21,7 @@ public func SecItemAdd(_ attributes: CFDictionary, _ result: UnsafeMutablePointe
 
 /// Search for keychain items.
 @discardableResult
-public func SecItemCopyMatching(_ query: CFDictionary, _ result: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus {
+public func SecItemCopyMatching(_ query: NSDictionary, _ result: UnsafeMutablePointer<AnyObject?>?) -> OSStatus {
     let dict = query as! [String: Any]
     let searchQuery = searchQueryFromDict(dict)
 
@@ -30,16 +30,16 @@ public func SecItemCopyMatching(_ query: CFDictionary, _ result: UnsafeMutablePo
     case .item(let item):
         if let result = result {
             if dict[kSecReturnData as String] as? Bool == true, let data = item.valueData {
-                result.pointee = data as CFTypeRef
+                result.pointee = data as AnyObject
             } else {
-                result.pointee = dictFromKeychainItem(item) as CFTypeRef
+                result.pointee = dictFromKeychainItem(item) as AnyObject
             }
         }
         return errSecSuccess
     case .items(let items):
         if let result = result {
             let dicts = items.map { dictFromKeychainItem($0) }
-            result.pointee = dicts as CFTypeRef
+            result.pointee = dicts as AnyObject
         }
         return errSecSuccess
     case .error(let code):
@@ -51,7 +51,7 @@ public func SecItemCopyMatching(_ query: CFDictionary, _ result: UnsafeMutablePo
 
 /// Update keychain items matching the query.
 @discardableResult
-public func SecItemUpdate(_ query: CFDictionary, _ attributesToUpdate: CFDictionary) -> OSStatus {
+public func SecItemUpdate(_ query: NSDictionary, _ attributesToUpdate: NSDictionary) -> OSStatus {
     let queryDict = query as! [String: Any]
     let updateDict = attributesToUpdate as! [String: Any]
     let searchQuery = searchQueryFromDict(queryDict)
@@ -67,7 +67,7 @@ public func SecItemUpdate(_ query: CFDictionary, _ attributesToUpdate: CFDiction
 
 /// Delete keychain items matching the query.
 @discardableResult
-public func SecItemDelete(_ query: CFDictionary) -> OSStatus {
+public func SecItemDelete(_ query: NSDictionary) -> OSStatus {
     let dict = query as! [String: Any]
     let searchQuery = searchQueryFromDict(dict)
 

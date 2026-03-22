@@ -371,19 +371,23 @@ public enum Layout {
     ) -> LayoutNode {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
 
-        // Measure non-spacer children
+        // Measure non-spacer children, reducing remaining height for each
         var fixedHeight: CGFloat = 0
         var spacerCount = 0
         var childSizes: [MeasuredSize] = []
+        var remainingHeight = frame.height
 
         for (i, child) in children.enumerated() {
+            if i > 0 { remainingHeight -= spacing }
             if case .spacer = child {
                 spacerCount += 1
                 childSizes.append(MeasuredSize())
             } else {
-                let size = measure(child, constraint: constraint)
+                let childConstraint = SizeConstraint(maxWidth: constraint.maxWidth, maxHeight: max(0, remainingHeight))
+                let size = measure(child, constraint: childConstraint)
                 childSizes.append(size)
                 fixedHeight += size.height
+                remainingHeight -= size.height
             }
             if i > 0 { fixedHeight += spacing }
         }

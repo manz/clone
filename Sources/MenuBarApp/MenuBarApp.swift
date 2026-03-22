@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import SwiftUI
 import CloneProtocol
 import CloneClient
@@ -78,7 +79,7 @@ final class MenuBarDaemonClient: @unchecked Sendable {
     var onNowPlayingChanged: ((NowPlayingInfo?) -> Void)?
 
     func connect() {
-        socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        socketFd = socket(AF_UNIX, CLONE_SOCK_STREAM, 0)
         guard socketFd >= 0 else { return }
 
         var addr = sockaddr_un()
@@ -93,11 +94,11 @@ final class MenuBarDaemonClient: @unchecked Sendable {
 
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Darwin.connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
+                posix_connect(socketFd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
         guard result == 0 else {
-            Darwin.close(socketFd)
+            posix_close(socketFd)
             socketFd = -1
             return
         }
@@ -111,7 +112,7 @@ final class MenuBarDaemonClient: @unchecked Sendable {
         source.setEventHandler { [weak self] in self?.handleReadable() }
         source.setCancelHandler { [weak self] in
             guard let self else { return }
-            if self.socketFd >= 0 { Darwin.close(self.socketFd); self.socketFd = -1 }
+            if self.socketFd >= 0 { posix_close(self.socketFd); self.socketFd = -1 }
             self.isConnected = false
         }
         source.resume()
@@ -120,12 +121,12 @@ final class MenuBarDaemonClient: @unchecked Sendable {
 
     func send(_ request: DaemonRequest) {
         guard isConnected, let data = try? WireProtocol.encode(request) else { return }
-        data.withUnsafeBytes { ptr in _ = Darwin.write(socketFd, ptr.baseAddress!, data.count) }
+        data.withUnsafeBytes { ptr in _ = posix_write(socketFd, ptr.baseAddress!, data.count) }
     }
 
     private func handleReadable() {
         var buf = [UInt8](repeating: 0, count: 65536)
-        let bytesRead = Darwin.read(socketFd, &buf, buf.count)
+        let bytesRead = posix_read(socketFd, &buf, buf.count)
         guard bytesRead > 0 else { readSource?.cancel(); readSource = nil; isConnected = false; return }
 
         lock.lock()
