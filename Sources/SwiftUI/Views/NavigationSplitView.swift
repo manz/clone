@@ -10,19 +10,27 @@ public enum NavigationSplitViewVisibility: Sendable {
 public struct NavigationSplitView: _PrimitiveView {
     let child: ViewNode
 
+    private static func buildSplit(sidebarWidth: CGFloat, sidebarNodes: [ViewNode], detailNodes: [ViewNode]) -> ViewNode {
+        // HStack: fixed sidebar + divider + detail fills rest via spacer
+        .hstack(alignment: .top, spacing: 0, children: [
+            ViewNode.frame(width: sidebarWidth, height: nil, child:
+                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
+            ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
+            .spacer(minLength: 0),  // pushes everything left, detail gets remaining width
+        ])
+    }
+
     public init(
         sidebarWidth: CGFloat = 220,
         @ViewBuilder sidebar: () -> some View,
         @ViewBuilder detail: () -> some View
     ) {
-        let sidebarNodes = _flattenToNodes(sidebar())
-        let detailNodes = _flattenToNodes(detail())
-        self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.frame(width: sidebarWidth, height: nil, child:
-                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
-            ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
-        ])
+        self.child = Self.buildSplit(
+            sidebarWidth: sidebarWidth,
+            sidebarNodes: _flattenToNodes(sidebar()),
+            detailNodes: _flattenToNodes(detail())
+        )
     }
 
     /// `NavigationSplitView(columnVisibility:sidebar:detail:)` — with column visibility binding.
@@ -32,14 +40,11 @@ public struct NavigationSplitView: _PrimitiveView {
         @ViewBuilder sidebar: () -> some View,
         @ViewBuilder detail: () -> some View
     ) {
-        let sidebarNodes = _flattenToNodes(sidebar())
-        let detailNodes = _flattenToNodes(detail())
-        self.child = .hstack(alignment: .top, spacing: 0, children: [
-            ViewNode.frame(width: sidebarWidth, height: nil, child:
-                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
-            ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
-        ])
+        self.child = Self.buildSplit(
+            sidebarWidth: sidebarWidth,
+            sidebarNodes: _flattenToNodes(sidebar()),
+            detailNodes: _flattenToNodes(detail())
+        )
     }
 
     /// Three-column variant: sidebar + content + detail.
@@ -57,9 +62,11 @@ public struct NavigationSplitView: _PrimitiveView {
             ViewNode.frame(width: sidebarWidth, height: nil, child:
                 .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: contentNodes),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: contentNodes +
+                [.spacer(minLength: 0)]),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
+            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes +
+                [.spacer(minLength: 0)]),
         ])
     }
 
