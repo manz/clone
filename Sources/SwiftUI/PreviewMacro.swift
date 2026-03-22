@@ -7,5 +7,5 @@ public macro Preview(_ name: String = "Preview", body: @escaping () -> Any) = #e
 /// A type that produces view previews in Xcode.
 public protocol PreviewProvider {
     associatedtype Previews: View
-    static var previews: Previews { get }
+    @ViewBuilder static var previews: Previews { get }
 }
