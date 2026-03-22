@@ -43,7 +43,7 @@ public final class StateGraph: @unchecked Sendable {
         let key = "\(path)#\(counter)"
         counter += 1
 
-        if let existing = slots[key], type(of: existing.value) == type(of: initialValue) {
+        if let existing = slots[key] {
             return existing
         }
 
