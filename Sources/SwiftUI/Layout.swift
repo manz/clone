@@ -194,9 +194,11 @@ public enum Layout {
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
         case .image(_, let width, let height, _):
+            // SF Symbols default to ~17pt (body font size) when no explicit size
+            let defaultSize: CGFloat = 17
             return MeasuredSize(
-                width: width ?? constraint.maxWidth,
-                height: height ?? constraint.maxHeight
+                width: width ?? defaultSize,
+                height: height ?? defaultSize
             )
 
         case .toggle(_, let label):

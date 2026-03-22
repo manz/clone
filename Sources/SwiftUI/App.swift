@@ -166,7 +166,14 @@ extension App {
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
-                return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
+                let commands = CommandFlattener.flatten(layoutNode)
+                fputs("DEBUG commands: \(commands.count) render commands\n", stderr)
+                if commands.count < 50 {
+                    for (i, cmd) in commands.enumerated() {
+                        fputs("  [\(i)] \(cmd)\n", stderr)
+                    }
+                }
+                return commands.map { $0.toIPC() }
             }
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
@@ -278,7 +285,11 @@ extension WindowGroup: _WindowGroupProtocol {
     var windowTitle: String { title }
 
     func buildViewNode() -> ViewNode {
-        _viewToNode(content())
+        let view = content()
+        fputs("DEBUG buildViewNode: content() type = \(type(of: view))\n", stderr)
+        let node = _viewToNode(view)
+        fputs("DEBUG buildViewNode: node = \(String(describing: node).prefix(2000))\n", stderr)
+        return node
     }
 }
 
