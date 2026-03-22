@@ -10,7 +10,7 @@ Swift's compiler supports `.framework` bundles on all platforms via the `-F` fla
 SwiftUI.framework/
   Versions/
     A/
-      SwiftUI                              ← shared library (libSwiftUI.so)
+      SwiftUI                              ← shared library (.so on Linux)
       Modules/
         SwiftUI.swiftmodule/
           aarch64-unknown-linux-gnu.swiftmodule
@@ -41,28 +41,41 @@ The compiler searches each `-F` path for `FrameworkName.framework/Modules/Framew
 
 ## Available Frameworks
 
+### Public SDK (app-facing)
+
 | Framework | Description |
 |-----------|-------------|
 | `SwiftUI` | UI framework: View structs, ViewBuilder, Layout, App protocol, modifiers |
-| `AppKit` | NSColor, NSAppearance, NSImage, NSWorkspace shims |
-| `SwiftData` | SQLite-backed persistence: PersistentModel, ModelContainer, Query |
-| `Charts` | Swift Charts API: BarMark, LineMark, SectorMark, axis configuration |
-| `AVFoundation` | Audio playback: AVPlayer, AVQueuePlayer, AVPlayerItem, AVAudioSession |
+| `AppKit` | NSColor, NSAppearance, NSImage, NSWorkspace, NSPasteboard shims |
+| `SwiftData` | SQLite-backed persistence: PersistentModel, ModelContainer, Query, Foundation.Predicate→SQL converter |
+| `Charts` | Swift Charts: BarMark, LineMark, AreaMark, PointMark, RuleMark, RectangleMark, SectorMark, ChartProxy, selection, scrolling |
+| `AVFoundation` | Audio playback: AVPlayer, AVQueuePlayer, AVPlayerItem, AVAudioSession, CMTime |
 | `AVKit` | AV UI components: AVRoutePickerView, AVPlayerView |
-| `MediaPlayer` | MPNowPlayingInfoCenter, MPRemoteCommandCenter |
+| `MediaPlayer` | MPNowPlayingInfoCenter, MPRemoteCommandCenter, media key handling |
 | `UniformTypeIdentifiers` | UTType declarations for file type identification |
-| `KeychainServices` | Keychain Services API (SecItemAdd, SecItemCopyMatching, etc.) |
-| `CloneClient` | App-side IPC client for communicating with the compositor |
-| `CloneProtocol` | Shared IPC message types (Codable, length-prefixed JSON) |
+| `KeychainServices` | Keychain Services API (SecItemAdd, SecItemCopyMatching). Named `KeychainServices` on macOS to avoid shadowing the system `Security.framework`; becomes `Security` on Linux. |
+
+### Internal (compositor + IPC)
+
+| Module | Description |
+|--------|-------------|
+| `CloneClient` | App-side Unix socket client |
+| `CloneProtocol` | Shared IPC message types (Codable, 4-byte BE length-prefixed JSON) |
+| `EngineBridge` | UniFFI bridge: FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
+| `AudioBridge` | UniFFI bridge: wraps Rust `clone-audio` (CPAL + symphonia) for Swift |
+| `CloneDaemon` | Now-playing daemon library (used by `cloned` executable) |
+| `CloneKeychain` | Keychain daemon library (used by `keychaind` executable), SQLite-backed |
+| `CSQLite` | System library wrapper for SQLite3 (used by SwiftData and CloneKeychain) |
 
 ## Building the SDK
 
 ```bash
 make sdk          # Debug build — assembles frameworks from SPM output
 make sdk-release  # Release build — optimized
+make docker-sdk   # Build for Linux inside Docker container
 ```
 
-The `build-sdk.sh` script:
+The `scripts/build-sdk.sh` script:
 
 1. Runs `swift build` to compile all modules (produces `.o` files + `.swiftmodule`)
 2. Links each module's object files into a shared library (`swiftc -emit-library`)
@@ -70,4 +83,4 @@ The `build-sdk.sh` script:
 4. Creates the `Versions/A/` → `Versions/Current` symlink structure
 5. Outputs to `.build/sdk/System/Library/Frameworks/`
 
-Dependency order matters — leaf modules (CloneProtocol, AppKit) are linked first so that dependent modules (SwiftUI, Charts) can resolve their symbols.
+Dependency order matters — leaf modules (CloneProtocol, AppKit) are linked first so that dependent modules (SwiftUI, Charts) can resolve their symbols. AVFoundation additionally links the Rust `libclone_audio` library via AudioBridge.
