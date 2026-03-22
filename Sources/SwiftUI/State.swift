@@ -1,45 +1,31 @@
 import Foundation
 
-/// Minimal @State property wrapper with dirty tracking.
-/// In a full implementation this would trigger re-renders through the reconciler.
+/// @State property wrapper with persistent storage across frame rebuilds.
+/// Uses StateGraph to maintain values across view tree reconstructions.
 @MainActor @preconcurrency
 @propertyWrapper
 public struct State<Value> {
-    private final class Storage {
-        var value: Value
-        var isDirty: Bool = false
-        init(_ value: Value) { self.value = value }
-    }
-    private let storage: Storage
+    private let slot: StateGraph.Slot
 
     public init(wrappedValue: Value) {
-        self.storage = Storage(wrappedValue)
+        self.slot = StateGraph.shared.slot(initialValue: wrappedValue)
     }
 
     /// Compatibility alias used by Apple's SwiftUI.
     public init(initialValue: Value) {
-        self.storage = Storage(initialValue)
+        self.slot = StateGraph.shared.slot(initialValue: initialValue)
     }
 
     public var wrappedValue: Value {
-        get { storage.value }
-        nonmutating set {
-            storage.value = newValue
-            storage.isDirty = true
-        }
+        get { slot.value as! Value }
+        nonmutating set { slot.value = newValue }
     }
 
     public var projectedValue: Binding<Value> {
         Binding(
-            get: { self.storage.value },
-            set: { self.wrappedValue = $0 }
+            get: { self.slot.value as! Value },
+            set: { self.slot.value = $0 }
         )
-    }
-
-    public var isDirty: Bool { storage.isDirty }
-
-    public func clearDirty() {
-        storage.isDirty = false
     }
 }
 

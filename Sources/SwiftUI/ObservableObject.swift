@@ -5,13 +5,18 @@
 // We provide them here for Clone. On real macOS SwiftUI, Apple provides them.
 
 /// A property wrapper that instantiates and owns an observable object.
+/// Uses StateGraph for persistence — the object is created once and reused across frames.
 @MainActor @preconcurrency
 @propertyWrapper
 public struct StateObject<ObjectType: ObservableObject> {
-    public var wrappedValue: ObjectType
+    private let slot: StateGraph.Slot
 
     public init(wrappedValue: ObjectType) {
-        self.wrappedValue = wrappedValue
+        self.slot = StateGraph.shared.slot(initialValue: wrappedValue)
+    }
+
+    public var wrappedValue: ObjectType {
+        get { slot.value as! ObjectType }
     }
 
     public var projectedValue: ObservedObject<ObjectType>.Wrapper {
