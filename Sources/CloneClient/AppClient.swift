@@ -161,14 +161,15 @@ public final class AppClient {
 
     private var readSource: DispatchSourceRead?
 
-    /// Run the event loop using GCD. Does NOT block the main thread.
-    /// Allows URLSession, async/await, and other GCD work to execute.
+    /// Run the event loop. Uses RunLoop to allow GCD/URLSession/async callbacks
+    /// while still processing socket data promptly.
     public func runLoop() {
-        // Set non-blocking for GCD-based I/O
+        // Set non-blocking for polling reads
         let fd = socketFd
         let flags = fcntl(fd, F_GETFL)
         fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
+        // Use a CFFileDescriptor + RunLoop source so reads integrate with the RunLoop
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: .main)
         source.setEventHandler { [weak self] in
             MainActor.assumeIsolated {
@@ -183,9 +184,12 @@ public final class AppClient {
         source.resume()
         self.readSource = source
 
-        // Run the main dispatch loop — processes GCD callbacks, URLSession, timers, etc.
-        // This replaces the old blocking while loop.
-        dispatchMain()
+        // Run the RunLoop — this processes BOTH DispatchSource events AND GCD callbacks
+        // (URLSession, async/await, timers). Unlike dispatchMain(), RunLoop.run() processes
+        // sources synchronously, so frame responses are sent before the compositor renders.
+        while isConnected {
+            RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.016))
+        }
     }
 
     private func readAvailableData() {
