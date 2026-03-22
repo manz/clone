@@ -140,9 +140,15 @@ nonisolated(unsafe) public let NSApp: NSApplication = .shared
 
 // MARK: - NSImage
 
-open class NSImage: @unchecked Sendable {
+open class NSImage: NSObject, @unchecked Sendable, NSItemProviderReading, NSItemProviderWriting {
+    public static var readableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
+    public required convenience init(itemProviderData data: Data, typeIdentifier: String) throws { self.init() }
+    public static func object(withItemProviderData data: Data, typeIdentifier: String) throws -> Self { try self.init(itemProviderData: data, typeIdentifier: typeIdentifier) }
+    public static var writableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
+    public func loadData(withTypeIdentifier typeIdentifier: String, forItemProviderCompletionHandler completionHandler: @escaping @Sendable (Data?, Error?) -> Void) -> Progress? { completionHandler(nil, nil); return nil }
+    // NSImage properties and methods
     public var size: CGSize = _zeroSize
-    public init() {}
+    public override init() { super.init() }
     public init?(named: String) {}
     public init(size: CGSize) { self.size = size }
     public init?(data: Data) {}

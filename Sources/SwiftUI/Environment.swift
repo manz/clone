@@ -203,7 +203,7 @@ public struct FocusState<Value: Hashable> {
         var value: Value
         init(_ value: Value) { self.value = value }
     }
-    private let storage: Storage
+    private var storage: Storage
 
     public var wrappedValue: Value {
         get { storage.value }
