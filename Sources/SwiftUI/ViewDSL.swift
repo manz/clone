@@ -275,9 +275,11 @@ public extension ViewNode {
     }
 
     /// `.onAppear { }` — executes a closure when the view appears.
-    /// On Clone, fires immediately during tree build (no lifecycle tracking yet).
+    /// Fires only once using OnceRegistry to prevent re-firing every frame.
     func onAppear(perform action: (() -> Void)? = nil) -> ViewNode {
-        action?()
+        if let action = action {
+            OnceRegistry.shared.runOnce(action)
+        }
         return self
     }
 
@@ -287,15 +289,19 @@ public extension ViewNode {
     }
 
     /// `.task { }` — executes an async closure when the view appears.
-    /// On Clone, launches the task immediately (no cancellation on disappear).
+    /// Fires only once per unique call site.
     func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
-        Task(priority: priority) { @MainActor in await action() }
+        OnceRegistry.shared.runOnce {
+            Task(priority: priority) { @MainActor in await action() }
+        }
         return self
     }
 
     /// `.task(id:_:)` — executes an async closure when id changes.
     func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
-        Task(priority: priority) { @MainActor in await action() }
+        OnceRegistry.shared.runOnce {
+            Task(priority: priority) { @MainActor in await action() }
+        }
         return self
     }
 

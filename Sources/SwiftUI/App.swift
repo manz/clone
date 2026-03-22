@@ -150,6 +150,7 @@ extension App {
                 GeometryReaderRegistry.shared.clear()
                 TapRegistry.shared.clear()
                 TextFieldRegistry.shared.clear()
+                OnceRegistry.shared.resetCounter()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
