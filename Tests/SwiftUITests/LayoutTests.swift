@@ -232,6 +232,58 @@ import Testing
     }
 }
 
+// MARK: - Grid layout tests
+
+@Test func gridAdaptiveColumnCount() {
+    // 600px wide, adaptive minimum 220 → floor((600+8)/(220+8)) = 2 columns
+    let count = Layout.gridColumnCount(
+        [GridColumnSpec(.adaptive(min: 220, max: .infinity))],
+        availableWidth: 600, spacing: 8
+    )
+    #expect(count == 2)
+}
+
+@Test func gridAdaptiveNarrow() {
+    // 200px wide, adaptive minimum 220 → 1 column (can't fit 2)
+    let count = Layout.gridColumnCount(
+        [GridColumnSpec(.adaptive(min: 220, max: .infinity))],
+        availableWidth: 200, spacing: 8
+    )
+    #expect(count == 1)
+}
+
+@Test func gridAdaptiveWide() {
+    // 1000px wide, adaptive minimum 170 → floor((1000+8)/(170+8)) = 5 columns
+    let count = Layout.gridColumnCount(
+        [GridColumnSpec(.adaptive(min: 170, max: .infinity))],
+        availableWidth: 1000, spacing: 8
+    )
+    #expect(count == 5)
+}
+
+@Test @MainActor func gridLayoutPositionsChildren() {
+    let node = ViewNode.grid(
+        columns: [GridColumnSpec(.adaptive(min: 100, max: .infinity))],
+        spacing: 8,
+        children: [
+            .rect(width: 100, height: 50, fill: .red),
+            .rect(width: 100, height: 50, fill: .blue),
+            .rect(width: 100, height: 50, fill: .green),
+        ]
+    )
+    let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 300, height: 400))
+    // 300px / (100+8) = 2.7 → 2 columns, each ~146px
+    // Row 1: [red, blue], Row 2: [green]
+    #expect(result.children.count == 3)
+    // First child at x=0
+    #expect(result.children[0].frame.x == 0)
+    // Second child offset to second column
+    #expect(result.children[1].frame.x > 100)
+    // Third child on next row, x=0
+    #expect(result.children[2].frame.x == 0)
+    #expect(result.children[2].frame.y > 50)
+}
+
 // MARK: - CommandFlattener tests
 
 @Test func flattenSimpleRect() {
