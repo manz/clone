@@ -167,18 +167,29 @@ public enum CommandFlattener {
             ))
 
         case .textField(let placeholder, let text, let registryId):
-            // Background box
+            let isFocused = TextFieldRegistry.shared.isFocused(registryId)
+            // Background box — highlight when focused
+            let bgColor = isFocused ? Color(red: 0.9, green: 0.95, blue: 1.0) : WindowChrome.surface
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y, width: frame.width, height: frame.height,
-                kind: .roundedRect(radius: 6, color: WindowChrome.surface.withAlpha(opacity))
+                kind: .roundedRect(radius: 6, color: bgColor.withAlpha(opacity))
             ))
-            // Text content or placeholder
-            let displayText = text.isEmpty ? placeholder : text
-            let textColor = text.isEmpty ? Color.gray : Color.primary
+            // Read live text from registry (binding), fall back to ViewNode text
+            let liveText = TextFieldRegistry.shared.text(for: registryId) ?? text
+            let displayText = liveText.isEmpty ? placeholder : liveText
+            let textColor = liveText.isEmpty ? Color.gray : Color.primary
             commands.append(FlatRenderCommand(
                 x: frame.x + 8, y: frame.y + 7, width: frame.width - 16, height: 14,
                 kind: .text(content: displayText, fontSize: 14, color: textColor.withAlpha(opacity))
             ))
+            // Cursor when focused
+            if isFocused {
+                let cursorX = frame.x + 8 + CGFloat(liveText.count) * 14 * 0.6
+                commands.append(FlatRenderCommand(
+                    x: cursorX, y: frame.y + 5, width: 1, height: frame.height - 10,
+                    kind: .rect(color: Color.primary.withAlpha(opacity))
+                ))
+            }
 
         default:
             break

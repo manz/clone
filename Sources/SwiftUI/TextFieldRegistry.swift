@@ -6,7 +6,7 @@ public final class TextFieldRegistry: @unchecked Sendable {
     public static let shared = TextFieldRegistry()
 
     private struct Entry {
-        let binding: Binding<String>
+        var binding: Binding<String>
         let placeholder: String
         var frame: LayoutFrame?
     }
@@ -15,17 +15,25 @@ public final class TextFieldRegistry: @unchecked Sendable {
     private var orderedIds: [UInt64] = []
     private var nextId: UInt64 = 1
     public private(set) var focusedId: UInt64?
+    /// Persisted text across frame rebuilds, keyed by registration order
+    private var persistedText: [Int: String] = [:]
 
     private init() {}
 
     // MARK: - Registration
 
     /// Register a text field and get a unique ID.
+    /// Restores persisted text from previous frames if available.
     public func register(binding: Binding<String>, placeholder: String) -> UInt64 {
         let id = nextId
         nextId += 1
+        let orderIndex = orderedIds.count
         entries[id] = Entry(binding: binding, placeholder: placeholder)
         orderedIds.append(id)
+        // Restore persisted text from previous frame
+        if let persisted = persistedText[orderIndex], !persisted.isEmpty {
+            binding.wrappedValue = persisted
+        }
         return id
     }
 
@@ -51,6 +59,7 @@ public final class TextFieldRegistry: @unchecked Sendable {
     public func handleKeyChar(_ char: String) {
         guard let id = focusedId, let entry = entries[id] else { return }
         entry.binding.wrappedValue += char
+        persistText(for: id)
     }
 
     /// Handle backspace — removes the last character from the focused field.
@@ -60,7 +69,14 @@ public final class TextFieldRegistry: @unchecked Sendable {
         if !text.isEmpty {
             text.removeLast()
             entry.binding.wrappedValue = text
+            persistText(for: id)
         }
+    }
+
+    private func persistText(for id: UInt64) {
+        guard let entry = entries[id],
+              let orderIndex = orderedIds.firstIndex(of: id) else { return }
+        persistedText[Int(orderIndex)] = entry.binding.wrappedValue
     }
 
     /// Handle tab — move focus to the next text field.
@@ -119,10 +135,11 @@ public final class TextFieldRegistry: @unchecked Sendable {
         // NOTE: focusedId is NOT cleared — focus persists across rebuilds
     }
 
-    /// Full reset including focus (for tests).
+    /// Full reset including focus and persisted text (for tests).
     public func reset() {
         entries.removeAll()
         orderedIds.removeAll()
+        persistedText.removeAll()
         nextId = 1
         focusedId = nil
     }
