@@ -46,6 +46,7 @@ public final class WindowServer {
             frames.append(contentsOf: appManager.overlaySurfaces(
                 screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
             ))
+            appManager.requestFrames()
             return frames
         }
 
