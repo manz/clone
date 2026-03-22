@@ -123,14 +123,14 @@ public enum Layout {
 
         case .rect(let width, let height, _):
             return MeasuredSize(
-                width: width ?? 0,  // nil = flexible, sized by parent
-                height: height ?? 0
+                width: width ?? constraint.maxWidth,
+                height: height ?? constraint.maxHeight
             )
 
         case .roundedRect(let width, let height, _, _):
             return MeasuredSize(
-                width: width ?? 0,
-                height: height ?? 0
+                width: width ?? constraint.maxWidth,
+                height: height ?? constraint.maxHeight
             )
 
         case .blur:
@@ -515,10 +515,18 @@ public enum Layout {
         var maxHeight: CGFloat = 0
 
         for child in children {
+            // Skip nil-sized rects — they're flexible backgrounds that should
+            // match sibling size, not inflate the ZStack to fill the constraint.
+            if case .rect(let w, let h, _) = child, w == nil || h == nil { continue }
+            if case .roundedRect(let w, let h, _, _) = child, w == nil || h == nil { continue }
             let size = measure(child, constraint: constraint)
             maxWidth = max(maxWidth, size.width)
             maxHeight = max(maxHeight, size.height)
         }
+
+        // If no sized children, fall back to constraint
+        if maxWidth == 0 { maxWidth = constraint.maxWidth }
+        if maxHeight == 0 { maxHeight = constraint.maxHeight }
 
         return MeasuredSize(width: maxWidth, height: maxHeight)
     }

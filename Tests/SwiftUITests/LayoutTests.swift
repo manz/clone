@@ -173,6 +173,65 @@ import Testing
     #expect(rrect.frame.y == 60) // 50 (hstack height) + 10 spacing
 }
 
+// MARK: - Background / ZStack measurement
+
+@Test func backgroundRectSizedByContent() {
+    // .background(Color.blue) creates ZStack with [nil-rect, content]
+    // The ZStack should be sized by the content, not the nil-rect
+    let content = ViewNode.text("Hello", fontSize: 20, color: .white)
+    let node = content.background(.blue)
+    let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 600, maxHeight: 400))
+    // Should be sized by text (60x20), NOT by constraint (600x400)
+    #expect(size.width == 60)
+    #expect(size.height == 20)
+}
+
+@Test func backgroundRectLayoutFillsParentFrame() {
+    // .background() creates a ZStack — the nil-rect fills the ZStack's layout frame
+    let content = ViewNode.rect(width: 200, height: 50, fill: .white)
+    let node = content.background(.blue)
+    let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 600, height: 400))
+    let commands = CommandFlattener.flatten(result)
+    // Should have 2 rect commands
+    let rects = commands.filter { if case .rect = $0.kind { return true }; return false }
+    #expect(rects.count == 2)
+}
+
+@Test func zstackNilRectDoesNotInflate() {
+    // A ZStack with nil-rect and sized content should measure as the content
+    let node = ViewNode.zstack(children: [
+        .rect(width: nil, height: nil, fill: .red),
+        .rect(width: 100, height: 50, fill: .white),
+    ])
+    let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 600, maxHeight: 400))
+    #expect(size.width == 100)
+    #expect(size.height == 50)
+}
+
+@Test func zstackAllNilRectsFallsBackToConstraint() {
+    // If all children are nil-rects, fall back to constraint
+    let node = ViewNode.zstack(children: [
+        .rect(width: nil, height: nil, fill: .red),
+    ])
+    let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 600, maxHeight: 400))
+    #expect(size.width == 600)
+    #expect(size.height == 400)
+}
+
+@Test func layoutNoNaNCoordinates() {
+    // frame(maxWidth: .infinity) inside a vstack should not produce NaN
+    let node = ViewNode.vstack(alignment: .center, spacing: 8, children: [
+        .frame(width: .infinity, height: nil, child: .text("Button", fontSize: 14, color: .white)),
+        .text("Label", fontSize: 14, color: .white),
+    ])
+    let result = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
+    let commands = CommandFlattener.flatten(result)
+    for cmd in commands {
+        #expect(cmd.x.isFinite, "x should not be NaN/inf: \(cmd)")
+        #expect(cmd.y.isFinite, "y should not be NaN/inf: \(cmd)")
+    }
+}
+
 // MARK: - CommandFlattener tests
 
 @Test func flattenSimpleRect() {

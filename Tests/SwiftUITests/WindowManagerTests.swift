@@ -74,7 +74,7 @@ import Testing
     let wm = WindowManager()
     let _ = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
     let nodes = wm.render { _ in
-        Text("Hello").font(.system(size: 14))
+        _resolve(Text("Hello").font(.system(size: 14)))
     }
     #expect(nodes.count == 1)
 }

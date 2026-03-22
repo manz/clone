@@ -13,7 +13,7 @@ import Testing
 }
 
 @Test @MainActor func colorAsView() {
-    let body = Color.blue.body
+    let body = _resolve(Color.blue)
     if case .rect(let w, let h, let fill) = body {
         #expect(w == nil)
         #expect(h == nil)
@@ -126,7 +126,7 @@ import Testing
 @Test @MainActor func viewProtocolConformance() {
     // Text conforms to View, body returns ViewNode
     let text = Text("hello")
-    let body: ViewNode = text.body
+    let body: ViewNode = _resolve(text)
     #expect(body == .text("hello", fontSize: 14, color: .primary))
 }
 
@@ -151,7 +151,7 @@ import Testing
 }
 
 @Test @MainActor func shapeCircle() {
-    let node = Circle()
+    let node = _resolve(Circle())
     if case .roundedRect(_, _, let radius, _) = node {
         #expect(radius == 1000)
     } else {
@@ -160,7 +160,8 @@ import Testing
 }
 
 @Test @MainActor func shapeCapsule() {
-    let node = Capsule()
+    let capsule = Capsule()
+    let node = _resolve(capsule)
     if case .roundedRect(_, _, let radius, _) = node {
         #expect(radius == 1000)
     } else {
@@ -185,7 +186,7 @@ import Testing
 }
 
 @Test @MainActor func imageRendersAsPlaceholder() {
-    let node = Image("photo").frame(width: 100, height: 100)
+    let node = _resolve(Image("photo").frame(width: 100, height: 100))
     let layoutResult = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 400, height: 300))
     let commands = CommandFlattener.flatten(layoutResult)
     #expect(!commands.isEmpty)
