@@ -539,9 +539,10 @@ public extension ViewNode {
         self
     }
 
-    /// `.environmentObject(_:)` — no-op on Clone.
+    /// `.environmentObject(_:)` — stores object in global environment.
     func environmentObject<T: AnyObject>(_ object: T) -> ViewNode {
-        self
+        EnvironmentObjectStore.shared.set(object)
+        return self
     }
 
     /// `.onSubmit(_:)` — no-op on Clone.

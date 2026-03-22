@@ -437,7 +437,8 @@ public extension View {
     }
 
     func environmentObject<T: AnyObject>(_ object: T) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self))
+        EnvironmentObjectStore.shared.set(object)
+        return _ModifiedView(node: _resolve(self))
     }
 
     func onSubmit(_ action: @escaping () -> Void) -> _ModifiedView<Self> {

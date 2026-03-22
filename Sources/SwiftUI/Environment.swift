@@ -76,23 +76,45 @@ public struct PresentationMode {
     public mutating func dismiss() {}
 }
 
+// MARK: - EnvironmentObject storage
+
+/// Global store for environment objects. Views set them via `.environmentObject()`,
+/// child views read them via `@EnvironmentObject`.
+public final class EnvironmentObjectStore: @unchecked Sendable {
+    public static let shared = EnvironmentObjectStore()
+    private var objects: [ObjectIdentifier: AnyObject] = [:]
+
+    public func set<T: AnyObject>(_ object: T) {
+        objects[ObjectIdentifier(T.self)] = object
+    }
+
+    public func get<T: AnyObject>(_ type: T.Type) -> T? {
+        objects[ObjectIdentifier(type)] as? T
+    }
+}
+
 // MARK: - @EnvironmentObject
 
 /// A property wrapper that reads an observable object from the environment.
 @MainActor
 @propertyWrapper
 public struct EnvironmentObject<ObjectType: AnyObject> {
-    private var object: ObjectType?
-
-    public init() { self.object = nil }
+    public init() {}
 
     public var wrappedValue: ObjectType {
-        get { object! }
-        set { object = newValue }
+        get {
+            guard let obj = EnvironmentObjectStore.shared.get(ObjectType.self) else {
+                fatalError("No EnvironmentObject of type \(ObjectType.self) found. Ensure .environmentObject() is called on an ancestor view.")
+            }
+            return obj
+        }
+        set {
+            EnvironmentObjectStore.shared.set(newValue)
+        }
     }
 
     public var projectedValue: Wrapper {
-        Wrapper(object: object)
+        Wrapper(object: EnvironmentObjectStore.shared.get(ObjectType.self))
     }
 
     public struct Wrapper {
