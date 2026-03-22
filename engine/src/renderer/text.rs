@@ -455,6 +455,7 @@ impl TextRenderer {
         instances: &[GlyphInstance],
         scissor: Option<(u32, u32, u32, u32)>,
     ) {
+        let scissor = crate::renderer::types::clamp_scissor(scissor, width, height);
         if instances.is_empty() {
             return;
         }

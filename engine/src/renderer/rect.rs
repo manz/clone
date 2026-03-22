@@ -200,6 +200,7 @@ impl RectPipeline {
         rounded_instances: &[RectInstance],
         scissor: Option<(u32, u32, u32, u32)>,
     ) {
+        let scissor = crate::renderer::types::clamp_scissor(scissor, width, height);
         let uniforms = Uniforms {
             screen_size: [width as f32, height as f32],
             _pad: [0.0; 2],

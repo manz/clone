@@ -60,3 +60,19 @@ mod tests {
         assert_eq!(bytes.len(), 16);
     }
 }
+
+/// Clamp a scissor rect to fit within the render target bounds.
+/// Returns None if the clamped rect has zero area.
+pub fn clamp_scissor(
+    scissor: Option<(u32, u32, u32, u32)>,
+    target_width: u32,
+    target_height: u32,
+) -> Option<(u32, u32, u32, u32)> {
+    scissor.and_then(|(sx, sy, sw, sh)| {
+        let cx = sx.min(target_width);
+        let cy = sy.min(target_height);
+        let cw = sw.min(target_width.saturating_sub(cx));
+        let ch = sh.min(target_height.saturating_sub(cy));
+        if cw == 0 || ch == 0 { None } else { Some((cx, cy, cw, ch)) }
+    })
+}
