@@ -153,37 +153,43 @@ public final class AppClient {
         }
     }
 
-    /// Run the event loop. Non-blocking reads on a tight timer,
-    /// main thread stays alive for GCD/URLSession/async.
+    /// Run the event loop. Blocking socket read on a background thread,
+    /// message handling dispatched to MainActor. Main thread stays free
+    /// for URLSession, async/await, timers.
     public func runLoop() {
         let fd = socketFd
-        let flags = fcntl(fd, F_GETFL)
-        fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
-        // Poll socket every 1ms via GCD timer on main queue
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now(), repeating: .milliseconds(1))
-        timer.setEventHandler { [self] in
-            var buf = [UInt8](repeating: 0, count: 65536)
+        // Blocking read loop on background thread
+        Thread.detachNewThread {
+            // Set blocking
+            let flags = fcntl(fd, F_GETFL)
+            fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
+
+            var readBuf = Data()
             while true {
+                var buf = [UInt8](repeating: 0, count: 65536)
                 let n = posix_read(fd, &buf, buf.count)
-                if n > 0 {
-                    self.readBuffer.append(contentsOf: buf[0..<n])
-                } else if n == 0 {
-                    self.isConnected = false
-                    timer.cancel()
-                    return
-                } else {
-                    break
+                if n <= 0 { break }
+
+                readBuf.append(contentsOf: buf[0..<n])
+                while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
+                    readBuf = readBuf.subdata(in: consumed..<readBuf.count)
+                    let message = msg
+                    DispatchQueue.main.sync {
+                        MainActor.assumeIsolated {
+                            self.handle(message)
+                        }
+                    }
                 }
             }
-            while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: self.readBuffer) {
-                self.readBuffer = self.readBuffer.subdata(in: consumed..<self.readBuffer.count)
-                self.handle(msg)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.isConnected = false
+                }
             }
         }
-        timer.resume()
 
+        // Keep main thread alive for GCD callbacks
         dispatchMain()
     }
 
