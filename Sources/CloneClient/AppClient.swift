@@ -153,36 +153,24 @@ public final class AppClient {
         }
     }
 
-    /// Run the event loop. Blocking read with periodic RunLoop drain for GCD/async.
+    /// Run the event loop. Blocks the current thread.
     public func runLoop() {
-        // Set blocking for synchronous reads
+        // Set blocking for the main loop
         let flags = fcntl(socketFd, F_GETFL)
         fcntl(socketFd, F_SETFL, flags & ~O_NONBLOCK)
 
         while isConnected {
-            // Use select() with timeout so we periodically drain the RunLoop
-            var readSet = fd_set()
-            fdZero(&readSet)
-            fdSet(socketFd, &readSet)
-            var timeout = timeval(tv_sec: 0, tv_usec: 16_000) // 16ms
-
-            let ready = select(socketFd + 1, &readSet, nil, nil, &timeout)
-            if ready > 0 {
-                // Data available — read and process
-                var buf = [UInt8](repeating: 0, count: 65536)
-                let bytesRead = posix_read(socketFd, &buf, buf.count)
-                if bytesRead > 0 {
-                    readBuffer.append(contentsOf: buf[0..<bytesRead])
-                    while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
-                        readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-                        handle(msg)
-                    }
-                } else {
-                    isConnected = false
+            var buf = [UInt8](repeating: 0, count: 65536)
+            let bytesRead = posix_read(socketFd, &buf, buf.count)
+            if bytesRead > 0 {
+                readBuffer.append(contentsOf: buf[0..<bytesRead])
+                while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuffer) {
+                    readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+                    handle(msg)
                 }
+            } else {
+                isConnected = false
             }
-            // Drain the RunLoop — processes GCD callbacks, URLSession responses, timers
-            while RunLoop.main.run(mode: .default, before: Date()) {}
         }
     }
 
@@ -198,17 +186,3 @@ public final class AppClient {
     }
 }
 
-// MARK: - fd_set helpers (macOS)
-
-private func fdZero(_ set: inout fd_set) {
-    bzero(&set, MemoryLayout<fd_set>.size)
-}
-
-private func fdSet(_ fd: Int32, _ set: inout fd_set) {
-    let intOffset = Int(fd / 32)
-    let bitOffset = Int(fd % 32)
-    withUnsafeMutableBytes(of: &set) { buf in
-        let ints = buf.baseAddress!.assumingMemoryBound(to: Int32.self)
-        ints[intOffset] |= Int32(1 << bitOffset)
-    }
-}
