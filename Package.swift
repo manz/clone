@@ -26,6 +26,11 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
+        // Cross-platform POSIX wrappers (Darwin/Glibc)
+        .target(
+            name: "PosixShim",
+            path: "Sources/PosixShim"
+        ),
         .systemLibrary(
             name: "clone_engineFFI",
             path: "Sources/CEngine"
@@ -42,9 +47,9 @@ let package = Package(
             path: "Sources/AudioBridge",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "target/debug",
+                    "-L", "/Users/manz/Projects/clone/target/debug",
                     "-lclone_audio",
-                    "-Xlinker", "-rpath", "-Xlinker", "target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
                 ]),
             ]
         ),
@@ -57,18 +62,19 @@ let package = Package(
         // Shared IPC protocol
         .target(
             name: "CloneProtocol",
+            dependencies: ["PosixShim"],
             path: "Sources/CloneProtocol"
         ),
         // Compositor-side server
         .target(
             name: "CloneServer",
-            dependencies: ["CloneProtocol"],
+            dependencies: ["CloneProtocol", "PosixShim"],
             path: "Sources/CloneServer"
         ),
         // App-side client library
         .target(
             name: "CloneClient",
-            dependencies: ["CloneProtocol"],
+            dependencies: ["CloneProtocol", "PosixShim"],
             path: "Sources/CloneClient"
         ),
         // AppKit shim — NSColor and other AppKit types for Linux
@@ -92,7 +98,7 @@ let package = Package(
         ),
         .target(
             name: "MediaPlayer",
-            dependencies: ["CloneProtocol"],
+            dependencies: ["CloneProtocol", "PosixShim"],
             path: "Sources/MediaPlayer"
         ),
         .target(
@@ -106,7 +112,7 @@ let package = Package(
         // Now-playing daemon (library — testable)
         .target(
             name: "CloneDaemon",
-            dependencies: ["CloneProtocol"],
+            dependencies: ["CloneProtocol", "PosixShim"],
             path: "Sources/CloneDaemon"
         ),
         // Now-playing daemon executable
@@ -118,7 +124,7 @@ let package = Package(
         // Keychain daemon (library — testable)
         .target(
             name: "CloneKeychain",
-            dependencies: ["CSQLite", "CloneProtocol"],
+            dependencies: ["CSQLite", "CloneProtocol", "PosixShim"],
             path: "Sources/CloneKeychain"
         ),
         // Keychain daemon executable
@@ -132,7 +138,7 @@ let package = Package(
         // On Linux this becomes the "Security" module since there's no system Security.
         .target(
             name: "KeychainServices",
-            dependencies: [],
+            dependencies: ["PosixShim"],
             path: "Sources/KeychainServices"
         ),
         // UniFFI bridge to Rust GPU engine
@@ -148,9 +154,9 @@ let package = Package(
             path: "Sources/Apps",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "target/debug",
+                    "-L", "/Users/manz/Projects/clone/target/debug",
                     "-lclone_engine",
-                    "-Xlinker", "-rpath", "-Xlinker", "target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
                 ]),
             ]
         ),
@@ -175,7 +181,7 @@ let package = Package(
         // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
-            dependencies: ["SwiftUI", "CloneProtocol", "CloneClient"],
+            dependencies: ["SwiftUI", "CloneProtocol", "CloneClient", "PosixShim"],
             path: "Sources/MenuBarApp"
         ),
         // Password app (separate process)
