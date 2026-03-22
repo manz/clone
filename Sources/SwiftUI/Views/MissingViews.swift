@@ -191,32 +191,38 @@ public struct Table<Value, Rows, Columns>: _PrimitiveView {
     public var _nodeRepresentation: ViewNode { .empty }
 }
 
-extension Table where Rows == Never, Columns == Never {
-    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder columns: () -> some View) where Data.Element == Value {
+extension Table where Rows == Never {
+    public init<Data: RandomAccessCollection>(_ data: Data, @TableColumnBuilder<Value, Never> columns: () -> Columns) where Data.Element == Value {
         // stub
     }
 
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder columns: () -> some View) where Data.Element == Value {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @TableColumnBuilder<Value, Never> columns: () -> Columns) where Data.Element == Value {
         // stub
     }
 
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>, @ViewBuilder columns: () -> some View) where Data.Element == Value {
-        // stub
-    }
-}
-
-extension Table {
-    /// `Table(data, selection:) { columns }` — generic content variant.
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @TableColumnBuilder<Value, Never> columns: () -> Columns) where Data.Element == Value, Rows == Never {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>, @TableColumnBuilder<Value, Never> columns: () -> Columns) where Data.Element == Value {
         // stub
     }
 }
 
-/// Result builder for table columns.
+/// Result builder for table columns — type-preserving like ViewBuilder.
 @resultBuilder
 public struct TableColumnBuilder<RowValue, Sort> {
-    public static func buildBlock(_ components: [ViewNode]...) -> [ViewNode] { components.flatMap { $0 } }
-    @MainActor public static func buildExpression<V: View>(_ expression: V) -> [ViewNode] { [_resolve(expression)] }
+    public static func buildExpression<Content: View, Label: View>(_ expression: TableColumn<RowValue, Sort, Content, Label>) -> TableColumn<RowValue, Sort, Content, Label> { expression }
+    public static func buildExpression<C: View>(_ expression: C) -> C { expression }
+    public static func buildBlock<C: View>(_ content: C) -> C { content }
+    public static func buildBlock<C0: View, C1: View>(_ c0: C0, _ c1: C1) -> TupleView<(C0, C1)> { TupleView((c0, c1)) }
+    public static func buildBlock<C0: View, C1: View, C2: View>(_ c0: C0, _ c1: C1, _ c2: C2) -> TupleView<(C0, C1, C2)> { TupleView((c0, c1, c2)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3) -> TupleView<(C0, C1, C2, C3)> { TupleView((c0, c1, c2, c3)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4) -> TupleView<(C0, C1, C2, C3, C4)> { TupleView((c0, c1, c2, c3, c4)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View, C5: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4, _ c5: C5) -> TupleView<(C0, C1, C2, C3, C4, C5)> { TupleView((c0, c1, c2, c3, c4, c5)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View, C5: View, C6: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4, _ c5: C5, _ c6: C6) -> TupleView<(C0, C1, C2, C3, C4, C5, C6)> { TupleView((c0, c1, c2, c3, c4, c5, c6)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View, C5: View, C6: View, C7: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4, _ c5: C5, _ c6: C6, _ c7: C7) -> TupleView<(C0, C1, C2, C3, C4, C5, C6, C7)> { TupleView((c0, c1, c2, c3, c4, c5, c6, c7)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View, C5: View, C6: View, C7: View, C8: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4, _ c5: C5, _ c6: C6, _ c7: C7, _ c8: C8) -> TupleView<(C0, C1, C2, C3, C4, C5, C6, C7, C8)> { TupleView((c0, c1, c2, c3, c4, c5, c6, c7, c8)) }
+    public static func buildBlock<C0: View, C1: View, C2: View, C3: View, C4: View, C5: View, C6: View, C7: View, C8: View, C9: View>(_ c0: C0, _ c1: C1, _ c2: C2, _ c3: C3, _ c4: C4, _ c5: C5, _ c6: C6, _ c7: C7, _ c8: C8, _ c9: C9) -> TupleView<(C0, C1, C2, C3, C4, C5, C6, C7, C8, C9)> { TupleView((c0, c1, c2, c3, c4, c5, c6, c7, c8, c9)) }
+    public static func buildOptional<C: View>(_ component: C?) -> C? { component }
+    public static func buildEither<T: View, F: View>(first: T) -> _ConditionalContent<T, F> { .trueContent(first) }
+    public static func buildEither<T: View, F: View>(second: F) -> _ConditionalContent<T, F> { .falseContent(second) }
     public static func buildOptional(_ component: [ViewNode]?) -> [ViewNode] { component ?? [] }
     public static func buildEither(first component: [ViewNode]) -> [ViewNode] { component }
     public static func buildEither(second component: [ViewNode]) -> [ViewNode] { component }
