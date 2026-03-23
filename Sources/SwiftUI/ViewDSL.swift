@@ -450,14 +450,41 @@ public extension ViewNode {
     /// `.buttonStyle(_:)` — applies visual style to buttons.
     func buttonStyle<S: ButtonStyle>(_ style: S) -> ViewNode {
         if style is BorderedProminentButtonStyle {
-            // Filled button: accent color background, white text, rounded
+            // Extract the current text color (from .tint) to use as background
+            let bgColor = extractTextColor(self) ?? .accentColor
+            // Filled button: tint/accent background, white text, rounded capsule
             return self.foregroundColor(.white)
                 .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                .background(.accentColor, cornerRadius: 6)
+                .background(bgColor, cornerRadius: 6)
+        }
+        if style is BorderedButtonStyle {
+            return self
+                .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                .background(Color(white: 0.92), cornerRadius: 6)
         }
         return self
     }
 
+}
+
+/// Extract the text color from a ViewNode tree (walks down looking for .text color).
+private func extractTextColor(_ node: ViewNode) -> Color? {
+    switch node {
+    case .text(_, _, let color, _):
+        return color == .primary ? nil : color
+    case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(let children):
+        for child in children {
+            if let c = extractTextColor(child) { return c }
+        }
+        return nil
+    case .onTap(_, let child), .padding(_, let child), .frame(_, _, let child):
+        return extractTextColor(child)
+    default:
+        return nil
+    }
+}
+
+extension ViewNode {
     /// `.listStyle(_:)` — no-op on Clone.
     func listStyle<S: ListStyle>(_ style: S) -> ViewNode {
         self
