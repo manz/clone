@@ -642,9 +642,7 @@ struct FinderApp: App {
 
     var body: some Scene {
         WindowGroup("Finder") {
-            GeometryReader { proxy in
-                finderView(state: state, width: proxy.size.width, height: proxy.size.height)
-            }
+            finderView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
         }
     }
 }
