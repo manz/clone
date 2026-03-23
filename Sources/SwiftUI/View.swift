@@ -583,7 +583,11 @@ public extension View {
     }
 
     func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self))
+        let items = _flattenToNodes(content())
+        for item in items {
+            WindowState.shared.toolbarItems.append(ToolbarItemData(placement: .automatic, node: item))
+        }
+        return _ModifiedView(node: _resolve(self))
     }
 
     func toolbar(removing: ToolbarDefaultItemKind?) -> _ModifiedView<Self> {

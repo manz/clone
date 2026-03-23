@@ -159,10 +159,10 @@ public enum Layout {
 
         case .frame(let width, let height, let child):
             let childSize = measure(child, constraint: constraint)
-            return MeasuredSize(
-                width: width ?? childSize.width,
-                height: height ?? childSize.height
-            )
+            // Clamp to constraint — .frame(maxWidth: .infinity) shouldn't produce infinite size
+            let fw = min(width ?? childSize.width, constraint.maxWidth)
+            let fh = min(height ?? childSize.height, constraint.maxHeight)
+            return MeasuredSize(width: fw, height: fh)
 
         case .opacity(_, let child):
             return measure(child, constraint: constraint)

@@ -12,6 +12,9 @@ public final class WindowState: @unchecked Sendable {
     /// The current navigation title. Set by `.navigationTitle()`, read by the runtime.
     public var navigationTitle: String?
 
+    /// Toolbar items collected during view tree build. Reset each frame.
+    public var toolbarItems: [ToolbarItemData] = []
+
     /// The title from the previous frame — used to detect changes.
     internal var previousTitle: String?
 
@@ -22,6 +25,7 @@ public final class WindowState: @unchecked Sendable {
         self.width = width
         self.height = height
         self.navigationTitle = nil // Reset — views will set it during tree build
+        self.toolbarItems = []
     }
 
     /// Returns true if the title changed since last frame.
@@ -30,6 +34,12 @@ public final class WindowState: @unchecked Sendable {
         previousTitle = navigationTitle
         return changed
     }
+}
+
+/// Data for a toolbar item collected during view tree build.
+public struct ToolbarItemData {
+    public let placement: ToolbarItemPlacement
+    public let node: ViewNode
 }
 
 // MARK: - System Actions

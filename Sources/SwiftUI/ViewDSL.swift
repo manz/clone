@@ -17,17 +17,24 @@ public extension ViewNode {
 
     /// `.frame(maxWidth: .infinity)` — fills available space
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
-        .frame(width: maxWidth, height: maxHeight, child: self)
+        // .infinity means "fill available space" → use nil (fills constraint)
+        let w: CGFloat? = maxWidth == .infinity ? nil : maxWidth
+        let h: CGFloat? = maxHeight == .infinity ? nil : maxHeight
+        return .frame(width: w, height: h, child: self)
     }
 
     /// `.frame(maxWidth:maxHeight:alignment:)` — fills available space with alignment
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment) -> ViewNode {
-        .frame(width: maxWidth, height: maxHeight, child: self)
+        let w: CGFloat? = maxWidth == .infinity ? nil : maxWidth
+        let h: CGFloat? = maxHeight == .infinity ? nil : maxHeight
+        return .frame(width: w, height: h, child: self)
     }
 
     /// `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:alignment:)` — flexible frame
     func frame(minWidth: CGFloat? = nil, idealWidth: CGFloat? = nil, maxWidth: CGFloat? = nil, minHeight: CGFloat? = nil, idealHeight: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment = .center) -> ViewNode {
-        .frame(width: maxWidth ?? idealWidth ?? minWidth, height: maxHeight ?? idealHeight ?? minHeight, child: self)
+        let w = (maxWidth == .infinity ? nil : maxWidth) ?? idealWidth ?? minWidth
+        let h = (maxHeight == .infinity ? nil : maxHeight) ?? idealHeight ?? minHeight
+        return .frame(width: w, height: h, child: self)
     }
 
     /// `.padding(16)` — uniform padding

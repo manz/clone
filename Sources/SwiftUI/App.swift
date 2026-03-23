@@ -164,6 +164,23 @@ extension App {
                     .background(config.role == .window ? WindowChrome.surface : .clear)
                 // Flush deferred onChange actions after view tree is built
                 OnChangeRegistry.shared.flushActions()
+                // Prepend toolbar items as a top bar if any were collected
+                let toolbarItems = WindowState.shared.toolbarItems
+                if !toolbarItems.isEmpty && config.role == .window {
+                    // Wrap each item to prevent infinite expansion
+                    let toolbarNodes: [ViewNode] = toolbarItems.map { item in
+                        ViewNode.frame(width: nil, height: 28, child: item.node)
+                    }
+                    let toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children:
+                        [.spacer(minLength: 0)] + toolbarNodes
+                    ).padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                     .background(Color(white: 0.94))
+                    viewTree = .vstack(alignment: .leading, spacing: 0, children: [
+                        toolbarBar,
+                        ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.85)),
+                        viewTree,
+                    ])
+                }
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
                 // Overlay open panel if active
