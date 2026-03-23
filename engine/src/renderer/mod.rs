@@ -46,6 +46,13 @@ impl DesktopRenderer {
         }
     }
 
+    /// Dump the glyph atlas to a PNG for debugging.
+    pub fn dump_atlas(&self, path: &str) {
+        if let Some(tr) = &self.text_renderer {
+            tr.dump_atlas(path);
+        }
+    }
+
     /// Render commands into the given texture view. Commands are in LOCAL coordinates
     /// (0,0 is the surface's top-left). Scale is applied for DPI.
     pub fn render(
@@ -91,6 +98,11 @@ impl DesktopRenderer {
         scale: f32,
         transparent_clear: bool,
     ) {
+        // Reset text instance buffer offset for this surface render
+        if let Some(tr) = &mut self.text_renderer {
+            tr.reset_instance_offset();
+        }
+
         let mut clear_color = Self::extract_background(commands);
         if transparent_clear {
             clear_color.a = 0.0;

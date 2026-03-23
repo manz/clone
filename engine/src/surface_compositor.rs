@@ -26,7 +26,7 @@ impl WindowSurface {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
@@ -225,6 +225,75 @@ impl SurfaceCompositor {
     /// Remove surfaces not in the active set.
     pub fn gc(&mut self, active_ids: &[u64]) {
         self.surfaces.retain(|id, _| active_ids.contains(id));
+    }
+
+    /// Dump a surface texture to a PNG file for debugging.
+    pub fn dump_surface(&self, surface_id: u64, device: &wgpu::Device, queue: &wgpu::Queue, path: &str) {
+        let Some(surface) = self.surfaces.get(&surface_id) else { return };
+        let width = surface.width;
+        let height = surface.height;
+        let bytes_per_row = (width * 4 + 255) & !255; // align to 256
+        let buffer_size = (bytes_per_row * height) as u64;
+
+        let staging = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("texture_readback"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("readback_encoder"),
+        });
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &surface.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &staging,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(bytes_per_row),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        queue.submit([encoder.finish()]);
+
+        let slice = staging.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        slice.map_async(wgpu::MapMode::Read, move |r| { let _ = tx.send(r); });
+        device.poll(wgpu::PollType::wait_indefinitely()).ok();
+        let _ = rx.recv();
+
+        let data = slice.get_mapped_range();
+        // Convert BGRA to RGBA for PNG
+        let mut rgba = Vec::with_capacity((width * height * 4) as usize);
+        for row in 0..height {
+            let start = (row * bytes_per_row) as usize;
+            for col in 0..width {
+                let i = start + (col * 4) as usize;
+                rgba.push(data[i + 2]); // R (from B)
+                rgba.push(data[i + 1]); // G
+                rgba.push(data[i]);     // B (from R)
+                rgba.push(data[i + 3]); // A
+            }
+        }
+        drop(data);
+        staging.unmap();
+
+        // Write PNG
+        if let Ok(file) = std::fs::File::create(path) {
+            let w = std::io::BufWriter::new(file);
+            let mut encoder = image::codecs::png::PngEncoder::new(w);
+            use image::ImageEncoder;
+            let _ = encoder.write_image(&rgba, width, height, image::ExtendedColorType::Rgba8);
+            eprintln!("[DUMP] Surface {} saved to {path} ({}x{})", surface_id, width, height);
+        }
     }
 
     /// Render commands into a window's offscreen surface.

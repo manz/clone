@@ -114,6 +114,7 @@ impl App {
         let surface_frames = self.delegate.on_composite_frame(logical_w, logical_h);
 
         // F12 frame dump (debug concern of the event loop)
+        let do_dump = self.dump_next_frame;
         if self.dump_next_frame {
             self.dump_next_frame = false;
             let path = "/tmp/clone-frame-dump.txt";
@@ -162,6 +163,18 @@ impl App {
             scale,
             &surface_frames,
         );
+
+        // Dump surface textures to PNG on F12
+        if do_dump {
+            for (i, sf) in surface_frames.iter().enumerate() {
+                let path = format!("/tmp/clone-surface-{}.png", sf.desc.surface_id);
+                gpu.render_server.compositor.dump_surface(
+                    sf.desc.surface_id, &gpu.device, &gpu.queue, &path
+                );
+            }
+            // Also dump the glyph atlas
+            gpu.render_server.renderer.dump_atlas("/tmp/clone-atlas.png");
+        }
 
         surface_texture.present();
     }

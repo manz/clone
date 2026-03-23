@@ -45,7 +45,35 @@ pub struct TextRenderer {
     bind_group_layout: wgpu::BindGroupLayout,
     atlas_texture: wgpu::Texture,
     instance_buffer: wgpu::Buffer,
+    instance_offset: usize, // current write offset in instance buffer (resets per frame)
     sampler: wgpu::Sampler,
+}
+
+impl TextRenderer {
+    /// Reset the instance buffer offset (call at the start of each surface render).
+    pub fn reset_instance_offset(&mut self) {
+        self.instance_offset = 0;
+    }
+
+    /// Dump the CPU-side atlas data to a PNG for debugging.
+    pub fn dump_atlas(&self, path: &str) {
+        let size = ATLAS_SIZE as u32;
+        // Atlas is single-channel (R8). Convert to RGBA for PNG.
+        let mut rgba = Vec::with_capacity((size * size * 4) as usize);
+        for pixel in &self.atlas_data {
+            rgba.push(*pixel); // R
+            rgba.push(*pixel); // G
+            rgba.push(*pixel); // B
+            rgba.push(255);    // A
+        }
+        if let Ok(file) = std::fs::File::create(path) {
+            let w = std::io::BufWriter::new(file);
+            let mut encoder = image::codecs::png::PngEncoder::new(w);
+            use image::ImageEncoder;
+            let _ = encoder.write_image(&rgba, size, size, image::ExtendedColorType::Rgba8);
+            eprintln!("[ATLAS] Dumped {}x{} atlas to {path}", size, size);
+        }
+    }
 }
 
 impl TextRenderer {
@@ -194,7 +222,7 @@ impl TextRenderer {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: false,  // Text doesn't write depth (transparent pixels would block)
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -226,6 +254,7 @@ impl TextRenderer {
             bind_group_layout,
             atlas_texture,
             instance_buffer,
+            instance_offset: 0,
             sampler,
         }
     }
@@ -427,13 +456,12 @@ impl TextRenderer {
         let uniforms: [f32; 4] = [width as f32, height as f32, 0.0, 0.0];
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&uniforms));
 
-        // Upload instances
-        let count = instances.len().min(MAX_GLYPH_INSTANCES);
-        queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&instances[..count]),
-        );
+        // Upload instances at current offset
+        let remaining = MAX_GLYPH_INSTANCES - self.instance_offset;
+        let count = instances.len().min(remaining);
+        if count == 0 { return; }
+        let byte_offset = (self.instance_offset * std::mem::size_of::<GlyphInstance>()) as u64;
+        queue.write_buffer(&self.instance_buffer, byte_offset, bytemuck::cast_slice(&instances[..count]));
 
         // Draw
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -463,7 +491,10 @@ impl TextRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-        pass.draw(0..6, 0..count as u32);
+        let start = self.instance_offset as u32;
+        let end = start + count as u32;
+        pass.draw(0..6, start..end);
+        self.instance_offset += count;
     }
 
     pub fn draw_with_scissor(
@@ -512,8 +543,11 @@ impl TextRenderer {
         let uniforms: [f32; 4] = [width as f32, height as f32, 0.0, 0.0];
         queue.write_buffer(&self.uniform_buffer, 0, bytemuck::cast_slice(&uniforms));
 
-        let count = instances.len().min(MAX_GLYPH_INSTANCES);
-        queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&instances[..count]));
+        let remaining = MAX_GLYPH_INSTANCES - self.instance_offset;
+        let count = instances.len().min(remaining);
+        if count == 0 { return; }
+        let byte_offset = (self.instance_offset * std::mem::size_of::<GlyphInstance>()) as u64;
+        queue.write_buffer(&self.instance_buffer, byte_offset, bytemuck::cast_slice(&instances[..count]));
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("text_pass_scissor"),
@@ -539,7 +573,10 @@ impl TextRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-        pass.draw(0..6, 0..count as u32);
+        let start = self.instance_offset as u32;
+        let end = start + count as u32;
+        pass.draw(0..6, start..end);
+        self.instance_offset += count;
     }
 }
 
