@@ -335,93 +335,58 @@ final class FinderState: ObservableObject {
 
 // MARK: - View builders
 
-@MainActor func toolbarView(state: FinderState, width: CGFloat) -> some View {
-    let pathText = state.shortenPath(state.currentPath)
-
-    let backBtn = ZStack {
-        Rectangle().fill(overlayColor).frame(width: 28, height: 22)
-        Image(systemName: "chevron.left").frame(width: 12, height: 12)
-    }.frame(width: 28, height: 22)
-    .onTapGesture { if state.canGoBack { state.goBack() } }
-
-    let fwdBtn = ZStack {
-        Rectangle().fill(overlayColor).frame(width: 28, height: 22)
-        Image(systemName: "chevron.right").frame(width: 12, height: 12)
-    }.frame(width: 28, height: 22)
-    .onTapGesture { if state.canGoForward { state.goForward() } }
-
-    let bar = HStack(alignment: .center, spacing: 6) {
-        backBtn
-        fwdBtn
-        Text(pathText).font(.system(size: 12)).foregroundColor(subtleColor)
-        Spacer()
-    }.padding(.leading, 12)
-
-    let border = VStack(alignment: .center, spacing: 0) {
-        Spacer()
-        Rectangle().fill(overlayColor).frame(height: 1)
-    }.frame(width: width, height: toolbarHeight)
-
-    return ZStack {
-        Rectangle().fill(surfaceColor).frame(width: width, height: toolbarHeight)
-        bar
-        border
-    }.frame(width: width, height: toolbarHeight)
+@MainActor func navButtonGroup(state: FinderState) -> some View {
+    HStack(spacing: 0) {
+        Button(action: { state.goBack() }) {
+            Image(systemName: "chevron.left")
+                .frame(width: 28, height: 22)
+        }
+        .foregroundColor(state.canGoBack ? textColor : disabledColor)
+        Rectangle().fill(overlayColor).frame(width: 1, height: 16)
+        Button(action: { state.goForward() }) {
+            Image(systemName: "chevron.right")
+                .frame(width: 28, height: 22)
+        }
+        .foregroundColor(state.canGoForward ? textColor : disabledColor)
+    }
+    .background(
+        RoundedRectangle(cornerRadius: 11).fill(surfaceColor)
+    )
 }
 
-@MainActor func sidebarItemView(name: String, icon: Color, isActive: Bool, isHovered: Bool) -> some View {
-    let bgFill: Color = isActive ? selectionColor : (isHovered ? highlightColor : .clear)
-
-    let bg = RoundedRectangle(cornerRadius: 5).fill(bgFill)
-        .frame(width: sidebarWidth - 12, height: 24)
-
-    let content = HStack(alignment: .center, spacing: 6) {
+@MainActor func sidebarItemView(name: String, icon: Color, isActive: Bool) -> some View {
+    HStack(alignment: .center, spacing: 6) {
         RoundedRectangle(cornerRadius: 4).fill(icon).frame(width: 18, height: 18)
         Text(name).font(.system(size: 13)).foregroundColor(textColor)
         Spacer()
-    }.padding(.leading, 8)
-
-    let item = ZStack {
-        bg
-        content
-    }.frame(width: sidebarWidth - 12, height: 26)
-    .contentShape(Rectangle())
-
-    return item.padding(.leading, 6)
+    }
+    .padding(.horizontal, 8)
+    .padding(.vertical, 3)
+    .background(
+        RoundedRectangle(cornerRadius: 5)
+            .fill(isActive ? selectionColor : .clear)
+    )
+    .padding(.horizontal, 6)
 }
 
-@MainActor func sidebarView(state: FinderState, height: CGFloat) -> some View {
-    let header = Text("Favorites").font(.system(size: 11, weight: .semibold))
-        .foregroundColor(subtleColor)
-        .padding(.leading, 8).padding(.top, 10)
-
-    let favList = VStack(alignment: .leading, spacing: 0) {
-        ForEach(Array(favorites.enumerated()), id: \.offset) { i, fav in
-            let favY = toolbarHeight + 30 + CGFloat(i) * 26
-            let isHovered = state.mouseX >= 0 && state.mouseX < sidebarWidth &&
-                state.mouseY >= favY && state.mouseY < favY + 26
+@MainActor func sidebarContentView(state: FinderState) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+        Text("Favorites").font(.system(size: 11, weight: .semibold))
+            .foregroundColor(subtleColor)
+            .padding(.leading, 14)
+            .padding(.top, 10)
+        ForEach(Array(favorites.enumerated()), id: \.offset) { _, fav in
             sidebarItemView(
                 name: fav.name,
                 icon: fav.icon,
-                isActive: state.currentPath == fav.path,
-                isHovered: isHovered
+                isActive: state.currentPath == fav.path
             ).onTapGesture {
                 state.navigateTo(fav.path)
             }
         }
-    }
-
-    let inner = VStack(alignment: .leading, spacing: 0) {
-        header
-        Rectangle().fill(.clear).frame(width: sidebarWidth, height: 6)
-        favList
         Spacer()
-    }.frame(width: sidebarWidth, height: height)
-
-    return ZStack {
-        Rectangle().fill(sidebarBgColor).frame(width: sidebarWidth, height: height)
-        inner
-    }.frame(width: sidebarWidth, height: height)
+    }
+    .background(sidebarBgColor)
 }
 
 @MainActor func columnHeadersView(width: CGFloat) -> some View {
@@ -636,29 +601,19 @@ final class FinderState: ObservableObject {
 }
 
 @MainActor func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
-    let listWidth = width - sidebarWidth
+    let listWidth = width - sidebarWidth - 1 // -1 for divider
     let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
-    let sidebarH = height - toolbarHeight
-    let mainContent = VStack(alignment: .leading, spacing: 0) {
-        toolbarView(state: state, width: width)
-        HStack(alignment: .top, spacing: 0) {
-            sidebarView(state: state, height: sidebarH).frame(width: sidebarWidth)
-            Rectangle().fill(overlayColor).frame(width: 1, height: sidebarH)
+
+    return ZStack {
+        NavigationSplitView(sidebarWidth: sidebarWidth, sidebar: {
+            sidebarContentView(state: state)
+        }, detail: {
             VStack(alignment: .leading, spacing: 0) {
                 columnHeadersView(width: listWidth)
                 fileListView(state: state, width: listWidth, height: listHeight)
                 statusBarView(state: state, width: listWidth)
-            }.frame(width: listWidth)
-        }
-    }
-
-    let mainWithBg = ZStack {
-        Rectangle().fill(bgColor).frame(width: width, height: height)
-        mainContent
-    }.frame(width: width, height: height)
-
-    return ZStack {
-        mainWithBg
+            }
+        })
         if let menu = state.contextMenu {
             contextMenuView(menu: menu, width: width, height: height)
         }
@@ -666,6 +621,16 @@ final class FinderState: ObservableObject {
             infoPanelView(info: info, width: width, height: height)
         }
     }.frame(width: width, height: height)
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                navButtonGroup(state: state)
+            }
+            ToolbarItem(placement: .principal) {
+                Text(state.shortenPath(state.currentPath))
+                    .font(.system(size: 12))
+                    .foregroundColor(subtleColor)
+            }
+        }
         .navigationTitle("Finder — \(state.shortenPath(state.currentPath))")
 }
 

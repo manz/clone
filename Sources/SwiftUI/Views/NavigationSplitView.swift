@@ -21,7 +21,7 @@ public struct NavigationSplitView: _PrimitiveView {
                         .padding(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                 ], key: "NavigationSplitView:sidebar")),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            .clipped(radius: 0, child: ViewNode.frame(width: .infinity, height: nil, child:
+            .clipped(radius: 0, child: ViewNode.frame(width: .infinity, height: .infinity, child:
                 ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes))),
         ])
     }

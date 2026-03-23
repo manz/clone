@@ -281,11 +281,12 @@ public enum Layout {
 
         case .frame(let width, let height, let child):
             let childSize = measure(child, constraint: constraint)
-            let w = width ?? childSize.width
-            let h = height ?? frame.height  // nil height = fill parent (Apple behavior)
-            // Center horizontally if width is explicit, top-align vertically
-            let cx = width != nil ? frame.x + (frame.width - w) / 2 : frame.x
-            let cy = frame.y  // Top-aligned — Apple's .frame() doesn't center vertically
+            // .infinity = fill parent, nil = child intrinsic (width) or fill parent (height)
+            let w = min(width ?? childSize.width, frame.width)
+            let h = min(height ?? frame.height, frame.height)
+            // Center horizontally if width is explicit and smaller than frame, top-align vertically
+            let cx = (width != nil && w < frame.width) ? frame.x + (frame.width - w) / 2 : frame.x
+            let cy = frame.y
             let childFrame = LayoutFrame(x: cx, y: cy, width: w, height: h)
             let childLayout = layout(child, in: childFrame)
             return LayoutNode(frame: childFrame, node: node, children: [childLayout])
