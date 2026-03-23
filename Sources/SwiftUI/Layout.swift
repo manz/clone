@@ -115,11 +115,9 @@ public enum Layout {
         case .empty:
             return MeasuredSize()
 
-        case .text(let content, let fontSize, _, _):
-            // Approximate: 0.6 * fontSize per character width, fontSize for height
-            let charWidth = fontSize * 0.6
-            let width = charWidth * CGFloat(content.count)
-            return MeasuredSize(width: width, height: fontSize)
+        case .text(let content, let fontSize, _, let weight):
+            let size = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
+            return MeasuredSize(width: size.width, height: size.height)
 
         case .rect(let width, let height, _):
             return MeasuredSize(

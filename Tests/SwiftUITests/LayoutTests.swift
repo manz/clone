@@ -6,9 +6,9 @@ import Testing
 @Test func measureText() {
     let node = ViewNode.text("Hello", fontSize: 20, color: .white)
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 400, maxHeight: 300))
-    // 5 chars * 20 * 0.6 = 60
-    #expect(size.width == 60)
-    #expect(size.height == 20)
+    // Approximate: 5 chars * 20 * 0.52 = 52, height = 20 * 1.2 = 24
+    #expect(size.width > 40 && size.width < 70)
+    #expect(size.height > 20 && size.height < 30)
 }
 
 @Test func measureRectWithExplicitSize() {
@@ -181,9 +181,9 @@ import Testing
     let content = ViewNode.text("Hello", fontSize: 20, color: .white)
     let node = content.background(.blue)
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 600, maxHeight: 400))
-    // Should be sized by text (60x20), NOT by constraint (600x400)
-    #expect(size.width == 60)
-    #expect(size.height == 20)
+    // Should be sized by text, NOT by constraint (600x400)
+    #expect(size.width > 40 && size.width < 70)
+    #expect(size.height > 20 && size.height < 30)
 }
 
 @Test func backgroundRectLayoutFillsParentFrame() {

@@ -2,9 +2,11 @@ import Foundation
 
 // MARK: - Tab Entry
 
-/// Type-erased tab entry holding a selection value and its content.
+/// Type-erased tab entry holding a selection value, label, and content.
 public struct _AnyTabEntry {
     let value: AnyHashable
+    let title: String
+    let systemImage: String
     let content: ViewNode
 }
 
@@ -27,14 +29,41 @@ public struct TabView<SelectionValue: Hashable, Content>: _PrimitiveView {
 
     public var _nodeRepresentation: ViewNode {
         guard !entries.isEmpty else { return .empty }
-        if let selection = selection {
-            let target = AnyHashable(selection.wrappedValue)
-            if let match = entries.first(where: { $0.value == target }) {
-                return match.content
+
+        let selectedValue: AnyHashable = selection.map { AnyHashable($0.wrappedValue) } ?? entries[0].value
+
+        // Build tab bar buttons
+        let tabButtons: [ViewNode] = entries.map { entry in
+            let isSelected = entry.value == selectedValue
+            let label = _resolve(Label(entry.title, systemImage: entry.systemImage))
+            let styled: ViewNode = isSelected
+                ? label.foregroundColor(.accentColor).bold()
+                : label.foregroundColor(.secondary)
+
+            if let selection = selection {
+                let entryValue = entry.value
+                let tapId = TapRegistry.shared.register {
+                    // Cast back to SelectionValue and set binding
+                    if let v = entryValue.base as? SelectionValue {
+                        selection.wrappedValue = v
+                    }
+                }
+                return .onTap(id: tapId, child: styled.padding(8))
             }
+            return styled.padding(8)
         }
-        // No match or no selection — show first tab
-        return entries[0].content
+
+        let tabBar: ViewNode = .hstack(alignment: .center, spacing: 0, children: tabButtons)
+
+        // Selected content
+        let content = entries.first(where: { $0.value == selectedValue })?.content ?? entries[0].content
+
+        // VStack: tab bar on top, content below
+        return .vstack(alignment: .leading, spacing: 0, children: [
+            tabBar,
+            ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.85)),
+            content,
+        ])
     }
 }
 
@@ -50,9 +79,9 @@ extension TabView where Content: View, SelectionValue == Int {
     /// `TabView { ... }` — untyped, no selection.
     public init(@ViewBuilder content: () -> Content) {
         if let nodes = content() as? [ViewNode] {
-            self.entries = nodes.enumerated().map { _AnyTabEntry(value: AnyHashable($0.offset), content: $0.element) }
+            self.entries = nodes.enumerated().map { _AnyTabEntry(value: AnyHashable($0.offset), title: "Tab \($0.offset)", systemImage: "", content: $0.element) }
         } else {
-            self.entries = [_AnyTabEntry(value: AnyHashable(0), content: _resolve(content()))]
+            self.entries = [_AnyTabEntry(value: AnyHashable(0), title: "Tab", systemImage: "", content: _resolve(content()))]
         }
         self.selection = nil
     }
@@ -64,16 +93,20 @@ extension TabView where Content: View, SelectionValue == Int {
 /// `Value` is inferred from `TabContentBuilder<SelectionValue>`.
 public struct Tab<Value: Hashable, Content: View>: TabContent {
     public typealias SelectionValue = Value
+    let tabTitle: String
+    let tabImage: String
     let tabValue: Value
     let child: ViewNode
 
     public init(_ title: String, systemImage: String, value: Value, @ViewBuilder content: () -> Content) {
+        self.tabTitle = title
+        self.tabImage = systemImage
         self.tabValue = value
         self.child = _resolve(content())
     }
 
     public var _tabEntries: [_AnyTabEntry] {
-        [_AnyTabEntry(value: AnyHashable(tabValue), content: child)]
+        [_AnyTabEntry(value: AnyHashable(tabValue), title: tabTitle, systemImage: tabImage, content: child)]
     }
 }
 
