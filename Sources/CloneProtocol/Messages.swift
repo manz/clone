@@ -123,6 +123,8 @@ public enum CompositorMessage: Codable, Sendable {
     case keyChar(character: String)
     /// Scroll wheel event (deltaX, deltaY in points).
     case scroll(deltaX: Float, deltaY: Float)
+    /// System color scheme changed (resolved value from compositor).
+    case colorScheme(dark: Bool)
     /// Compositor sends the focused app's menus to the menubar.
     case appMenus(appName: String, menus: [AppMenu])
     /// A menu item was selected (forwarded from menubar to the focused app).

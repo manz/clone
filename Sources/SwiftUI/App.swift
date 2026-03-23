@@ -334,6 +334,10 @@ extension App {
         app.client.onScroll = { dx, dy in
             ScrollRegistry.shared.scroll(deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
         }
+        app.client.onColorScheme = { dark in
+            WindowState.shared.colorScheme = dark ? .dark : .light
+            AppearanceManager.shared.current = dark ? .dark : .light
+        }
         app.client.onMenuAction = { itemId in
             app.onMenuAction(itemId: itemId)
         }

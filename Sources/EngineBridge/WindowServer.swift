@@ -169,6 +169,21 @@ public final class WindowServer {
         }
     }
 
+    /// Current dark mode state.
+    private var isDarkMode = false
+
+    /// Toggle dark mode and broadcast to all apps.
+    func toggleDarkMode() {
+        isDarkMode.toggle()
+        appManager.broadcastColorScheme(dark: isDarkMode)
+    }
+
+    /// Set dark mode explicitly.
+    func setDarkMode(_ dark: Bool) {
+        isDarkMode = dark
+        appManager.broadcastColorScheme(dark: dark)
+    }
+
     func handleKeyChar(character: String) {
         InputRouter.routeKeyChar(
             character: character,

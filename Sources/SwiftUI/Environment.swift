@@ -18,6 +18,16 @@ public struct EnvironmentValues {
     }
 }
 
+// MARK: - colorScheme
+
+extension EnvironmentValues {
+    /// Reads the current color scheme from WindowState (set by compositor).
+    public var colorScheme: ColorScheme {
+        get { WindowState.shared.colorScheme }
+        set { WindowState.shared.colorScheme = newValue }
+    }
+}
+
 /// Shared global environment — in a full implementation, this would be per-view-tree.
 nonisolated(unsafe) private var _globalEnvironment = EnvironmentValues()
 

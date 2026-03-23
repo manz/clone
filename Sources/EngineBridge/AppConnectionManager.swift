@@ -366,6 +366,13 @@ final class AppConnectionManager {
         }
     }
 
+    /// Broadcast color scheme to all connected apps.
+    func broadcastColorScheme(dark: Bool) {
+        for app in server.connectedApps {
+            app.send(.colorScheme(dark: dark))
+        }
+    }
+
     /// Forward a menu action from the menubar to the focused app.
     func sendMenuAction(wmWindowId: UInt64, itemId: String) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
