@@ -21,12 +21,21 @@ public struct List: _PrimitiveView {
 
     /// `List(data, selection:) { item in ... }` — data-driven list with selection binding.
     public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
-        self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+        if let binding = selection {
+            self.children = Self.wrapDataWithSelection(data, selection: binding, rowContent: rowContent)
+        } else {
+            self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+        }
     }
 
     /// `List(data, id:, selection:) { item in ... }` — data-driven list with id and selection.
     public init<Data: RandomAccessCollection, ID: Hashable, SelectionValue: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View) {
         self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+    }
+
+    /// `List(data, selection: Binding<Set<V>>) { ... }` — data-driven with multi-selection.
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
+        self.children = Self.wrapDataWithSetSelection(data, selection: selection, rowContent: rowContent)
     }
 
     /// `List(selection:) { ... }` — static list with optional selection binding.
@@ -55,6 +64,51 @@ public struct List: _PrimitiveView {
     }
 
     // MARK: - Selection wiring
+
+    /// Data-driven list with single selection — uses item.id as selection value.
+    private static func wrapDataWithSelection<Data: RandomAccessCollection, SelectionValue: Hashable>(
+        _ data: Data, selection: Binding<SelectionValue?>,
+        @ViewBuilder rowContent: (Data.Element) -> some View
+    ) -> [ViewNode] where Data.Element: Identifiable {
+        let key = "list_selection_\(SelectionValue.self)"
+        if let persisted = TagRegistry.shared.getSelection(forKey: key) as? SelectionValue {
+            selection.wrappedValue = persisted
+        }
+        return data.flatMap { item -> [ViewNode] in
+            let nodes = _flattenToNodes(rowContent(item))
+            guard let tagValue = item.id as? SelectionValue else { return nodes }
+            return nodes.map { node in
+                let tapId = TapRegistry.shared.register {
+                    selection.wrappedValue = tagValue
+                    TagRegistry.shared.setSelection(AnyHashable(tagValue), forKey: key)
+                }
+                return .onTap(id: tapId, child: node)
+            }
+        }
+    }
+
+    /// Data-driven list with multi-selection (Set) — uses item.id, toggles membership.
+    private static func wrapDataWithSetSelection<Data: RandomAccessCollection, SelectionValue: Hashable>(
+        _ data: Data, selection: Binding<Set<SelectionValue>>,
+        @ViewBuilder rowContent: (Data.Element) -> some View
+    ) -> [ViewNode] where Data.Element: Identifiable {
+        let key = "list_set_selection_\(SelectionValue.self)"
+        if let persisted = TagRegistry.shared.getSelection(forKey: key) as? Set<SelectionValue> {
+            selection.wrappedValue = persisted
+        }
+        return data.flatMap { item -> [ViewNode] in
+            let nodes = _flattenToNodes(rowContent(item))
+            guard let tagValue = item.id as? SelectionValue else { return nodes }
+            return nodes.map { node in
+                let tapId = TapRegistry.shared.register {
+                    // Single-click replaces selection (like macOS default)
+                    selection.wrappedValue = [tagValue]
+                    TagRegistry.shared.setSelection(AnyHashable(selection.wrappedValue), forKey: key)
+                }
+                return .onTap(id: tapId, child: node)
+            }
+        }
+    }
 
     /// Wraps each child node with a tap handler that updates the selection binding.
     /// Uses 1-based index as tag value (matching common .tag(1), .tag(2) pattern).

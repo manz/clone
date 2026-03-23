@@ -23,14 +23,19 @@ public struct TextField: _PrimitiveView {
         self.child = .textField(placeholder: placeholder, text: text.wrappedValue, registryId: id)
     }
 
-    /// `TextField("Label", value:, format:)` — value binding with format style.
-    public init<V>(_ placeholder: String, value: Binding<V>, format: some FormatStyle) {
+    /// `TextField("Label", value:, format:)` — value binding with format style (Foundation.FormatStyle).
+    public init<F: Foundation.FormatStyle>(_ placeholder: String, value: Binding<F.FormatInput>, format: F) {
         self.child = .textField(placeholder: placeholder, text: "\(value.wrappedValue)")
     }
 
-    /// `TextField("Label", value:, format:, prompt:)` — value binding with format and prompt.
-    public init<V>(_ placeholder: String, value: Binding<V>, format: some FormatStyle, prompt: Text? = nil) {
+    /// `TextField("Label", value:, format:, prompt:)` — with prompt.
+    public init<F: Foundation.FormatStyle>(_ placeholder: String, value: Binding<F.FormatInput>, format: F, prompt: Text? = nil) {
         self.child = .textField(placeholder: placeholder, text: "\(value.wrappedValue)")
+    }
+
+    /// `TextField("Label", value: optionalBinding, format:)` — optional value.
+    public init<V, F: Foundation.FormatStyle>(_ placeholder: String, value: Binding<V?>, format: F) where F.FormatInput == V {
+        self.child = .textField(placeholder: placeholder, text: value.wrappedValue.map { "\($0)" } ?? "")
     }
 
     /// `TextField("Label", text:, prompt:)` — with prompt.
@@ -50,44 +55,45 @@ public struct TextField: _PrimitiveView {
     }
 }
 
-// MARK: - FormatStyle stub
+// MARK: - FormatStyle
 
-/// Minimal FormatStyle protocol for TextField value formatting.
+// On macOS/Darwin, Foundation provides FormatStyle, IntegerFormatStyle, etc.
+// On Linux, swift-corelibs-foundation may lack them — provide stubs.
+#if !canImport(Darwin)
 public protocol FormatStyle {
     associatedtype FormatInput
     associatedtype FormatOutput
 }
 
-/// Integer format style — `.number` shorthand.
 public struct IntegerFormatStyle<Value: BinaryInteger>: FormatStyle {
     public typealias FormatInput = Value
     public typealias FormatOutput = String
     public init() {}
+    public func precision(_ p: NumberFormatStyleConfiguration.Precision) -> IntegerFormatStyle { self }
 }
 
-/// Floating point format style.
 public struct FloatingPointFormatStyle<Value: BinaryFloatingPoint>: FormatStyle {
     public typealias FormatInput = Value
     public typealias FormatOutput = String
     public init() {}
+    public func precision(_ p: NumberFormatStyleConfiguration.Precision) -> FloatingPointFormatStyle { self }
+}
+
+public enum NumberFormatStyleConfiguration {
+    public struct Precision {
+        public static func significantDigits(_ range: ClosedRange<Int>) -> Precision { Precision() }
+        public static func significantDigits(_ count: Int) -> Precision { Precision() }
+        public static func fractionLength(_ range: ClosedRange<Int>) -> Precision { Precision() }
+        public static func fractionLength(_ count: Int) -> Precision { Precision() }
+        public static func integerLength(_ range: ClosedRange<Int>) -> Precision { Precision() }
+    }
 }
 
 extension FormatStyle where Self == IntegerFormatStyle<Int> {
     public static var number: IntegerFormatStyle<Int> { IntegerFormatStyle() }
 }
 
-extension Int {
-    public struct FormatStyle: SwiftUI.FormatStyle {
-        public typealias FormatInput = Int
-        public typealias FormatOutput = String
-        public init() {}
-    }
+extension FormatStyle where Self == FloatingPointFormatStyle<Double> {
+    public static var number: FloatingPointFormatStyle<Double> { FloatingPointFormatStyle() }
 }
-
-extension Optional where Wrapped == Int {
-    public struct FormatStyle: SwiftUI.FormatStyle {
-        public typealias FormatInput = Int?
-        public typealias FormatOutput = String
-        public init() {}
-    }
-}
+#endif

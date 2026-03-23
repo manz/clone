@@ -92,6 +92,18 @@ public struct LocalizedStringKey: ExpressibleByStringLiteral, ExpressibleByStrin
     public let key: String
     public init(_ value: String) { self.key = value }
     public init(stringLiteral value: String) { self.key = value }
+    public init(stringInterpolation: StringInterpolation) { self.key = stringInterpolation.result }
+
+    public struct StringInterpolation: StringInterpolationProtocol {
+        var result: String = ""
+        public init(literalCapacity: Int, interpolationCount: Int) {}
+        public mutating func appendLiteral(_ literal: String) { result += literal }
+        public mutating func appendInterpolation<T>(_ value: T) { result += "\(value)" }
+        /// `\(value, format: .number.precision(...))` — FormatStyle interpolation (matches Apple's LocalizedStringKey).
+        public mutating func appendInterpolation<F: Foundation.FormatStyle>(_ value: F.FormatInput, format: F) where F.FormatOutput == String {
+            result += format.format(value) as? String ?? "\(value)"
+        }
+    }
 }
 
 extension Text {

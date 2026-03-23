@@ -16,6 +16,12 @@ public struct Menu: _PrimitiveView {
         self.child = .menu(label: "Menu", children: items)
     }
 
+    /// `Menu { items } label: { Text("Label") } primaryAction: { action() }` — with primary action.
+    public init(@ViewBuilder content: () -> some View, @ViewBuilder label: () -> some View, primaryAction: @escaping () -> Void) {
+        let items = _flattenToNodes(content())
+        self.child = .menu(label: "Menu", children: items)
+    }
+
     public var _nodeRepresentation: ViewNode {
         child
     }

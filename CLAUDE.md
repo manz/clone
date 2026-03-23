@@ -23,6 +23,21 @@ make test-swift   # swift test
 
 Run the compositor: `swift run CloneDesktop` (after `make all`)
 
+### Building apps with ycodebuild
+
+`ycodebuild` generates an SPM package that compiles app source against Clone's SDK instead of Apple's frameworks.
+
+```bash
+# Build Tunes for Clone
+swift run ycodebuild --source-dir ~/Projects/Tunes/Tunes/Tunes --target Tunes
+# Binary at ~/Projects/Tunes/Tunes/.build/debug/Tunes
+
+# Generic usage
+swift run ycodebuild --source-dir <app-source-dir> --target <TargetName>
+```
+
+The generated package lives in `<source-dir>/../.aquax/` and imports Clone's SwiftUI, AppKit, SwiftData, etc. instead of Apple's. The app binary connects to the compositor over `/tmp/clone-compositor.sock`.
+
 ## Architecture
 
 ### Two-language split
@@ -121,12 +136,27 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 - `.bold()` and `.fontWeight(.semibold)` are valid SwiftUI modifiers.
 - `Font` has preset styles: `.headline`, `.body`, `.caption`, `.title`, etc.
 
+## State Management — StateGraph
+
+`StateGraph` provides persistent state storage across frame rebuilds (`Sources/SwiftUI/StateGraph.swift`).
+
+**Key format:** `scope/file:line:callIndex`
+- **Scope** — pushed by `ForEach` with each item's `Identifiable.id`. Nested ForEach produces nested scopes: `album-7/track-42/TrackRow.swift:8:0`. This matches Apple's structural identity: state is stable across reorders, insertions, deletions.
+- **Source location** — `#fileID:#line` from the `@State`/`@StateObject` declaration site.
+- **Call index** — disambiguates multiple `@State` at the same file:line outside ForEach (increments per call, resets each frame via `resetCounter()`).
+
+**Frame lifecycle:** `resetCounter()` is called at the start of each frame rebuild (in `App.swift`). This resets call indices and scope stack so the same call sequence maps back to the same slots.
+
+**ForEach pushes scope:** Every ForEach variant (Identifiable, explicit `id:`, Range, `\.self`) calls `pushScope("\(item.id)")` before the content closure and `popScope()` after. This is why Apple requires `id:` or `Identifiable` — it's not just for diffing, it's for state storage identity.
+
 ## Known Gotchas
 
 - **wgpu buffer overwrites**: Solid and rounded rect pipelines use SEPARATE instance buffers to avoid `queue.write_buffer` overwrites within the same command encoder.
 - **DPI**: Swift uses logical pixels (CGFloat), Rust multiplies by `scale_factor()`. Shadow blur/radius are NOT DPI-scaled.
 - **F12**: Debug key that dumps all surfaces and commands to `/tmp/clone-frame-dump.txt`.
 - **Layout engine limitation**: `nil`-sized rects in ZStack (e.g. from `.background()`) expand to full constraint, eating all space in parent VStack/HStack. Use explicit-sized rects instead.
+- **HStack layout**: Children are measured with remaining width (not full width) to prevent overflow. Mirrors VStack's remaining-height approach.
+- **ScrollView**: Fills proposed size, lays out content with unbounded constraint in scroll axis, wraps in `.clipped` node. Actual scroll offset not yet implemented.
 - **Hit testing**: `hitTestTap()` walks ancestors to find `.onTap` — the old `hitTest()` returned deepest leaf which was never `.onTap`.
 - **Rust edition 2024**, wgpu 28, UniFFI 0.28 proc-macro, cosmic-text 0.12.
 - `[profile.dev.package."*"] opt-level = 2` — dependencies compiled with optimizations in debug.

@@ -42,6 +42,12 @@ public struct Stepper<Label: View>: _PrimitiveView {
     public init(value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1, @ViewBuilder label: () -> Label) {
         self.label = _resolve(_flattenToNodes(label()))
     }
+    public init(value: Binding<Int>, in range: PartialRangeFrom<Int>, step: Int = 1, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(_flattenToNodes(label()))
+    }
+    public init(value: Binding<Double>, in range: PartialRangeFrom<Double>, step: Double = 1, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(_flattenToNodes(label()))
+    }
     public var _nodeRepresentation: ViewNode { label }
 }
 
@@ -50,6 +56,12 @@ extension Stepper where Label == Text {
         self.label = _resolve(Text(title))
     }
     public init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double> = 0...100, step: Double = 1) {
+        self.label = _resolve(Text(title))
+    }
+    public init(_ title: String, value: Binding<Int>, in range: PartialRangeFrom<Int>, step: Int = 1) {
+        self.label = _resolve(Text(title))
+    }
+    public init(_ title: String, value: Binding<Double>, in range: PartialRangeFrom<Double>, step: Double = 1) {
         self.label = _resolve(Text(title))
     }
 }
@@ -283,6 +295,7 @@ public struct ToolbarItemPlacement: Sendable {
     public static let principal = ToolbarItemPlacement()
     public static let search = ToolbarItemPlacement()
     public static let sidebarToggle = ToolbarItemPlacement()
+    public static let secondaryAction = ToolbarItemPlacement()
 }
 
 /// A protocol for toolbar content.
@@ -371,5 +384,69 @@ public struct NSViewRepresentableContext<Representable> {
 
 extension NSViewRepresentable {
     public var _nodeRepresentation: ViewNode { .empty }
+}
+
+// MARK: - GroupBox
+
+/// A bordered container for grouping related controls.
+public struct GroupBox<Label: View, Content: View>: _PrimitiveView {
+    let label: ViewNode
+    let content: ViewNode
+    public init(@ViewBuilder content: () -> Content) where Label == EmptyView {
+        self.label = .empty
+        self.content = _resolve(content())
+    }
+    public init(@ViewBuilder content: () -> Content, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(label())
+        self.content = _resolve(content())
+    }
+    public var _nodeRepresentation: ViewNode {
+        .vstack(alignment: .leading, spacing: 8, children: [label, content])
+    }
+}
+
+extension GroupBox where Label == Text {
+    public init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.label = _resolve(Text(title).bold())
+        self.content = _resolve(content())
+    }
+}
+
+// MARK: - DatePickerComponents
+
+public struct DatePickerComponents: OptionSet, Sendable {
+    public let rawValue: UInt8
+    public init(rawValue: UInt8) { self.rawValue = rawValue }
+    public static let date = DatePickerComponents(rawValue: 1 << 0)
+    public static let hourAndMinute = DatePickerComponents(rawValue: 1 << 1)
+}
+
+// MARK: - DatePicker
+
+/// A control for selecting dates. Stub on Clone.
+public struct DatePicker<Label: View>: _PrimitiveView {
+    let label: ViewNode
+    public init(selection: Binding<Date>, displayedComponents: DatePicker.Components = .date, @ViewBuilder label: () -> Label) {
+        self.label = _resolve(label())
+    }
+    public var _nodeRepresentation: ViewNode { label }
+    public typealias Components = DatePickerComponents
+}
+
+extension DatePicker where Label == Text {
+    public init(_ title: String, selection: Binding<Date>, displayedComponents: DatePicker.Components = .date) {
+        self.label = _resolve(Text(title))
+    }
+}
+
+// MARK: - ToolbarItemGroup
+
+/// Groups multiple toolbar items together.
+public struct ToolbarItemGroup<Content: View>: _PrimitiveView, ToolbarContent {
+    let content: ViewNode
+    public init(placement: ToolbarItemPlacement = .automatic, @ViewBuilder content: () -> Content) {
+        self.content = _resolve(content())
+    }
+    public var _nodeRepresentation: ViewNode { content }
 }
 

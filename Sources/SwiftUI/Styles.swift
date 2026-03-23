@@ -58,6 +58,16 @@ extension ButtonStyle where Self == BorderedProminentButtonStyle {
     public static var borderedProminent: BorderedProminentButtonStyle { BorderedProminentButtonStyle() }
 }
 
+/// A button style with a glass appearance.
+public struct GlassButtonStyle: ButtonStyle {
+    public init() {}
+    public func makeBody(configuration: Configuration) -> some View { configuration.label }
+}
+
+extension ButtonStyle where Self == GlassButtonStyle {
+    public static var glass: GlassButtonStyle { GlassButtonStyle() }
+}
+
 // MARK: - List styles
 
 /// A type that applies custom appearance to lists.
@@ -92,6 +102,12 @@ extension ListStyle where Self == SidebarListStyle {
 }
 extension ListStyle where Self == InsetGroupedListStyle {
     public static var insetGrouped: InsetGroupedListStyle { InsetGroupedListStyle() }
+}
+/// A columns list style.
+public struct ColumnsListStyle: ListStyle { public init() {} }
+
+extension ListStyle where Self == ColumnsListStyle {
+    public static var columns: ColumnsListStyle { ColumnsListStyle() }
 }
 
 // MARK: - TextField styles
@@ -181,6 +197,20 @@ extension ProgressViewStyle where Self == CircularProgressViewStyle {
 }
 extension ProgressViewStyle where Self == LinearProgressViewStyle {
     public static var linear: LinearProgressViewStyle { LinearProgressViewStyle() }
+}
+
+// MARK: - Menu styles
+
+/// A type that applies custom appearance to menus.
+public protocol MenuStyle {}
+public struct DefaultMenuStyle: MenuStyle { public init() {} }
+public struct BorderedButtonMenuStyle: MenuStyle { public init() {} }
+
+extension MenuStyle where Self == DefaultMenuStyle {
+    public static var automatic: DefaultMenuStyle { DefaultMenuStyle() }
+}
+extension MenuStyle where Self == BorderedButtonMenuStyle {
+    public static var borderedButton: BorderedButtonMenuStyle { BorderedButtonMenuStyle() }
 }
 
 // MARK: - Label styles

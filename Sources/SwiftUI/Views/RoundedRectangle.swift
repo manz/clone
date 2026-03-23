@@ -37,3 +37,9 @@ public struct RoundedRectangle: Shape {
         .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: .white)
     }
 }
+
+extension Shape where Self == RoundedRectangle {
+    public static func rect(cornerRadius: CGFloat) -> RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius)
+    }
+}

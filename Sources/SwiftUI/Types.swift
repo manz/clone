@@ -58,6 +58,23 @@ public struct Color: Equatable, Sendable {
         self.a = nsColor.alphaComponent
     }
 
+    /// `Color(hue: 0.5, saturation: 0.8, brightness: 0.9)` — HSB color.
+    public init(hue: CGFloat, saturation: CGFloat, brightness: CGFloat, opacity: CGFloat = 1.0) {
+        // HSB to RGB conversion
+        let c = brightness * saturation
+        let x = c * (1 - abs((hue * 6).truncatingRemainder(dividingBy: 2) - 1))
+        let m = brightness - c
+        let (r1, g1, b1): (CGFloat, CGFloat, CGFloat)
+        let h = hue * 6
+        if h < 1 { (r1, g1, b1) = (c, x, 0) }
+        else if h < 2 { (r1, g1, b1) = (x, c, 0) }
+        else if h < 3 { (r1, g1, b1) = (0, c, x) }
+        else if h < 4 { (r1, g1, b1) = (0, x, c) }
+        else if h < 5 { (r1, g1, b1) = (x, 0, c) }
+        else { (r1, g1, b1) = (c, 0, x) }
+        self.r = r1 + m; self.g = g1 + m; self.b = b1 + m; self.a = opacity
+    }
+
     /// Internal initializer used throughout Clone.
     public init(r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat = 1.0) {
         self.r = r
@@ -197,7 +214,7 @@ public struct Alignment: Equatable, Sendable {
 
 // MARK: - KeyEquivalent
 
-public struct KeyEquivalent: ExpressibleByStringLiteral, Sendable {
+public struct KeyEquivalent: ExpressibleByStringLiteral, Equatable, Sendable {
     public let character: Character
     public init(_ character: Character) { self.character = character }
     public init(stringLiteral value: String) { self.character = value.first ?? " " }
@@ -256,6 +273,7 @@ public struct KeyPress {
         case handled
         case ignored
     }
+    public var key: KeyEquivalent { KeyEquivalent("") }
 }
 
 // MARK: - NavigationBarItem
@@ -349,6 +367,7 @@ public struct AccessibilityTraits: OptionSet, Sendable {
     public static let updatesFrequently = AccessibilityTraits(rawValue: 1 << 11)
     public static let allowsDirectInteraction = AccessibilityTraits(rawValue: 1 << 12)
     public static let isToggle = AccessibilityTraits(rawValue: 1 << 13)
+    public static let isModal = AccessibilityTraits(rawValue: 1 << 14)
 }
 
 // MARK: - NavigationSplitViewStyle
@@ -418,6 +437,55 @@ public struct SubmitTriggers: OptionSet, Sendable {
 
 // MARK: - SymbolEffect
 
-public enum SymbolEffect: Sendable {
-    case pulse, bounce, variableColor, scale, appear, disappear, replace
+public struct SymbolEffect: Sendable {
+    public static let pulse = SymbolEffect()
+    public static let bounce = SymbolEffect()
+    public static let variableColor = SymbolEffect()
+    public static let scale = SymbolEffect()
+    public static let appear = SymbolEffect()
+    public static let disappear = SymbolEffect()
+    public static let replace = SymbolEffect()
+    public static let rotate = SymbolEffect()
+    public var down: SymbolEffect { self }
+    public var up: SymbolEffect { self }
+    public var byLayer: SymbolEffect { self }
+}
+
+// MARK: - ShapeStyle
+
+public protocol ShapeStyle {}
+extension Color: ShapeStyle {}
+
+/// Type-erased ShapeStyle.
+public struct AnyShapeStyle: ShapeStyle {
+    public init<S: ShapeStyle>(_ style: S) {}
+}
+
+// MARK: - Material
+
+public struct Material: ShapeStyle, Sendable {
+    public static let ultraThinMaterial = Material()
+    public static let thinMaterial = Material()
+    public static let regularMaterial = Material()
+    public static let thickMaterial = Material()
+    public static let ultraThickMaterial = Material()
+}
+
+/// Allow `.thinMaterial` etc. in ShapeStyle context.
+extension ShapeStyle where Self == Material {
+    public static var thinMaterial: Material { .thinMaterial }
+    public static var ultraThinMaterial: Material { .ultraThinMaterial }
+    public static var regularMaterial: Material { .regularMaterial }
+    public static var thickMaterial: Material { .thickMaterial }
+    public static var ultraThickMaterial: Material { .ultraThickMaterial }
+}
+
+// MARK: - ToolbarPlacement
+
+public struct ToolbarPlacement: Sendable {
+    public static let automatic = ToolbarPlacement()
+    public static let windowToolbar = ToolbarPlacement()
+    public static let navigationBar = ToolbarPlacement()
+    public static let tabBar = ToolbarPlacement()
+    public static let bottomBar = ToolbarPlacement()
 }

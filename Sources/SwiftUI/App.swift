@@ -151,6 +151,7 @@ extension App {
                 TapRegistry.shared.clear()
                 TextFieldRegistry.shared.clear()
                 OnceRegistry.shared.resetCounter()
+                OnChangeRegistry.shared.resetCounter()
                 TagRegistry.shared.clear()
                 StateGraph.shared.resetCounter()
                 WindowState.shared.update(width: width, height: height)

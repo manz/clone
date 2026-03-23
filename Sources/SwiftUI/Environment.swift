@@ -62,6 +62,13 @@ extension EnvironmentValues {
         get { .automatic }
         set {}
     }
+
+    public var openURL: OpenURLAction { OpenURLAction() }
+}
+
+/// An action that opens a URL.
+public struct OpenURLAction {
+    public func callAsFunction(_ url: URL) {}
 }
 
 /// Placement for tab view bottom accessory.

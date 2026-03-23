@@ -236,6 +236,10 @@ public extension View {
         _ModifiedView(node: _resolve(self).overlay(overlay))
     }
 
+    func overlay<V: View>(_ overlay: V, alignment: Alignment) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self).overlay(overlay))
+    }
+
     func disabled(_ isDisabled: Bool) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).disabled(isDisabled))
     }
@@ -344,6 +348,14 @@ public extension View {
         _ModifiedView(node: _resolve(self).lineLimit(limit))
     }
 
+    func lineLimit(_ range: PartialRangeFrom<Int>) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func lineLimit(_ range: ClosedRange<Int>) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
     func multilineTextAlignment(_ alignment: TextAlignment) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).multilineTextAlignment(alignment))
     }
@@ -386,6 +398,10 @@ public extension View {
 
     func foregroundStyle<S1: View, S2: View>(_ primary: S1, _ secondary: S2) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).foregroundStyle(primary, secondary))
+    }
+
+    func foregroundStyle<S: ShapeStyle>(_ style: S) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
     }
 
     func background<S: View>(_ color: Color, in shape: S) -> _ModifiedView<Self> {
@@ -859,6 +875,42 @@ public extension View {
     }
 
     func contextMenu<S>(forSelectionType: S.Type, @ViewBuilder menu: @escaping (Swift.Set<S>) -> some View, primaryAction: ((Swift.Set<S>) -> Void)? = nil) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func onOpenURL(perform action: @escaping (URL) -> Void) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func menuStyle<S: MenuStyle>(_ style: S) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func toolbarBackground<S: ShapeStyle>(_ style: S, for bars: ToolbarPlacement...) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func toolbarColorScheme(_ colorScheme: ColorScheme?, for bars: ToolbarPlacement...) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func navigationViewStyle<S>(_ style: S) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func focusEffectDisabled(_ disabled: Bool = true) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func symbolEffect(_ effect: SymbolEffect, isActive: Bool) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func onKeyPress(_ key: KeyEquivalent, action: @escaping (KeyPress) -> KeyPress.Result) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self))
+    }
+
+    func onKeyPress(action: @escaping (KeyPress) -> KeyPress.Result) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self))
     }
 }

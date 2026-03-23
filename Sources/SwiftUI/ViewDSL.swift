@@ -361,12 +361,21 @@ public extension ViewNode {
 
     /// `.onChange(of:perform:)` — no-op on Clone (no observation system yet).
     func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> ViewNode {
-        self
+        let key = OnChangeRegistry.shared.track(value: value)
+        if let (_, changed) = key, changed {
+            action(value)
+        }
+        return self
     }
 
     /// `.onChange(of:initial:_:)` — Swift 5.9+ onChange.
     func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void) -> ViewNode {
-        if initial { action() }
+        let key = OnChangeRegistry.shared.track(value: value)
+        if let (_, changed) = key, changed {
+            action()
+        } else if initial, key == nil {
+            action()
+        }
         return self
     }
 
@@ -752,7 +761,12 @@ public extension ViewNode {
     func headerProminence(_ prominence: Prominence) -> ViewNode { self }
 
     /// `.onChange(of:_:)` — Swift 5.9+ onChange with old and new values.
-    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> ViewNode { self }
+    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> ViewNode {
+        if let (old, changed) = OnChangeRegistry.shared.track(value: value), changed {
+            action(old as! V, value)
+        }
+        return self
+    }
 
     /// `.disableAutocorrection(_:)` — no-op on Clone.
     func disableAutocorrection(_ disable: Bool?) -> ViewNode { self }
@@ -858,6 +872,30 @@ public extension ViewNode {
 
     /// `.handlesExternalEvents(preferring:allowing:)` — no-op on Clone.
     func handlesExternalEvents(preferring: Swift.Set<String>, allowing: Swift.Set<String>) -> ViewNode { self }
+
+    /// `.onOpenURL(perform:)` — no-op on Clone.
+    func onOpenURL(perform action: @escaping (URL) -> Void) -> ViewNode { self }
+
+    /// `.menuStyle(_:)` — no-op on Clone.
+    func menuStyle<S>(_ style: S) -> ViewNode { self }
+
+    /// `.toolbarBackground(_:for:)` — no-op on Clone.
+    func toolbarBackground<S>(_ style: S, for bars: ToolbarPlacement...) -> ViewNode { self }
+
+    /// `.toolbarColorScheme(_:for:)` — no-op on Clone.
+    func toolbarColorScheme(_ colorScheme: ColorScheme?, for bars: ToolbarPlacement...) -> ViewNode { self }
+
+    /// `.navigationViewStyle(_:)` — no-op on Clone.
+    func navigationViewStyle<S>(_ style: S) -> ViewNode { self }
+
+    /// `.focusEffectDisabled(_:)` — no-op on Clone.
+    func focusEffectDisabled(_ disabled: Bool = true) -> ViewNode { self }
+
+    /// `.symbolEffect(_:isActive:)` — no-op on Clone.
+    func symbolEffect(_ effect: SymbolEffect, isActive: Bool) -> ViewNode { self }
+
+    /// `.onKeyPress(_:action:)` — with KeyPress parameter, no-op on Clone.
+    func onKeyPress(_ key: KeyEquivalent, action: @escaping (KeyPress) -> KeyPress.Result) -> ViewNode { self }
 
 }
 

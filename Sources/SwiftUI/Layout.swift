@@ -182,13 +182,9 @@ public enum Layout {
             // GeometryReader fills the proposed space (like SwiftUI)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .scrollView(let axis, let children):
-            // Measure like a VStack/HStack depending on axis
-            if axis == .vertical {
-                return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
-            } else {
-                return measureHStack(alignment: .top, spacing: 0, children: children, constraint: constraint)
-            }
+        case .scrollView(_, _):
+            // ScrollView fills the proposed size (content scrolls within)
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .list(let children):
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
@@ -312,11 +308,19 @@ public enum Layout {
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
         case .scrollView(let axis, let children):
+            // Layout children with unbounded constraint in the scroll axis,
+            // then wrap in a clipped node so overflow is hidden.
+            let contentLayout: LayoutNode
             if axis == .vertical {
-                return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+                // Unbounded height for vertical scrolling
+                let contentFrame = LayoutFrame(x: frame.x, y: frame.y, width: frame.width, height: .greatestFiniteMagnitude)
+                contentLayout = layoutVStack(alignment: .leading, spacing: 0, children: children, in: contentFrame)
             } else {
-                return layoutHStack(alignment: .top, spacing: 0, children: children, in: frame)
+                let contentFrame = LayoutFrame(x: frame.x, y: frame.y, width: .greatestFiniteMagnitude, height: frame.height)
+                contentLayout = layoutHStack(alignment: .top, spacing: 0, children: children, in: contentFrame)
             }
+            // Clip to the ScrollView's frame
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentLayout])
 
         case .list(let children):
             return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
@@ -461,15 +465,19 @@ public enum Layout {
         var totalWidth: CGFloat = 0
         var maxHeight: CGFloat = 0
         var spacerCount = 0
+        var remainingWidth = constraint.maxWidth
 
         for (i, child) in children.enumerated() {
+            if i > 0 { remainingWidth -= spacing }
             if case .spacer = child {
                 spacerCount += 1
                 continue
             }
-            let childSize = measure(child, constraint: constraint)
+            let childConstraint = SizeConstraint(maxWidth: max(0, remainingWidth), maxHeight: constraint.maxHeight)
+            let childSize = measure(child, constraint: childConstraint)
             maxHeight = max(maxHeight, childSize.height)
             totalWidth += childSize.width
+            remainingWidth -= childSize.width
             if i > 0 { totalWidth += spacing }
         }
 
@@ -484,20 +492,22 @@ public enum Layout {
         alignment: VAlignment, spacing: CGFloat,
         children: [ViewNode], in frame: LayoutFrame
     ) -> LayoutNode {
-        let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
-
         var fixedWidth: CGFloat = 0
         var spacerCount = 0
         var childSizes: [MeasuredSize] = []
+        var remainingWidth = frame.width
 
         for (i, child) in children.enumerated() {
+            if i > 0 { remainingWidth -= spacing }
             if case .spacer = child {
                 spacerCount += 1
                 childSizes.append(MeasuredSize())
             } else {
-                let size = measure(child, constraint: constraint)
+                let childConstraint = SizeConstraint(maxWidth: max(0, remainingWidth), maxHeight: frame.height)
+                let size = measure(child, constraint: childConstraint)
                 childSizes.append(size)
                 fixedWidth += size.width
+                remainingWidth -= size.width
             }
             if i > 0 { fixedWidth += spacing }
         }

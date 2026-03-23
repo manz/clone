@@ -27,6 +27,14 @@ public final class NSColor: @unchecked Sendable {
         self.init(0, 0, 0, 0)
     }
 
+    /// `NSColor(0xFF0000)` — hex integer initializer.
+    public convenience init(_ hex: Int) {
+        let r = CGFloat((hex >> 16) & 0xFF) / 255.0
+        let g = CGFloat((hex >> 8) & 0xFF) / 255.0
+        let b = CGFloat(hex & 0xFF) / 255.0
+        self.init(r, g, b, 1.0)
+    }
+
     private static func adaptive(dark: NSColor, light: NSColor) -> NSColor {
         NSAppearance.shared.isDark ? dark : light
     }

@@ -74,7 +74,18 @@ struct YCodeBuild {
 
         if process.terminationStatus == 0 {
             print("ycodebuild: build succeeded!")
-            let binaryPath = parentDir.appendingPathComponent(".build/debug/\(target)").path
+            // Use swift build --show-bin-path to get the actual binary location
+            let binPathProcess = Process()
+            binPathProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            binPathProcess.arguments = ["build", "--package-path", parentDir.path, "--show-bin-path"]
+            let pipe = Pipe()
+            binPathProcess.standardOutput = pipe
+            binPathProcess.standardError = FileHandle.nullDevice
+            try binPathProcess.run()
+            binPathProcess.waitUntilExit()
+            let binDir = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? parentDir.appendingPathComponent(".build/debug").path
+            let binaryPath = "\(binDir)/\(target)"
             print("ycodebuild: binary at \(binaryPath)")
         } else {
             print("ycodebuild: build failed with exit code \(process.terminationStatus)")
