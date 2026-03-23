@@ -196,12 +196,9 @@ public enum Layout {
             // ScrollView fills the proposed size (content scrolls within)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .list(let children):
-            // Add row padding for measurement
-            let paddedChildren = children.map { child in
-                child.padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-            }
-            return measureVStack(alignment: .leading, spacing: 0, children: paddedChildren, constraint: constraint)
+        case .list(_):
+            // List fills proposed size (scrollable container)
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -363,7 +360,7 @@ public enum Layout {
             return clippedContent
 
         case .list(let children):
-            // Add row padding + alternating backgrounds
+            // Row padding + alternating backgrounds
             let styledChildren: [ViewNode] = children.enumerated().map { (i, child) in
                 let padded = child.padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
                 if i % 2 == 1 {
@@ -374,7 +371,14 @@ public enum Layout {
                 }
                 return padded
             }
-            return layoutVStack(alignment: .leading, spacing: 0, children: styledChildren, in: frame)
+            // Scrollable: layout with unbounded height, apply scroll offset, clip
+            let scrollKey = "list_\(Int(frame.x))_\(Int(frame.y))"
+            let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
+            let contentFrame = LayoutFrame(x: frame.x, y: frame.y - offset, width: frame.width, height: .greatestFiniteMagnitude)
+            let contentLayout = layoutVStack(alignment: .leading, spacing: 0, children: styledChildren, in: contentFrame)
+            let contentHeight = contentLayout.children.last.map { $0.frame.y + $0.frame.height - frame.y + offset } ?? 0
+            ScrollRegistry.shared.registerFrame(frame, contentHeight: contentHeight, key: scrollKey)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentLayout])
 
         case .grid(let columns, let spacing, let children):
             return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)

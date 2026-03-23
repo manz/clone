@@ -637,6 +637,16 @@ struct FinderApp: App {
                     .onTapGesture { state.selectedIndex = state.entries.firstIndex(where: { $0.name == entry.name }) ?? 0 }
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    navButtonGroup(state: state)
+                }
+                ToolbarItem(placement: .principal) {
+                    Text(state.shortenPath(state.currentPath))
+                        .font(.system(size: 12))
+                        .foregroundColor(subtleColor)
+                }
+            }
         }
     }
 }
