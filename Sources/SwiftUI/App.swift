@@ -139,6 +139,9 @@ extension App {
         }
 
         if usesDeclarativeRendering {
+            // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)
+            var _cachedViewTree: ViewNode?
+
             // Declarative path: ViewNode → Layout → Flatten → IPC
             guard let windowGroup = app.body as? (any _WindowGroupProtocol) else {
                 fputs("App.body must contain a WindowGroup\n", stderr)
@@ -158,6 +161,10 @@ extension App {
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
                     .background(config.role == .window ? WindowChrome.surface : .clear)
+                // Flush deferred onChange actions after view tree is built
+                OnChangeRegistry.shared.flushActions()
+                // Cache for hover hit-testing (avoids full rebuild on pointer move)
+                _cachedViewTree = viewTree
                 // Overlay open panel if active
                 if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
                     viewTree = .zstack(children: [viewTree, panelOverlay])
@@ -194,6 +201,7 @@ extension App {
                     StateGraph.shared.resetCounter()
                     WindowState.shared.update(width: cw, height: ch)
                     let viewTree = windowGroup.buildViewNode()
+                    OnChangeRegistry.shared.flushActions()
                     let layoutNode = Layout.layout(
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
@@ -215,8 +223,9 @@ extension App {
                 app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
                 let cw = CGFloat(app.client.width)
                 let ch = CGFloat(app.client.height)
+                // Use cached view tree from last frame — don't rebuild on hover
+                guard let viewTree = _cachedViewTree else { return }
                 HoverRegistry.shared.clear()
-                let viewTree = windowGroup.buildViewNode()
                 let layoutNode = Layout.layout(
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)

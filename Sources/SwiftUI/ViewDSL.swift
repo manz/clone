@@ -363,7 +363,8 @@ public extension ViewNode {
     func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
         let key = OnChangeRegistry.shared.track(value: value, file: file, line: line)
         if let (_, changed) = key, changed {
-            action(value)
+            let v = value
+            OnChangeRegistry.shared.enqueue { action(v) }
         }
         return self
     }
@@ -372,9 +373,9 @@ public extension ViewNode {
     func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
         let key = OnChangeRegistry.shared.track(value: value, file: file, line: line)
         if let (_, changed) = key, changed {
-            action()
+            OnChangeRegistry.shared.enqueue { action() }
         } else if initial, key == nil {
-            action()
+            OnChangeRegistry.shared.enqueue { action() }
         }
         return self
     }
@@ -763,7 +764,9 @@ public extension ViewNode {
     /// `.onChange(of:_:)` — Swift 5.9+ onChange with old and new values.
     func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
         if let (old, changed) = OnChangeRegistry.shared.track(value: value, file: file, line: line), changed {
-            action(old as! V, value)
+            let oldTyped = old as! V
+            let newVal = value
+            OnChangeRegistry.shared.enqueue { action(oldTyped, newVal) }
         }
         return self
     }

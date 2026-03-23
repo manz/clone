@@ -2,10 +2,12 @@ import Foundation
 
 /// Tracks previous values for `.onChange(of:)` modifiers.
 /// Keyed by source location (#fileID:#line) for stability across view tree shape changes.
+/// Actions are deferred to after view tree construction to prevent feedback loops.
 public final class OnChangeRegistry: @unchecked Sendable {
     public static let shared = OnChangeRegistry()
 
     private var values: [String: Any] = [:]
+    private var pendingActions: [() -> Void] = []
 
     private init() {}
 
@@ -32,11 +34,24 @@ public final class OnChangeRegistry: @unchecked Sendable {
         }
     }
 
+    /// Enqueue an action to run after the view tree is built.
+    public func enqueue(_ action: @escaping () -> Void) {
+        pendingActions.append(action)
+    }
+
+    /// Flush all deferred onChange actions. Call after buildViewNode().
+    public func flushActions() {
+        let actions = pendingActions
+        pendingActions.removeAll()
+        for action in actions { action() }
+    }
+
     /// No-op — keyed by source location, no counter needed.
     public func resetCounter() {}
 
     /// Full reset (for tests).
     public func clear() {
         values.removeAll()
+        pendingActions.removeAll()
     }
 }
