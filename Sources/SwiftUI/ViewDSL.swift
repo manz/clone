@@ -452,8 +452,9 @@ public extension ViewNode {
         if style is BorderedProminentButtonStyle {
             // Extract the current text color (from .tint) to use as background
             let bgColor = extractTextColor(self) ?? .accentColor
-            // Filled button: tint/accent background, white text, rounded capsule
-            return self.foregroundColor(.white)
+            // Force white text by rewriting text colors in the tree
+            let whiteContent = recolorText(self, to: .white)
+            return whiteContent
                 .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                 .background(bgColor, cornerRadius: 6)
         }
@@ -465,6 +466,28 @@ public extension ViewNode {
         return self
     }
 
+}
+
+/// Rewrite all text colors in a ViewNode tree.
+private func recolorText(_ node: ViewNode, to color: Color) -> ViewNode {
+    switch node {
+    case .text(let content, let size, _, let weight):
+        return .text(content, fontSize: size, color: color, weight: weight)
+    case .hstack(let align, let spacing, let children):
+        return .hstack(alignment: align, spacing: spacing, children: children.map { recolorText($0, to: color) })
+    case .vstack(let align, let spacing, let children):
+        return .vstack(alignment: align, spacing: spacing, children: children.map { recolorText($0, to: color) })
+    case .zstack(let children):
+        return .zstack(children: children.map { recolorText($0, to: color) })
+    case .onTap(let id, let child):
+        return .onTap(id: id, child: recolorText(child, to: color))
+    case .padding(let insets, let child):
+        return .padding(insets, child: recolorText(child, to: color))
+    case .frame(let w, let h, let child):
+        return .frame(width: w, height: h, child: recolorText(child, to: color))
+    default:
+        return node
+    }
 }
 
 /// Extract the text color from a ViewNode tree (walks down looking for .text color).
