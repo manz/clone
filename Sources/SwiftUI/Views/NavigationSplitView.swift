@@ -16,7 +16,8 @@ public struct NavigationSplitView: _PrimitiveView {
         // HStack: fixed sidebar + divider + detail fills rest
         .hstack(alignment: .top, spacing: 0, children: [
             ViewNode.frame(width: sidebarWidth, height: nil, child:
-                .clipped(radius: 0, child: .vstack(alignment: .leading, spacing: 0, children: sidebarNodes))),
+                .clipped(radius: 0, child: .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)
+                    .padding(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8)))),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
             .clipped(radius: 0, child: ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes)),
             .spacer(minLength: 0),

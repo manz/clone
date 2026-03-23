@@ -32,19 +32,16 @@ public struct TabView<SelectionValue: Hashable, Content>: _PrimitiveView {
 
         let selectedValue: AnyHashable = selection.map { AnyHashable($0.wrappedValue) } ?? entries[0].value
 
-        // Build tab bar buttons with capsule style
+        // Build tab bar buttons with capsule style (text only, matching macOS)
         let tabButtons: [ViewNode] = entries.map { entry in
             let isSelected = entry.value == selectedValue
-            let label = _resolve(Label(entry.title, systemImage: entry.systemImage))
-            let styled: ViewNode = isSelected
-                ? label.foregroundColor(.primary)
-                : label.foregroundColor(.secondary)
+            let label = ViewNode.text(entry.title, fontSize: 13, color: isSelected ? .primary : .secondary)
 
             // Capsule background for selected tab
             let capsule: ViewNode = isSelected
-                ? styled.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                ? label.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     .background(Color(white: 0.88), cornerRadius: 14)
-                : styled.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                : label.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
 
             if let selection = selection {
                 let entryValue = entry.value

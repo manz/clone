@@ -447,9 +447,15 @@ public extension ViewNode {
         self
     }
 
-    /// `.buttonStyle(_:)` — no-op on Clone.
+    /// `.buttonStyle(_:)` — applies visual style to buttons.
     func buttonStyle<S: ButtonStyle>(_ style: S) -> ViewNode {
-        self
+        if style is BorderedProminentButtonStyle {
+            // Filled button: accent color background, white text, rounded
+            return self.foregroundColor(.white)
+                .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                .background(.accentColor, cornerRadius: 6)
+        }
+        return self
     }
 
     /// `.listStyle(_:)` — no-op on Clone.
