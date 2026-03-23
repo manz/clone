@@ -83,15 +83,20 @@ let package = Package(
             dependencies: [],
             path: "Sources/AppKit"
         ),
+        // CText — C FFI header for clone-text Rust crate
+        .systemLibrary(
+            name: "clone_textFFI",
+            path: "Sources/CText"
+        ),
         // CoreText — cosmic-text measurement bridge (shared by SwiftUI and EngineBridge)
         .target(
-            name: "CoreText",
-            dependencies: ["clone_engineFFI"],
-            path: "Sources/CoreText",
+            name: "CloneText",
+            dependencies: ["clone_textFFI"],
+            path: "Sources/CloneText",
             linkerSettings: [
                 .unsafeFlags([
                     "-L", "/Users/manz/Projects/clone/target/debug",
-                    "-lclone_engine",
+                    "-lclone_text",
                     "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
                 ]),
             ]
@@ -99,7 +104,7 @@ let package = Package(
         // UI DSL framework
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),

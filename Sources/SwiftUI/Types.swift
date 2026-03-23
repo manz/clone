@@ -168,12 +168,8 @@ public struct EdgeInsets: Equatable, Sendable {
     }
 }
 
-public enum FontWeight: Equatable, Sendable, Hashable {
-    case regular
-    case medium
-    case semibold
-    case bold
-}
+/// Re-exported from CoreText (cosmic-text). Same enum used by the Rust renderer.
+public typealias FontWeight = CTFontWeight
 
 public enum HAlignment: Equatable, Sendable {
     case leading
