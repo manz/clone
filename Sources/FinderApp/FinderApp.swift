@@ -635,6 +635,15 @@ struct FinderApp: App {
                             .foregroundColor(.secondary)
                     }
                     .onTapGesture { state.selectedIndex = state.entries.firstIndex(where: { $0.name == entry.name }) ?? 0 }
+                    .contextMenu {
+                        if entry.isDirectory {
+                            Button("Open") { state.navigate(to: entry.name) }
+                        }
+                        Button("Get Info") { }
+                        Divider()
+                        Button("Copy") { }
+                        Button("Move to Trash") { }
+                    }
                 }
             }
             .toolbar {
