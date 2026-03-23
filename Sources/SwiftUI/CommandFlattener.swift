@@ -25,9 +25,10 @@ public enum CommandFlattener {
     public static func flatten(_ layoutNode: LayoutNode) -> [FlatRenderCommand] {
         var commands: [FlatRenderCommand] = []
         flattenNode(layoutNode, into: &commands, opacity: 1.0)
-        // Filter invalid and zero-size commands
+        // Filter invalid and zero-size commands (but keep popClip which has zero size)
         return commands.filter { cmd in
-            cmd.x.isFinite && cmd.y.isFinite && cmd.width.isFinite && cmd.height.isFinite
+            if case .popClip = cmd.kind { return true }
+            return cmd.x.isFinite && cmd.y.isFinite && cmd.width.isFinite && cmd.height.isFinite
                 && cmd.width > 0 && cmd.height > 0
         }
     }

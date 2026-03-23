@@ -12,12 +12,13 @@ public struct NavigationSplitView: _PrimitiveView {
 
     private static func buildSplit(sidebarWidth: CGFloat, sidebarNodes: [ViewNode], detailNodes: [ViewNode]) -> ViewNode {
         // HStack: fixed sidebar + divider + detail fills rest via spacer
+        // Each section clipped to prevent renderer batch ordering from mixing rects/text across sections
         .hstack(alignment: .top, spacing: 0, children: [
             ViewNode.frame(width: sidebarWidth, height: nil, child:
-                .vstack(alignment: .leading, spacing: 0, children: sidebarNodes)),
+                .clipped(radius: 0, child: .vstack(alignment: .leading, spacing: 0, children: sidebarNodes))),
             ViewNode.rect(width: 1, height: nil, fill: WindowChrome.overlay),
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes),
-            .spacer(minLength: 0),  // pushes everything left, detail gets remaining width
+            .clipped(radius: 0, child: ViewNode.vstack(alignment: .leading, spacing: 0, children: detailNodes)),
+            .spacer(minLength: 0),
         ])
     }
 
