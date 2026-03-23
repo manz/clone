@@ -476,16 +476,23 @@ struct SettingsApp: App {
     var body: some Scene {
         WindowGroup("System Settings") {
             NavigationSplitView {
-                List(selection: $selectedCategory) {
-                    Section("") {
-                        ForEach(["Appearance", "Desktop & Dock", "Displays", "Wallpaper", "Sound", "Notifications", "Network", "General"], id: \.self) { category in
-                            Label(category, systemImage: "gear")
-                                .tag(category)
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(["Appearance", "Desktop & Dock", "Displays", "Wallpaper", "Sound", "Notifications", "Network", "General"], id: \.self) { category in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(category == "Appearance" ? .blue : category == "Displays" ? .purple : category == "Sound" ? .red : .gray)
+                                .frame(width: 24, height: 24)
+                            Text(category).font(.system(size: 13))
                         }
+                        .padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(selectedCategory == category ? Color.accentColor.opacity(0.2) : .clear)
+                        .cornerRadius(6)
+                        .onTapGesture { selectedCategory = category }
                     }
+                    Spacer()
                 }
-                .listStyle(.sidebar)
-                .navigationTitle("System Settings")
+                .padding(8)
             } detail: {
                 if selectedCategory == "Appearance" {
                     appearanceSettings
