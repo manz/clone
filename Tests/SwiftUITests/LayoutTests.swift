@@ -6,9 +6,9 @@ import Testing
 @Test func measureText() {
     let node = ViewNode.text("Hello", fontSize: 20, color: .white)
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 400, maxHeight: 300))
-    // Approximate: 5 chars * 20 * 0.52 = 52, height = 20 * 1.2 = 24
-    #expect(size.width > 40 && size.width < 70)
-    #expect(size.height > 20 && size.height < 30)
+    // cosmic-text measures actual glyph widths
+    #expect(size.width > 30 && size.width < 100)
+    #expect(size.height > 15 && size.height < 35)
 }
 
 @Test func measureRectWithExplicitSize() {
@@ -182,8 +182,8 @@ import Testing
     let node = content.background(.blue)
     let size = Layout.measure(node, constraint: SizeConstraint(maxWidth: 600, maxHeight: 400))
     // Should be sized by text, NOT by constraint (600x400)
-    #expect(size.width > 40 && size.width < 70)
-    #expect(size.height > 20 && size.height < 30)
+    #expect(size.width > 30 && size.width < 100)
+    #expect(size.height > 15 && size.height < 35)
 }
 
 @Test func backgroundRectLayoutFillsParentFrame() {

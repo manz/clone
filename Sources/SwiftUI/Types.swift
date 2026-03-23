@@ -168,7 +168,7 @@ public struct EdgeInsets: Equatable, Sendable {
     }
 }
 
-public enum FontWeight: Equatable, Sendable {
+public enum FontWeight: Equatable, Sendable, Hashable {
     case regular
     case medium
     case semibold

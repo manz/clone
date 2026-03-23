@@ -1,19 +1,21 @@
 import Foundation
+import CoreText
 
-/// Measures text size.
-/// TODO: Replace with cosmic-text measurement via UniFFI for accurate cross-platform sizing.
-/// For now uses a heuristic approximation.
+/// Measures text size using cosmic-text via the CoreText bridge module.
 enum TextMeasurer {
     static func measure(_ text: String, fontSize: CGFloat, weight: FontWeight) -> CGSize {
-        guard !text.isEmpty else { return CGSize(width: 0, height: fontSize * 1.2) }
-        // Approximation — will be replaced by cosmic-text measurement bridge
-        let factor: CGFloat = switch weight {
-        case .bold: 0.62
-        case .semibold: 0.58
-        case .medium: 0.55
-        case .regular: 0.52
+        let ctWeight: CTFontWeight = switch weight {
+        case .regular: .regular
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
         }
-        let width = fontSize * factor * CGFloat(text.count)
-        return CGSize(width: width, height: fontSize * 1.2)
+        let size = CTTextMeasurer.measure(text, fontSize: fontSize, weight: ctWeight)
+        return CGSize(width: size.width, height: size.height)
+    }
+
+    static func measureIcon(_ text: String, fontSize: CGFloat) -> CGSize {
+        let size = CTTextMeasurer.measure(text, fontSize: fontSize, weight: .regular, isIcon: true)
+        return CGSize(width: size.width, height: size.height)
     }
 }

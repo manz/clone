@@ -916,6 +916,63 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
     return FfiConverterTypeSurfaceFrame.lower(value)
 }
 
+
+/**
+ * Result of measuring text: width and height in logical pixels.
+ */
+public struct TextSize: Equatable, Hashable {
+    public var width: Float
+    public var height: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(width: Float, height: Float) {
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextSize: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextSize: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextSize {
+        return
+            try TextSize(
+                width: FfiConverterFloat.read(from: &buf), 
+                height: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextSize, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.width, into: &buf)
+        FfiConverterFloat.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextSize_lift(_ buf: RustBuffer) throws -> TextSize {
+    return try FfiConverterTypeTextSize.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextSize_lower(_ value: TextSize) -> RustBuffer {
+    return FfiConverterTypeTextSize.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -1784,6 +1841,20 @@ public func runDesktop(delegate: DesktopDelegate)throws   {try rustCallWithError
     )
 }
 }
+/**
+ * Measure text using cosmic-text — the same shaping engine used for rendering.
+ * Returns the exact bounding size of the shaped text.
+ */
+public func measureText(content: String, fontSize: Float, weight: FontWeight, isIcon: Bool) -> TextSize  {
+    return try!  FfiConverterTypeTextSize_lift(try! rustCall() {
+    uniffi_clone_engine_fn_func_measure_text(
+        FfiConverterString.lower(content),
+        FfiConverterFloat.lower(fontSize),
+        FfiConverterTypeFontWeight_lower(weight),
+        FfiConverterBool.lower(isIcon),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -1801,6 +1872,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_clone_engine_checksum_func_run_desktop() != 49037) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_engine_checksum_func_measure_text() != 31279) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_engine_checksum_method_desktopengine_draw_frame() != 58114) {

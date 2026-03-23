@@ -83,10 +83,23 @@ let package = Package(
             dependencies: [],
             path: "Sources/AppKit"
         ),
+        // CoreText — cosmic-text measurement bridge (shared by SwiftUI and EngineBridge)
+        .target(
+            name: "CoreText",
+            dependencies: ["clone_engineFFI"],
+            path: "Sources/CoreText",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-lclone_engine",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                ]),
+            ]
+        ),
         // UI DSL framework
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText"],
             path: "Sources/SwiftUI",
             exclude: ["Generated"]
         ),
