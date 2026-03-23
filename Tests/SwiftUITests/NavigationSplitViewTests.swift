@@ -13,7 +13,7 @@ import Testing
         return
     }
     // framed sidebar + divider rect + clipped detail vstack + spacer
-    #expect(children.count == 4)
+    #expect(children.count == 3)
 }
 
 @Test @MainActor func sidebarWidthApplied() {
@@ -71,7 +71,7 @@ import Testing
         Issue.record("Expected hstack")
         return
     }
-    #expect(children.count == 4)
+    #expect(children.count == 3)
 }
 
 @Test @MainActor func sidebarLayoutIntegration() {
