@@ -163,6 +163,7 @@ extension App {
                 OnChangeRegistry.shared.resetCounter()
                 TagRegistry.shared.resetCounter()
                 StateGraph.shared.resetCounter()
+                ScrollRegistry.shared.resetCounter()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
@@ -208,6 +209,7 @@ extension App {
                     OnChangeRegistry.shared.resetCounter()
                     TagRegistry.shared.resetCounter()
                     StateGraph.shared.resetCounter()
+                    ScrollRegistry.shared.resetCounter()
                     WindowState.shared.update(width: cw, height: ch)
                     var viewTree = windowGroup.buildViewNode()
                     OnChangeRegistry.shared.flushActions()

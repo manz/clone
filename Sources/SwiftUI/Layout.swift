@@ -309,7 +309,7 @@ public enum Layout {
             // Layout children with unbounded constraint in the scroll axis,
             // then wrap in a clipped node so overflow is hidden.
             // Apply scroll offset from ScrollRegistry.
-            let scrollKey = "\(Int(frame.x)):\(Int(frame.y)):\(Int(frame.width)):\(Int(frame.height))"
+            let scrollKey = ScrollRegistry.shared.nextKey()
             let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
 
             let contentLayout: LayoutNode
