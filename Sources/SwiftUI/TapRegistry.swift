@@ -22,6 +22,9 @@ public final class TapRegistry: @unchecked Sendable {
         handlers[id]?()
     }
 
+    /// Number of registered handlers.
+    public var count: Int { handlers.count }
+
     /// Clear all handlers (call between frames).
     public func clear() {
         handlers.removeAll()

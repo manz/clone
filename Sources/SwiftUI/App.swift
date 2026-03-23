@@ -182,9 +182,16 @@ extension App {
                 }
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 if button == 0 && pressed {
-                    TapRegistry.shared.clear()
                     let cw = CGFloat(app.client.width)
                     let ch = CGFloat(app.client.height)
+                    // Reset all registries before rebuilding view tree for tap handling
+                    GeometryReaderRegistry.shared.clear()
+                    TapRegistry.shared.clear()
+                    TextFieldRegistry.shared.clear()
+                    OnceRegistry.shared.resetCounter()
+                    OnChangeRegistry.shared.resetCounter()
+                    TagRegistry.shared.clear()
+                    StateGraph.shared.resetCounter()
                     WindowState.shared.update(width: cw, height: ch)
                     let viewTree = windowGroup.buildViewNode()
                     let layoutNode = Layout.layout(

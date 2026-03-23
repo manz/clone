@@ -300,12 +300,12 @@ public extension View {
         _ModifiedView(node: _resolve(self).searchable(text: text, placement: placement, prompt: prompt))
     }
 
-    func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).onChange(of: value, perform: action))
+    func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void, file: String = #fileID, line: Int = #line) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self).onChange(of: value, perform: action, file: file, line: line))
     }
 
-    func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).onChange(of: value, initial: initial, action))
+    func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void, file: String = #fileID, line: Int = #line) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self).onChange(of: value, initial: initial, action, file: file, line: line))
     }
 
     func animation(_ animation: Animation?) -> _ModifiedView<Self> {
@@ -685,8 +685,8 @@ public extension View {
         _ModifiedView(node: _resolve(self).headerProminence(prominence))
     }
 
-    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> _ModifiedView<Self> {
-        _ModifiedView(node: _resolve(self).onChange(of: value, action))
+    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void, file: String = #fileID, line: Int = #line) -> _ModifiedView<Self> {
+        _ModifiedView(node: _resolve(self).onChange(of: value, action, file: file, line: line))
     }
 
     func navigationDestination(isPresented: Binding<Bool>, @ViewBuilder destination: () -> some View) -> _ModifiedView<Self> {

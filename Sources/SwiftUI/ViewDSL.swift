@@ -360,8 +360,8 @@ public extension ViewNode {
     }
 
     /// `.onChange(of:perform:)` — no-op on Clone (no observation system yet).
-    func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> ViewNode {
-        let key = OnChangeRegistry.shared.track(value: value)
+    func onChange<V: Equatable>(of value: V, perform action: @escaping (V) -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
+        let key = OnChangeRegistry.shared.track(value: value, file: file, line: line)
         if let (_, changed) = key, changed {
             action(value)
         }
@@ -369,8 +369,8 @@ public extension ViewNode {
     }
 
     /// `.onChange(of:initial:_:)` — Swift 5.9+ onChange.
-    func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void) -> ViewNode {
-        let key = OnChangeRegistry.shared.track(value: value)
+    func onChange<V: Equatable>(of value: V, initial: Bool = false, _ action: @escaping () -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
+        let key = OnChangeRegistry.shared.track(value: value, file: file, line: line)
         if let (_, changed) = key, changed {
             action()
         } else if initial, key == nil {
@@ -761,8 +761,8 @@ public extension ViewNode {
     func headerProminence(_ prominence: Prominence) -> ViewNode { self }
 
     /// `.onChange(of:_:)` — Swift 5.9+ onChange with old and new values.
-    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void) -> ViewNode {
-        if let (old, changed) = OnChangeRegistry.shared.track(value: value), changed {
+    func onChange<V: Equatable>(of value: V, _ action: @escaping (V, V) -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
+        if let (old, changed) = OnChangeRegistry.shared.track(value: value, file: file, line: line), changed {
             action(old as! V, value)
         }
         return self

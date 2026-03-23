@@ -313,13 +313,20 @@ final class AppConnectionManager {
            let window = windowManager.windows.first(where: { $0.id == id }) {
             if let serverWid = externalWindowId(for: id),
                let app = server.app(for: serverWid) {
-                focusedAppName = app.title
+                focusedAppName = displayName(from: app.appId)
             } else {
                 focusedAppName = window.title
             }
         } else {
             focusedAppName = "Finder"
         }
+    }
+
+    /// Derive display name from appId: use known binary name or capitalize last component.
+    private func displayName(from appId: String) -> String {
+        if let known = appBinaries[appId] { return known }
+        guard let last = appId.split(separator: ".").last else { return appId }
+        return last.prefix(1).uppercased() + last.dropFirst()
     }
 
     func getFocusedAppName() -> String {
