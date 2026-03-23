@@ -19,8 +19,9 @@ struct ChromeRenderer {
             radius: radius, color: bgColor.toEngine()
         ))
 
-        // 2. Title bar + chrome drawn on top
-        commands.append(.pushClip(x: 0, y: 0, w: width, h: height, radius: 0))
+        // 2. Title bar + chrome drawn on top (clipped to title bar area only)
+        let tbH = Float(WindowChrome.titleBarHeight)
+        commands.append(.pushClip(x: 0, y: 0, w: width, h: tbH, radius: 0))
         commands.append(.rect(
             x: 0, y: 0, w: width, h: Float(WindowChrome.titleBarHeight),
             color: tbColor.toEngine()
