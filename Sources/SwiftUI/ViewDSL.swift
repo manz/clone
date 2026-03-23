@@ -17,23 +17,19 @@ public extension ViewNode {
 
     /// `.frame(maxWidth: .infinity)` — fills available space
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil) -> ViewNode {
-        // .infinity means "fill available space" → use nil (fills constraint)
-        let w: CGFloat? = maxWidth == .infinity ? nil : maxWidth
-        let h: CGFloat? = maxHeight == .infinity ? nil : maxHeight
-        return .frame(width: w, height: h, child: self)
+        // .infinity means "fill available space" — keep it, Layout clamps to constraint
+        .frame(width: maxWidth, height: maxHeight, child: self)
     }
 
     /// `.frame(maxWidth:maxHeight:alignment:)` — fills available space with alignment
     func frame(maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment) -> ViewNode {
-        let w: CGFloat? = maxWidth == .infinity ? nil : maxWidth
-        let h: CGFloat? = maxHeight == .infinity ? nil : maxHeight
-        return .frame(width: w, height: h, child: self)
+        .frame(width: maxWidth, height: maxHeight, child: self)
     }
 
     /// `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:alignment:)` — flexible frame
     func frame(minWidth: CGFloat? = nil, idealWidth: CGFloat? = nil, maxWidth: CGFloat? = nil, minHeight: CGFloat? = nil, idealHeight: CGFloat? = nil, maxHeight: CGFloat? = nil, alignment: Alignment = .center) -> ViewNode {
-        let w = (maxWidth == .infinity ? nil : maxWidth) ?? idealWidth ?? minWidth
-        let h = (maxHeight == .infinity ? nil : maxHeight) ?? idealHeight ?? minHeight
+        let w = maxWidth ?? idealWidth ?? minWidth
+        let h = maxHeight ?? idealHeight ?? minHeight
         return .frame(width: w, height: h, child: self)
     }
 
@@ -477,8 +473,8 @@ private func recolorText(_ node: ViewNode, to color: Color) -> ViewNode {
         return .hstack(alignment: align, spacing: spacing, children: children.map { recolorText($0, to: color) })
     case .vstack(let align, let spacing, let children):
         return .vstack(alignment: align, spacing: spacing, children: children.map { recolorText($0, to: color) })
-    case .zstack(let children):
-        return .zstack(children: children.map { recolorText($0, to: color) })
+    case .zstack(let align, let children):
+        return .zstack(alignment: align, children: children.map { recolorText($0, to: color) })
     case .onTap(let id, let child):
         return .onTap(id: id, child: recolorText(child, to: color))
     case .padding(let insets, let child):
@@ -495,7 +491,7 @@ private func extractTextColor(_ node: ViewNode) -> Color? {
     switch node {
     case .text(_, _, let color, _):
         return color == .primary ? nil : color
-    case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(let children):
+    case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(_, let children):
         for child in children {
             if let c = extractTextColor(child) { return c }
         }

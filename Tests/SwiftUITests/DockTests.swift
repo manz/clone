@@ -78,7 +78,7 @@ let dockY: CGFloat = 780
 @Test @MainActor func dockProducesValidViewTree() {
     let dock = Dock(mouseX: 640, mouseY: dockY, screenWidth: screenWidth, screenHeight: screenHeight)
     let tree = dock.body()
-    if case .zstack(let children) = tree {
+    if case .zstack(_, let children) = tree {
         #expect(children.count == 2)
     } else {
         Issue.record("Expected zstack from Dock.body()")

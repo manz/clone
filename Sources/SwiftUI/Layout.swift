@@ -143,7 +143,7 @@ public enum Layout {
         case .hstack(let alignment, let spacing, let children):
             return measureHStack(alignment: alignment, spacing: spacing, children: children, constraint: constraint)
 
-        case .zstack(let children):
+        case .zstack(_, let children):
             return measureZStack(children: children, constraint: constraint)
 
         case .padding(let insets, let child):
@@ -254,8 +254,8 @@ public enum Layout {
         case .hstack(let alignment, let spacing, let children):
             return layoutHStack(alignment: alignment, spacing: spacing, children: children, in: frame)
 
-        case .zstack(let children):
-            return layoutZStack(children: children, in: frame)
+        case .zstack(let alignment, let children):
+            return layoutZStack(alignment: alignment, children: children, in: frame)
 
         case .padding(let insets, let child):
             let innerFrame = LayoutFrame(
@@ -597,19 +597,36 @@ public enum Layout {
     }
 
     private static func layoutZStack(
-        children: [ViewNode], in frame: LayoutFrame
+        alignment: Alignment, children: [ViewNode], in frame: LayoutFrame
     ) -> LayoutNode {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
         let layoutChildren = children.map { child -> LayoutNode in
             let size = measure(child, constraint: constraint)
             let w = min(size.width, frame.width)
             let h = min(size.height, frame.height)
-            let cx = frame.x + (frame.width - w) / 2
-            let cy = frame.y + (frame.height - h) / 2
-            let childFrame = LayoutFrame(x: cx.isFinite ? cx : frame.x, y: cy.isFinite ? cy : frame.y, width: w, height: h)
+
+            let cx: CGFloat
+            switch alignment.horizontal {
+            case .leading:  cx = frame.x
+            case .center:   cx = frame.x + (frame.width - w) / 2
+            case .trailing: cx = frame.x + frame.width - w
+            }
+
+            let cy: CGFloat
+            switch alignment.vertical {
+            case .top:    cy = frame.y
+            case .center: cy = frame.y + (frame.height - h) / 2
+            case .bottom: cy = frame.y + frame.height - h
+            }
+
+            let childFrame = LayoutFrame(
+                x: cx.isFinite ? cx : frame.x,
+                y: cy.isFinite ? cy : frame.y,
+                width: w, height: h
+            )
             return layout(child, in: childFrame)
         }
-        return LayoutNode(frame: frame, node: .zstack(children: children), children: layoutChildren)
+        return LayoutNode(frame: frame, node: .zstack(alignment: alignment, children: children), children: layoutChildren)
     }
 
     // MARK: - Grid

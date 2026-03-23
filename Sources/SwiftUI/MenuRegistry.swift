@@ -57,7 +57,7 @@ public func _menuItemsFromNode(_ node: ViewNode) -> [AppMenuItem] {
         return [AppMenuItem(id: "separator", title: "", shortcut: nil, isSeparator: true)]
     case .onTap(_, let child):
         return _menuItemsFromNode(child)
-    case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(let children):
+    case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(_, let children):
         return children.flatMap { _menuItemsFromNode($0) }
     case .padding(_, let child), .frame(_, _, let child):
         return _menuItemsFromNode(child)

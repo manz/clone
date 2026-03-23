@@ -52,7 +52,7 @@ public enum Reconciler {
             }
             diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
 
-        case (.zstack(let oChildren), .zstack(let nChildren)):
+        case (.zstack(_, let oChildren), .zstack(_, let nChildren)):
             diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
 
         case (.padding(let oInsets, let oChild), .padding(let nInsets, let nChild)):

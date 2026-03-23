@@ -26,7 +26,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case spacer(minLength: CGFloat)
     case vstack(alignment: HAlignment, spacing: CGFloat, children: [ViewNode])
     case hstack(alignment: VAlignment, spacing: CGFloat, children: [ViewNode])
-    case zstack(children: [ViewNode])
+    case zstack(alignment: Alignment = .center, children: [ViewNode])
     case padding(EdgeInsets, child: ViewNode)
     case frame(width: CGFloat?, height: CGFloat?, child: ViewNode)
     case opacity(CGFloat, child: ViewNode)

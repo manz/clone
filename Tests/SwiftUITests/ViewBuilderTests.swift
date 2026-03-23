@@ -60,7 +60,7 @@ import Testing
         ViewNode.rect(width: nil, height: nil, fill: .gray)
         ViewNode.text("Overlay", fontSize: 24, color: .white)
     }
-    if case .zstack(let children) = node {
+    if case .zstack(_, let children) = node {
         #expect(children.count == 2)
     } else {
         Issue.record("Expected zstack")

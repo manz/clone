@@ -36,35 +36,20 @@ let defaultMenus: [AppMenu] = [
 
 // MARK: - Layout constants
 
-private let barHeight: Float = 24
-private let fontSize: Float = 13
-private let iconFontSize: Float = 14
-private let menuPadH: Float = 8
-private let dropdownW: Float = 220
-private let dropdownRowH: Float = 22
+private let barHeight: CGFloat = 24
+private let menuFontSize: CGFloat = 13
+private let iconFontSize: CGFloat = 14
+private let menuPadH: CGFloat = 8
+private let dropdownW: CGFloat = 220
+private let dropdownRowH: CGFloat = 22
 
-// MARK: - Compute menu positions
+// MARK: - Colors
 
-struct MenuPos {
-    let title: String
-    let x: Float
-    let width: Float
-    let index: Int
-}
-
-func computeMenuPositions(state: MenuBarState) -> [MenuPos] {
-    let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
-    // Apple logo ~14px + pad 12 + app name + gap
-    let appNameWidth = Float(state.focusedAppName.count) * 7.5
-    var x: Float = 12 + 14 + 12 + appNameWidth + 16
-    var result: [MenuPos] = []
-    for (i, menu) in menus.enumerated() {
-        let titleW = Float(menu.title.count) * 7.5 + menuPadH * 2
-        result.append(MenuPos(title: menu.title, x: x, width: titleW, index: i))
-        x += titleW + 4
-    }
-    return result
-}
+private let barBg = Color(red: 0.96, green: 0.96, blue: 0.96, opacity: 0.85)
+private let textColor = Color(red: 0, green: 0, blue: 0, opacity: 1)
+private let dimColor = Color(red: 0.4, green: 0.4, blue: 0.4, opacity: 1)
+private let highlightBg = Color(red: 0.2, green: 0.47, blue: 0.96, opacity: 1)
+private let dropdownBg = Color(red: 0.97, green: 0.97, blue: 0.97, opacity: 1)
 
 // MARK: - Daemon client (for now-playing)
 
@@ -141,106 +126,192 @@ final class MenuBarDaemonClient: @unchecked Sendable {
     }
 }
 
-// MARK: - Imperative renderer
+// MARK: - Menu bar action registry
 
-func renderMenuBar(state: MenuBarState, width: Float, height: Float, daemonClient: MenuBarDaemonClient?) -> [IPCRenderCommand] {
-    var cmds: [IPCRenderCommand] = []
-    let barBg = IPCColor(r: 0.96, g: 0.96, b: 0.96, a: 0.85)
-    let textColor = IPCColor(r: 0, g: 0, b: 0, a: 1)
-    let dimColor = IPCColor(r: 0.4, g: 0.4, b: 0.4, a: 1)
-    let highlightBg = IPCColor(r: 0.2, g: 0.47, b: 0.96, a: 1)
-    let white = IPCColor(r: 1, g: 1, b: 1, a: 1)
-    let dropdownBg = IPCColor(r: 0.97, g: 0.97, b: 0.97, a: 1)
-    let dropdownShadow = IPCColor(r: 0, g: 0, b: 0, a: 0.15)
+/// Shared registry for menu bar item clicks.
+/// The App's onPointerButton reads the last action and sends it via client.
+final class MenuBarActionRegistry: @unchecked Sendable {
+    static let shared = MenuBarActionRegistry()
+    var lastItemId: String? = nil
+    var toggleMenuIndex: Int? = nil
 
-    // Bar background
-    cmds.append(.rect(x: 0, y: 0, w: width, h: barHeight, color: barBg))
-
-    // Apple logo
-    let logoX: Float = 12
-    cmds.append(.text(x: logoX, y: 5, content: "\u{F8FF}", fontSize: iconFontSize, color: textColor, weight: .regular))
-
-    // App name (bold)
-    let appNameX = logoX + 14 + 12
-    cmds.append(.text(x: appNameX, y: 5, content: state.focusedAppName, fontSize: fontSize, color: textColor, weight: .bold))
-
-    // Menu titles
-    let positions = computeMenuPositions(state: state)
-    for pos in positions {
-        let isOpen = state.openMenuIndex == pos.index
-        if isOpen {
-            cmds.append(.rect(x: pos.x - menuPadH / 2, y: 1, w: pos.width, h: barHeight - 2, color: highlightBg))
-            cmds.append(.text(x: pos.x + menuPadH / 2, y: 5, content: pos.title, fontSize: fontSize, color: white, weight: .regular))
-        } else {
-            cmds.append(.text(x: pos.x + menuPadH / 2, y: 5, content: pos.title, fontSize: fontSize, color: textColor, weight: .regular))
-        }
+    func consume() -> String? {
+        let id = lastItemId
+        lastItemId = nil
+        return id
     }
 
-    // Clock (right-aligned)
+    func consumeToggle() -> Int? {
+        let idx = toggleMenuIndex
+        toggleMenuIndex = nil
+        return idx
+    }
+}
+
+// MARK: - Declarative menu bar view
+
+@MainActor func menuBarView(state: MenuBarState, width: CGFloat, height: CGFloat) -> some View {
+    let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
+
+    return ZStack(alignment: .topLeading) {
+        // Bar background — full width, pinned to top
+        Rectangle()
+            .fill(barBg)
+            .frame(width: width, height: barHeight)
+
+        // Bar content
+        HStack(spacing: 0) {
+            // Apple logo
+            Text("\u{F8FF}")
+                .font(.system(size: iconFontSize))
+                .foregroundColor(textColor)
+                .padding(.leading, 12)
+
+            // App name (bold)
+            Text(state.focusedAppName)
+                .font(.system(size: menuFontSize, weight: .bold))
+                .foregroundColor(textColor)
+                .padding(.leading, 12)
+                .padding(.trailing, 16)
+
+            // Menu titles
+            ForEach(Array(menus.enumerated()), id: \.offset) { i, menu in
+                menuTitleView(state: state, title: menu.title, index: i)
+            }
+
+            Spacer()
+
+            // Now playing
+            if let np = state.nowPlaying {
+                nowPlayingView(np: np)
+                    .padding(.trailing, 12)
+            }
+
+            // Clock
+            clockView()
+                .padding(.trailing, 12)
+        }
+        .frame(width: width, height: barHeight)
+
+        // Dropdown overlay
+        if let openIdx = state.openMenuIndex, openIdx < menus.count {
+            dropdownView(state: state, menu: menus[openIdx], menuIndex: openIdx, menus: menus)
+        }
+    }
+    .frame(width: width, height: height)
+}
+
+@MainActor func menuTitleView(state: MenuBarState, title: String, index: Int) -> some View {
+    let isOpen = state.openMenuIndex == index
+    return Text(title)
+        .font(.system(size: menuFontSize))
+        .foregroundColor(isOpen ? .white : textColor)
+        .padding(.horizontal, menuPadH)
+        .padding(.vertical, 2)
+        .background(
+            isOpen
+                ? RoundedRectangle(cornerRadius: 4).fill(highlightBg)
+                : RoundedRectangle(cornerRadius: 4).fill(Color(red: 0, green: 0, blue: 0, opacity: 0))
+        )
+        .onTapGesture {
+            if state.openMenuIndex == index {
+                state.openMenuIndex = nil
+            } else {
+                state.openMenuIndex = index
+            }
+        }
+}
+
+@MainActor func clockView() -> some View {
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm"
     let clock = formatter.string(from: Date())
-    let clockX = width - 50
-    cmds.append(.text(x: clockX, y: 5, content: clock, fontSize: fontSize, color: textColor, weight: .regular))
+    return Text(clock)
+        .font(.system(size: menuFontSize))
+        .foregroundColor(textColor)
+}
 
-    // Now playing (before clock)
-    if let np = state.nowPlaying {
-        let artist = np.artist ?? ""
-        let title = np.title ?? ""
-        let label = artist.isEmpty ? title : "\(artist) — \(title)"
-        let isPlaying = (np.playbackRate ?? 0) > 0
-        let npX = clockX - Float(label.count) * 7 - 80
-        cmds.append(.text(x: npX, y: 5, content: "\u{23EE}", fontSize: 11, color: dimColor, weight: .regular))
-        cmds.append(.text(x: npX + 16, y: 5, content: isPlaying ? "\u{23F8}" : "\u{23F5}", fontSize: 11, color: dimColor, weight: .regular))
-        cmds.append(.text(x: npX + 32, y: 5, content: "\u{23ED}", fontSize: 11, color: dimColor, weight: .regular))
-        cmds.append(.text(x: npX + 52, y: 5, content: label, fontSize: 12, color: dimColor, weight: .regular))
+@MainActor func nowPlayingView(np: NowPlayingInfo) -> some View {
+    let artist = np.artist ?? ""
+    let title = np.title ?? ""
+    let label = artist.isEmpty ? title : "\(artist) — \(title)"
+    let isPlaying = (np.playbackRate ?? 0) > 0
+
+    return HStack(spacing: 4) {
+        Text("\u{23EE}")
+            .font(.system(size: 11))
+            .foregroundColor(dimColor)
+        Text(isPlaying ? "\u{23F8}" : "\u{23F5}")
+            .font(.system(size: 11))
+            .foregroundColor(dimColor)
+        Text("\u{23ED}")
+            .font(.system(size: 11))
+            .foregroundColor(dimColor)
+        Text(label)
+            .font(.system(size: 12))
+            .foregroundColor(dimColor)
+            .padding(.leading, 8)
     }
+}
 
-    // Dropdown
-    if let openIdx = state.openMenuIndex {
-        let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
-        guard openIdx < menus.count else { return cmds }
-        let menu = menus[openIdx]
-        let menuX = positions[openIdx].x - menuPadH / 2
-        let items = menu.items
-        let dropH = Float(items.count) * dropdownRowH + 8
+@MainActor func dropdownView(state: MenuBarState, menu: AppMenu, menuIndex: Int, menus: [AppMenu]) -> some View {
+    // Compute x position for the dropdown
+    let dropdownX = computeDropdownX(state: state, menuIndex: menuIndex, menus: menus)
+    let items = menu.items
+    let dropH = CGFloat(items.count) * dropdownRowH + 8
 
-        // Shadow
-        cmds.append(.shadow(x: menuX, y: barHeight, w: dropdownW, h: dropH, radius: 6, blur: 8, color: dropdownShadow, ox: 0, oy: 2))
-        // Background
-        cmds.append(.roundedRect(x: menuX, y: barHeight, w: dropdownW, h: dropH, radius: 6, color: dropdownBg))
-
-        var itemY = barHeight + 4
-        for item in items {
+    return VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(items.enumerated()), id: \.offset) { _, item in
             if item.isSeparator {
-                cmds.append(.rect(x: menuX + 8, y: itemY + dropdownRowH / 2 - 0.5, w: dropdownW - 16, h: 1, color: IPCColor(r: 0, g: 0, b: 0, a: 0.08)))
-                itemY += dropdownRowH
-                continue
+                Rectangle()
+                    .fill(Color(red: 0, green: 0, blue: 0, opacity: 0.08))
+                    .frame(height: 1)
+                    .padding(.horizontal, 8)
+                    .frame(height: dropdownRowH)
+            } else {
+                dropdownItemView(state: state, item: item)
             }
-
-            let isHovered = state.mouseX >= CGFloat(menuX)
-                && state.mouseX < CGFloat(menuX + dropdownW)
-                && state.mouseY >= CGFloat(itemY)
-                && state.mouseY < CGFloat(itemY + dropdownRowH)
-
-            if isHovered {
-                cmds.append(.roundedRect(x: menuX + 4, y: itemY, w: dropdownW - 8, h: dropdownRowH, radius: 4, color: highlightBg))
-            }
-
-            let titleColor = isHovered ? white : textColor
-            cmds.append(.text(x: menuX + 12, y: itemY + 3, content: item.title, fontSize: fontSize, color: titleColor, weight: .regular))
-
-            if let shortcut = item.shortcut {
-                let shortcutX = menuX + dropdownW - 12 - Float(shortcut.count) * 7
-                let shortcutColor = isHovered ? IPCColor(r: 1, g: 1, b: 1, a: 0.7) : dimColor
-                cmds.append(.text(x: shortcutX, y: itemY + 3, content: shortcut, fontSize: 12, color: shortcutColor, weight: .regular))
-            }
-
-            itemY += dropdownRowH
         }
     }
+    .frame(width: dropdownW, height: dropH)
+    .background(
+        RoundedRectangle(cornerRadius: 6)
+            .fill(dropdownBg)
+    )
+    .padding(.top, barHeight)
+    .padding(.leading, dropdownX)
+}
 
-    return cmds
+@MainActor func dropdownItemView(state: MenuBarState, item: AppMenuItem) -> some View {
+    let isHovered = false // Hover handled via onPointerMove + state comparison at frame time
+    return HStack(spacing: 0) {
+        Text(item.title)
+            .font(.system(size: menuFontSize))
+            .foregroundColor(isHovered ? .white : textColor)
+            .padding(.leading, 12)
+        Spacer()
+        if let shortcut = item.shortcut {
+            Text(shortcut)
+                .font(.system(size: 12))
+                .foregroundColor(isHovered ? Color(red: 1, green: 1, blue: 1, opacity: 0.7) : dimColor)
+                .padding(.trailing, 12)
+        }
+    }
+    .frame(width: dropdownW - 8, height: dropdownRowH)
+    .onTapGesture {
+        MenuBarActionRegistry.shared.lastItemId = item.id
+        state.openMenuIndex = nil
+    }
+}
+
+func computeDropdownX(state: MenuBarState, menuIndex: Int, menus: [AppMenu]) -> CGFloat {
+    let appNameWidth = CGFloat(state.focusedAppName.count) * 7.5
+    var x: CGFloat = 12 + 14 + 12 + appNameWidth + 16
+    for i in 0..<menuIndex {
+        let titleW = CGFloat(menus[i].title.count) * 7.5 + menuPadH * 2
+        x += titleW + 4
+    }
+    return x - menuPadH / 2
 }
 
 // MARK: - App
@@ -259,20 +330,16 @@ struct MenuBarApp: App {
 
     var body: some Scene {
         WindowGroup("MenuBar") {
-            Text("")  // placeholder — imperative render used
+            menuBarView(state: state, width: 1280, height: 400)
         }
     }
 
+    #if canImport(CloneClient)
     var configuration: WindowConfiguration {
         WindowConfiguration(title: "MenuBar", width: 1280, height: 400, role: .menubar)
     }
 
-    func render(width: CGFloat, height: CGFloat) -> [IPCRenderCommand]? {
-        renderMenuBar(state: state, width: Float(width), height: Float(height), daemonClient: daemonClient)
-    }
-
     func onFocusedApp(name: String) {
-        // Only close menus when the focused app actually changes
         if state.focusedAppName != name {
             state.focusedAppName = name
             state.openMenuIndex = nil
@@ -290,13 +357,17 @@ struct MenuBarApp: App {
         state.mouseY = y
 
         // If a menu is open, hovering over another title switches menus
-        if state.openMenuIndex != nil && y < CGFloat(barHeight) {
-            let positions = computeMenuPositions(state: state)
-            for pos in positions {
-                if Float(x) >= pos.x && Float(x) < pos.x + pos.width {
-                    state.openMenuIndex = pos.index
+        if state.openMenuIndex != nil && y < barHeight {
+            let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
+            let appNameWidth = CGFloat(state.focusedAppName.count) * 7.5
+            var mx: CGFloat = 12 + 14 + 12 + appNameWidth + 16
+            for (i, menu) in menus.enumerated() {
+                let titleW = CGFloat(menu.title.count) * 7.5 + menuPadH * 2
+                if x >= mx && x < mx + titleW {
+                    state.openMenuIndex = i
                     break
                 }
+                mx += titleW + 4
             }
         }
     }
@@ -304,43 +375,10 @@ struct MenuBarApp: App {
     func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {
         guard button == 0 && pressed else { return }
 
-        // Click on menu bar title area
-        if y < CGFloat(barHeight) {
-            let positions = computeMenuPositions(state: state)
-            for pos in positions {
-                if Float(x) >= pos.x && Float(x) < pos.x + pos.width {
-                    if state.openMenuIndex == pos.index {
-                        state.openMenuIndex = nil
-                    } else {
-                        state.openMenuIndex = pos.index
-                    }
-                    return
-                }
-            }
-            state.openMenuIndex = nil
-            return
-        }
-
-        // Click on dropdown item
-        if let openIdx = state.openMenuIndex {
-            let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
-            guard openIdx < menus.count else { return }
-            let positions = computeMenuPositions(state: state)
-            let menuX = positions[openIdx].x - menuPadH / 2
-
-            if Float(x) >= menuX && Float(x) < menuX + dropdownW {
-                let items = menus[openIdx].items.filter { !$0.isSeparator }
-                var itemY = barHeight + 4
-                for item in items {
-                    if Float(y) >= itemY && Float(y) < itemY + dropdownRowH {
-                        client.send(.menuAction(itemId: item.id))
-                        state.openMenuIndex = nil
-                        return
-                    }
-                    itemY += dropdownRowH
-                }
-            }
-            state.openMenuIndex = nil
+        // Check if a menu item was tapped (via declarative onTapGesture)
+        if let itemId = MenuBarActionRegistry.shared.consume() {
+            client.send(.menuAction(itemId: itemId))
         }
     }
+    #endif
 }

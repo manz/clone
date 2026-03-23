@@ -218,6 +218,42 @@ import Testing
     #expect(size.height == 400)
 }
 
+@Test func zstackTopLeadingAlignment() {
+    let node = ViewNode.zstack(alignment: .topLeading, children: [
+        .rect(width: nil, height: nil, fill: .gray),
+        .rect(width: 100, height: 50, fill: .red),
+    ])
+    let layoutNode = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 600, height: 400))
+    // Second child (100x50) should be at top-left, not centered
+    let child = layoutNode.children[1]
+    #expect(child.frame.x == 0)
+    #expect(child.frame.y == 0)
+    #expect(child.frame.width == 100)
+    #expect(child.frame.height == 50)
+}
+
+@Test func zstackBottomTrailingAlignment() {
+    let node = ViewNode.zstack(alignment: .bottomTrailing, children: [
+        .rect(width: nil, height: nil, fill: .gray),
+        .rect(width: 100, height: 50, fill: .red),
+    ])
+    let layoutNode = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 600, height: 400))
+    let child = layoutNode.children[1]
+    #expect(child.frame.x == 500)
+    #expect(child.frame.y == 350)
+}
+
+@Test func zstackCenterAlignmentDefault() {
+    let node = ViewNode.zstack(children: [
+        .rect(width: nil, height: nil, fill: .gray),
+        .rect(width: 100, height: 50, fill: .red),
+    ])
+    let layoutNode = Layout.layout(node, in: LayoutFrame(x: 0, y: 0, width: 600, height: 400))
+    let child = layoutNode.children[1]
+    #expect(child.frame.x == 250)
+    #expect(child.frame.y == 175)
+}
+
 @Test func layoutNoNaNCoordinates() {
     // frame(maxWidth: .infinity) inside a vstack should not produce NaN
     let node = ViewNode.vstack(alignment: .center, spacing: 8, children: [
