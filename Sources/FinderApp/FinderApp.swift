@@ -613,15 +613,28 @@ struct FinderApp: App {
     var body: some Scene {
         WindowGroup("Finder") {
             NavigationSplitView {
-                List {
-                    Section("Favorites") {
-                        ForEach(favorites, id: \.name) { fav in
-                            Label(fav.name, systemImage: "folder")
-                                .onTapGesture { state.navigateTo(fav.path) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Favorites")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 14)
+                        .padding(.top, 10)
+                    ForEach(favorites, id: \.name) { fav in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(fav.icon)
+                                .frame(width: 18, height: 18)
+                            Text(fav.name).font(.system(size: 13))
                         }
+                        .padding(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(state.currentPath == fav.path ? Color.accentColor.opacity(0.3) : .clear)
+                        .cornerRadius(5)
+                        .onTapGesture { state.navigateTo(fav.path) }
                     }
+                    Spacer()
                 }
-                .listStyle(.sidebar)
+                .padding(.horizontal, 6)
             } detail: {
                 List(state.entries, id: \.name) { entry in
                     HStack {
