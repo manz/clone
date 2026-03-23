@@ -91,6 +91,25 @@ extension LayoutNode {
         return nil
     }
 
+    /// Find context menu items at the given point. Returns the menu items or nil.
+    public func hitTestContextMenu(x: CGFloat, y: CGFloat) -> [ViewNode]? {
+        guard frame.contains(x: x, y: y) else { return nil }
+
+        // Check children first (deepest wins)
+        for child in children.reversed() {
+            if let items = child.hitTestContextMenu(x: x, y: y) {
+                return items
+            }
+        }
+
+        // If this node is a contextMenu, return its items
+        if case .contextMenu(_, let menuItems) = node {
+            return menuItems
+        }
+
+        return nil
+    }
+
     /// Collect all onHover IDs whose frame contains the point.
     public func hitTestHover(x: CGFloat, y: CGFloat) -> Set<UInt64> {
         guard frame.contains(x: x, y: y) else { return [] }

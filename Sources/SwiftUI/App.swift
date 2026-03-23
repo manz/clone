@@ -174,6 +174,16 @@ extension App {
                 viewTree = prependToolbar(viewTree, role: config.role)
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
+                // Overlay context menu if open
+                if ContextMenuRegistry.shared.isOpen {
+                    let menuOverlay = buildContextMenuOverlay(
+                        items: ContextMenuRegistry.shared.menuItems,
+                        x: ContextMenuRegistry.shared.position.x,
+                        y: ContextMenuRegistry.shared.position.y,
+                        width: width, height: height
+                    )
+                    viewTree = .zstack(children: [viewTree, menuOverlay])
+                }
                 // Overlay open panel if active
                 if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
                     viewTree = .zstack(children: [viewTree, panelOverlay])
@@ -197,7 +207,35 @@ extension App {
                     return
                 }
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
+                // Right-click: open context menu
+                if button == 1 && pressed {
+                    // Close any open menu first
+                    ContextMenuRegistry.shared.close()
+                    let cw = CGFloat(app.client.width)
+                    let ch = CGFloat(app.client.height)
+                    GeometryReaderRegistry.shared.clear()
+                    TapRegistry.shared.resetCounter()
+                    TextFieldRegistry.shared.resetCounter()
+                    HoverRegistry.shared.resetCounter()
+                    OnceRegistry.shared.resetCounter()
+                    OnChangeRegistry.shared.resetCounter()
+                    TagRegistry.shared.resetCounter()
+                    StateGraph.shared.resetCounter()
+                    ScrollRegistry.shared.resetCounter()
+                    WindowState.shared.update(width: cw, height: ch)
+                    var viewTree = windowGroup.buildViewNode()
+                    OnChangeRegistry.shared.flushActions()
+                    viewTree = prependToolbar(viewTree, role: config.role)
+                    let layoutNode = Layout.layout(viewTree, in: LayoutFrame(x: 0, y: 0, width: cw, height: ch))
+                    if let menuItems = layoutNode.hitTestContextMenu(x: x, y: y) {
+                        ContextMenuRegistry.shared.open(items: menuItems, x: x, y: y)
+                    }
+                }
+                // Left-click: close context menu or handle tap
                 if button == 0 && pressed {
+                    if ContextMenuRegistry.shared.isOpen {
+                        ContextMenuRegistry.shared.close()
+                    }
                     let cw = CGFloat(app.client.width)
                     let ch = CGFloat(app.client.height)
                     // Reset all registries before rebuilding view tree for tap handling
@@ -316,6 +354,70 @@ extension App {
         app.client.runLoop()
         fputs("\(title) disconnected\n", stderr)
     }
+}
+
+/// Build a context menu overlay at the given position.
+@MainActor func buildContextMenuOverlay(items: [ViewNode], x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> ViewNode {
+    let menuWidth: CGFloat = 200
+    let itemHeight: CGFloat = 28
+    let menuHeight = CGFloat(items.count) * itemHeight + 12
+    let menuX = min(x, width - menuWidth - 8)
+    let menuY = min(y, height - menuHeight - 8)
+
+    // Build menu item rows with tap handlers
+    let rows: [ViewNode] = items.enumerated().map { (_, item) in
+        // Extract label text from the item node
+        let label: ViewNode
+        if case .onTap(_, let child) = item {
+            label = child
+        } else {
+            label = item
+        }
+
+        // Check if it's a divider
+        if case .rect(_, let h, _) = label, h == 1 {
+            return ViewNode.rect(width: menuWidth - 16, height: 1, fill: Color(white: 0.85))
+                .padding(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+        }
+
+        let tapId = TapRegistry.shared.register {
+            // Fire the original button action if it had one
+            if case .onTap(let origId, _) = item {
+                TapRegistry.shared.fire(id: origId)
+            }
+            ContextMenuRegistry.shared.close()
+        }
+
+        return ViewNode.onTap(id: tapId, child:
+            ViewNode.frame(width: menuWidth, height: itemHeight, child:
+                label.foregroundColor(.primary)
+                    .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)))
+        )
+    }
+
+    let menuContent = ViewNode.vstack(alignment: .leading, spacing: 0, children: rows)
+        .padding(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+
+    let menuPanel = ViewNode.zstack(children: [
+        ViewNode.roundedRect(width: menuWidth, height: menuHeight, radius: 8, fill: Color(white: 0.98)),
+        ViewNode.roundedRect(width: menuWidth, height: menuHeight, radius: 8, fill: .clear), // shadow placeholder
+        menuContent,
+    ])
+
+    // Position the menu
+    let positioned = menuPanel
+        .padding(EdgeInsets(top: menuY, leading: menuX, bottom: 0, trailing: 0))
+
+    // Invisible backdrop to catch clicks and close the menu
+    let backdrop = ViewNode.rect(width: width, height: height, fill: Color(white: 0, opacity: 0.01))
+    let backdropTapId = TapRegistry.shared.register {
+        ContextMenuRegistry.shared.close()
+    }
+
+    return ViewNode.zstack(children: [
+        ViewNode.onTap(id: backdropTapId, child: backdrop),
+        positioned,
+    ])
 }
 
 /// Prepend toolbar items to the view tree if any were collected.
