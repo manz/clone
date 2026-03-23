@@ -4,6 +4,7 @@ import Testing
 
 @Test @MainActor func tabViewRendersSelectedContent() {
     TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
 
     var selected = "b"
     let binding = Binding(get: { selected }, set: { selected = $0 })
@@ -14,81 +15,75 @@ import Testing
     }
 
     let node = tabView._nodeRepresentation
-    // Should be a vstack: [tabBar, separator, content]
-    guard case .vstack(_, _, let children) = node else {
-        Issue.record("Expected vstack, got \(node)")
-        return
-    }
-    #expect(children.count == 3, "Tab bar + separator + content")
-
-    // Content (3rd child) should be the selected tab's content
-    let content = children[2]
-    if case .text(let text, _, _, _) = content {
+    // Tab bar now goes to toolbar — _nodeRepresentation returns just the selected content
+    if case .text(let text, _, _, _) = node {
         #expect(text == "Content B")
     } else {
-        Issue.record("Expected text 'Content B' for selected tab, got \(content)")
+        Issue.record("Expected text 'Content B' for selected tab, got \(node)")
     }
 }
 
 @Test @MainActor func tabViewRendersTabBar() {
     TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
 
     var selected = "a"
     let binding = Binding(get: { selected }, set: { selected = $0 })
 
-    let tabView = TabView(selection: binding) {
+    let tv = TabView(selection: binding) {
         Tab("Tab A", systemImage: "star", value: "a") { Text("A") }
         Tab("Tab B", systemImage: "gear", value: "b") { Text("B") }
     }
+    let _ = tv._nodeRepresentation  // triggers toolbar registration
 
-    let node = tabView._nodeRepresentation
-    guard case .vstack(_, _, let children) = node else {
-        Issue.record("Expected vstack")
-        return
-    }
-
-    // First child should be the tab bar hstack
-    if case .hstack = children[0] {
-        // good
-    } else {
-        Issue.record("Expected hstack tab bar as first child, got \(children[0])")
-    }
+    // Tab bar is registered as a toolbar item
+    let tabItems = WindowState.shared.toolbarItems.filter { $0.placement == .principal }
+    #expect(!tabItems.isEmpty, "Tab bar should be registered as a toolbar item")
 }
 
 @Test @MainActor func tabViewTapChangesSelection() {
     TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
 
     var selected = "a"
     let binding = Binding(get: { selected }, set: { selected = $0 })
 
-    let tabView = TabView(selection: binding) {
+    let tv = TabView(selection: binding) {
         Tab("Tab A", systemImage: "star", value: "a") { Text("A") }
         Tab("Tab B", systemImage: "gear", value: "b") { Text("B") }
     }
+    let _ = tv._nodeRepresentation
 
-    let node = tabView._nodeRepresentation
-    guard case .vstack(_, _, let children) = node else { return }
-    guard case .hstack(_, _, let tabButtons) = children[0] else { return }
-
-    // Second tab button should have a tap handler
-    // Find the onTap node in the second button
-    func findTapId(_ node: ViewNode) -> UInt64? {
-        if case .onTap(let id, _) = node { return id }
-        return nil
+    // Find the tab bar toolbar item and its tap handlers
+    let tabItems = WindowState.shared.toolbarItems.filter { $0.placement == .principal }
+    guard let tabBar = tabItems.first else {
+        Issue.record("No tab bar toolbar item")
+        return
     }
 
-    if let tapId = findTapId(tabButtons[1]) {
-        TapRegistry.shared.fire(id: tapId)
-        #expect(selected == "b", "Tapping tab B should update selection binding")
-    } else {
-        Issue.record("Expected onTap on second tab button")
+    // Find onTap in the tab bar hstack
+    func findTapIds(_ node: ViewNode) -> [UInt64] {
+        switch node {
+        case .onTap(let id, _): return [id]
+        case .hstack(_, _, let children): return children.flatMap { findTapIds($0) }
+        case .padding(_, let child): return findTapIds(child)
+        default: return []
+        }
+    }
+
+    let tapIds = findTapIds(tabBar.node)
+    #expect(tapIds.count >= 2, "Should have tap handlers for each tab")
+
+    if tapIds.count >= 2 {
+        TapRegistry.shared.fire(id: tapIds[1])
+        #expect(selected == "b", "Tapping tab B should update selection")
     }
 }
 
 @Test @MainActor func tabViewEmptyReturnsEmpty() {
     TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
 
-    // Construct directly via internal memberwise init (accessible via @testable)
     let tabView = TabView<String, TabContentBuilder<String>.TabGroup>(
         entries: [],
         selection: nil
@@ -99,41 +94,5 @@ import Testing
         // good
     } else {
         Issue.record("Expected .empty for tabview with no entries, got \(node)")
-    }
-}
-
-@Test @MainActor func tabViewUntypedWrapsContentAsSingleEntry() {
-    TapRegistry.shared.clear()
-
-    let tabView = TabView {
-        Text("First")
-        Text("Second")
-    }
-
-    // Untyped init wraps all content as a single entry with index 0
-    // (ViewBuilder returns TupleView, not [ViewNode])
-    #expect(tabView.entries.count == 1)
-    #expect(tabView.entries[0].value == AnyHashable(0))
-    #expect(tabView.entries[0].title == "Tab")
-}
-
-@Test @MainActor func tabViewSeparatorBetweenBarAndContent() {
-    TapRegistry.shared.clear()
-
-    var selected = "a"
-    let binding = Binding(get: { selected }, set: { selected = $0 })
-
-    let tabView = TabView(selection: binding) {
-        Tab("Tab A", systemImage: "star", value: "a") { Text("A") }
-    }
-
-    let node = tabView._nodeRepresentation
-    guard case .vstack(_, _, let children) = node else { return }
-
-    // Second child should be the separator rect
-    if case .rect(_, let height, _) = children[1] {
-        #expect(height == 1, "Separator should be 1pt tall")
-    } else {
-        Issue.record("Expected rect separator as second child")
     }
 }

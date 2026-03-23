@@ -582,11 +582,11 @@ public extension View {
         _ModifiedView(node: _resolve(self).listRowBackground(view))
     }
 
-    func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C) -> _ModifiedView<Self> {
-        let items = _flattenToNodes(content())
-        for item in items {
-            WindowState.shared.toolbarItems.append(ToolbarItemData(placement: .automatic, node: item))
-        }
+    func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C, file: String = #fileID, line: Int = #line) -> _ModifiedView<Self> {
+        let sourceKey = "\(file):\(line)"
+        let nodes = _flattenToNodes(content())
+        let items = nodes.map { ToolbarItemData(placement: .automatic, node: $0, sourceKey: sourceKey) }
+        WindowState.shared.addToolbarItems(items, sourceKey: sourceKey)
         return _ModifiedView(node: _resolve(self))
     }
 

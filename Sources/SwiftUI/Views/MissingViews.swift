@@ -278,24 +278,26 @@ extension ToolbarItem where ID == Void {
 extension ToolbarItem: ToolbarContent {}
 
 /// The placement of a toolbar item.
-public struct ToolbarItemPlacement: Sendable {
-    public static let automatic = ToolbarItemPlacement()
-    public static let navigation = ToolbarItemPlacement()
-    public static let primaryAction = ToolbarItemPlacement()
-    public static let cancellationAction = ToolbarItemPlacement()
-    public static let confirmationAction = ToolbarItemPlacement()
-    public static let destructiveAction = ToolbarItemPlacement()
-    public static let status = ToolbarItemPlacement()
-    public static let navigationBarLeading = ToolbarItemPlacement()
-    public static let navigationBarTrailing = ToolbarItemPlacement()
-    public static let bottomBar = ToolbarItemPlacement()
-    public static let keyboard = ToolbarItemPlacement()
-    public static let topBarLeading = ToolbarItemPlacement()
-    public static let topBarTrailing = ToolbarItemPlacement()
-    public static let principal = ToolbarItemPlacement()
-    public static let search = ToolbarItemPlacement()
-    public static let sidebarToggle = ToolbarItemPlacement()
-    public static let secondaryAction = ToolbarItemPlacement()
+public struct ToolbarItemPlacement: Sendable, Equatable {
+    let id: Int
+    init(_ id: Int = 0) { self.id = id }
+    public static let automatic = ToolbarItemPlacement(0)
+    public static let navigation = ToolbarItemPlacement(1)
+    public static let primaryAction = ToolbarItemPlacement(2)
+    public static let cancellationAction = ToolbarItemPlacement(3)
+    public static let confirmationAction = ToolbarItemPlacement(4)
+    public static let destructiveAction = ToolbarItemPlacement(5)
+    public static let status = ToolbarItemPlacement(6)
+    public static let navigationBarLeading = ToolbarItemPlacement(7)
+    public static let navigationBarTrailing = ToolbarItemPlacement(8)
+    public static let bottomBar = ToolbarItemPlacement(9)
+    public static let keyboard = ToolbarItemPlacement(10)
+    public static let topBarLeading = ToolbarItemPlacement(11)
+    public static let topBarTrailing = ToolbarItemPlacement(12)
+    public static let principal = ToolbarItemPlacement(13)
+    public static let search = ToolbarItemPlacement(14)
+    public static let sidebarToggle = ToolbarItemPlacement(15)
+    public static let secondaryAction = ToolbarItemPlacement(16)
 }
 
 /// A protocol for toolbar content.

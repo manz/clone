@@ -14,6 +14,14 @@ public final class WindowState: @unchecked Sendable {
 
     /// Toolbar items collected during view tree build. Reset each frame.
     public var toolbarItems: [ToolbarItemData] = []
+    /// Source keys already seen this frame — prevents duplicates from multi-path evaluation.
+    private var toolbarSourceKeys: Set<String> = []
+
+    /// Add toolbar items, skipping duplicates from the same source location.
+    public func addToolbarItems(_ items: [ToolbarItemData], sourceKey: String) {
+        guard toolbarSourceKeys.insert(sourceKey).inserted else { return }
+        toolbarItems.append(contentsOf: items)
+    }
 
     /// The title from the previous frame — used to detect changes.
     internal var previousTitle: String?
@@ -26,6 +34,7 @@ public final class WindowState: @unchecked Sendable {
         self.height = height
         self.navigationTitle = nil // Reset — views will set it during tree build
         self.toolbarItems = []
+        self.toolbarSourceKeys = []
     }
 
     /// Returns true if the title changed since last frame.
@@ -40,6 +49,7 @@ public final class WindowState: @unchecked Sendable {
 public struct ToolbarItemData {
     public let placement: ToolbarItemPlacement
     public let node: ViewNode
+    public let sourceKey: String  // file:line to deduplicate
 }
 
 // MARK: - System Actions

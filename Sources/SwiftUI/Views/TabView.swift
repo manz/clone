@@ -32,38 +32,43 @@ public struct TabView<SelectionValue: Hashable, Content>: _PrimitiveView {
 
         let selectedValue: AnyHashable = selection.map { AnyHashable($0.wrappedValue) } ?? entries[0].value
 
-        // Build tab bar buttons
+        // Build tab bar buttons with capsule style
         let tabButtons: [ViewNode] = entries.map { entry in
             let isSelected = entry.value == selectedValue
             let label = _resolve(Label(entry.title, systemImage: entry.systemImage))
             let styled: ViewNode = isSelected
-                ? label.foregroundColor(.accentColor).bold()
+                ? label.foregroundColor(.primary)
                 : label.foregroundColor(.secondary)
+
+            // Capsule background for selected tab
+            let capsule: ViewNode = isSelected
+                ? styled.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                    .background(Color(white: 0.88), cornerRadius: 14)
+                : styled.padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
 
             if let selection = selection {
                 let entryValue = entry.value
                 let tapId = TapRegistry.shared.register {
-                    // Cast back to SelectionValue and set binding
                     if let v = entryValue.base as? SelectionValue {
                         selection.wrappedValue = v
                     }
                 }
-                return .onTap(id: tapId, child: styled.padding(8))
+                return .onTap(id: tapId, child: capsule)
             }
-            return styled.padding(8)
+            return capsule
         }
 
-        let tabBar: ViewNode = .hstack(alignment: .center, spacing: 0, children: tabButtons)
+        let tabBar = ViewNode.hstack(alignment: .center, spacing: 4, children: tabButtons)
 
-        // Selected content
+        // Register tab bar as a toolbar item (renders in the toolbar area)
+        WindowState.shared.addToolbarItems(
+            [ToolbarItemData(placement: .principal, node: tabBar, sourceKey: "_tabview_tabs")],
+            sourceKey: "_tabview_tabs"
+        )
+
+        // Only return the selected content — tab bar is in the toolbar
         let content = entries.first(where: { $0.value == selectedValue })?.content ?? entries[0].content
-
-        // VStack: tab bar on top, content below
-        return .vstack(alignment: .leading, spacing: 0, children: [
-            tabBar,
-            ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.85)),
-            content,
-        ])
+        return content
     }
 }
 

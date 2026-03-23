@@ -164,23 +164,8 @@ extension App {
                     .background(config.role == .window ? WindowChrome.surface : .clear)
                 // Flush deferred onChange actions after view tree is built
                 OnChangeRegistry.shared.flushActions()
-                // Prepend toolbar items as a top bar if any were collected
-                let toolbarItems = WindowState.shared.toolbarItems
-                if !toolbarItems.isEmpty && config.role == .window {
-                    // Wrap each item to prevent infinite expansion
-                    let toolbarNodes: [ViewNode] = toolbarItems.map { item in
-                        ViewNode.frame(width: nil, height: 28, child: item.node)
-                    }
-                    let toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children:
-                        [.spacer(minLength: 0)] + toolbarNodes
-                    ).padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                     .background(Color(white: 0.94))
-                    viewTree = .vstack(alignment: .leading, spacing: 0, children: [
-                        toolbarBar,
-                        ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.85)),
-                        viewTree,
-                    ])
-                }
+                // Prepend toolbar items
+                viewTree = prependToolbar(viewTree, role: config.role)
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
                 // Overlay open panel if active
@@ -219,8 +204,10 @@ extension App {
                     TagRegistry.shared.resetCounter()
                     StateGraph.shared.resetCounter()
                     WindowState.shared.update(width: cw, height: ch)
-                    let viewTree = windowGroup.buildViewNode()
+                    var viewTree = windowGroup.buildViewNode()
                     OnChangeRegistry.shared.flushActions()
+                    // Prepend toolbar (must match render layout for hit testing)
+                    viewTree = prependToolbar(viewTree, role: config.role)
                     let layoutNode = Layout.layout(
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
@@ -319,6 +306,34 @@ extension App {
         app.client.runLoop()
         fputs("\(title) disconnected\n", stderr)
     }
+}
+
+/// Prepend toolbar items to the view tree if any were collected.
+@MainActor func prependToolbar(_ viewTree: ViewNode, role: SurfaceRole) -> ViewNode {
+    let toolbarItems = WindowState.shared.toolbarItems
+    guard !toolbarItems.isEmpty && role == .window else { return viewTree }
+
+    let centerItems = toolbarItems.filter { $0.placement == .principal }
+    let rightItems = toolbarItems.filter { $0.placement != .principal }
+
+    var barChildren: [ViewNode] = [.spacer(minLength: 0)]
+
+    if !centerItems.isEmpty {
+        barChildren.append(contentsOf: centerItems.map(\.node))
+        barChildren.append(.spacer(minLength: 0))
+    }
+
+    for item in rightItems {
+        barChildren.append(ViewNode.frame(width: nil, height: 28, child: item.node))
+    }
+
+    let toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children: barChildren)
+        .padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+    return .vstack(alignment: .leading, spacing: 0, children: [
+        toolbarBar,
+        ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.85)),
+        viewTree,
+    ])
 }
 
 // MARK: - Internal Helpers

@@ -918,6 +918,14 @@ public extension ViewNode {
         ])
     }
 
+    /// `.background(_:cornerRadius:)` — rounded background.
+    func background(_ color: Color, cornerRadius: CGFloat) -> ViewNode {
+        .zstack(children: [
+            .roundedRect(width: nil, height: nil, radius: cornerRadius, fill: color),
+            self,
+        ])
+    }
+
     /// `.background(_:)` — background with arbitrary view (e.g. LinearGradient).
     @MainActor func background<V: View>(_ view: V) -> ViewNode {
         .zstack(children: [_resolve(view), self])
