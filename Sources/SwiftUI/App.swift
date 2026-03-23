@@ -147,6 +147,11 @@ extension App {
                 fputs("App.body must contain a WindowGroup\n", stderr)
                 exit(1)
             }
+            // Register app menus with compositor (collected from .commands {} on Scene)
+            let appMenus = WindowState.shared.appMenus
+            if !appMenus.isEmpty {
+                app.client.send(.registerMenus(menus: appMenus))
+            }
             app.client.onFrameRequest = { w, h in
                 let width = CGFloat(w)
                 let height = CGFloat(h)

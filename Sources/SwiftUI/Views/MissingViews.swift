@@ -1,4 +1,5 @@
 import Foundation
+import CloneProtocol
 
 // MARK: - Form
 
@@ -331,39 +332,57 @@ public protocol Commands {}
 
 /// A group of commands that replaces or augments an existing command group.
 public struct CommandGroup<Content: View>: Commands, _PrimitiveView {
-    public init(replacing: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
-    public init(after: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
-    public init(before: CommandGroupPlacement, @ViewBuilder content: () -> Content) {}
+    public init(replacing: CommandGroupPlacement, @ViewBuilder content: () -> Content) {
+        let items = _extractMenuItems(content())
+        let placementName = replacing.name ?? "Commands"
+        MenuRegistry.shared.addMenu(AppMenu(title: placementName, items: items))
+    }
+    public init(after: CommandGroupPlacement, @ViewBuilder content: () -> Content) {
+        let items = _extractMenuItems(content())
+        let placementName = after.name ?? "Commands"
+        MenuRegistry.shared.addMenu(AppMenu(title: placementName, items: items))
+    }
+    public init(before: CommandGroupPlacement, @ViewBuilder content: () -> Content) {
+        let items = _extractMenuItems(content())
+        let placementName = before.name ?? "Commands"
+        MenuRegistry.shared.addMenu(AppMenu(title: placementName, items: items))
+    }
     public var _nodeRepresentation: ViewNode { .empty }
 }
 
 /// A custom command menu.
 public struct CommandMenu<Content: View>: Commands, _PrimitiveView {
-    public init(_ name: String, @ViewBuilder content: () -> Content) {}
+    public init(_ name: String, @ViewBuilder content: () -> Content) {
+        let items = _extractMenuItems(content())
+        let menu = AppMenu(title: name, items: items)
+        MenuRegistry.shared.addMenu(menu)
+    }
     public var _nodeRepresentation: ViewNode { .empty }
 }
 
 /// The placement of a command group.
 public struct CommandGroupPlacement: Sendable {
-    public static let appInfo = CommandGroupPlacement()
-    public static let appSettings = CommandGroupPlacement()
-    public static let appTermination = CommandGroupPlacement()
-    public static let appVisibility = CommandGroupPlacement()
-    public static let newItem = CommandGroupPlacement()
-    public static let pasteboard = CommandGroupPlacement()
-    public static let saveItem = CommandGroupPlacement()
-    public static let sidebar = CommandGroupPlacement()
-    public static let systemServices = CommandGroupPlacement()
-    public static let textEditing = CommandGroupPlacement()
-    public static let textFormatting = CommandGroupPlacement()
-    public static let undoRedo = CommandGroupPlacement()
-    public static let windowArrangement = CommandGroupPlacement()
-    public static let windowList = CommandGroupPlacement()
-    public static let windowSize = CommandGroupPlacement()
-    public static let importExport = CommandGroupPlacement()
-    public static let printItem = CommandGroupPlacement()
-    public static let help = CommandGroupPlacement()
-    public static let toolbar = CommandGroupPlacement()
+    public let name: String?
+    init(_ name: String? = nil) { self.name = name }
+    public static let appInfo = CommandGroupPlacement("App Info")
+    public static let appSettings = CommandGroupPlacement("Settings")
+    public static let appTermination = CommandGroupPlacement("App")
+    public static let appVisibility = CommandGroupPlacement("App")
+    public static let newItem = CommandGroupPlacement("File")
+    public static let pasteboard = CommandGroupPlacement("Edit")
+    public static let saveItem = CommandGroupPlacement("File")
+    public static let sidebar = CommandGroupPlacement("View")
+    public static let systemServices = CommandGroupPlacement("App")
+    public static let textEditing = CommandGroupPlacement("Edit")
+    public static let textFormatting = CommandGroupPlacement("Format")
+    public static let undoRedo = CommandGroupPlacement("Edit")
+    public static let windowArrangement = CommandGroupPlacement("Window")
+    public static let windowList = CommandGroupPlacement("Window")
+    public static let windowSize = CommandGroupPlacement("Window")
+    public static let importExport = CommandGroupPlacement("File")
+    public static let printItem = CommandGroupPlacement("File")
+    public static let help = CommandGroupPlacement("Help")
+    public static let toolbar = CommandGroupPlacement("View")
 }
 
 // MARK: - NSViewRepresentable

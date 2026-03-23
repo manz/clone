@@ -1,4 +1,5 @@
 import Foundation
+import CloneProtocol
 
 /// Shared state for the current window, updated by the App runtime each frame.
 /// Views read this for window dimensions; `.navigationTitle()` writes to it.
@@ -14,6 +15,9 @@ public final class WindowState: @unchecked Sendable {
 
     /// Toolbar items collected during view tree build. Reset each frame.
     public var toolbarItems: [ToolbarItemData] = []
+
+    /// App menus collected from .commands {} on Scene. Sent to compositor once.
+    public var appMenus: [AppMenu] = []
     /// Source keys already seen this frame — prevents duplicates from multi-path evaluation.
     private var toolbarSourceKeys: Set<String> = []
 

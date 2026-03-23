@@ -23,8 +23,14 @@ public struct SceneBuilder {
 // MARK: - Scene modifiers
 
 extension Scene {
-    /// `.commands { }` — attaches command menus to the scene. No-op on Clone.
-    public func commands(@ViewBuilder content: () -> some View) -> some Scene { self }
+    /// `.commands { }` — collects menus from CommandMenu/CommandGroup and registers them.
+    public func commands(@ViewBuilder content: () -> some View) -> some Scene {
+        let menus = MenuRegistry.shared.collectFromCommands(content: content)
+        if !menus.isEmpty {
+            WindowState.shared.appMenus = menus
+        }
+        return self
+    }
 
     /// `.defaultSize(width:height:)` — sets the default window size. No-op on Clone.
     public func defaultSize(width: CGFloat, height: CGFloat) -> some Scene { self }
