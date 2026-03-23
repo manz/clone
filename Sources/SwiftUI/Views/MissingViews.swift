@@ -279,7 +279,7 @@ extension ToolbarItem where ID == Void {
 extension ToolbarItem: ToolbarContent {}
 
 /// The placement of a toolbar item.
-public struct ToolbarItemPlacement: Sendable, Equatable {
+public struct ToolbarItemPlacement: Sendable, Equatable, Hashable {
     let id: Int
     init(_ id: Int = 0) { self.id = id }
     public static let automatic = ToolbarItemPlacement(0)

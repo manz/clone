@@ -323,16 +323,29 @@ extension App {
     let toolbarItems = WindowState.shared.toolbarItems
     guard !toolbarItems.isEmpty && role == .window else { return viewTree }
 
-    let centerItems = toolbarItems.filter { $0.placement == .principal }
-    let rightItems = toolbarItems.filter { $0.placement != .principal }
+    let leftPlacements: Set<ToolbarItemPlacement> = [.navigation, .navigationBarLeading, .topBarLeading, .cancellationAction]
+    let centerPlacements: Set<ToolbarItemPlacement> = [.principal]
 
-    var barChildren: [ViewNode] = [.spacer(minLength: 0)]
+    let leftItems = toolbarItems.filter { leftPlacements.contains($0.placement) }
+    let centerItems = toolbarItems.filter { centerPlacements.contains($0.placement) }
+    let rightItems = toolbarItems.filter { !leftPlacements.contains($0.placement) && !centerPlacements.contains($0.placement) }
 
+    var barChildren: [ViewNode] = []
+
+    // Left items
+    for item in leftItems {
+        barChildren.append(ViewNode.frame(width: nil, height: 28, child: item.node))
+    }
+
+    barChildren.append(.spacer(minLength: 0))
+
+    // Center items
     if !centerItems.isEmpty {
         barChildren.append(contentsOf: centerItems.map(\.node))
         barChildren.append(.spacer(minLength: 0))
     }
 
+    // Right items
     for item in rightItems {
         barChildren.append(ViewNode.frame(width: nil, height: 28, child: item.node))
     }
