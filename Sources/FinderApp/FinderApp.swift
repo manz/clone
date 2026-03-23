@@ -389,46 +389,35 @@ final class FinderState: ObservableObject {
     .background(sidebarBgColor)
 }
 
-@MainActor func columnHeadersView(width: CGFloat) -> some View {
-    let labels = HStack(alignment: .center, spacing: 0) {
-        Rectangle().fill(.clear).frame(width: 40, height: 1)
-        Text("Name").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
-        Spacer()
-        Text("Size").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
-        Rectangle().fill(.clear).frame(width: 20, height: 1)
-    }.frame(width: width, height: headerHeight)
-
-    let border = VStack(alignment: .center, spacing: 0) {
-        Spacer()
-        Rectangle().fill(overlayColor).frame(height: 1)
-    }.frame(width: width, height: headerHeight)
-
-    return ZStack {
-        Rectangle().fill(surfaceColor).frame(width: width, height: headerHeight)
-        labels
-        border
-    }.frame(width: width, height: headerHeight)
+@MainActor func columnHeadersView() -> some View {
+    ZStack {
+        Rectangle().fill(surfaceColor)
+        HStack(alignment: .center, spacing: 0) {
+            Rectangle().fill(.clear).frame(width: 40, height: 1)
+            Text("Name").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
+            Spacer()
+            Text("Size").font(.system(size: 11, weight: .semibold)).foregroundColor(subtleColor)
+            Rectangle().fill(.clear).frame(width: 20, height: 1)
+        }
+        VStack { Spacer(); Rectangle().fill(overlayColor).frame(height: 1) }
+    }.frame(maxWidth: .infinity, maxHeight: headerHeight)
 }
 
-@MainActor func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int, width: CGFloat, listTop: CGFloat) -> some View {
+@MainActor func fileRowView(state: FinderState, entry: FinderState.FileEntry, index: Int) -> some View {
     let isSelected = state.selectedIndex == index
     let (iconColor, _) = state.fileKind(entry.name)
     let sizeText = state.formatSize(entry)
     let rowBg: Color = isSelected ? selectionColor : .clear
 
-    let content = HStack(alignment: .center, spacing: 6) {
+    return HStack(alignment: .center, spacing: 6) {
         Rectangle().fill(.clear).frame(width: 6, height: 1)
         RoundedRectangle(cornerRadius: 4).fill(iconColor).frame(width: 20, height: 20)
         Text(entry.name).font(.system(size: 13)).foregroundColor(textColor)
         Spacer()
         Text(sizeText).font(.system(size: 11)).foregroundColor(subtleColor)
         Rectangle().fill(.clear).frame(width: 14, height: 1)
-    }.frame(width: width, height: rowHeight)
-
-    return ZStack {
-        Rectangle().fill(rowBg).frame(width: width, height: rowHeight)
-        content
-    }.frame(width: width, height: rowHeight)
+    }.frame(maxWidth: .infinity, maxHeight: rowHeight)
+    .background(rowBg)
     .contentShape(Rectangle())
     .onTapGesture(count: 2) {
         if entry.isDirectory { state.navigate(to: entry.name) }
@@ -454,38 +443,28 @@ final class FinderState: ObservableObject {
     }
 }
 
-@MainActor func fileListView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
-    let maxRows = Int(height / rowHeight)
-    let listTop = toolbarHeight + headerHeight
-
-    return VStack(alignment: .leading, spacing: 0) {
-        ForEach(Array(state.entries.prefix(maxRows).enumerated()), id: \.offset) { i, entry in
-            fileRowView(state: state, entry: entry, index: i, width: width, listTop: listTop)
+@MainActor func fileListView(state: FinderState) -> some View {
+    List {
+        ForEach(Array(state.entries.enumerated()), id: \.offset) { i, entry in
+            fileRowView(state: state, entry: entry, index: i)
         }
-        Spacer()
-    }.frame(width: width, height: height)
+    }
+    .listStyle(.inset(alternatesRowBackgrounds: true))
 }
 
-@MainActor func statusBarView(state: FinderState, width: CGFloat) -> some View {
+@MainActor func statusBarView(state: FinderState) -> some View {
     let itemCount = state.entries.count
     let label = itemCount == 1 ? "1 item" : "\(itemCount) items"
 
-    let topBorder = VStack(alignment: .center, spacing: 0) {
-        Rectangle().fill(overlayColor).frame(width: width, height: 1)
-        Spacer()
-    }.frame(width: width, height: statusBarHeight)
-
-    let text = HStack(alignment: .center, spacing: 0) {
-        Rectangle().fill(.clear).frame(width: 12, height: 1)
-        Text(label).font(.system(size: 11)).foregroundColor(subtleColor)
-        Spacer()
-    }.frame(width: width, height: statusBarHeight)
-
     return ZStack {
-        Rectangle().fill(surfaceColor).frame(width: width, height: statusBarHeight)
-        topBorder
-        text
-    }.frame(width: width, height: statusBarHeight)
+        Rectangle().fill(surfaceColor)
+        VStack { Rectangle().fill(overlayColor).frame(height: 1); Spacer() }
+        HStack {
+            Rectangle().fill(.clear).frame(width: 12, height: 1)
+            Text(label).font(.system(size: 11)).foregroundColor(subtleColor)
+            Spacer()
+        }
+    }.frame(maxWidth: .infinity, maxHeight: statusBarHeight)
 }
 
 @MainActor func contextMenuItemView(item: MenuItem, isHovered: Bool) -> some View {
@@ -505,6 +484,8 @@ final class FinderState: ObservableObject {
         .padding(.leading, 4)
 }
 
+// TODO: Context menu and info panel need reimplementation as overlays
+// rather than imperative positioned views
 @MainActor func contextMenuView(menu: ContextMenu, width: CGFloat, height: CGFloat) -> some View {
     let menuHeight = CGFloat(menu.items.count) * contextMenuItemHeight + 8
     let menuX = min(menu.anchorX, width - contextMenuWidth - 4)
@@ -600,27 +581,16 @@ final class FinderState: ObservableObject {
     }
 }
 
-@MainActor func finderView(state: FinderState, width: CGFloat, height: CGFloat) -> some View {
-    let listWidth = width - sidebarWidth - 1 // -1 for divider
-    let listHeight = height - toolbarHeight - headerHeight - statusBarHeight
-
-    return ZStack {
-        NavigationSplitView(sidebarWidth: sidebarWidth, sidebar: {
-            sidebarContentView(state: state)
-        }, detail: {
-            VStack(alignment: .leading, spacing: 0) {
-                columnHeadersView(width: listWidth)
-                fileListView(state: state, width: listWidth, height: listHeight)
-                statusBarView(state: state, width: listWidth)
-            }
-        })
-        if let menu = state.contextMenu {
-            contextMenuView(menu: menu, width: width, height: height)
+@MainActor func finderView(state: FinderState) -> some View {
+    NavigationSplitView(sidebarWidth: sidebarWidth, sidebar: {
+        sidebarContentView(state: state)
+    }, detail: {
+        VStack(alignment: .leading, spacing: 0) {
+            columnHeadersView()
+            fileListView(state: state)
+            statusBarView(state: state)
         }
-        if let info = state.infoPanel {
-            infoPanelView(info: info, width: width, height: height)
-        }
-    }.frame(width: width, height: height)
+    })
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 navButtonGroup(state: state)
@@ -642,7 +612,31 @@ struct FinderApp: App {
 
     var body: some Scene {
         WindowGroup("Finder") {
-            finderView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
+            NavigationSplitView {
+                List {
+                    Section("Favorites") {
+                        ForEach(favorites, id: \.name) { fav in
+                            Label(fav.name, systemImage: "folder")
+                                .onTapGesture { state.navigateTo(fav.path) }
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+            } detail: {
+                List(state.entries, id: \.name) { entry in
+                    HStack {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(state.fileKind(entry.name).0)
+                            .frame(width: 20, height: 20)
+                        Text(entry.name)
+                        Spacer()
+                        Text(state.formatSize(entry))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .onTapGesture { state.selectedIndex = state.entries.firstIndex(where: { $0.name == entry.name }) ?? 0 }
+                }
+            }
         }
     }
 }
