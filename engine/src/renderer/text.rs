@@ -24,7 +24,7 @@ pub struct GlyphInstance {
     pub _pad: [f32; 3],
 }
 
-const ATLAS_SIZE: u32 = 1024;
+const ATLAS_SIZE: u32 = 4096;
 const MAX_GLYPH_INSTANCES: usize = 4096;
 
 /// Text shaping and atlas management.
@@ -194,7 +194,7 @@ impl TextRenderer {
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: wgpu::TextureFormat::Depth32Float,
-                depth_write_enabled: true,
+                depth_write_enabled: false,  // Text doesn't write depth (transparent pixels would block)
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
@@ -330,7 +330,7 @@ impl TextRenderer {
         }
 
         if self.atlas_cursor_y + height > ATLAS_SIZE {
-            return None; // Atlas full
+            return None; // Atlas full — glyph silently dropped
         }
 
         let x = self.atlas_cursor_x;
