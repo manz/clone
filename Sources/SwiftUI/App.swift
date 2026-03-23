@@ -151,11 +151,12 @@ extension App {
                 let width = CGFloat(w)
                 let height = CGFloat(h)
                 GeometryReaderRegistry.shared.clear()
-                TapRegistry.shared.clear()
-                TextFieldRegistry.shared.clear()
+                TapRegistry.shared.resetCounter()
+                TextFieldRegistry.shared.resetCounter()
+                HoverRegistry.shared.resetCounter()
                 OnceRegistry.shared.resetCounter()
                 OnChangeRegistry.shared.resetCounter()
-                TagRegistry.shared.clear()
+                TagRegistry.shared.resetCounter()
                 StateGraph.shared.resetCounter()
                 WindowState.shared.update(width: width, height: height)
                 // Default opaque background like real SwiftUI windows
@@ -193,11 +194,12 @@ extension App {
                     let ch = CGFloat(app.client.height)
                     // Reset all registries before rebuilding view tree for tap handling
                     GeometryReaderRegistry.shared.clear()
-                    TapRegistry.shared.clear()
-                    TextFieldRegistry.shared.clear()
+                    TapRegistry.shared.resetCounter()
+                    TextFieldRegistry.shared.resetCounter()
+                    HoverRegistry.shared.resetCounter()
                     OnceRegistry.shared.resetCounter()
                     OnChangeRegistry.shared.resetCounter()
-                    TagRegistry.shared.clear()
+                    TagRegistry.shared.resetCounter()
                     StateGraph.shared.resetCounter()
                     WindowState.shared.update(width: cw, height: ch)
                     let viewTree = windowGroup.buildViewNode()
@@ -225,7 +227,6 @@ extension App {
                 let ch = CGFloat(app.client.height)
                 // Use cached view tree from last frame — don't rebuild on hover
                 guard let viewTree = _cachedViewTree else { return }
-                HoverRegistry.shared.clear()
                 let layoutNode = Layout.layout(
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)

@@ -25,7 +25,13 @@ public final class TapRegistry: @unchecked Sendable {
     /// Number of registered handlers.
     public var count: Int { handlers.count }
 
-    /// Clear all handlers (call between frames).
+    /// Reset counter so the same call sequence produces the same IDs.
+    /// Handlers survive — new registrations overwrite at the same IDs.
+    public func resetCounter() {
+        nextId = 1
+    }
+
+    /// Full reset (for tests).
     public func clear() {
         handlers.removeAll()
         nextId = 1

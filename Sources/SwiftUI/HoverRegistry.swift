@@ -52,15 +52,18 @@ public final class HoverRegistry: @unchecked Sendable {
         activeIds = hitIds
     }
 
-    /// Clear all handlers (called each frame before rebuilding the view tree).
-    public func clear() {
-        boolHandlers.removeAll()
-        phaseHandlers.removeAll()
+    /// Reset counter so the same call sequence produces the same IDs.
+    /// Handlers survive — new registrations overwrite at the same IDs.
+    /// activeIds is preserved so hover state stays consistent across frames.
+    public func resetCounter() {
         nextId = 1
     }
 
-    /// Clear active state without firing handlers (for frame reset).
-    public func resetActive() {
+    /// Full reset (for tests).
+    public func clear() {
+        boolHandlers.removeAll()
+        phaseHandlers.removeAll()
         activeIds.removeAll()
+        nextId = 1
     }
 }

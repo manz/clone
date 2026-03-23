@@ -36,7 +36,14 @@ public final class TagRegistry: @unchecked Sendable {
         selections[key]
     }
 
-    /// Clear all tags (called each frame). Selections persist.
+    /// Reset counter so the same call sequence produces the same IDs.
+    /// Tags survive — new registrations overwrite at the same IDs.
+    /// Selections persist across frames.
+    public func resetCounter() {
+        nextId = 1
+    }
+
+    /// Full reset of tags (for tests). Selections persist.
     public func clear() {
         tags.removeAll()
         nextId = 1

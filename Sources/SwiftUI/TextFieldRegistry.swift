@@ -125,6 +125,14 @@ public final class TextFieldRegistry: @unchecked Sendable {
 
     // MARK: - Lifecycle
 
+    /// Reset counter so the same call sequence produces the same IDs.
+    /// Entries survive — new registrations overwrite at the same IDs.
+    /// focusedId and persistedText persist across frames.
+    public func resetCounter() {
+        nextId = 1
+        orderedIds.removeAll()
+    }
+
     /// Clear all entries (called each frame before rebuilding the view tree).
     /// Preserves the focused ID so focus persists across frames.
     public func clear() {
