@@ -510,17 +510,7 @@ private func extractTextColor(_ node: ViewNode) -> Color? {
 extension ViewNode {
     /// `.listStyle(_:)` — no-op on Clone.
     func listStyle<S: ListStyle>(_ style: S) -> ViewNode {
-        if style is InsetListStyle {
-            // Inset style: add alternating row backgrounds to list children
-            if case .list(let children) = self {
-                let styled = children.enumerated().map { (i, child) -> ViewNode in
-                    let bg: Color = i % 2 == 0 ? .clear : Color(white: 0.96)
-                    return child.background(bg)
-                }
-                return .list(children: styled)
-            }
-        }
-        return self
+        self
     }
 
     /// `.pickerStyle(_:)` — no-op on Clone.

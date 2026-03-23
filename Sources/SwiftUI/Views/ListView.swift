@@ -60,17 +60,7 @@ public struct List: _PrimitiveView {
     }
 
     public var _nodeRepresentation: ViewNode {
-        // Row padding + alternating backgrounds (default inset style)
-        let styledChildren = children.enumerated().map { (i, child) -> ViewNode in
-            let bg: Color = i % 2 == 0 ? .clear : Color(white: 0.96)
-            return child
-                .padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                .background(bg)
-        }
-        // List is inherently scrollable
-        return .scrollView(axis: .vertical, children: [
-            ViewNode.vstack(alignment: .leading, spacing: 0, children: styledChildren)
-        ], key: "List:\(children.count)")
+        .list(children: children)
     }
 
     // MARK: - Selection wiring
