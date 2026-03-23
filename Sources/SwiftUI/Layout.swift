@@ -196,9 +196,9 @@ public enum Layout {
             // ScrollView fills the proposed size (content scrolls within)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .list(_):
-            // List fills proposed size (scrollable container)
-            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
+        case .list(let children):
+            // Measure intrinsically (padding added in layout, not measurement)
+            return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
