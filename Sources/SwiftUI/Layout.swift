@@ -308,17 +308,45 @@ public enum Layout {
         case .scrollView(let axis, let children):
             // Layout children with unbounded constraint in the scroll axis,
             // then wrap in a clipped node so overflow is hidden.
+            // Apply scroll offset from ScrollRegistry.
+            let scrollKey = "\(Int(frame.x)):\(Int(frame.y)):\(Int(frame.width)):\(Int(frame.height))"
+            let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
+
             let contentLayout: LayoutNode
             if axis == .vertical {
-                // Unbounded height for vertical scrolling
-                let contentFrame = LayoutFrame(x: frame.x, y: frame.y, width: frame.width, height: .greatestFiniteMagnitude)
+                let contentFrame = LayoutFrame(x: frame.x, y: frame.y - offset, width: frame.width, height: .greatestFiniteMagnitude)
                 contentLayout = layoutVStack(alignment: .leading, spacing: 0, children: children, in: contentFrame)
+                // Register frame for scroll hit testing
+                let contentHeight = contentLayout.children.last.map { $0.frame.y + $0.frame.height - frame.y + offset } ?? 0
+                ScrollRegistry.shared.registerFrame(frame, contentHeight: contentHeight, key: scrollKey)
             } else {
-                let contentFrame = LayoutFrame(x: frame.x, y: frame.y, width: .greatestFiniteMagnitude, height: frame.height)
+                let contentFrame = LayoutFrame(x: frame.x - offset, y: frame.y, width: .greatestFiniteMagnitude, height: frame.height)
                 contentLayout = layoutHStack(alignment: .top, spacing: 0, children: children, in: contentFrame)
+                let contentWidth = contentLayout.children.last.map { $0.frame.x + $0.frame.width - frame.x + offset } ?? 0
+                ScrollRegistry.shared.registerFrame(frame, contentHeight: contentWidth, key: scrollKey)
             }
             // Clip to the ScrollView's frame
-            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentLayout])
+            let clippedContent = LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentLayout])
+
+            // Scrollbar indicator (vertical only, when content overflows)
+            if axis == .vertical {
+                let contentHeight = contentLayout.children.last.map { $0.frame.y + $0.frame.height - frame.y + offset } ?? 0
+                if contentHeight > frame.height {
+                    let scrollbarWidth: CGFloat = 6
+                    let trackHeight = frame.height
+                    let thumbRatio = frame.height / contentHeight
+                    let thumbHeight = max(trackHeight * thumbRatio, 20)
+                    let thumbY = frame.y + (offset / contentHeight) * trackHeight
+                    let thumbX = frame.x + frame.width - scrollbarWidth - 2
+
+                    let thumbNode = ViewNode.roundedRect(width: scrollbarWidth, height: thumbHeight, radius: 3, fill: Color(white: 0.0, opacity: 0.3))
+                    let thumbFrame = LayoutFrame(x: thumbX, y: thumbY, width: scrollbarWidth, height: thumbHeight)
+                    let thumbLayout = LayoutNode(frame: thumbFrame, node: thumbNode)
+
+                    return LayoutNode(frame: frame, node: node, children: [clippedContent, thumbLayout])
+                }
+            }
+            return clippedContent
 
         case .list(let children):
             return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)

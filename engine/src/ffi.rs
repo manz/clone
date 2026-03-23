@@ -32,6 +32,8 @@ pub trait DesktopDelegate: Send + Sync {
     fn on_key(&self, surface_id: u64, keycode: u32, pressed: bool);
     /// Forward typed character input (e.g. from winit event.text).
     fn on_key_char(&self, surface_id: u64, character: String);
+    /// Forward scroll wheel events.
+    fn on_scroll(&self, surface_id: u64, delta_x: f64, delta_y: f64);
     /// Returns the file path to the desktop wallpaper image, or empty string for none.
     fn wallpaper_path(&self) -> String;
 }

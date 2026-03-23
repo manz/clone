@@ -308,6 +308,11 @@ final class AppConnectionManager {
         server.sendKeyChar(windowId: serverWid, character: character)
     }
 
+    func sendScroll(wmWindowId: UInt64, deltaX: Float, deltaY: Float) {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return }
+        server.sendScroll(windowId: serverWid, deltaX: deltaX, deltaY: deltaY)
+    }
+
     func updateFocusedAppName(windowManager: WindowManager) {
         if let id = windowManager.focusedWindowId,
            let window = windowManager.windows.first(where: { $0.id == id }) {

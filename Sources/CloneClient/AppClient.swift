@@ -11,6 +11,8 @@ public final class AppClient {
     public private(set) var width: Float = 0
     public private(set) var height: Float = 0
     public private(set) var isConnected = false
+    public private(set) var mouseX: Float = 0
+    public private(set) var mouseY: Float = 0
 
     /// Callback when the compositor requests a frame.
     public var onFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
@@ -22,6 +24,8 @@ public final class AppClient {
     public var onKey: (@MainActor (UInt32, Bool) -> Void)?
     /// Callback for character input (translated from keycode).
     public var onKeyChar: (@MainActor (String) -> Void)?
+    /// Callback for scroll wheel events.
+    public var onScroll: (@MainActor (Float, Float) -> Void)?
     /// Callback when window is created.
     public var onWindowCreated: (@MainActor (UInt64, Float, Float) -> Void)?
     /// Callback when compositor reports focused app name (for menubar).
@@ -119,6 +123,8 @@ public final class AppClient {
             }
 
         case .pointerMove(let x, let y):
+            mouseX = x
+            mouseY = y
             onPointerMove?(x, y)
 
         case .pointerButton(let button, let pressed, let x, let y):
@@ -129,6 +135,9 @@ public final class AppClient {
 
         case .keyChar(let character):
             onKeyChar?(character)
+
+        case .scroll(let dx, let dy):
+            onScroll?(dx, dy)
 
         case .focusedApp(let name):
             onFocusedApp?(name)

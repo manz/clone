@@ -168,6 +168,10 @@ public final class DesktopDelegateAdapter: @preconcurrency DesktopDelegate {
         windowServer.handleKeyChar(character: character)
     }
 
+    public func onScroll(surfaceId: UInt64, deltaX: Double, deltaY: Double) {
+        windowServer.handleScroll(deltaX: deltaX, deltaY: deltaY)
+    }
+
     public func wallpaperPath() -> String {
         windowServer.wallpaperPath()
     }

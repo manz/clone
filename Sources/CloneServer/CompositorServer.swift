@@ -309,6 +309,13 @@ public final class CompositorServer {
         app?.send(.keyChar(character: character))
     }
 
+    public func sendScroll(windowId: UInt64, deltaX: Float, deltaY: Float) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.scroll(deltaX: deltaX, deltaY: deltaY))
+    }
+
     public func sendWindowClosed(windowId: UInt64) {
         lock.lock()
         let app = apps[windowId]

@@ -162,6 +162,13 @@ public final class WindowServer {
         )
     }
 
+    func handleScroll(deltaX: Double, deltaY: Double) {
+        // Route scroll to the focused window's app
+        if let focusedId = windowManager.focusedWindowId {
+            appManager.sendScroll(wmWindowId: focusedId, deltaX: Float(deltaX), deltaY: Float(deltaY))
+        }
+    }
+
     func handleKeyChar(character: String) {
         InputRouter.routeKeyChar(
             character: character,

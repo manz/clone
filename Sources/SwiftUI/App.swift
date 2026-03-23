@@ -291,6 +291,9 @@ extension App {
             TextFieldRegistry.shared.handleKeyChar(character)
             app.onKeyChar(character: character)
         }
+        app.client.onScroll = { dx, dy in
+            ScrollRegistry.shared.scroll(deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
+        }
         app.client.onMenuAction = { itemId in
             app.onMenuAction(itemId: itemId)
         }

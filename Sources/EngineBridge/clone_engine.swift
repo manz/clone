@@ -1419,6 +1419,11 @@ public protocol DesktopDelegate: AnyObject, Sendable {
     func onKeyChar(surfaceId: UInt64, character: String) 
     
     /**
+     * Forward scroll wheel events.
+     */
+    func onScroll(surfaceId: UInt64, deltaX: Double, deltaY: Double) 
+    
+    /**
      * Returns the file path to the desktop wallpaper image, or empty string for none.
      */
     func wallpaperPath()  -> String
@@ -1602,6 +1607,34 @@ fileprivate struct UniffiCallbackInterfaceDesktopDelegate {
                 return uniffiObj.onKeyChar(
                      surfaceId: try FfiConverterUInt64.lift(surfaceId),
                      character: try FfiConverterString.lift(character)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onScroll: { (
+            uniffiHandle: UInt64,
+            surfaceId: UInt64,
+            deltaX: Double,
+            deltaY: Double,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDesktopDelegate.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onScroll(
+                     surfaceId: try FfiConverterUInt64.lift(surfaceId),
+                     deltaX: try FfiConverterDouble.lift(deltaX),
+                     deltaY: try FfiConverterDouble.lift(deltaY)
                 )
             }
 
@@ -1830,7 +1863,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_engine_checksum_method_desktopdelegate_on_key_char() != 3731) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 39346) {
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_on_scroll() != 47845) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_engine_checksum_method_desktopdelegate_wallpaper_path() != 47210) {
         return InitializationResult.apiChecksumMismatch
     }
 

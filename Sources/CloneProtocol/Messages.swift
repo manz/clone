@@ -121,6 +121,8 @@ public enum CompositorMessage: Codable, Sendable {
     case minimizedApps(appIds: [String])
     /// Character typed (translated from keycode).
     case keyChar(character: String)
+    /// Scroll wheel event (deltaX, deltaY in points).
+    case scroll(deltaX: Float, deltaY: Float)
     /// Compositor sends the focused app's menus to the menubar.
     case appMenus(appName: String, menus: [AppMenu])
     /// A menu item was selected (forwarded from menubar to the focused app).
