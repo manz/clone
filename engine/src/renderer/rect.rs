@@ -8,8 +8,10 @@ pub struct RectPipeline {
     uniform_bind_group: wgpu::BindGroup,
     solid_instance_buffer: wgpu::Buffer,
     solid_instance_capacity: usize,
+    solid_instance_offset: usize,
     rounded_instance_buffer: wgpu::Buffer,
     rounded_instance_capacity: usize,
+    rounded_instance_offset: usize,
 }
 
 const INITIAL_INSTANCE_CAPACITY: usize = 256;
@@ -126,9 +128,17 @@ impl RectPipeline {
             uniform_bind_group,
             solid_instance_buffer,
             solid_instance_capacity: INITIAL_INSTANCE_CAPACITY,
+            solid_instance_offset: 0,
             rounded_instance_buffer,
             rounded_instance_capacity: INITIAL_INSTANCE_CAPACITY,
+            rounded_instance_offset: 0,
         }
+    }
+
+    /// Reset instance buffer offsets (call at the start of each surface render).
+    pub fn reset_instance_offsets(&mut self) {
+        self.solid_instance_offset = 0;
+        self.rounded_instance_offset = 0;
     }
 
     fn create_pipeline(
@@ -217,8 +227,9 @@ impl RectPipeline {
 
         // Solid and rounded use separate buffers to avoid write_buffer overwrite.
         if !solid_instances.is_empty() {
-            self.ensure_solid_capacity(device, solid_instances.len());
-            queue.write_buffer(&self.solid_instance_buffer, 0, bytemuck::cast_slice(solid_instances));
+            self.ensure_solid_capacity(device, self.solid_instance_offset + solid_instances.len());
+            let byte_offset = (self.solid_instance_offset * std::mem::size_of::<RectInstance>()) as u64;
+            queue.write_buffer(&self.solid_instance_buffer, byte_offset, bytemuck::cast_slice(solid_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("solid_rect_pass"),
@@ -244,12 +255,16 @@ impl RectPipeline {
             pass.set_pipeline(&self.solid_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             pass.set_vertex_buffer(0, self.solid_instance_buffer.slice(..));
-            pass.draw(0..6, 0..solid_instances.len() as u32);
+            let start = self.solid_instance_offset as u32;
+            let end = start + solid_instances.len() as u32;
+            pass.draw(0..6, start..end);
+            self.solid_instance_offset += solid_instances.len();
         }
 
         if !rounded_instances.is_empty() {
-            self.ensure_rounded_capacity(device, rounded_instances.len());
-            queue.write_buffer(&self.rounded_instance_buffer, 0, bytemuck::cast_slice(rounded_instances));
+            self.ensure_rounded_capacity(device, self.rounded_instance_offset + rounded_instances.len());
+            let byte_offset = (self.rounded_instance_offset * std::mem::size_of::<RectInstance>()) as u64;
+            queue.write_buffer(&self.rounded_instance_buffer, byte_offset, bytemuck::cast_slice(rounded_instances));
 
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("rounded_rect_pass"),
@@ -275,7 +290,10 @@ impl RectPipeline {
             pass.set_pipeline(&self.sdf_pipeline);
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             pass.set_vertex_buffer(0, self.rounded_instance_buffer.slice(..));
-            pass.draw(0..6, 0..rounded_instances.len() as u32);
+            let start = self.rounded_instance_offset as u32;
+            let end = start + rounded_instances.len() as u32;
+            pass.draw(0..6, start..end);
+            self.rounded_instance_offset += rounded_instances.len();
         }
     }
 

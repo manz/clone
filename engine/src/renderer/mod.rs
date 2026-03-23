@@ -98,9 +98,12 @@ impl DesktopRenderer {
         scale: f32,
         transparent_clear: bool,
     ) {
-        // Reset text instance buffer offset for this surface render
+        // Reset instance buffer offsets for this surface render
         if let Some(tr) = &mut self.text_renderer {
             tr.reset_instance_offset();
+        }
+        if let Some(rp) = &mut self.rect_pipeline {
+            rp.reset_instance_offsets();
         }
 
         let mut clear_color = Self::extract_background(commands);
