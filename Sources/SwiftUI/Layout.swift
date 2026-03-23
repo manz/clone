@@ -197,7 +197,11 @@ public enum Layout {
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .list(let children):
-            return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+            // Add row padding for measurement
+            let paddedChildren = children.map { child in
+                child.padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+            }
+            return measureVStack(alignment: .leading, spacing: 0, children: paddedChildren, constraint: constraint)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -359,7 +363,18 @@ public enum Layout {
             return clippedContent
 
         case .list(let children):
-            return layoutVStack(alignment: .leading, spacing: 0, children: children, in: frame)
+            // Add row padding + alternating backgrounds
+            let styledChildren: [ViewNode] = children.enumerated().map { (i, child) in
+                let padded = child.padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                if i % 2 == 1 {
+                    return ViewNode.zstack(children: [
+                        ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
+                        padded,
+                    ])
+                }
+                return padded
+            }
+            return layoutVStack(alignment: .leading, spacing: 0, children: styledChildren, in: frame)
 
         case .grid(let columns, let spacing, let children):
             return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)
