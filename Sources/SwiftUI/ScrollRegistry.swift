@@ -6,22 +6,13 @@ public final class ScrollRegistry: @unchecked Sendable {
     public static let shared = ScrollRegistry()
 
     private var offsets: [String: CGFloat] = [:]
-    private var counter: Int = 0
 
     private init() {}
 
-    /// Reset counter each frame. Call from App.swift alongside other registry resets.
+    /// Reset per-frame state (frames for hit testing). Offsets persist.
     public func resetCounter() {
-        counter = 0
         frames.removeAll()
         contentHeights.removeAll()
-    }
-
-    /// Get next scroll key (stable across resizes, based on evaluation order).
-    public func nextKey() -> String {
-        let key = "scroll_\(counter)"
-        counter += 1
-        return key
     }
 
     /// Get scroll offset for a ScrollView by key.
@@ -60,6 +51,5 @@ public final class ScrollRegistry: @unchecked Sendable {
         offsets.removeAll()
         frames.removeAll()
         contentHeights.removeAll()
-        counter = 0
     }
 }

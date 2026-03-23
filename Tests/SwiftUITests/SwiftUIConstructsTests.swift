@@ -57,7 +57,7 @@ import Testing
         Text("Item 1")
         Text("Item 2")
     })
-    if case .scrollView(let axis, let children) = node {
+    if case .scrollView(let axis, let children, _) = node {
         #expect(axis == .vertical)
         #expect(children.count >= 1)
     } else {

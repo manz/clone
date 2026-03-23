@@ -180,7 +180,7 @@ public enum Layout {
             // GeometryReader fills the proposed space (like SwiftUI)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .scrollView(_, _):
+        case .scrollView(_, _, _):
             // ScrollView fills the proposed size (content scrolls within)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
@@ -305,11 +305,10 @@ public enum Layout {
             let childLayout = layout(resolved, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
-        case .scrollView(let axis, let children):
+        case .scrollView(let axis, let children, let scrollKey):
             // Layout children with unbounded constraint in the scroll axis,
             // then wrap in a clipped node so overflow is hidden.
             // Apply scroll offset from ScrollRegistry.
-            let scrollKey = ScrollRegistry.shared.nextKey()
             let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
 
             let contentLayout: LayoutNode

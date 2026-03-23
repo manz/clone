@@ -36,7 +36,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case geometryReader(id: UInt64)
 
     // Step 4 additions
-    case scrollView(axis: Axis, children: [ViewNode])
+    case scrollView(axis: Axis, children: [ViewNode], key: String)
     case list(children: [ViewNode])
     case image(name: String, width: CGFloat?, height: CGFloat?, tint: Color? = nil)
     case toggle(isOn: Bool, label: ViewNode)
