@@ -137,6 +137,9 @@ extension App {
         SystemActions.shared.sessionReady = SessionReadyAction {
             client.send(.sessionReady)
         }
+        SystemActions.shared.setColorScheme = SetColorSchemeAction { dark in
+            client.send(.setColorScheme(dark: dark))
+        }
 
         if usesDeclarativeRendering {
             // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)

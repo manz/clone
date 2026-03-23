@@ -470,29 +470,100 @@ private func groupStartYs(for groups: [(String?, [SettingRow])]) -> [CGFloat] {
 
 @main
 struct SettingsApp: App {
-    let state = SettingsState()
+    @State private var selectedCategory: String? = "Appearance"
+    @State private var appearanceMode: String = "Light"
 
     var body: some Scene {
         WindowGroup("System Settings") {
-            #if canImport(AppKit) && !canImport(CloneClient)
-            // Real macOS — GeometryReader provides window size
-            GeometryReader { proxy in
-                settingsView(state: state, width: proxy.size.width, height: proxy.size.height)
+            NavigationSplitView {
+                List(selection: $selectedCategory) {
+                    Section("") {
+                        ForEach(["Appearance", "Desktop & Dock", "Displays", "Wallpaper", "Sound", "Notifications", "Network", "General"], id: \.self) { category in
+                            Label(category, systemImage: "gear")
+                                .tag(category)
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+                .navigationTitle("System Settings")
+            } detail: {
+                if selectedCategory == "Appearance" {
+                    appearanceSettings
+                } else if let category = selectedCategory {
+                    VStack {
+                        Text(category).font(.title).padding()
+                        Text("Settings for \(category) coming soon.")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                } else {
+                    Text("Select a category")
+                        .foregroundColor(.secondary)
+                }
             }
-            #else
-            settingsView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
-            #endif
         }
+    }
+
+    var appearanceSettings: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Appearance").font(.title).padding(.bottom, 4)
+
+            HStack(spacing: 24) {
+                ForEach(["Light", "Dark", "Auto"], id: \.self) { mode in
+                    VStack(spacing: 8) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(mode == "Dark" ? Color(white: 0.2) : Color(white: 0.95))
+                            .frame(width: 80, height: 56)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(appearanceMode == mode ? Color.accentColor : Color(white: 0.8), lineWidth: appearanceMode == mode ? 2 : 1)
+                            )
+                        Text(mode)
+                            .font(.caption)
+                            .foregroundColor(appearanceMode == mode ? .primary : .secondary)
+                    }
+                    .onTapGesture {
+                        appearanceMode = mode
+                        applyAppearance(mode)
+                    }
+                }
+            }
+            .padding(.leading, 4)
+
+            Divider()
+
+            HStack {
+                Text("Accent Color")
+                Spacer()
+                Text("Blue").foregroundColor(.secondary)
+            }
+
+            HStack {
+                Text("Sidebar Icon Size")
+                Spacer()
+                Text("Medium").foregroundColor(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(20)
+    }
+
+    private func applyAppearance(_ mode: String) {
+        let dark: Bool
+        switch mode {
+        case "Dark": dark = true
+        case "Auto":
+            let hour = Calendar.current.component(.hour, from: Date())
+            dark = hour >= 18 || hour < 6
+        default: dark = false
+        }
+        SystemActions.shared.setColorScheme(dark: dark)
     }
 
     #if canImport(CloneClient)
     var configuration: WindowConfiguration {
         WindowConfiguration(title: "System Settings", width: 700, height: 500)
-    }
-
-    func onPointerMove(x: CGFloat, y: CGFloat) {
-        state.mouseX = x
-        state.mouseY = y
     }
     #endif
 }

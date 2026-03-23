@@ -96,6 +96,8 @@ public enum AppMessage: Codable, Sendable {
     case showOpenPanel(allowedTypes: [String])
     /// MenuBar tells compositor a menu item was clicked for the focused app.
     case menuAction(itemId: String)
+    /// App (Settings) requests color scheme change.
+    case setColorScheme(dark: Bool)
     /// LoginWindow tells compositor authentication succeeded — start user session.
     case sessionReady
 }

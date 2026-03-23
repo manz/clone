@@ -100,6 +100,19 @@ public struct SessionReadyAction {
     }
 }
 
+/// Action to change system color scheme.
+public struct SetColorSchemeAction {
+    private let handler: (Bool) -> Void
+
+    public init(_ handler: @escaping (Bool) -> Void) {
+        self.handler = handler
+    }
+
+    public func callAsFunction(dark: Bool) {
+        handler(dark)
+    }
+}
+
 /// Global system actions — wired up by App.main().
 public final class SystemActions: @unchecked Sendable {
     public static let shared = SystemActions()
@@ -107,6 +120,7 @@ public final class SystemActions: @unchecked Sendable {
     public var launchApp = LaunchAppAction { _ in }
     public var restoreApp = RestoreAppAction { _ in }
     public var sessionReady = SessionReadyAction {}
+    public var setColorScheme = SetColorSchemeAction { _ in }
 
     private init() {}
 }

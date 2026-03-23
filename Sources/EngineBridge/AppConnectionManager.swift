@@ -51,6 +51,7 @@ final class AppConnectionManager {
     private var focusedAppName: String = "Finder"
     private(set) var sessionStarted = false
     private var pendingSessionReady = false
+    private var pendingColorScheme: Bool? = nil
 
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
@@ -83,6 +84,9 @@ final class AppConnectionManager {
         }
         server.onShowOpenPanel = { [weak self] windowId, types in
             self?.pendingOpenPanels.append((windowId, types))
+        }
+        server.onSetColorScheme = { [weak self] dark in
+            self?.pendingColorScheme = dark
         }
         server.onSessionReady = { [weak self] in
             self?.pendingSessionReady = true
@@ -233,6 +237,12 @@ final class AppConnectionManager {
             }
         }
         pendingOpenPanels.removeAll()
+
+        // Process color scheme change
+        if let dark = pendingColorScheme {
+            pendingColorScheme = nil
+            broadcastColorScheme(dark: dark)
+        }
     }
 
     /// Active file dialog request (rendered by WindowServer).
