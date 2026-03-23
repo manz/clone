@@ -61,9 +61,9 @@ impl RectPipeline {
                 2 => Float32x4,  // rect (x, y, w, h)
                 3 => Float32x4,  // color (r, g, b, a)
                 4 => Float32,    // radius
-                5 => Float32,    // _pad0
-                6 => Float32,    // _pad1
-                7 => Float32,    // _pad2
+                5 => Float32,    // z (depth)
+                6 => Float32,    // _pad0
+                7 => Float32,    // _pad1
             ],
         };
 
@@ -167,7 +167,13 @@ impl RectPipeline {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview_mask: None,
             cache: None,
@@ -180,12 +186,13 @@ impl RectPipeline {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         width: u32,
         height: u32,
         solid_instances: &[RectInstance],
         rounded_instances: &[RectInstance],
     ) {
-        self.draw_with_scissor(device, queue, encoder, view, width, height, solid_instances, rounded_instances, None);
+        self.draw_with_scissor(device, queue, encoder, view, depth_view, width, height, solid_instances, rounded_instances, None);
     }
 
     pub fn draw_with_scissor(
@@ -194,6 +201,7 @@ impl RectPipeline {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         width: u32,
         height: u32,
         solid_instances: &[RectInstance],
@@ -219,7 +227,15 @@ impl RectPipeline {
                     ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None, timestamp_writes: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
                 occlusion_query_set: None, multiview_mask: None,
             });
             if let Some((sx, sy, sw, sh)) = scissor {
@@ -242,7 +258,15 @@ impl RectPipeline {
                     ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None, timestamp_writes: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
                 occlusion_query_set: None, multiview_mask: None,
             });
             if let Some((sx, sy, sw, sh)) = scissor {

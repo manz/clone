@@ -9,6 +9,10 @@ struct ShadowInstance {
     @location(0) rect: vec4<f32>,     // x, y, w, h
     @location(1) color: vec4<f32>,    // shadow color with alpha
     @location(2) params: vec4<f32>,   // radius, blur, offset_x, offset_y
+    @location(3) z: f32,             // depth: 0.0 = front, 1.0 = back
+    @location(4) _pad0: f32,
+    @location(5) _pad1: f32,
+    @location(6) _pad2: f32,
 }
 
 struct VertexOutput {
@@ -54,7 +58,7 @@ fn vs_main(
     );
 
     var out: VertexOutput;
-    out.position = vec4<f32>(ndc, 0.0, 1.0);
+    out.position = vec4<f32>(ndc, instance.z, 1.0);
     out.color = instance.color;
     out.local_pos = local - vec2<f32>(blur_expand, blur_expand); // relative to rect origin
     out.rect_size = vec2<f32>(instance.rect.z, instance.rect.w);

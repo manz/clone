@@ -10,7 +10,7 @@ struct RectInstance {
     @location(2) rect: vec4<f32>,      // x, y, w, h
     @location(3) color: vec4<f32>,     // r, g, b, a
     @location(4) radius: f32,
-    @location(5) _pad0: f32,
+    @location(5) z: f32,               // depth: 0.0 = front, 1.0 = back
     @location(6) _pad1: f32,
     @location(7) _pad2: f32,
 }
@@ -55,7 +55,7 @@ fn vs_main(
     );
 
     var out: VertexOutput;
-    out.position = vec4<f32>(ndc, 0.0, 1.0);
+    out.position = vec4<f32>(ndc, instance.z, 1.0);
     out.color = instance.color;
     out.local_pos = local;
     out.rect_size = vec2<f32>(instance.rect.z, instance.rect.w);

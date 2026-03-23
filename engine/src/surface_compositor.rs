@@ -7,6 +7,8 @@ use crate::renderer::DesktopRenderer;
 pub struct WindowSurface {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
+    pub depth_texture: wgpu::Texture,
+    pub depth_view: wgpu::TextureView,
     pub width: u32,
     pub height: u32,
 }
@@ -28,7 +30,22 @@ impl WindowSurface {
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
-        Self { texture, view, width, height }
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("window_depth"),
+            size: wgpu::Extent3d {
+                width: width.max(1),
+                height: height.max(1),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let depth_view = depth_texture.create_view(&Default::default());
+        Self { texture, view, depth_texture, depth_view, width, height }
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32) {
@@ -229,12 +246,12 @@ impl SurfaceCompositor {
 
         if transparent_clear {
             renderer.render_transparent(
-                device, queue, &mut encoder, &surface.view,
+                device, queue, &mut encoder, &surface.view, &surface.depth_view,
                 commands, surface.width, surface.height, scale,
             );
         } else {
             renderer.render(
-                device, queue, &mut encoder, &surface.view,
+                device, queue, &mut encoder, &surface.view, &surface.depth_view,
                 commands, surface.width, surface.height, scale,
             );
         }

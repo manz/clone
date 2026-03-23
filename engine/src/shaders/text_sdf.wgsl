@@ -10,6 +10,10 @@ struct GlyphInstance {
     @location(0) rect: vec4<f32>,      // x, y, w, h in screen pixels
     @location(1) uv_rect: vec4<f32>,   // u, v, uw, vh in atlas [0..1]
     @location(2) color: vec4<f32>,     // text color
+    @location(3) z: f32,               // depth: 0.0 = front, 1.0 = back
+    @location(4) _pad0: f32,
+    @location(5) _pad1: f32,
+    @location(6) _pad2: f32,
 }
 
 struct VertexOutput {
@@ -49,7 +53,7 @@ fn vs_main(
     let uv = vec2<f32>(instance.uv_rect.x, instance.uv_rect.y) + quad * vec2<f32>(instance.uv_rect.z, instance.uv_rect.w);
 
     var out: VertexOutput;
-    out.position = vec4<f32>(ndc, 0.0, 1.0);
+    out.position = vec4<f32>(ndc, instance.z, 1.0);
     out.uv = uv;
     out.color = instance.color;
     return out;

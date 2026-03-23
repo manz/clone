@@ -50,6 +50,8 @@ impl RenderServer {
                     _ => true,
                 }
             });
+            // Surface textures are already in physical pixels (ensure_surface uses phys dimensions).
+            // Pass scale so the renderer converts logical command coords to physical pixel coords.
             self.compositor.render_to_surface(
                 sf.desc.surface_id,
                 &mut self.renderer,

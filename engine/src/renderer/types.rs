@@ -13,7 +13,8 @@ pub struct RectInstance {
     pub rect: [f32; 4],   // x, y, w, h
     pub color: [f32; 4],  // r, g, b, a
     pub radius: f32,
-    pub _pad: [f32; 3],
+    pub z: f32,            // depth: 0.0 = front (last command), 1.0 = back (first command)
+    pub _pad: [f32; 2],
 }
 
 #[repr(C)]

@@ -54,12 +54,13 @@ impl DesktopRenderer {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         commands: &[RenderCommand],
         width: u32,
         height: u32,
         scale: f32,
     ) {
-        self.render_inner(device, queue, encoder, view, commands, width, height, scale, false);
+        self.render_inner(device, queue, encoder, view, depth_view, commands, width, height, scale, false);
     }
 
     pub fn render_transparent(
@@ -68,12 +69,13 @@ impl DesktopRenderer {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         commands: &[RenderCommand],
         width: u32,
         height: u32,
         scale: f32,
     ) {
-        self.render_inner(device, queue, encoder, view, commands, width, height, scale, true);
+        self.render_inner(device, queue, encoder, view, depth_view, commands, width, height, scale, true);
     }
 
     fn render_inner(
@@ -82,6 +84,7 @@ impl DesktopRenderer {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         view: &wgpu::TextureView,
+        depth_view: &wgpu::TextureView,
         commands: &[RenderCommand],
         width: u32,
         height: u32,
@@ -111,16 +114,28 @@ impl DesktopRenderer {
                     },
                     depth_slice: None,
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
         }
 
+        // Count drawable commands to assign z values.
+        // First command = 1.0 (farthest), last = near 0.0 (closest).
+        let total_drawable = commands.iter().filter(|c| matches!(c,
+            RenderCommand::Rect { .. } | RenderCommand::RoundedRect { .. } |
+            RenderCommand::Shadow { .. } | RenderCommand::Text { .. }
+        )).count().max(1);
+
         // Process commands in draw groups separated by PushClip/PopClip.
-        // Each group flushes shadows → rects → text before the next group starts,
-        // ensuring that text from earlier groups doesn't overdraw later groups' backgrounds.
         let mut solid = Vec::new();
         let mut rounded = Vec::new();
         let mut shadows = Vec::new();
@@ -132,6 +147,7 @@ impl DesktopRenderer {
             queue: &wgpu::Queue,
             encoder: &mut wgpu::CommandEncoder,
             view: &wgpu::TextureView,
+            depth_view: &wgpu::TextureView,
             shadow_pipeline: &Option<ShadowPipeline>,
             rect_pipeline: &mut Option<RectPipeline>,
             text_renderer: &mut Option<TextRenderer>,
@@ -148,17 +164,17 @@ impl DesktopRenderer {
             }
             if let Some(pipeline) = shadow_pipeline {
                 if !shadows.is_empty() {
-                    pipeline.draw(queue, encoder, view, width, height, shadows);
+                    pipeline.draw(queue, encoder, view, depth_view, width, height, shadows);
                 }
             }
             if let Some(pipeline) = rect_pipeline {
                 if !solid.is_empty() || !rounded.is_empty() {
-                    pipeline.draw_with_scissor(device, queue, encoder, view, width, height, solid, rounded, scissor);
+                    pipeline.draw_with_scissor(device, queue, encoder, view, depth_view, width, height, solid, rounded, scissor);
                 }
             }
             if let Some(tr) = text_renderer {
                 if !glyphs.is_empty() {
-                    tr.draw_with_scissor(device, queue, encoder, view, width, height, glyphs, scissor);
+                    tr.draw_with_scissor(device, queue, encoder, view, depth_view, width, height, glyphs, scissor);
                 }
             }
             solid.clear();
@@ -167,15 +183,15 @@ impl DesktopRenderer {
             glyphs.clear();
         };
 
+        let mut cmd_index: usize = 0;
+
         for cmd in commands {
             match cmd {
                 RenderCommand::PushClip { x, y, w, h, .. } => {
-                    // Flush everything accumulated so far (before the clip)
-                    flush(device, queue, encoder, view,
+                    flush(device, queue, encoder, view, depth_view,
                           &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
                           &mut solid, &mut rounded, &mut shadows, &mut glyphs,
                           width, height, scissor);
-                    // Clamp scissor to render target bounds
                     let sx = (x * scale) as u32;
                     let sy = (y * scale) as u32;
                     let sw = ((w * scale) as u32).min(width.saturating_sub(sx));
@@ -183,48 +199,62 @@ impl DesktopRenderer {
                     scissor = Some((sx, sy, sw, sh));
                 }
                 RenderCommand::PopClip => {
-                    // Flush the clipped group
-                    flush(device, queue, encoder, view,
+                    flush(device, queue, encoder, view, depth_view,
                           &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
                           &mut solid, &mut rounded, &mut shadows, &mut glyphs,
                           width, height, scissor);
                     scissor = None;
                 }
                 RenderCommand::Rect { x, y, w, h, color } => {
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
                     solid.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         radius: 0.0,
-                        _pad: [0.0; 3],
+                        z,
+                        _pad: [0.0; 2],
                     });
                 }
                 RenderCommand::RoundedRect { x, y, w, h, radius, color } => {
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
                     rounded.push(RectInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         radius: radius * scale,
-                        _pad: [0.0; 3],
+                        z,
+                        _pad: [0.0; 2],
                     });
                 }
                 RenderCommand::Shadow { x, y, w, h, radius, blur, color, ox, oy } => {
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
                     shadows.push(ShadowInstance {
                         rect: [x * scale, y * scale, w * scale, h * scale],
                         color: [color.r, color.g, color.b, color.a],
                         params: [radius * scale, blur * scale, ox * scale, oy * scale],
+                        z,
+                        _pad: [0.0; 3],
                     });
                 }
                 RenderCommand::Text { x, y, content, font_size, color, weight, is_icon, max_width } => {
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
                     if let Some(tr) = &mut self.text_renderer {
                         let scaled_max_width = max_width.map(|mw| mw * scale);
-                        let g = tr.shape_text(
+                        let mut g = tr.shape_text(
                             content, *x * scale, *y * scale, *font_size * scale, color, weight, *is_icon, scaled_max_width,
                         );
+                        for glyph in &mut g {
+                            glyph.z = z;
+                        }
                         glyphs.extend(g);
                     }
                 }
                 RenderCommand::Wallpaper { .. } => {
                     // Flush pending draws, then draw wallpaper fullscreen
-                    flush(device, queue, encoder, view,
+                    flush(device, queue, encoder, view, depth_view,
                           &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
                           &mut solid, &mut rounded, &mut shadows, &mut glyphs,
                           width, height, scissor);
@@ -244,7 +274,7 @@ impl DesktopRenderer {
         }
 
         // Flush remaining
-        flush(device, queue, encoder, view,
+        flush(device, queue, encoder, view, depth_view,
               &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
               &mut solid, &mut rounded, &mut shadows, &mut glyphs,
               width, height, scissor);
