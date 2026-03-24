@@ -1,12 +1,19 @@
 import Foundation
 
+/// Phosphor icon style — matches the SVG subdirectory names.
+public enum PhosphorIconStyle: String, Equatable, Sendable {
+    case regular, fill, duotone, thin, light, bold
+}
+
 /// Flattens a laid-out ViewNode tree into absolute-positioned render commands.
 /// These map 1:1 to the Rust RenderCommand enum.
 public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: Color)
         case roundedRect(radius: CGFloat, color: Color)
-        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, iconStyle: IconStyle = .none)
+        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular)
+        /// Phosphor SVG icon — name is the Phosphor icon name (e.g. "folder", "avocado").
+        case icon(name: String, style: PhosphorIconStyle, color: Color)
         case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat)
         case pushClip(radius: CGFloat)
         case popClip
@@ -113,26 +120,18 @@ public enum CommandFlattener {
             return
 
         case .image(let name, _, _, let tint):
-            // Try Phosphor icon font, fall back to placeholder rect
+            // Resolve SF Symbols name to Phosphor icon name + style
             let resolved = PhosphorIcons.resolve(name: name)
-            if let char = resolved.character {
-                let iconColor = tint ?? Color.primary
-                let iconSize = min(frame.width, frame.height)
-                let iconX = frame.x + (frame.width - iconSize) / 2
-                let iconY = frame.y + (frame.height - iconSize) / 2
-                commands.append(FlatRenderCommand(
-                    x: iconX, y: iconY,
-                    width: iconSize, height: iconSize,
-                    kind: .text(content: String(char), fontSize: iconSize,
-                               color: iconColor.withAlpha(opacity), iconStyle: resolved.style)
-                ))
-            } else {
-                commands.append(FlatRenderCommand(
-                    x: frame.x, y: frame.y,
-                    width: frame.width, height: frame.height,
-                    kind: .rect(color: Color.gray.withAlpha(0.3 * opacity))
-                ))
-            }
+            let iconColor = tint ?? Color.primary
+            let iconSize = min(frame.width, frame.height)
+            let iconX = frame.x + (frame.width - iconSize) / 2
+            let iconY = frame.y + (frame.height - iconSize) / 2
+            commands.append(FlatRenderCommand(
+                x: iconX, y: iconY,
+                width: iconSize, height: iconSize,
+                kind: .icon(name: resolved.name, style: resolved.style,
+                           color: iconColor.withAlpha(opacity))
+            ))
 
         case .toggle(let isOn, _):
             // Track background

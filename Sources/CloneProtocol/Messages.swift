@@ -19,15 +19,17 @@ public enum IPCFontWeight: String, Codable, Sendable {
     case regular, medium, semibold, bold
 }
 
-/// Icon font variant sent over IPC.
+/// Phosphor icon style variant for IPC.
 public enum IPCIconStyle: String, Codable, Sendable {
-    case none, regular, fill, duotone
+    case regular, fill, duotone, thin, light, bold
 }
 
 public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, iconStyle: IPCIconStyle = .none, maxWidth: Float? = nil)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, maxWidth: Float? = nil)
+    /// Phosphor SVG icon — rendered by the compositor.
+    case icon(name: String, style: IPCIconStyle, x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
     case popClip

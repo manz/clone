@@ -35,17 +35,15 @@ pub enum FontWeight {
     Bold,
 }
 
-/// Which icon font variant to use (or None for regular text).
-#[derive(Clone, Debug, PartialEq, uniffi::Enum)]
+/// Phosphor icon weight/style variant.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, uniffi::Enum)]
 pub enum IconStyle {
-    /// Not an icon — use the text font (Inter).
-    None,
-    /// Phosphor Regular (outline).
     Regular,
-    /// Phosphor Fill (solid).
     Fill,
-    /// Phosphor Duotone (two-tone with opacity).
     Duotone,
+    Thin,
+    Light,
+    Bold,
 }
 
 #[derive(Clone, Debug, PartialEq, uniffi::Enum)]
@@ -72,8 +70,17 @@ pub enum RenderCommand {
         font_size: f32,
         color: RgbaColor,
         weight: FontWeight,
-        icon_style: IconStyle,
         max_width: Option<f32>,
+    },
+    /// Render a Phosphor icon by name using SVG rasterization.
+    Icon {
+        name: String,
+        style: IconStyle,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        color: RgbaColor,
     },
     Shadow {
         x: f32,
@@ -202,7 +209,6 @@ mod tests {
                 font_size: 14.0,
                 color: color.clone(),
                 weight: FontWeight::Regular,
-                icon_style: IconStyle::None,
                 max_width: None,
             },
             RenderCommand::PushClip {

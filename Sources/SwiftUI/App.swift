@@ -579,9 +579,13 @@ extension FlatRenderCommand {
         case .roundedRect(let radius, let color):
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
-        case .text(let content, let fontSize, let color, let weight, let iconStyle):
+        case .text(let content, let fontSize, let color, let weight):
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
-                         color: color.toIPC(), weight: weight.toIPC(), iconStyle: iconStyle.toIPC())
+                         color: color.toIPC(), weight: weight.toIPC())
+        case .icon(let name, let style, let color):
+            return .icon(name: name, style: style.toIPC(),
+                        x: fx, y: fy, w: fw, h: fh,
+                        color: color.toIPC())
         case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
             return .shadow(x: fx, y: fy, w: fw, h: fh,
                           radius: Float(radius), blur: Float(blur), color: color.toIPC(),
@@ -600,13 +604,15 @@ extension Color {
     }
 }
 
-extension IconStyle {
+extension PhosphorIconStyle {
     func toIPC() -> IPCIconStyle {
         switch self {
-        case .none: return .none
         case .regular: return .regular
         case .fill: return .fill
         case .duotone: return .duotone
+        case .thin: return .thin
+        case .light: return .light
+        case .bold: return .bold
         }
     }
 }

@@ -1181,27 +1181,17 @@ public func FfiConverterTypeFontWeight_lower(_ value: FontWeight) -> RustBuffer 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * Which icon font variant to use (or None for regular text).
+ * Phosphor icon weight/style variant.
  */
 
 public enum IconStyle: Equatable, Hashable {
     
-    /**
-     * Not an icon — use the text font (Inter).
-     */
-    case none
-    /**
-     * Phosphor Regular (outline).
-     */
     case regular
-    /**
-     * Phosphor Fill (solid).
-     */
     case fill
-    /**
-     * Phosphor Duotone (two-tone with opacity).
-     */
     case duotone
+    case thin
+    case light
+    case bold
 
 
 
@@ -1223,13 +1213,17 @@ public struct FfiConverterTypeIconStyle: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .none
+        case 1: return .regular
         
-        case 2: return .regular
+        case 2: return .fill
         
-        case 3: return .fill
+        case 3: return .duotone
         
-        case 4: return .duotone
+        case 4: return .thin
+        
+        case 5: return .light
+        
+        case 6: return .bold
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1239,20 +1233,28 @@ public struct FfiConverterTypeIconStyle: FfiConverterRustBuffer {
         switch value {
         
         
-        case .none:
+        case .regular:
             writeInt(&buf, Int32(1))
         
         
-        case .regular:
+        case .fill:
             writeInt(&buf, Int32(2))
         
         
-        case .fill:
+        case .duotone:
             writeInt(&buf, Int32(3))
         
         
-        case .duotone:
+        case .thin:
             writeInt(&buf, Int32(4))
+        
+        
+        case .light:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .bold:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -1283,7 +1285,12 @@ public enum RenderCommand: Equatable, Hashable {
     )
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
     )
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, iconStyle: IconStyle, maxWidth: Float?
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, maxWidth: Float?
+    )
+    /**
+     * Render a Phosphor icon by name using SVG rasterization.
+     */
+    case icon(name: String, style: IconStyle, x: Float, y: Float, w: Float, h: Float, color: RgbaColor
     )
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float
     )
@@ -1329,33 +1336,36 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), iconStyle: try FfiConverterTypeIconStyle.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
         )
         
-        case 4: return .shadow(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), ox: try FfiConverterFloat.read(from: &buf), oy: try FfiConverterFloat.read(from: &buf)
+        case 4: return .icon(name: try FfiConverterString.read(from: &buf), style: try FfiConverterTypeIconStyle.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 5: return .blurRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), tint: try FfiConverterTypeRgbaColor.read(from: &buf)
+        case 5: return .shadow(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), ox: try FfiConverterFloat.read(from: &buf), oy: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 6: return .pushClip(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf)
+        case 6: return .blurRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), tint: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 7: return .popClip
-        
-        case 8: return .setOpacity(value: try FfiConverterFloat.read(from: &buf)
+        case 7: return .pushClip(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 9: return .wallpaper(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
+        case 8: return .popClip
+        
+        case 9: return .setOpacity(value: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 10: return .image(textureId: try FfiConverterUInt64.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
+        case 10: return .wallpaper(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 11: return .registerTexture(textureId: try FfiConverterUInt64.read(from: &buf), width: try FfiConverterUInt32.read(from: &buf), height: try FfiConverterUInt32.read(from: &buf), rgbaData: try FfiConverterData.read(from: &buf)
+        case 11: return .image(textureId: try FfiConverterUInt64.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf)
         )
         
-        case 12: return .unregisterTexture(textureId: try FfiConverterUInt64.read(from: &buf)
+        case 12: return .registerTexture(textureId: try FfiConverterUInt64.read(from: &buf), width: try FfiConverterUInt32.read(from: &buf), height: try FfiConverterUInt32.read(from: &buf), rgbaData: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 13: return .unregisterTexture(textureId: try FfiConverterUInt64.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -1385,7 +1395,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             
         
-        case let .text(x,y,content,fontSize,color,weight,iconStyle,maxWidth):
+        case let .text(x,y,content,fontSize,color,weight,maxWidth):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1393,12 +1403,22 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(fontSize, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
-            FfiConverterTypeIconStyle.write(iconStyle, into: &buf)
             FfiConverterOptionFloat.write(maxWidth, into: &buf)
             
         
-        case let .shadow(x,y,w,h,radius,blur,color,ox,oy):
+        case let .icon(name,style,x,y,w,h,color):
             writeInt(&buf, Int32(4))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterTypeIconStyle.write(style, into: &buf)
+            FfiConverterFloat.write(x, into: &buf)
+            FfiConverterFloat.write(y, into: &buf)
+            FfiConverterFloat.write(w, into: &buf)
+            FfiConverterFloat.write(h, into: &buf)
+            FfiConverterTypeRgbaColor.write(color, into: &buf)
+            
+        
+        case let .shadow(x,y,w,h,radius,blur,color,ox,oy):
+            writeInt(&buf, Int32(5))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
@@ -1411,7 +1431,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case let .blurRect(x,y,w,h,radius,blur,tint):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(6))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
@@ -1422,7 +1442,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case let .pushClip(x,y,w,h,radius):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(7))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
@@ -1431,16 +1451,16 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case .popClip:
-            writeInt(&buf, Int32(7))
+            writeInt(&buf, Int32(8))
         
         
         case let .setOpacity(value):
-            writeInt(&buf, Int32(8))
+            writeInt(&buf, Int32(9))
             FfiConverterFloat.write(value, into: &buf)
             
         
         case let .wallpaper(x,y,w,h):
-            writeInt(&buf, Int32(9))
+            writeInt(&buf, Int32(10))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
             FfiConverterFloat.write(w, into: &buf)
@@ -1448,7 +1468,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case let .image(textureId,x,y,w,h):
-            writeInt(&buf, Int32(10))
+            writeInt(&buf, Int32(11))
             FfiConverterUInt64.write(textureId, into: &buf)
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1457,7 +1477,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case let .registerTexture(textureId,width,height,rgbaData):
-            writeInt(&buf, Int32(11))
+            writeInt(&buf, Int32(12))
             FfiConverterUInt64.write(textureId, into: &buf)
             FfiConverterUInt32.write(width, into: &buf)
             FfiConverterUInt32.write(height, into: &buf)
@@ -1465,7 +1485,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             
         
         case let .unregisterTexture(textureId):
-            writeInt(&buf, Int32(12))
+            writeInt(&buf, Int32(13))
             FfiConverterUInt64.write(textureId, into: &buf)
             
         }

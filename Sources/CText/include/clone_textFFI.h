@@ -251,7 +251,7 @@ void uniffi_clone_text_fn_func_clear_text_cache(RustCallStatus *_Nonnull out_sta
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
-RustBuffer uniffi_clone_text_fn_func_measure_text(RustBuffer content, float font_size, RustBuffer weight, RustBuffer icon_style, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_clone_text_fn_func_measure_text(RustBuffer content, float font_size, RustBuffer weight, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_TEXT_RUSTBUFFER_ALLOC

@@ -18,6 +18,8 @@ thiserror = "1"
 cosmic-text = "0.12"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rustc-hash = "2"
+resvg = "0.44"
+include_dir = "0.7"
 
 [dev-dependencies]
 pollster = "0.4"

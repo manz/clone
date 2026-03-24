@@ -83,16 +83,10 @@ impl TextRenderer {
         font_system
             .db_mut()
             .load_font_data(include_bytes!("../../assets/Inter.ttf").to_vec());
-        // Load bundled Phosphor icon fonts (regular, fill, duotone)
+        // Phosphor icon font kept for fallback glyph rendering
         font_system
             .db_mut()
             .load_font_data(include_bytes!("../../assets/Phosphor.ttf").to_vec());
-        font_system
-            .db_mut()
-            .load_font_data(include_bytes!("../../assets/Phosphor-Fill.ttf").to_vec());
-        font_system
-            .db_mut()
-            .load_font_data(include_bytes!("../../assets/Phosphor-Duotone.ttf").to_vec());
         let swash_cache = SwashCache::new();
 
         let atlas_data = vec![0u8; (ATLAS_SIZE * ATLAS_SIZE) as usize];
@@ -274,7 +268,6 @@ impl TextRenderer {
         font_size: f32,
         color: &RgbaColor,
         weight: &crate::commands::FontWeight,
-        icon_style: &crate::commands::IconStyle,
         max_width: Option<f32>,
     ) -> Vec<GlyphInstance> {
         let metrics = Metrics::new(font_size, font_size * 1.2);
@@ -290,12 +283,7 @@ impl TextRenderer {
             crate::commands::FontWeight::Semibold => Weight::SEMIBOLD,
             crate::commands::FontWeight::Bold => Weight::BOLD,
         };
-        let family = match icon_style {
-            crate::commands::IconStyle::None => Family::Name("Inter Variable"),
-            crate::commands::IconStyle::Regular => Family::Name("Phosphor"),
-            crate::commands::IconStyle::Fill => Family::Name("Phosphor-Fill"),
-            crate::commands::IconStyle::Duotone => Family::Name("Phosphor-Duotone"),
-        };
+        let family = Family::Name("Inter Variable");
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);

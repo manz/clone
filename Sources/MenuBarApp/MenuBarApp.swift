@@ -161,10 +161,10 @@ final class MenuBarActionRegistry: @unchecked Sendable {
 
         // Bar content
         HStack(spacing: 0) {
-            // Apple logo
-            Text("\u{F8FF}")
-                .font(.system(size: iconFontSize))
+            // Avocado logo (Phosphor)
+            Image(systemName: "avocado.fill")
                 .foregroundColor(textColor)
+                .frame(width: iconFontSize, height: iconFontSize)
                 .padding(.leading, 12)
 
             // App name (bold)
@@ -238,15 +238,15 @@ final class MenuBarActionRegistry: @unchecked Sendable {
     let isPlaying = (np.playbackRate ?? 0) > 0
 
     return HStack(spacing: 4) {
-        Text("\u{23EE}")
-            .font(.system(size: 11))
+        Image(systemName: "backward.fill")
             .foregroundColor(dimColor)
-        Text(isPlaying ? "\u{23F8}" : "\u{23F5}")
-            .font(.system(size: 11))
+            .frame(width: 11, height: 11)
+        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
             .foregroundColor(dimColor)
-        Text("\u{23ED}")
-            .font(.system(size: 11))
+            .frame(width: 11, height: 11)
+        Image(systemName: "forward.fill")
             .foregroundColor(dimColor)
+            .frame(width: 11, height: 11)
         Text(label)
             .font(.system(size: 12))
             .foregroundColor(dimColor)

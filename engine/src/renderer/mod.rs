@@ -1,5 +1,6 @@
 pub mod blur;
 pub mod compositor;
+pub mod icon;
 pub mod rect;
 pub mod shadow;
 pub mod text;
@@ -7,6 +8,7 @@ pub mod types;
 pub mod wallpaper;
 
 use crate::commands::{RenderCommand, RgbaColor};
+use crate::renderer::icon::IconPipeline;
 use crate::renderer::rect::RectPipeline;
 use crate::renderer::shadow::{ShadowInstance, ShadowPipeline};
 use crate::renderer::text::TextRenderer;
@@ -19,6 +21,7 @@ pub struct DesktopRenderer {
     shadow_pipeline: Option<ShadowPipeline>,
     text_renderer: Option<TextRenderer>,
     wallpaper_pipeline: Option<WallpaperPipeline>,
+    icon_pipeline: Option<IconPipeline>,
 }
 
 impl DesktopRenderer {
@@ -29,6 +32,7 @@ impl DesktopRenderer {
             shadow_pipeline: None,
             text_renderer: None,
             wallpaper_pipeline: None,
+            icon_pipeline: None,
         }
     }
 
@@ -37,6 +41,7 @@ impl DesktopRenderer {
         self.shadow_pipeline = Some(ShadowPipeline::new(device, self.surface_format));
         self.text_renderer = Some(TextRenderer::new(device, queue, self.surface_format));
         self.wallpaper_pipeline = Some(WallpaperPipeline::new(device, self.surface_format));
+        self.icon_pipeline = Some(IconPipeline::new(device, self.surface_format));
     }
 
     /// Load a wallpaper image. Called once at startup.
@@ -253,13 +258,13 @@ impl DesktopRenderer {
                         _pad: [0.0; 3],
                     });
                 }
-                RenderCommand::Text { x, y, content, font_size, color, weight, icon_style, max_width } => {
+                RenderCommand::Text { x, y, content, font_size, color, weight, max_width } => {
                     let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
                     cmd_index += 1;
                     if let Some(tr) = &mut self.text_renderer {
                         let scaled_max_width = max_width.map(|mw| mw * scale);
                         let mut g = tr.shape_text(
-                            content, *x * scale, *y * scale, *font_size * scale, color, weight, icon_style, scaled_max_width,
+                            content, *x * scale, *y * scale, *font_size * scale, color, weight, scaled_max_width,
                         );
                         for glyph in &mut g {
                             glyph.z = z;
@@ -279,8 +284,26 @@ impl DesktopRenderer {
                         }
                     }
                 }
+                RenderCommand::Icon { name, style, x, y, w, h, color } => {
+                    // Flush pending batched draws before the icon draw
+                    flush(device, queue, encoder, view, depth_view,
+                          &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+                          &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+                          width, height, scissor);
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
+                    if let Some(ip) = &mut self.icon_pipeline {
+                        ip.draw_icon(
+                            device, queue, encoder, view, depth_view,
+                            width, height,
+                            name, style,
+                            x * scale, y * scale, w * scale, h * scale,
+                            color, z, scissor,
+                        );
+                    }
+                }
                 RenderCommand::Image { .. } => {
-                    // TODO: ImagePipeline — currently a no-op
+                    // TODO: ImagePipeline for user images — currently a no-op
                 }
                 RenderCommand::RegisterTexture { .. } => {}
                 RenderCommand::UnregisterTexture { .. } => {}
