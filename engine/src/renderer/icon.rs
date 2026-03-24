@@ -69,6 +69,7 @@ pub struct IconPipeline {
     sampler: wgpu::Sampler,
     instance_buffer: wgpu::Buffer,
     instance_capacity: usize,
+    instance_offset: usize,
     cache: HashMap<IconCacheKey, CachedIcon>,
 }
 
@@ -210,8 +211,14 @@ impl IconPipeline {
             sampler,
             instance_buffer,
             instance_capacity: 64,
+            instance_offset: 0,
             cache: HashMap::new(),
         }
+    }
+
+    /// Reset instance offset (call at the start of each surface render).
+    pub fn reset_instance_offset(&mut self) {
+        self.instance_offset = 0;
     }
 
     /// Draw a single icon. Looks up/rasterizes the SVG, caches the GPU texture, draws.
@@ -313,15 +320,18 @@ impl IconPipeline {
             }
         }
 
-        // Upload instance
+        // Upload instance at unique offset to avoid write_buffer clobbering
         let instance = IconInstance {
             rect: [x, y, w, h],
             z,
             _pad: [0.0; 3],
         };
 
-        self.ensure_capacity(device, 1);
-        queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
+        let slot = self.instance_offset;
+        self.instance_offset += 1;
+        self.ensure_capacity(device, self.instance_offset);
+        let byte_offset = (slot * std::mem::size_of::<IconInstance>()) as u64;
+        queue.write_buffer(&self.instance_buffer, byte_offset, bytemuck::bytes_of(&instance));
 
         let cached = self.cache.get(&key).unwrap();
 
@@ -366,7 +376,7 @@ impl IconPipeline {
         pass.set_bind_group(0, &self.uniform_bind_group, &[]);
         pass.set_bind_group(1, &cached.bind_group, &[]);
         pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-        pass.draw(0..6, 0..1);
+        pass.draw(0..6, (slot as u32)..(slot as u32 + 1));
     }
 
     fn ensure_capacity(&mut self, device: &wgpu::Device, needed: usize) {

@@ -110,6 +110,9 @@ impl DesktopRenderer {
         if let Some(rp) = &mut self.rect_pipeline {
             rp.reset_instance_offsets();
         }
+        if let Some(ip) = &mut self.icon_pipeline {
+            ip.reset_instance_offset();
+        }
 
         let mut clear_color = Self::extract_background(commands);
         if transparent_clear {
