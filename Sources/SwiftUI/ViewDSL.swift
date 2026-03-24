@@ -316,8 +316,10 @@ public extension ViewNode {
     /// On Clone, renders content as overlay when presented.
     func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         if isPresented.wrappedValue {
-            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: _flattenToNodes(content()))
-            return .zstack(children: [self, sheetContent])
+            return .zstack(children: [self, buildSheetOverlay(content: content(), dismiss: {
+                isPresented.wrappedValue = false
+                onDismiss?()
+            })])
         }
         return self
     }
@@ -325,10 +327,32 @@ public extension ViewNode {
     /// `.sheet(item:onDismiss:content:)` — presents a sheet for an optional item.
     func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> some View) -> ViewNode {
         if let value = item.wrappedValue {
-            let sheetContent = ViewNode.vstack(alignment: .center, spacing: 0, children: _flattenToNodes(content(value)))
-            return .zstack(children: [self, sheetContent])
+            return .zstack(children: [self, buildSheetOverlay(content: content(value), dismiss: {
+                item.wrappedValue = nil
+                onDismiss?()
+            })])
         }
         return self
+    }
+
+    /// Build a sheet modal overlay: dimmed backdrop + centered rounded panel.
+    private func buildSheetOverlay<V: View>(content: V, dismiss: @escaping () -> Void) -> ViewNode {
+        let backdropTapId = TapRegistry.shared.register { dismiss() }
+        let backdrop = ViewNode.onTap(id: backdropTapId, child:
+            ViewNode.rect(width: nil, height: nil, fill: Color(white: 0, opacity: 0.3)))
+        let panel = _resolve(content)
+            .padding(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+            .background(Color(white: 1.0), cornerRadius: 12)
+        let centered = ViewNode.vstack(alignment: .center, spacing: 0, children: [
+            .spacer(minLength: 0),
+            ViewNode.hstack(alignment: .center, spacing: 0, children: [
+                .spacer(minLength: 0),
+                panel,
+                .spacer(minLength: 0),
+            ]),
+            .spacer(minLength: 0),
+        ])
+        return .zstack(children: [backdrop, centered])
     }
 
     /// `.alert(_:isPresented:actions:)` — no-op on Clone.
