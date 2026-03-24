@@ -19,10 +19,15 @@ public enum IPCFontWeight: String, Codable, Sendable {
     case regular, medium, semibold, bold
 }
 
+/// Icon font variant sent over IPC.
+public enum IPCIconStyle: String, Codable, Sendable {
+    case none, regular, fill, duotone
+}
+
 public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, isIcon: Bool = false, maxWidth: Float? = nil)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, iconStyle: IPCIconStyle = .none, maxWidth: Float? = nil)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
     case popClip
@@ -100,6 +105,12 @@ public enum AppMessage: Codable, Sendable {
     case setColorScheme(dark: Bool)
     /// LoginWindow tells compositor authentication succeeded — start user session.
     case sessionReady
+    /// App presents a sheet — compositor creates a separate surface.
+    case showSheet(width: Float, height: Float)
+    /// App sends render commands for its sheet surface.
+    case sheetFrame(commands: [IPCRenderCommand])
+    /// App dismisses its sheet.
+    case dismissSheet
 }
 
 // MARK: - Messages: Compositor → App
@@ -137,6 +148,12 @@ public enum CompositorMessage: Codable, Sendable {
     case windowClosed
     /// Compositor tells the app to terminate (Cmd+Q / Quit menu).
     case terminate
+    /// Compositor requests sheet content at the given size.
+    case requestSheetFrame(width: Float, height: Float)
+    /// User clicked the sheet backdrop — app should dismiss.
+    case sheetBackdropTapped
+    /// Pointer button event within sheet bounds (sheet-local coordinates).
+    case sheetPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
 }
 
 // MARK: - Daemon (now-playing service)

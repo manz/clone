@@ -389,6 +389,28 @@ final class AppConnectionManager {
         server.sendMenuAction(windowId: serverWid, itemId: itemId)
     }
 
+    // MARK: - Sheet surface forwarding
+
+    func sheetSize(for wmWindowId: UInt64) -> (width: Float, height: Float)? {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
+        return server.sheetSize(for: serverWid)
+    }
+
+    func sheetCommands(for wmWindowId: UInt64) -> [IPCRenderCommand] {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return [] }
+        return server.sheetCommands(for: serverWid)
+    }
+
+    func sendSheetBackdropTapped(wmWindowId: UInt64) {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return }
+        server.sendSheetBackdropTapped(windowId: serverWid)
+    }
+
+    func sendSheetPointerButton(wmWindowId: UInt64, button: UInt32, pressed: Bool, x: Float, y: Float) {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return }
+        server.sendSheetPointerButton(windowId: serverWid, button: button, pressed: pressed, x: x, y: y)
+    }
+
     /// Forward an open-panel result to an app.
     func sendOpenPanelResult(wmWindowId: UInt64, path: String?) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }

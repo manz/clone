@@ -387,6 +387,11 @@ public extension ViewNode {
         let panel = ViewNode.frame(width: maxW, height: nil, child: panelContent)
             .background(Color(white: 1.0), cornerRadius: 12)
 
+        // Store sheet content and size for compositor surface rendering
+        let sheetHeight: CGFloat = 300 // estimated; compositor will measure
+        WindowState.shared.activeSheetContent = panel
+        WindowState.shared.activeSheetSize = CGSize(width: maxW, height: sheetHeight)
+
         let centered = ViewNode.vstack(alignment: .center, spacing: 0, children: [
             .spacer(minLength: 0),
             ViewNode.hstack(alignment: .center, spacing: 0, children: [

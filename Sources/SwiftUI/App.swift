@@ -144,6 +144,10 @@ extension App {
         if usesDeclarativeRendering {
             // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)
             var _cachedViewTree: ViewNode?
+            // Track sheet presence for compositor surface lifecycle
+            var _wasSheetActive = false
+            // Cache the sheet dismiss action for backdrop taps
+            var _sheetDismissAction: (() -> Void)?
 
             // Declarative path: ViewNode → Layout → Flatten → IPC
             guard let windowGroup = app.body as? (any _WindowGroupProtocol) else {
@@ -175,7 +179,26 @@ extension App {
                 OnChangeRegistry.shared.flushActions()
                 // Prepend toolbar items
                 viewTree = prependToolbar(viewTree, role: config.role)
-                // Overlay sheet if active (window-level)
+                // Sheet compositor surface lifecycle
+                let sheetActive = WindowState.shared.activeSheetContent != nil
+                if sheetActive && !_wasSheetActive {
+                    // Sheet just appeared — tell compositor to create surface
+                    let size = WindowState.shared.activeSheetSize ?? CGSize(width: 500, height: 300)
+                    client.send(.showSheet(width: Float(size.width), height: Float(size.height)))
+                    // Capture the dismiss action from the backdrop tap in the overlay
+                    if case .zstack(_, let children) = WindowState.shared.activeSheetOverlay,
+                       let first = children.first,
+                       case .onTap(let tapId, _) = first {
+                        _sheetDismissAction = { TapRegistry.shared.fire(id: tapId) }
+                    }
+                } else if !sheetActive && _wasSheetActive {
+                    // Sheet just dismissed
+                    client.send(.dismissSheet)
+                    _sheetDismissAction = nil
+                }
+                _wasSheetActive = sheetActive
+                // Don't overlay sheet in main frame — compositor renders it as separate surface.
+                // But keep overlay as fallback until compositor surface is active.
                 if let sheetOverlay = WindowState.shared.activeSheetOverlay {
                     viewTree = .zstack(children: [viewTree, sheetOverlay])
                 }
@@ -289,6 +312,51 @@ extension App {
                 )
                 let hitIds = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
                 HoverRegistry.shared.update(hitIds: hitIds, position: CGPoint(x: CGFloat(px), y: CGFloat(py)))
+            }
+            // Sheet frame request — compositor asks for sheet render commands
+            app.client.onSheetFrameRequest = { w, h in
+                guard let sheetContent = WindowState.shared.activeSheetContent else { return [] }
+                let sheetW = CGFloat(w)
+                let sheetH = CGFloat(h)
+                let layoutNode = Layout.layout(
+                    sheetContent,
+                    in: LayoutFrame(x: 0, y: 0, width: sheetW, height: sheetH)
+                )
+                return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
+            }
+
+            // Sheet backdrop tapped — dismiss the sheet
+            app.client.onSheetBackdropTapped = {
+                _sheetDismissAction?()
+            }
+
+            // Sheet pointer button — hit-test within sheet content
+            app.client.onSheetPointerButton = { button, pressed, px, py in
+                guard button == 0, pressed else { return }
+                guard let sheetContent = WindowState.shared.activeSheetContent else { return }
+                let sheetSize = WindowState.shared.activeSheetSize ?? CGSize(width: 500, height: 300)
+                // Rebuild sheet for tap handling
+                GeometryReaderRegistry.shared.clear()
+                TapRegistry.shared.resetCounter()
+                TextFieldRegistry.shared.resetCounter()
+                HoverRegistry.shared.resetCounter()
+                OnceRegistry.shared.resetCounter()
+                OnChangeRegistry.shared.resetCounter()
+                TagRegistry.shared.resetCounter()
+                StateGraph.shared.resetCounter()
+                ScrollRegistry.shared.resetCounter()
+                WindowState.shared.update(width: CGFloat(app.client.width), height: CGFloat(app.client.height))
+                let _ = windowGroup.buildViewNode()
+                OnChangeRegistry.shared.flushActions()
+                // Sheet content is now in WindowState from the rebuild
+                guard let rebuiltSheet = WindowState.shared.activeSheetContent else { return }
+                let layoutNode = Layout.layout(
+                    rebuiltSheet,
+                    in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
+                )
+                if let tapId = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
+                    TapRegistry.shared.fire(id: tapId)
+                }
             }
         } else {
             // Imperative path: app renders IPCRenderCommand directly
@@ -511,9 +579,9 @@ extension FlatRenderCommand {
         case .roundedRect(let radius, let color):
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
-        case .text(let content, let fontSize, let color, let weight, let isIcon):
+        case .text(let content, let fontSize, let color, let weight, let iconStyle):
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
-                         color: color.toIPC(), weight: weight.toIPC(), isIcon: isIcon)
+                         color: color.toIPC(), weight: weight.toIPC(), iconStyle: iconStyle.toIPC())
         case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
             return .shadow(x: fx, y: fy, w: fw, h: fh,
                           radius: Float(radius), blur: Float(blur), color: color.toIPC(),
@@ -529,6 +597,17 @@ extension FlatRenderCommand {
 extension Color {
     func toIPC() -> IPCColor {
         IPCColor(r: Float(r), g: Float(g), b: Float(b), a: Float(a))
+    }
+}
+
+extension IconStyle {
+    func toIPC() -> IPCIconStyle {
+        switch self {
+        case .none: return .none
+        case .regular: return .regular
+        case .fill: return .fill
+        case .duotone: return .duotone
+        }
     }
 }
 

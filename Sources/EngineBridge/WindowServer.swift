@@ -116,6 +116,48 @@ public final class WindowServer {
                 ),
                 commands: windowCommands
             ))
+
+            // Sheet surfaces: backdrop + sheet panel (separate from parent window)
+            if let sheetSize = appManager.sheetSize(for: window.id) {
+                let parentX = Float(frameX)
+                let parentY = Float(frameY)
+                let parentW = Float(frameW)
+                let parentH = Float(frameH)
+
+                // Backdrop surface — full parent size, semi-transparent black
+                let backdropId = windowSurfaceBase + window.id + 20000
+                let backdropCommands: [RenderCommand] = [
+                    .rect(x: 0, y: 0, w: parentW, h: parentH,
+                           color: RgbaColor(r: 0, g: 0, b: 0, a: 0.3))
+                ]
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: backdropId,
+                        x: parentX, y: parentY,
+                        width: parentW, height: parentH,
+                        cornerRadius: 0, opacity: 1
+                    ),
+                    commands: backdropCommands
+                ))
+
+                // Sheet surface — centered over parent
+                let sheetId = windowSurfaceBase + window.id + 30000
+                let sheetW = sheetSize.width
+                let sheetH = sheetSize.height
+                let sheetX = parentX + (parentW - sheetW) / 2
+                let sheetY = parentY + (parentH - sheetH) / 3 // Apple positions sheets in upper third
+                let sheetIpcCommands = appManager.sheetCommands(for: window.id)
+                let sheetEngineCommands = sheetIpcCommands.map { Bridge.offsetIpcCommand($0, dy: 0) }
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: sheetId,
+                        x: sheetX, y: sheetY,
+                        width: sheetW, height: sheetH,
+                        cornerRadius: 12, opacity: 1
+                    ),
+                    commands: sheetEngineCommands
+                ))
+            }
         }
 
         // 3. Overlay surfaces (dock, menubar)

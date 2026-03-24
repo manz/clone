@@ -42,6 +42,12 @@ public final class AppClient {
     public var onOpenPanelResult: (@MainActor (String?) -> Void)?
     /// Callback when window is closed by compositor.
     public var onWindowClosed: (@MainActor () -> Void)?
+    /// Callback when compositor requests sheet content at the given size.
+    public var onSheetFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
+    /// Callback when user clicks the sheet backdrop.
+    public var onSheetBackdropTapped: (@MainActor () -> Void)?
+    /// Callback for pointer button events within sheet bounds (sheet-local coords).
+    public var onSheetPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
 
     public init() {}
 
@@ -164,6 +170,17 @@ public final class AppClient {
 
         case .terminate:
             isConnected = false
+
+        case .requestSheetFrame(let w, let h):
+            if let commands = onSheetFrameRequest?(w, h) {
+                send(.sheetFrame(commands: commands))
+            }
+
+        case .sheetBackdropTapped:
+            onSheetBackdropTapped?()
+
+        case .sheetPointerButton(let button, let pressed, let x, let y):
+            onSheetPointerButton?(button, pressed, x, y)
         }
     }
 

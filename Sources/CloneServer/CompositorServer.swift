@@ -13,6 +13,10 @@ public final class ConnectedApp {
     public var menus: [AppMenu] = []
     public private(set) var lastCommands: [IPCRenderCommand] = []
 
+    /// Sheet surface state — nil means no sheet active.
+    public var sheetSize: (width: Float, height: Float)?
+    private var sheetCommands: [IPCRenderCommand] = []
+
     let fd: Int32
     var readBuffer = Data()
     var readSource: DispatchSourceRead?
@@ -82,6 +86,18 @@ public final class ConnectedApp {
         lock.lock()
         defer { lock.unlock() }
         return lastCommands
+    }
+
+    public func updateSheetCommands(_ commands: [IPCRenderCommand]) {
+        lock.lock()
+        sheetCommands = commands
+        lock.unlock()
+    }
+
+    public func getSheetCommands() -> [IPCRenderCommand] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sheetCommands
     }
 
     func stop() {
@@ -244,6 +260,17 @@ public final class CompositorServer {
 
         case .sessionReady:
             onSessionReady?()
+
+        case .showSheet(let width, let height):
+            app.sheetSize = (width: width, height: height)
+            app.updateSheetCommands([])
+
+        case .sheetFrame(let commands):
+            app.updateSheetCommands(commands)
+
+        case .dismissSheet:
+            app.sheetSize = nil
+            app.updateSheetCommands([])
         }
     }
 
@@ -263,6 +290,9 @@ public final class CompositorServer {
         lock.unlock()
         for app in snapshot {
             app.send(.requestFrame(width: app.width, height: app.height))
+            if let sheet = app.sheetSize {
+                app.send(.requestSheetFrame(width: sheet.width, height: sheet.height))
+            }
         }
     }
 
@@ -354,6 +384,34 @@ public final class CompositorServer {
         let app = apps[windowId]
         lock.unlock()
         return app?.menus ?? []
+    }
+
+    public func sheetSize(for windowId: UInt64) -> (width: Float, height: Float)? {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        return app?.sheetSize
+    }
+
+    public func sheetCommands(for windowId: UInt64) -> [IPCRenderCommand] {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        return app?.getSheetCommands() ?? []
+    }
+
+    public func sendSheetBackdropTapped(windowId: UInt64) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.sheetBackdropTapped)
+    }
+
+    public func sendSheetPointerButton(windowId: UInt64, button: UInt32, pressed: Bool, x: Float, y: Float) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(.sheetPointerButton(button: button, pressed: pressed, x: x, y: y))
     }
 
     public func commands(for windowId: UInt64) -> [IPCRenderCommand] {
