@@ -131,11 +131,16 @@ public struct List: _PrimitiveView {
             }
 
             if let value = tagValue {
+                let isSelected = binding.wrappedValue == value
                 let tapId = TapRegistry.shared.register {
                     binding.wrappedValue = value
                     TagRegistry.shared.setSelection(AnyHashable(value), forKey: key)
                 }
-                return .onTap(id: tapId, child: node)
+                // Selection highlight: rounded blue background
+                let highlighted: ViewNode = isSelected
+                    ? node.background(Color.accentColor.opacity(0.2), cornerRadius: 6)
+                    : node
+                return .onTap(id: tapId, child: highlighted)
             }
             return node
         }

@@ -419,11 +419,9 @@ final class FinderState: ObservableObject {
     }.frame(maxWidth: .infinity, maxHeight: rowHeight)
     .background(rowBg)
     .contentShape(Rectangle())
-    .onTapGesture(count: 2) {
-        if entry.isDirectory { state.navigate(to: entry.name) }
-    }
     .onTapGesture {
         state.selectedIndex = index
+        if entry.isDirectory { state.navigate(to: entry.name) }
     }
     .contextMenu {
         if entry.isDirectory {

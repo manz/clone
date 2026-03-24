@@ -382,9 +382,9 @@ public enum Layout {
             return clippedContent
 
         case .list(let children):
-            // Row padding + alternating backgrounds
+            // Row padding + alternating backgrounds (macOS-style: generous spacing)
             let styledChildren: [ViewNode] = children.enumerated().map { (i, child) in
-                let padded = child.padding(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
                 if i % 2 == 1 {
                     return ViewNode.zstack(children: [
                         ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
