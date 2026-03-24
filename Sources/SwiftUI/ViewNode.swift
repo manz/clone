@@ -17,6 +17,14 @@ public struct GridColumnSpec: Equatable, Sendable {
 /// **Internal use only.** App code should use the SwiftUI DSL functions
 /// (`VStack`, `HStack`, `ZStack`, `Text`, `Rectangle`, etc.) and never
 /// reference `ViewNode` directly.
+/// Sendable wrapper for AnyHashable (used in .tagged).
+public struct SendableHashable: Hashable, @unchecked Sendable {
+    public let value: AnyHashable
+    public init(_ value: AnyHashable) { self.value = value }
+    public static func == (lhs: SendableHashable, rhs: SendableHashable) -> Bool { lhs.value == rhs.value }
+    public func hash(into hasher: inout Hasher) { hasher.combine(value) }
+}
+
 public indirect enum ViewNode: Equatable, Sendable {
     case empty
     case text(String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular)
@@ -48,6 +56,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case menu(label: String, children: [ViewNode])
     case contextMenu(child: ViewNode, menuItems: [ViewNode])
     case clipped(radius: CGFloat, child: ViewNode)
+    case tagged(tag: SendableHashable, child: ViewNode)
 }
 
 /// Axis for ScrollView direction.

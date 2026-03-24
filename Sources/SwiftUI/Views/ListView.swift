@@ -110,9 +110,7 @@ public struct List: _PrimitiveView {
         }
     }
 
-    /// Wraps each child node with a tap handler that updates the selection binding.
-    /// Uses 1-based index as tag value (matching common .tag(1), .tag(2) pattern).
-    /// Persists selection across frame rebuilds via TagRegistry.
+    /// Wraps each child with a tap handler using its .tag() value or index fallback.
     private static func wrapWithSelection<V: Hashable>(_ nodes: [ViewNode], binding: Binding<V?>) -> [ViewNode] {
         let key = "list_selection_\(V.self)"
 
@@ -122,8 +120,11 @@ public struct List: _PrimitiveView {
         }
 
         return nodes.enumerated().map { (index, node) in
+            // Extract tag value from .tagged node, or fall back to index
             let tagValue: V?
-            if let intTag = (index + 1) as? V {
+            if let extracted = Self.extractTag(from: node) as? V {
+                tagValue = extracted
+            } else if let intTag = (index + 1) as? V {
                 tagValue = intTag
             } else {
                 tagValue = nil
@@ -137,6 +138,18 @@ public struct List: _PrimitiveView {
                 return .onTap(id: tapId, child: node)
             }
             return node
+        }
+    }
+
+    /// Walk a ViewNode to find a .tagged value.
+    private static func extractTag(from node: ViewNode) -> AnyHashable? {
+        switch node {
+        case .tagged(let tag, _): return tag.value
+        case .padding(_, let child): return extractTag(from: child)
+        case .frame(_, _, let child): return extractTag(from: child)
+        case .onTap(_, let child): return extractTag(from: child)
+        case .contextMenu(let child, _): return extractTag(from: child)
+        default: return nil
         }
     }
 }

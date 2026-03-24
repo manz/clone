@@ -409,7 +409,7 @@ public extension ViewNode {
 
     /// `.tag(_:)` — attaches a tag value for selection. No-op on ViewNode.
     func tag<V: Hashable>(_ tag: V) -> ViewNode {
-        self
+        .tagged(tag: SendableHashable(AnyHashable(tag)), child: self)
     }
 
     /// `.ignoresSafeArea()` — no-op on Clone.
