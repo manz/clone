@@ -175,6 +175,10 @@ extension App {
                 OnChangeRegistry.shared.flushActions()
                 // Prepend toolbar items
                 viewTree = prependToolbar(viewTree, role: config.role)
+                // Overlay sheet if active (window-level)
+                if let sheetOverlay = WindowState.shared.activeSheetOverlay {
+                    viewTree = .zstack(children: [viewTree, sheetOverlay])
+                }
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
                 // Overlay context menu if open

@@ -316,10 +316,11 @@ public extension ViewNode {
     /// On Clone, renders content as overlay when presented.
     func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         if isPresented.wrappedValue {
-            return .zstack(children: [self, buildSheetOverlay(contentBuilder: content, dismiss: {
+            // Register at window level — sheet covers the entire window
+            WindowState.shared.activeSheetOverlay = buildSheetOverlay(contentBuilder: content, dismiss: {
                 isPresented.wrappedValue = false
                 onDismiss?()
-            })])
+            })
         }
         return self
     }
@@ -327,10 +328,10 @@ public extension ViewNode {
     /// `.sheet(item:onDismiss:content:)` — presents a sheet for an optional item.
     func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> some View) -> ViewNode {
         if let value = item.wrappedValue {
-            return .zstack(children: [self, buildSheetOverlay(contentBuilder: { content(value) }, dismiss: {
+            WindowState.shared.activeSheetOverlay = buildSheetOverlay(contentBuilder: { content(value) }, dismiss: {
                 item.wrappedValue = nil
                 onDismiss?()
-            })])
+            })
         }
         return self
     }

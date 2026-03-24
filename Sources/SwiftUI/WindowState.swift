@@ -28,6 +28,8 @@ public final class WindowState: @unchecked Sendable {
     public var isInsideSheet = false
     /// Sheet toolbar items (separate from main toolbar).
     public var sheetToolbarItems: [ToolbarItemData] = []
+    /// Active sheet overlay (window-level, collected during view tree build).
+    public var activeSheetOverlay: ViewNode? = nil
 
     /// Add toolbar items, skipping duplicates from the same source location.
     public func addToolbarItems(_ items: [ToolbarItemData], sourceKey: String) {
@@ -49,6 +51,7 @@ public final class WindowState: @unchecked Sendable {
         self.toolbarSourceKeys = []
         self.isInsideSheet = false
         self.sheetToolbarItems = []
+        self.activeSheetOverlay = nil
     }
 
     /// Returns true if the title changed since last frame.

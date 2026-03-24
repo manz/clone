@@ -53,12 +53,10 @@ import Foundation
             Text("Sheet")
         }
 
-    // The sheet should be presented
     #expect(showSheet == true)
+    #expect(WindowState.shared.activeSheetOverlay != nil)
 
-    // Simulate clicking the backdrop (which calls dismiss)
-    // The dismiss action sets isPresented to false
-    // Find backdrop tap — it's the first onTap in the ZStack
+    // Find backdrop tap in the window-level overlay
     func findFirstTap(_ node: ViewNode) -> UInt64? {
         switch node {
         case .onTap(let id, _): return id
@@ -71,12 +69,8 @@ import Foundation
         }
     }
 
-    // The sheet returns a ZStack([self, sheetOverlay])
-    // sheetOverlay is a ZStack([backdrop(onTap), centered])
-    // We need the backdrop's tap ID
-    // Since binding was true, we should find onTap nodes
-    // Fire the first one (backdrop)
-    if let tapId = findFirstTap(_resolve(Text("Main")).sheet(isPresented: binding) { Text("Sheet") }) {
+    if let overlay = WindowState.shared.activeSheetOverlay,
+       let tapId = findFirstTap(overlay) {
         TapRegistry.shared.fire(id: tapId)
     }
 
@@ -95,12 +89,28 @@ import Foundation
             Text("Sheet Content")
         }
 
-    // When not presented, sheet just returns the original node
+    // When not presented, sheet returns the original node and no overlay
     if case .text(let content, _, _, _) = node {
         #expect(content == "Hello")
     } else {
         Issue.record("Expected plain text when sheet not presented, got \(node)")
     }
+    #expect(WindowState.shared.activeSheetOverlay == nil)
+}
+
+@Test @MainActor func sheetPresentedRegistersOverlay() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            Text("Sheet Content")
+        }
+
+    #expect(WindowState.shared.activeSheetOverlay != nil, "Sheet should register window-level overlay")
 }
 
 // Helper to extract text from toolbar item nodes
