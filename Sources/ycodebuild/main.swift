@@ -5,10 +5,17 @@ struct YCodeBuild {
     let target: String
     let sourceDir: String
     let prebuilt: Bool
+    let outputDir: String?
 
     func run() throws {
         let sourceDirURL = URL(fileURLWithPath: sourceDir)
-        let parentDir = sourceDirURL.deletingLastPathComponent()
+        let parentDir: URL
+        if let outputDir {
+            parentDir = URL(fileURLWithPath: outputDir)
+            try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+        } else {
+            parentDir = sourceDirURL.deletingLastPathComponent()
+        }
         let aquaxDir = parentDir.appendingPathComponent(".aquax")
 
         print("ycodebuild: scanning \(sourceDir) for imports...")
@@ -45,33 +52,39 @@ struct YCodeBuild {
         let sdkStubs = classified.stubs
 
         // Generate Package.swift
-        let relativeSourceDir = sourceDirURL.lastPathComponent
-        let packageDir = sourceDirURL.deletingLastPathComponent()
+        // SPM doesn't allow paths outside the package root. When --output-dir is set,
+        // create a symlink inside the package dir pointing to the real source.
+        let sourcePathForPackage: String
+        if outputDir != nil {
+            let linkName = sourceDirURL.lastPathComponent
+            let linkURL = parentDir.appendingPathComponent(linkName)
+            let fm = FileManager.default
+            // Remove stale symlink
+            if fm.fileExists(atPath: linkURL.path) {
+                try fm.removeItem(at: linkURL)
+            }
+            try fm.createSymbolicLink(at: linkURL, withDestinationURL: sourceDirURL.standardizedFileURL)
+            sourcePathForPackage = linkName
+        } else {
+            sourcePathForPackage = sourceDirURL.lastPathComponent
+        }
 
         if prebuilt {
-            let frameworksPath = URL(fileURLWithPath: sdkPath)
-                .appendingPathComponent(".build/sdk/System/Library/Frameworks").path
-            // In prebuilt mode, all SDK + stub modules become -framework flags
-            let allFrameworks = classified.sdk.union(sdkStubs)
             try PackageGenerator.generatePrebuilt(
                 target: target,
                 sdkPath: sdkPath,
-                frameworksPath: frameworksPath,
-                rustLibPath: URL(fileURLWithPath: sdkPath).appendingPathComponent("target/debug").path,
-                sourceDir: relativeSourceDir,
-                frameworks: allFrameworks,
-                unknownStubs: unknownStubs,
-                outputDir: packageDir.path,
+                sourceDir: sourcePathForPackage,
+                outputDir: parentDir.path,
                 aquaxDir: aquaxDir.path
             )
         } else {
             try PackageGenerator.generate(
                 target: target,
                 sdkPath: sdkPath,
-                sourceDir: relativeSourceDir,
+                sourceDir: sourcePathForPackage,
                 stubs: sdkStubs,
                 sdkModules: classified.sdk,
-                outputDir: packageDir.path,
+                outputDir: parentDir.path,
                 aquaxDir: aquaxDir.path
             )
         }
@@ -196,6 +209,7 @@ func parseArguments() throws -> YCodeBuild {
     var target: String?
     var sourceDir: String?
     var prebuilt = false
+    var outputDir: String?
 
     var i = 1
     while i < args.count {
@@ -212,6 +226,10 @@ func parseArguments() throws -> YCodeBuild {
             i += 1
             guard i < args.count else { throw YCodeBuildError.missingArgument("--source-dir") }
             sourceDir = args[i]
+        case "--output-dir":
+            i += 1
+            guard i < args.count else { throw YCodeBuildError.missingArgument("--output-dir") }
+            outputDir = args[i]
         case "--prebuilt":
             prebuilt = true
         case "--help", "-h":
@@ -236,18 +254,20 @@ func parseArguments() throws -> YCodeBuild {
         sdkPath: resolvedSDK,
         target: resolvedTarget,
         sourceDir: resolvedSource,
-        prebuilt: prebuilt
+        prebuilt: prebuilt,
+        outputDir: outputDir
     )
 }
 
 func printUsage() {
     print("""
-    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>] [--prebuilt]
+    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>] [--output-dir <path>] [--prebuilt]
 
     OPTIONS:
       --sdk-path    Path to Clone SDK repo (default: $AQUAX_SDK_PATH or ~/Projects/clone)
       --target      Executable target name (default: source directory name)
       --source-dir  Path to app source files (default: .)
+      --output-dir  Directory for generated Package.swift and build output (default: source-dir/..)
       --prebuilt    Link against prebuilt .framework bundles instead of building from source
       -h, --help    Show this help message
     """)

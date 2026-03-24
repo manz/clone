@@ -11,11 +11,12 @@ Clone (codename **Aquax**) is a macOS desktop environment targeting Linux — a 
 ## Build & Test Commands
 
 ```bash
-make all          # Full build: cargo build → UniFFI bindings → swift build
+make all          # Full build: engine → bindings → compositor → SDK → apps
 make engine       # Rust engine only (cargo build)
 make bindings     # Generate UniFFI Swift bindings from libclone_engine.dylib
-make swift        # Swift package (libs + compositor)
-make apps         # Build all app targets (Finder, Settings, Dock, MenuBar)
+make swift        # Compositor + daemons only (CloneDesktop, keychaind, cloned)
+make sdk          # Full swift build + assemble .framework bundles
+make apps         # Build all app targets against prebuilt SDK frameworks
 make test         # Run all tests (Rust + Swift)
 make test-rust    # cargo test --lib
 make test-swift   # swift test
@@ -23,20 +24,35 @@ make test-swift   # swift test
 
 Run the compositor: `swift run CloneDesktop` (after `make all`)
 
+### Build pipeline
+
+The build is split into two stages to avoid recompiling apps when SDK sources change:
+
+1. **`make sdk`** — compiles all Swift modules via `swift build`, then `scripts/build-sdk.sh` assembles `.framework` bundles (dylib + swiftmodule) at `.build/sdk/System/Library/Frameworks/`.
+2. **`make apps`** — builds each app with `ycodebuild --prebuilt`, which generates a standalone SPM package that links against the prebuilt frameworks via `-F` flags. Apps only compile their own source — no SDK recompilation.
+
+After a SwiftUI change: `make sdk` recompiles the SDK (~30s), then `make apps` re-links each app in ~0.1s.
+
 ### Building apps with ycodebuild
 
 `ycodebuild` generates an SPM package that compiles app source against Clone's SDK instead of Apple's frameworks.
 
 ```bash
-# Build Tunes for Clone
-swift run ycodebuild --source-dir ~/Projects/Tunes/Tunes/Tunes --target Tunes
-# Binary at ~/Projects/Tunes/Tunes/.build/debug/Tunes
+# Prebuilt mode (fast — links against .framework bundles from make sdk)
+swift run ycodebuild --prebuilt --source-dir ~/Projects/Tunes/Tunes/Tunes --target Tunes
 
-# Generic usage
-swift run ycodebuild --source-dir <app-source-dir> --target <TargetName>
+# Source mode (slow — recompiles Clone from source, no make sdk needed)
+swift run ycodebuild --source-dir ~/Projects/Tunes/Tunes/Tunes --target Tunes
+
+# Internal apps use --output-dir to avoid clobbering Clone's Package.swift
+swift run ycodebuild --prebuilt --output-dir .build/apps/Finder --source-dir Sources/FinderApp --target Finder
 ```
 
-The generated package lives in `<source-dir>/../.aquax/` and imports Clone's SwiftUI, AppKit, SwiftData, etc. instead of Apple's. The app binary connects to the compositor over `/tmp/clone-compositor.sock`.
+**How `--prebuilt` works:** The generated Package.swift uses `-F` (framework search path) in `swiftSettings` so `import SwiftUI` resolves to Clone's `SwiftUI.framework` before Apple's. It also passes `-I` for internal Swift modules (PosixShim, CloneText, etc.), `-Xcc -fmodule-map-file` for C FFI modules (clone_textFFI, etc.), and `-load-plugin-executable` for SwiftDataMacros.
+
+**Mode switching:** ycodebuild tracks the last build mode in `.aquax/.build-mode`. Switching between `--prebuilt` and source mode automatically cleans the build cache to avoid stale `.swiftmodule` files that would make `#if canImport` return wrong results.
+
+The app binary connects to the compositor over `/tmp/clone-compositor.sock`.
 
 ## Architecture
 
@@ -105,7 +121,7 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 ### App targets (separate processes)
 
-`CloneDesktop` (compositor), `Finder`, `Settings`, `Dock`, `MenuBar` — each uses `@main` + `App` protocol.
+`CloneDesktop` (compositor), `Finder`, `Settings`, `Dock`, `MenuBar`, `PasswordApp`, `TextEditApp`, `PreviewApp`, `LoginWindow` — each uses `@main` + `App` protocol. The compositor and daemons (`keychaind`, `cloned`) are built directly via SPM. All other apps are built by `ycodebuild --prebuilt` against the SDK frameworks, with binaries at `.build/apps/<name>/.build/`.
 
 ## Code Style — STRICT RULES
 

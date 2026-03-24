@@ -1,7 +1,7 @@
 .PHONY: all engine bindings text text-bindings audio audio-bindings swift apps build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
-# Build everything: engine → bindings → audio → audio-bindings → libs + apps
-all: bindings text-bindings audio-bindings swift apps
+# Build everything: engine → bindings → audio → audio-bindings → compositor → SDK → apps
+all: bindings text-bindings audio-bindings swift sdk apps
 
 # Rust engine
 engine:
@@ -42,21 +42,24 @@ audio-bindings: audio
 		--out-dir Sources/AudioBridge
 	cp Sources/AudioBridge/clone_audioFFI.h Sources/CAudio/include/clone_audioFFI.h
 
-# Swift package (libs + compositor)
+# Swift package — compositor + daemons only (not apps)
 swift:
-	swift build
+	swift build --product CloneDesktop
+	swift build --product keychaind
+	swift build --product cloned
 
-# App processes
-apps: swift
-	swift build --target Finder
-	swift build --target Settings
-	swift build --target Dock
-	swift build --target MenuBar
-	swift build --target PasswordApp
-	swift build --target TextEditApp
-	swift build --target PreviewApp
-	swift build --target LoginWindow
-	swift build --target keychaind
+# App processes — built against prebuilt SDK frameworks
+# --output-dir puts the generated Package.swift outside Clone's source tree
+APPBUILD = swift run ycodebuild --prebuilt --output-dir .build/apps/$(1) --source-dir Sources/$(2) --target $(1)
+apps:
+	$(call APPBUILD,Finder,FinderApp)
+	$(call APPBUILD,Settings,SettingsApp)
+	$(call APPBUILD,Dock,DockApp)
+	$(call APPBUILD,MenuBar,MenuBarApp)
+	$(call APPBUILD,PasswordApp,PasswordApp)
+	$(call APPBUILD,TextEditApp,TextEditApp)
+	$(call APPBUILD,PreviewApp,PreviewApp)
+	$(call APPBUILD,LoginWindow,LoginWindowApp)
 
 # Alias
 build: all
@@ -73,7 +76,9 @@ test-swift:
 test: test-rust test-swift
 
 # Assemble SDK frameworks (.framework bundles with .dylib/.so + .swiftmodule)
-sdk: swift
+# Full swift build needed — build-sdk.sh requires all module .o files and .swiftmodule outputs
+sdk:
+	swift build
 	./scripts/build-sdk.sh debug
 
 sdk-release: bindings audio-bindings
