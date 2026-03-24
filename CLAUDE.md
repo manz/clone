@@ -45,7 +45,7 @@ swift run ycodebuild --prebuilt --source-dir ~/Projects/Tunes/Tunes/Tunes --targ
 swift run ycodebuild --source-dir ~/Projects/Tunes/Tunes/Tunes --target Tunes
 
 # Internal apps use --output-dir to avoid clobbering Clone's Package.swift
-swift run ycodebuild --prebuilt --output-dir .build/apps/Finder --source-dir Sources/FinderApp --target Finder
+swift run ycodebuild --prebuilt --output-dir .build/apps/Finder --source-dir Sources/Apps/Finder --target Finder
 ```
 
 **How `--prebuilt` works:** The generated Package.swift uses `-F` (framework search path) in `swiftSettings` so `import SwiftUI` resolves to Clone's `SwiftUI.framework` before Apple's. It also passes `-I` for internal Swift modules (PosixShim, CloneText, etc.), `-Xcc -fmodule-map-file` for C FFI modules (clone_textFFI, etc.), and `-load-plugin-executable` for SwiftDataMacros.
@@ -63,23 +63,40 @@ The app binary connects to the compositor over `/tmp/clone-compositor.sock`.
 
 **UniFFI 0.28** bridges Rust↔Swift. The `DesktopDelegate` callback trait (Rust) is implemented in Swift (`SwiftDesktopDelegate`). Rust calls Swift to get render commands each frame; Swift calls Rust to start the engine.
 
+### Source layout
+
+```
+Sources/
+  SDK/          SwiftUI, AppKit, SwiftData, Charts, MediaPlayer, AVKit,
+                AVFoundation, UniformTypeIdentifiers, KeychainServices
+  Internal/     CloneProtocol, CloneClient, CloneServer, CloneText,
+                PosixShim, EngineBridge, AudioBridge, SwiftDataMacros
+  FFI/          CText, CAudio, CEngine, CSQLite
+  Apps/         Compositor, Finder, Settings, Dock, MenuBar,
+                Password, TextEdit, Preview, LoginWindow
+  Daemons/      cloned, CloneDaemon, keychaind, CloneKeychain
+  Tools/        ycodebuild
+```
+
 ### Module stack
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Apps (Finder, Settings, Dock, MenuBar)                 │
+│  Apps (Finder, Settings, Dock, MenuBar, ...)            │
 │  import SwiftUI  ← same API as Apple's                  │
 ├─────────────────────────────────────────────────────────┤
-│  SwiftUI module        │  AppKit module (NSColor shim)  │
-│  View structs (Text,   │  NSColor, NSAppearance         │
-│  VStack, Button, etc.) │  Semantic system colors        │
-│  ViewBuilder, ForEach,  │                                │
-│  @main App protocol    │                                │
+│  SDK/SwiftUI             │  SDK/AppKit (NSColor shim)   │
+│  View structs (Text,     │  NSColor, NSAppearance       │
+│  VStack, Button, etc.)   │  Semantic system colors      │
+│  ViewBuilder, ForEach,    │                              │
+│  @main App protocol      │                              │
 ├─────────────────────────────────────────────────────────┤
-│  SwiftData module      │  CloneClient / CloneProtocol   │
-│  SQLite persistence    │  IPC over Unix sockets         │
+│  SDK/SwiftData           │  Internal/CloneClient        │
+│  SQLite persistence      │  Internal/CloneProtocol      │
 ├─────────────────────────────────────────────────────────┤
-│  EngineBridge (UniFFI) — CGFloat→Float at boundary      │
+│  Internal/EngineBridge (UniFFI) — CGFloat→Float         │
+├─────────────────────────────────────────────────────────┤
+│  FFI/CEngine, CText, CAudio, CSQLite                    │
 ├─────────────────────────────────────────────────────────┤
 │  Rust engine: wgpu renderer, surface compositor, winit  │
 └─────────────────────────────────────────────────────────┘
@@ -107,21 +124,21 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 ### Key modules
 
-| Module | Purpose |
-|--------|---------|
-| `Sources/SwiftUI/` | UI framework: View structs, ViewNode IR, Layout, Font, Color, App protocol |
-| `Sources/SwiftUI/Views/` | View structs: Text, VStack, HStack, ZStack, Button, Rectangle, etc. |
-| `Sources/AppKit/` | NSColor, NSAppearance shims for Linux |
-| `Sources/SwiftData/` | SQLite-backed persistence (PersistentModel, ModelContainer) |
-| `Sources/CloneProtocol/` | IPC message types (Codable, uses Float wire format) |
-| `Sources/CloneClient/` | App-side Unix socket client |
-| `Sources/CloneServer/` | Compositor-side GCD socket server |
-| `Sources/EngineBridge/` | FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
-| `engine/src/` | Rust wgpu renderer, surface compositor, winit event loop |
+| Module | Path | Purpose |
+|--------|------|---------|
+| SwiftUI | `Sources/SDK/SwiftUI/` | View structs, ViewNode IR, Layout, Font, Color, App protocol |
+| AppKit | `Sources/SDK/AppKit/` | NSColor, NSAppearance shims for Linux |
+| SwiftData | `Sources/SDK/SwiftData/` | SQLite-backed persistence (PersistentModel, ModelContainer) |
+| CloneProtocol | `Sources/Internal/CloneProtocol/` | IPC message types (Codable, uses Float wire format) |
+| CloneClient | `Sources/Internal/CloneClient/` | App-side Unix socket client |
+| CloneServer | `Sources/Internal/CloneServer/` | Compositor-side GCD socket server |
+| EngineBridge | `Sources/Internal/EngineBridge/` | FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
+| CloneText | `Sources/Internal/CloneText/` | cosmic-text measurement bridge |
+| engine | `engine/src/` | Rust wgpu renderer, surface compositor, winit event loop |
 
 ### App targets (separate processes)
 
-`CloneDesktop` (compositor), `Finder`, `Settings`, `Dock`, `MenuBar`, `PasswordApp`, `TextEditApp`, `PreviewApp`, `LoginWindow` — each uses `@main` + `App` protocol. The compositor and daemons (`keychaind`, `cloned`) are built directly via SPM. All other apps are built by `ycodebuild --prebuilt` against the SDK frameworks, with binaries at `.build/apps/<name>/.build/`.
+`CloneDesktop` (compositor), `Finder`, `Settings`, `Dock`, `MenuBar`, `Password`, `TextEdit`, `Preview`, `LoginWindow` — each uses `@main` + `App` protocol. The compositor and daemons (`keychaind`, `cloned`) are built directly via SPM. All other apps are built by `ycodebuild --prebuilt` against the SDK frameworks, with binaries at `.build/apps/<name>/.build/`.
 
 ## Code Style — STRICT RULES
 
@@ -154,7 +171,7 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 
 ## State Management — StateGraph
 
-`StateGraph` provides persistent state storage across frame rebuilds (`Sources/SwiftUI/StateGraph.swift`).
+`StateGraph` provides persistent state storage across frame rebuilds (`Sources/SDK/SwiftUI/StateGraph.swift`).
 
 **Key format:** `scope/file:line:callIndex`
 - **Scope** — pushed by `ForEach` with each item's `Identifiable.id`. Nested ForEach produces nested scopes: `album-7/track-42/TrackRow.swift:8:0`. This matches Apple's structural identity: state is stable across reorders, insertions, deletions.
