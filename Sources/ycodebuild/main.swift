@@ -4,6 +4,7 @@ struct YCodeBuild {
     let sdkPath: String
     let target: String
     let sourceDir: String
+    let prebuilt: Bool
 
     func run() throws {
         let sourceDirURL = URL(fileURLWithPath: sourceDir)
@@ -46,23 +47,61 @@ struct YCodeBuild {
         // Generate Package.swift
         let relativeSourceDir = sourceDirURL.lastPathComponent
         let packageDir = sourceDirURL.deletingLastPathComponent()
-        try PackageGenerator.generate(
-            target: target,
-            sdkPath: sdkPath,
-            sourceDir: relativeSourceDir,
-            stubs: sdkStubs,
-            sdkModules: classified.sdk,
-            outputDir: packageDir.path,
-            aquaxDir: aquaxDir.path
-        )
+
+        if prebuilt {
+            let frameworksPath = URL(fileURLWithPath: sdkPath)
+                .appendingPathComponent(".build/sdk/System/Library/Frameworks").path
+            // In prebuilt mode, all SDK + stub modules become -framework flags
+            let allFrameworks = classified.sdk.union(sdkStubs)
+            try PackageGenerator.generatePrebuilt(
+                target: target,
+                sdkPath: sdkPath,
+                frameworksPath: frameworksPath,
+                rustLibPath: URL(fileURLWithPath: sdkPath).appendingPathComponent("target/debug").path,
+                sourceDir: relativeSourceDir,
+                frameworks: allFrameworks,
+                unknownStubs: unknownStubs,
+                outputDir: packageDir.path,
+                aquaxDir: aquaxDir.path
+            )
+        } else {
+            try PackageGenerator.generate(
+                target: target,
+                sdkPath: sdkPath,
+                sourceDir: relativeSourceDir,
+                stubs: sdkStubs,
+                sdkModules: classified.sdk,
+                outputDir: packageDir.path,
+                aquaxDir: aquaxDir.path
+            )
+        }
 
         print("ycodebuild: generated .aquax/Package.swift and stub modules")
+
+        // Detect mode switch and clean stale build cache to avoid phantom modules.
+        // A prior source-dep build leaves .swiftmodule files (e.g. Sparkle) that make
+        // canImport() return true even when the module isn't in the new Package.swift.
+        let modeMarker = aquaxDir.appendingPathComponent(".build-mode")
+        let currentMode = prebuilt ? "prebuilt" : "source"
+        let previousMode = try? String(contentsOf: modeMarker, encoding: .utf8)
+        if previousMode != nil && previousMode != currentMode {
+            print("ycodebuild: build mode changed (\(previousMode!) → \(currentMode)), cleaning build cache...")
+            let cleanProcess = Process()
+            cleanProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            cleanProcess.arguments = ["package", "--package-path", parentDir.path, "clean"]
+            cleanProcess.standardOutput = FileHandle.nullDevice
+            cleanProcess.standardError = FileHandle.nullDevice
+            try cleanProcess.run()
+            cleanProcess.waitUntilExit()
+        }
+        try currentMode.write(to: modeMarker, atomically: true, encoding: .utf8)
+
         print("ycodebuild: building \(target)...")
 
         // Run swift build
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
-        process.arguments = ["build", "--package-path", parentDir.path, "--target", target]
+        process.arguments = ["build", "--package-path", parentDir.path, "--product", target]
         process.currentDirectoryURL = parentDir
 
         // Stream build output directly to terminal
@@ -156,6 +195,7 @@ func parseArguments() throws -> YCodeBuild {
     var sdkPath: String?
     var target: String?
     var sourceDir: String?
+    var prebuilt = false
 
     var i = 1
     while i < args.count {
@@ -172,6 +212,8 @@ func parseArguments() throws -> YCodeBuild {
             i += 1
             guard i < args.count else { throw YCodeBuildError.missingArgument("--source-dir") }
             sourceDir = args[i]
+        case "--prebuilt":
+            prebuilt = true
         case "--help", "-h":
             printUsage()
             exit(0)
@@ -193,18 +235,20 @@ func parseArguments() throws -> YCodeBuild {
     return YCodeBuild(
         sdkPath: resolvedSDK,
         target: resolvedTarget,
-        sourceDir: resolvedSource
+        sourceDir: resolvedSource,
+        prebuilt: prebuilt
     )
 }
 
 func printUsage() {
     print("""
-    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>]
+    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>] [--prebuilt]
 
     OPTIONS:
       --sdk-path    Path to Clone SDK repo (default: $AQUAX_SDK_PATH or ~/Projects/clone)
       --target      Executable target name (default: source directory name)
       --source-dir  Path to app source files (default: .)
+      --prebuilt    Link against prebuilt .framework bundles instead of building from source
       -h, --help    Show this help message
     """)
 }

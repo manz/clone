@@ -91,12 +91,32 @@ for MOD in "${FRAMEWORKS[@]}"; do
         fi
     done
 
-    # AudioBridge depends on the Rust audio library — link the .o files and Rust lib
+    # Bundle transitive internal modules that aren't separate frameworks.
+    # AVFoundation needs AudioBridge .o files + Rust audio lib
     if [ "$MOD" = "AVFoundation" ] && [ -d "$BUILD_DIR/AudioBridge.build" ]; then
         for ao in "$BUILD_DIR/AudioBridge.build"/*.swift.o; do
             [ -f "$ao" ] && OBJ_FILES+=("$ao")
         done
         FWFLAGS+=(-lclone_audio)
+    fi
+    # SwiftUI needs CloneText .o files + Rust text lib
+    if [ "$MOD" = "SwiftUI" ] && [ -d "$BUILD_DIR/CloneText.build" ]; then
+        for to in "$BUILD_DIR/CloneText.build"/*.swift.o; do
+            [ -f "$to" ] && OBJ_FILES+=("$to")
+        done
+        FWFLAGS+=(-lclone_text)
+    fi
+    # CloneProtocol needs PosixShim .o files
+    if [ "$MOD" = "CloneProtocol" ] && [ -d "$BUILD_DIR/PosixShim.build" ]; then
+        for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do
+            [ -f "$po" ] && OBJ_FILES+=("$po")
+        done
+    fi
+    # CloneClient needs PosixShim .o files (also depends on it)
+    if [ "$MOD" = "CloneClient" ] && [ -d "$BUILD_DIR/PosixShim.build" ]; then
+        for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do
+            [ -f "$po" ] && OBJ_FILES+=("$po")
+        done
     fi
 
     swiftc \
