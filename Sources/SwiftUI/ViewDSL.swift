@@ -355,10 +355,15 @@ public extension ViewNode {
         // Reset dismiss to no-op
         clearDismissAction()
 
-        // Build the sheet panel: toolbar bar (if any) + content
+        // Build the sheet panel: content + bottom toolbar (if any)
         let maxW: CGFloat = 500
+        let windowH = WindowState.shared.height
         var panelChildren: [ViewNode] = []
+        var bottomBarHeight: CGFloat = 0
 
+        // Build bottom toolbar bar first to know its height
+        var toolbarBar: ViewNode? = nil
+        var separatorNode: ViewNode? = nil
         if !sheetToolbar.isEmpty {
             let leftPlacements: Set<ToolbarItemPlacement> = [.cancellationAction]
             let rightPlacements: Set<ToolbarItemPlacement> = [.confirmationAction, .primaryAction, .destructiveAction]
@@ -375,25 +380,32 @@ public extension ViewNode {
                 barChildren.append(item.node)
             }
 
-            let toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children: barChildren)
-                .padding(EdgeInsets(top: 8, leading: 12, bottom: 4, trailing: 12))
-            panelChildren.append(toolbarBar)
-            panelChildren.append(ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.88)))
+            separatorNode = ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.88))
+            toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children: barChildren)
+                .padding(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+
+            // Measure toolbar to reserve space for it
+            let barMeasured = Layout.measure(toolbarBar!, constraint: SizeConstraint(maxWidth: maxW, maxHeight: windowH))
+            bottomBarHeight = barMeasured.height + 1 // +1 for separator
         }
 
-        panelChildren.append(sheetBody.padding(EdgeInsets(top: 12, leading: 16, bottom: 16, trailing: 16)))
+        // Body gets the remaining height after the toolbar
+        let bodyMaxH = windowH - bottomBarHeight
+        let paddedBody = sheetBody.padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+        let bodyMeasured = Layout.measure(paddedBody, constraint: SizeConstraint(maxWidth: maxW, maxHeight: bodyMaxH))
+        let bodyHeight = min(bodyMeasured.height, bodyMaxH)
+
+        panelChildren.append(ViewNode.frame(width: nil, height: bodyHeight, child: paddedBody))
+
+        if let sep = separatorNode, let bar = toolbarBar {
+            panelChildren.append(sep)
+            panelChildren.append(bar)
+        }
 
         let panelContent = ViewNode.vstack(alignment: .leading, spacing: 0, children: panelChildren)
-        let panel = ViewNode.frame(width: maxW, height: nil, child: panelContent)
+        let sheetHeight = min(max(bodyHeight + bottomBarHeight, 100), 4096)
+        let panel = ViewNode.frame(width: maxW, height: sheetHeight, child: panelContent)
             .background(Color(white: 1.0), cornerRadius: 12)
-
-        // Measure sheet content — the compositor renders it as a separate surface
-        // that can overflow the parent window. Use window height as the measurement
-        // constraint so ScrollViews fill the proposed size rather than expanding
-        // unboundedly. Cap to GPU texture limit (8192px / 2x scale = 4096pt).
-        let windowH = WindowState.shared.height
-        let measured = Layout.measure(panelContent, constraint: SizeConstraint(maxWidth: maxW, maxHeight: windowH))
-        let sheetHeight = min(max(measured.height, 100), 4096)
 
         WindowState.shared.activeSheetContent = panel
         WindowState.shared.activeSheetSize = CGSize(width: maxW, height: sheetHeight)
