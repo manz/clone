@@ -17,25 +17,42 @@ Clone splits across two languages: **Swift** for UI logic and **Rust** for GPU r
 - **Engine bridge** — `DesktopDelegate` callback trait (Rust) implemented in Swift (`SwiftDesktopDelegate`). Rust calls Swift for render commands; Swift calls Rust to start the engine.
 - **Audio bridge** — `AudioPlayer` and `AudioPlayerDelegate` exposed via UniFFI. Swift's `AVFoundation` module wraps these as `AVPlayer`/`AVQueuePlayer`.
 
+## Source Layout
+
+```
+Sources/
+  SDK/          SwiftUI, AppKit, SwiftData, Charts, MediaPlayer, AVKit,
+                AVFoundation, UniformTypeIdentifiers, KeychainServices
+  Internal/     CloneProtocol, CloneClient, CloneServer, CloneText,
+                PosixShim, EngineBridge, AudioBridge, SwiftDataMacros
+  FFI/          CText, CAudio, CEngine, CSQLite
+  Apps/         Compositor, Finder, Settings, Dock, MenuBar,
+                Password, TextEdit, Preview, LoginWindow
+  Daemons/      cloned, CloneDaemon, keychaind, CloneKeychain
+  Tools/        ycodebuild
+```
+
 ## Module Map
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Apps                                                   │
+│  Apps/                                                  │
 │  Finder, Settings, Dock, MenuBar, TextEdit, Preview,    │
-│  PasswordApp, LoginWindow                               │
+│  Password, LoginWindow                                  │
 │  import SwiftUI  ← same API as Apple's                  │
 ├─────────────────────────────────────────────────────────┤
-│  SwiftUI         │  AppKit (NSColor, NSImage shims)     │
-│  Charts          │  AVFoundation (AVPlayer, AVQueue)    │
-│  SwiftData       │  MediaPlayer (MPNowPlayingInfo)      │
-│  (SQLite via     │  KeychainServices (SecItem API)      │
-│   CSQLite)       │  UniformTypeIdentifiers (UTType)     │
+│  SDK/SwiftUI     │  SDK/AppKit (NSColor, NSImage shims) │
+│  SDK/Charts      │  SDK/AVFoundation (AVPlayer, AVQueue)│
+│  SDK/SwiftData   │  SDK/MediaPlayer (MPNowPlayingInfo)  │
+│  (SQLite via     │  SDK/KeychainServices (SecItem API)  │
+│   FFI/CSQLite)   │  SDK/UniformTypeIdentifiers (UTType) │
 ├─────────────────────────────────────────────────────────┤
-│  CloneClient / CloneProtocol — IPC over Unix sockets    │
+│  Internal/CloneClient / Internal/CloneProtocol — IPC    │
 ├─────────────────────────────────────────────────────────┤
-│  EngineBridge (UniFFI)    │  AudioBridge (UniFFI)       │
-│  CGFloat→Float boundary   │  AVPlayer → Rust CPAL       │
+│  Internal/EngineBridge    │  Internal/AudioBridge       │
+│  (UniFFI)                 │  (UniFFI)                   │
+├─────────────────────────────────────────────────────────┤
+│  FFI/CEngine, CText, CAudio, CSQLite                    │
 ├─────────────────────────────────────────────────────────┤
 │  Rust: clone-engine       │  Rust: clone-audio          │
 │  wgpu, surface compositor │  CPAL, symphonia decoder    │
@@ -45,10 +62,10 @@ Clone splits across two languages: **Swift** for UI logic and **Rust** for GPU r
 
 ### Daemons
 
-| Daemon | Library | Purpose |
-|--------|---------|---------|
-| `cloned` | `CloneDaemon` | Now-playing info aggregation, media key routing |
-| `keychaind` | `CloneKeychain` | SQLite-backed keychain storage, SecItem API |
+| Daemon | Library | Path | Purpose |
+|--------|---------|------|---------|
+| `cloned` | `CloneDaemon` | `Sources/Daemons/` | Now-playing info aggregation, media key routing |
+| `keychaind` | `CloneKeychain` | `Sources/Daemons/` | SQLite-backed keychain storage, SecItem API |
 
 ## Rendering Pipeline
 
@@ -84,5 +101,5 @@ CloneDesktop (compositor)
   ├── Settings
   ├── TextEdit
   ├── Preview
-  └── PasswordApp
+  └── Password
 ```

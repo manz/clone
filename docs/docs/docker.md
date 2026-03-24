@@ -35,5 +35,5 @@ The source is bind-mounted into the container, so build output lands directly in
 docker run -it -v $(pwd):/clone clone-sdk bash
 
 # Build a specific target
-docker run --rm -v $(pwd):/clone clone-sdk swift build --target Charts
+docker run --rm -v $(pwd):/clone clone-sdk swift build --product CloneDesktop
 ```

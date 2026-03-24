@@ -15,16 +15,18 @@ Clone (codename **Aquax**) is a compositor, window manager, and UI framework tha
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Apps (Finder, Settings, Dock, MenuBar)                 │
+│  Apps/ (Finder, Settings, Dock, MenuBar, ...)           │
 │  import SwiftUI  ← same API as Apple's                  │
 ├─────────────────────────────────────────────────────────┤
-│  SwiftUI module        │  AppKit module (NSColor shim)  │
-│  Charts module         │  AVFoundation (audio)          │
-│  SwiftData (SQLite)    │  MediaPlayer (now playing)     │
+│  SDK/SwiftUI      │  SDK/AppKit (NSColor shim)          │
+│  SDK/Charts       │  SDK/AVFoundation (audio)           │
+│  SDK/SwiftData    │  SDK/MediaPlayer (now playing)      │
 ├─────────────────────────────────────────────────────────┤
-│  CloneClient / CloneProtocol — IPC over Unix sockets    │
+│  Internal/CloneClient / Internal/CloneProtocol — IPC    │
 ├─────────────────────────────────────────────────────────┤
-│  EngineBridge (UniFFI) — CGFloat→Float at boundary      │
+│  Internal/EngineBridge (UniFFI) — CGFloat→Float         │
+├─────────────────────────────────────────────────────────┤
+│  FFI/ (CEngine, CText, CAudio, CSQLite)                 │
 ├─────────────────────────────────────────────────────────┤
 │  Rust engine: wgpu renderer, surface compositor, winit  │
 └─────────────────────────────────────────────────────────┘
@@ -34,8 +36,7 @@ Clone (codename **Aquax**) is a compositor, window manager, and UI framework tha
 
 ```bash
 # macOS development
-make all          # Build everything (Rust + Swift)
-make sdk          # Assemble .framework bundles
+make all          # Build everything (engine → SDK → apps)
 swift run CloneDesktop
 
 # Linux (Docker)

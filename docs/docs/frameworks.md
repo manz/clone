@@ -55,17 +55,34 @@ The compiler searches each `-F` path for `FrameworkName.framework/Modules/Framew
 | `UniformTypeIdentifiers` | UTType declarations for file type identification |
 | `KeychainServices` | Keychain Services API (SecItemAdd, SecItemCopyMatching). Named `KeychainServices` on macOS to avoid shadowing the system `Security.framework`; becomes `Security` on Linux. |
 
-### Internal (compositor + IPC)
+### Internal (`Sources/Internal/`)
 
 | Module | Description |
 |--------|-------------|
 | `CloneClient` | App-side Unix socket client |
 | `CloneProtocol` | Shared IPC message types (Codable, 4-byte BE length-prefixed JSON) |
+| `CloneServer` | Compositor-side GCD socket server |
+| `CloneText` | cosmic-text measurement bridge (wraps Rust `clone-text`) |
 | `EngineBridge` | UniFFI bridge: FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
 | `AudioBridge` | UniFFI bridge: wraps Rust `clone-audio` (CPAL + symphonia) for Swift |
+| `PosixShim` | Cross-platform POSIX wrappers (Darwin/Glibc) |
+| `SwiftDataMacros` | Compiler plugin: @Model, #Preview, #Unique macros |
+
+### FFI (`Sources/FFI/`)
+
+| Module | Description |
+|--------|-------------|
+| `CEngine` | C module map for `clone_engineFFI` (Rust GPU engine) |
+| `CText` | C module map for `clone_textFFI` (Rust text measurement) |
+| `CAudio` | C module map for `clone_audioFFI` (Rust audio engine) |
+| `CSQLite` | System library wrapper for SQLite3 |
+
+### Daemons (`Sources/Daemons/`)
+
+| Module | Description |
+|--------|-------------|
 | `CloneDaemon` | Now-playing daemon library (used by `cloned` executable) |
 | `CloneKeychain` | Keychain daemon library (used by `keychaind` executable), SQLite-backed |
-| `CSQLite` | System library wrapper for SQLite3 (used by SwiftData and CloneKeychain) |
 
 ## Building the SDK
 
@@ -83,4 +100,4 @@ The `scripts/build-sdk.sh` script:
 4. Creates the `Versions/A/` → `Versions/Current` symlink structure
 5. Outputs to `.build/sdk/System/Library/Frameworks/`
 
-Dependency order matters — leaf modules (CloneProtocol, AppKit) are linked first so that dependent modules (SwiftUI, Charts) can resolve their symbols. AVFoundation additionally links the Rust `libclone_audio` library via AudioBridge.
+Dependency order matters — leaf modules (CloneProtocol, AppKit) are linked first so that dependent modules (SwiftUI, Charts) can resolve their symbols. The script bundles transitive internal modules into framework dylibs: CloneText into SwiftUI, AudioBridge into AVFoundation, PosixShim into CloneProtocol and CloneClient.
