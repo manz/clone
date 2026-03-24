@@ -15,8 +15,8 @@ bindings: engine
 	cargo run -p clone-engine --bin uniffi-bindgen generate \
 		--library target/debug/libclone_engine.dylib \
 		--language swift \
-		--out-dir Sources/EngineBridge
-	cp Sources/EngineBridge/clone_engineFFI.h Sources/CEngine/include/clone_engineFFI.h
+		--out-dir Sources/Internal/EngineBridge
+	cp Sources/Internal/EngineBridge/clone_engineFFI.h Sources/FFI/CEngine/include/clone_engineFFI.h
 
 # Rust text measurement crate
 text:
@@ -27,8 +27,8 @@ text-bindings: text
 	cargo run -p clone-text --bin uniffi-bindgen-text generate \
 		--library target/debug/libclone_text.dylib \
 		--language swift \
-		--out-dir Sources/CloneText
-	cp Sources/CloneText/clone_textFFI.h Sources/CText/include/clone_textFFI.h
+		--out-dir Sources/Internal/CloneText
+	cp Sources/Internal/CloneText/clone_textFFI.h Sources/FFI/CText/include/clone_textFFI.h
 
 # Rust audio engine
 audio:
@@ -39,8 +39,8 @@ audio-bindings: audio
 	cargo run -p clone-audio --bin uniffi-bindgen generate \
 		--library target/debug/libclone_audio.dylib \
 		--language swift \
-		--out-dir Sources/AudioBridge
-	cp Sources/AudioBridge/clone_audioFFI.h Sources/CAudio/include/clone_audioFFI.h
+		--out-dir Sources/Internal/AudioBridge
+	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Swift package — compositor + daemons only (not apps)
 swift:
@@ -50,16 +50,16 @@ swift:
 
 # App processes — built against prebuilt SDK frameworks
 # --output-dir puts the generated Package.swift outside Clone's source tree
-APPBUILD = swift run ycodebuild --prebuilt --output-dir .build/apps/$(1) --source-dir Sources/$(2) --target $(1)
+APPBUILD = swift run ycodebuild --prebuilt --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
-	$(call APPBUILD,Finder,FinderApp)
-	$(call APPBUILD,Settings,SettingsApp)
-	$(call APPBUILD,Dock,DockApp)
-	$(call APPBUILD,MenuBar,MenuBarApp)
-	$(call APPBUILD,PasswordApp,PasswordApp)
-	$(call APPBUILD,TextEditApp,TextEditApp)
-	$(call APPBUILD,PreviewApp,PreviewApp)
-	$(call APPBUILD,LoginWindow,LoginWindowApp)
+	$(call APPBUILD,Finder,Finder)
+	$(call APPBUILD,Settings,Settings)
+	$(call APPBUILD,Dock,Dock)
+	$(call APPBUILD,MenuBar,MenuBar)
+	$(call APPBUILD,PasswordApp,Password)
+	$(call APPBUILD,TextEditApp,TextEdit)
+	$(call APPBUILD,PreviewApp,Preview)
+	$(call APPBUILD,LoginWindow,LoginWindow)
 
 # Alias
 build: all

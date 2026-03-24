@@ -26,25 +26,49 @@ let package = Package(
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
-        // Cross-platform POSIX wrappers (Darwin/Glibc)
-        .target(
-            name: "PosixShim",
-            path: "Sources/PosixShim"
-        ),
+        // ── FFI ─────────────────────────────────────────────────
         .systemLibrary(
             name: "clone_engineFFI",
-            path: "Sources/CEngine"
+            path: "Sources/FFI/CEngine"
         ),
-        // Audio FFI C bridge
         .systemLibrary(
             name: "clone_audioFFI",
-            path: "Sources/CAudio"
+            path: "Sources/FFI/CAudio"
         ),
-        // Audio UniFFI-generated Swift bindings
+        .systemLibrary(
+            name: "clone_textFFI",
+            path: "Sources/FFI/CText"
+        ),
+        .systemLibrary(
+            name: "CSQLite",
+            path: "Sources/FFI/CSQLite",
+            pkgConfig: "sqlite3"
+        ),
+
+        // ── Internal ────────────────────────────────────────────
+        .target(
+            name: "PosixShim",
+            path: "Sources/Internal/PosixShim"
+        ),
+        .target(
+            name: "CloneProtocol",
+            dependencies: ["PosixShim"],
+            path: "Sources/Internal/CloneProtocol"
+        ),
+        .target(
+            name: "CloneServer",
+            dependencies: ["CloneProtocol", "PosixShim"],
+            path: "Sources/Internal/CloneServer"
+        ),
+        .target(
+            name: "CloneClient",
+            dependencies: ["CloneProtocol", "PosixShim"],
+            path: "Sources/Internal/CloneClient"
+        ),
         .target(
             name: "AudioBridge",
             dependencies: ["clone_audioFFI"],
-            path: "Sources/AudioBridge",
+            path: "Sources/Internal/AudioBridge",
             linkerSettings: [
                 .unsafeFlags([
                     "-L", "/Users/manz/Projects/clone/target/debug",
@@ -53,46 +77,10 @@ let package = Package(
                 ]),
             ]
         ),
-        // AVFoundation — real implementation backed by Rust audio engine
-        .target(
-            name: "AVFoundation",
-            dependencies: ["AudioBridge"],
-            path: "Sources/AVFoundation"
-        ),
-        // Shared IPC protocol
-        .target(
-            name: "CloneProtocol",
-            dependencies: ["PosixShim"],
-            path: "Sources/CloneProtocol"
-        ),
-        // Compositor-side server
-        .target(
-            name: "CloneServer",
-            dependencies: ["CloneProtocol", "PosixShim"],
-            path: "Sources/CloneServer"
-        ),
-        // App-side client library
-        .target(
-            name: "CloneClient",
-            dependencies: ["CloneProtocol", "PosixShim"],
-            path: "Sources/CloneClient"
-        ),
-        // AppKit shim — NSColor and other AppKit types for Linux
-        .target(
-            name: "AppKit",
-            dependencies: [],
-            path: "Sources/AppKit"
-        ),
-        // CText — C FFI header for clone-text Rust crate
-        .systemLibrary(
-            name: "clone_textFFI",
-            path: "Sources/CText"
-        ),
-        // CoreText — cosmic-text measurement bridge (shared by SwiftUI and EngineBridge)
         .target(
             name: "CloneText",
             dependencies: ["clone_textFFI"],
-            path: "Sources/CloneText",
+            path: "Sources/Internal/CloneText",
             linkerSettings: [
                 .unsafeFlags([
                     "-L", "/Users/manz/Projects/clone/target/debug",
@@ -101,75 +89,71 @@ let package = Package(
                 ]),
             ]
         ),
-        // UI DSL framework
+        .target(
+            name: "EngineBridge",
+            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol"],
+            path: "Sources/Internal/EngineBridge"
+        ),
+        .macro(
+            name: "SwiftDataMacros",
+            dependencies: [
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+            ],
+            path: "Sources/Internal/SwiftDataMacros"
+        ),
+
+        // ── SDK ─────────────────────────────────────────────────
+        .target(
+            name: "AppKit",
+            dependencies: [],
+            path: "Sources/SDK/AppKit"
+        ),
         .target(
             name: "SwiftUI",
             dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText"],
-            path: "Sources/SwiftUI",
+            path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),
-        // Stub modules — shadow Apple frameworks that Clone doesn't implement
+        .target(
+            name: "SwiftData",
+            dependencies: ["CSQLite", "SwiftDataMacros"],
+            path: "Sources/SDK/SwiftData"
+        ),
         .target(
             name: "Charts",
             dependencies: ["SwiftUI"],
-            path: "Sources/Charts"
+            path: "Sources/SDK/Charts"
         ),
         .target(
             name: "MediaPlayer",
             dependencies: ["CloneProtocol", "PosixShim"],
-            path: "Sources/MediaPlayer"
+            path: "Sources/SDK/MediaPlayer"
         ),
         .target(
             name: "AVKit",
-            path: "Sources/AVKit"
+            path: "Sources/SDK/AVKit"
+        ),
+        .target(
+            name: "AVFoundation",
+            dependencies: ["AudioBridge"],
+            path: "Sources/SDK/AVFoundation"
         ),
         .target(
             name: "UniformTypeIdentifiers",
-            path: "Sources/UniformTypeIdentifiers"
+            path: "Sources/SDK/UniformTypeIdentifiers"
         ),
-        // Now-playing daemon (library — testable)
-        .target(
-            name: "CloneDaemon",
-            dependencies: ["CloneProtocol", "PosixShim"],
-            path: "Sources/CloneDaemon"
-        ),
-        // Now-playing daemon executable
-        .executableTarget(
-            name: "cloned",
-            dependencies: ["CloneDaemon", "CloneProtocol"],
-            path: "Sources/cloned"
-        ),
-        // Keychain daemon (library — testable)
-        .target(
-            name: "CloneKeychain",
-            dependencies: ["CSQLite", "CloneProtocol", "PosixShim"],
-            path: "Sources/CloneKeychain"
-        ),
-        // Keychain daemon executable
-        .executableTarget(
-            name: "keychaind",
-            dependencies: ["CloneKeychain", "CloneProtocol"],
-            path: "Sources/keychaind"
-        ),
-        // Security framework shim (Keychain Services API)
-        // Named KeychainServices on macOS to avoid circular dep with Foundation→Security.
-        // On Linux this becomes the "Security" module since there's no system Security.
         .target(
             name: "KeychainServices",
             dependencies: ["PosixShim"],
-            path: "Sources/KeychainServices"
+            path: "Sources/SDK/KeychainServices"
         ),
-        // UniFFI bridge to Rust GPU engine
-        .target(
-            name: "EngineBridge",
-            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol"],
-            path: "Sources/EngineBridge"
-        ),
-        // Compositor main binary
+
+        // ── Apps ─────────────────────────────────────────────────
         .executableTarget(
             name: "CloneDesktop",
             dependencies: ["SwiftUI", "EngineBridge", "CloneServer"],
-            path: "Sources/Apps",
+            path: "Sources/Apps/Compositor",
             linkerSettings: [
                 .unsafeFlags([
                     "-L", "/Users/manz/Projects/clone/target/debug",
@@ -178,77 +162,80 @@ let package = Package(
                 ]),
             ]
         ),
-        // Finder app (separate process)
         .executableTarget(
             name: "Finder",
             dependencies: ["SwiftUI"],
-            path: "Sources/FinderApp"
+            path: "Sources/Apps/Finder"
         ),
-        // Settings app (separate process)
         .executableTarget(
             name: "Settings",
             dependencies: ["SwiftUI"],
-            path: "Sources/SettingsApp"
+            path: "Sources/Apps/Settings"
         ),
-        // Dock app (separate process)
         .executableTarget(
             name: "Dock",
             dependencies: ["SwiftUI"],
-            path: "Sources/DockApp"
+            path: "Sources/Apps/Dock"
         ),
-        // MenuBar app (separate process)
         .executableTarget(
             name: "MenuBar",
             dependencies: ["SwiftUI", "CloneProtocol", "CloneClient", "PosixShim"],
-            path: "Sources/MenuBarApp"
+            path: "Sources/Apps/MenuBar"
         ),
-        // Password app (separate process)
         .executableTarget(
             name: "PasswordApp",
             dependencies: ["SwiftUI"],
-            path: "Sources/PasswordApp"
+            path: "Sources/Apps/Password"
         ),
-        // TextEdit app (separate process)
         .executableTarget(
             name: "TextEditApp",
             dependencies: ["SwiftUI", "CloneProtocol"],
-            path: "Sources/TextEditApp"
+            path: "Sources/Apps/TextEdit"
         ),
-        // Preview app (separate process)
         .executableTarget(
             name: "PreviewApp",
             dependencies: ["SwiftUI", "CloneProtocol"],
-            path: "Sources/PreviewApp"
+            path: "Sources/Apps/Preview"
         ),
-        // Login window (separate process, pre-session)
         .executableTarget(
             name: "LoginWindow",
             dependencies: ["SwiftUI"],
-            path: "Sources/LoginWindowApp"
+            path: "Sources/Apps/LoginWindow"
         ),
+
+        // ── Daemons ──────────────────────────────────────────────
+        .target(
+            name: "CloneDaemon",
+            dependencies: ["CloneProtocol", "PosixShim"],
+            path: "Sources/Daemons/CloneDaemon"
+        ),
+        .executableTarget(
+            name: "cloned",
+            dependencies: ["CloneDaemon", "CloneProtocol"],
+            path: "Sources/Daemons/cloned"
+        ),
+        .target(
+            name: "CloneKeychain",
+            dependencies: ["CSQLite", "CloneProtocol", "PosixShim"],
+            path: "Sources/Daemons/CloneKeychain"
+        ),
+        .executableTarget(
+            name: "keychaind",
+            dependencies: ["CloneKeychain", "CloneProtocol"],
+            path: "Sources/Daemons/keychaind"
+        ),
+
+        // ── Tools ────────────────────────────────────────────────
+        .executableTarget(
+            name: "ycodebuild",
+            path: "Sources/Tools/ycodebuild"
+        ),
+
+        // ── Tests ────────────────────────────────────────────────
         .testTarget(
             name: "SwiftUITests",
             dependencies: ["SwiftUI"],
             path: "Tests/SwiftUITests"
-        ),
-        .systemLibrary(
-            name: "CSQLite",
-            path: "Sources/CSQLite",
-            pkgConfig: "sqlite3"
-        ),
-        // SwiftData macro compiler plugin
-        .macro(
-            name: "SwiftDataMacros",
-            dependencies: [
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-            ],
-            path: "Sources/SwiftDataMacros"
-        ),
-        .target(
-            name: "SwiftData",
-            dependencies: ["CSQLite", "SwiftDataMacros"],
-            path: "Sources/SwiftData"
         ),
         .testTarget(
             name: "SwiftDataTests",
@@ -274,11 +261,6 @@ let package = Package(
             name: "SecurityTests",
             dependencies: ["KeychainServices"],
             path: "Tests/SecurityTests"
-        ),
-        // ycodebuild — CLI tool for building external apps against Aquax SDK
-        .executableTarget(
-            name: "ycodebuild",
-            path: "Sources/ycodebuild"
         ),
     ]
 )

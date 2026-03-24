@@ -102,7 +102,7 @@ enum PackageGenerator {
         let rustLib = "\(sdk)/target/debug"
 
         let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine"].flatMap { dir in
-            ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/\(dir)/module.modulemap\""]
+            ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
         }.joined(separator: ", ")
 
         let fwLinkFlags = [
