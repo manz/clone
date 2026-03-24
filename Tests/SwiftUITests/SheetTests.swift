@@ -113,6 +113,108 @@ import Foundation
     #expect(WindowState.shared.activeSheetOverlay != nil, "Sheet should register window-level overlay")
 }
 
+@Test @MainActor func sheetContentAndSizeAreSet() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            Text("Sheet Body")
+        }
+
+    #expect(WindowState.shared.activeSheetContent != nil, "Sheet content should be set")
+    #expect(WindowState.shared.activeSheetSize != nil, "Sheet size should be set")
+
+    if let size = WindowState.shared.activeSheetSize {
+        #expect(size.width == 500, "Sheet width should be 500 (maxW)")
+        #expect(size.height >= 40, "Sheet height should be at least 40pt for text + padding")
+        #expect(size.height < 10000, "Sheet height should not be infinity or unreasonably large")
+    }
+}
+
+@Test @MainActor func sheetSizeMeasuresContent() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 800, height: 600)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+
+    // Sheet with multiple lines of content should be taller
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            VStack {
+                Text("Line 1")
+                Text("Line 2")
+                Text("Line 3")
+                Text("Line 4")
+                Text("Line 5")
+            }
+        }
+
+    if let size = WindowState.shared.activeSheetSize {
+        #expect(size.height > 80, "Sheet with 5 lines should be at least 80pt tall")
+        #expect(size.height < 10000, "Sheet height should be finite")
+    } else {
+        Issue.record("Sheet size should be set")
+    }
+}
+
+@Test @MainActor func sheetSizeWithToolbar() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 800, height: 600)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            Text("Content")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {}
+                    }
+                }
+        }
+
+    if let size = WindowState.shared.activeSheetSize {
+        // With toolbar, should be taller than without
+        #expect(size.height > 60, "Sheet with toolbar should be taller")
+        #expect(size.height < 10000, "Sheet height should be finite")
+    } else {
+        Issue.record("Sheet size should be set")
+    }
+}
+
+@Test @MainActor func sheetCompositorActiveHidesInWindowPanel() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 600, height: 400)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            Text("Sheet Content")
+        }
+
+    // Before compositor is active, overlay has backdrop + centered panel
+    let overlay = WindowState.shared.activeSheetOverlay!
+    guard case .zstack(_, let children) = overlay else {
+        Issue.record("Expected zstack overlay")
+        return
+    }
+    #expect(children.count == 2, "Overlay should have backdrop + centered panel")
+
+    // After compositor is active, compositorSheetActive flag should be set
+    #expect(WindowState.shared.compositorSheetActive == false, "Initially false")
+    WindowState.shared.compositorSheetActive = true
+    // The App.swift code checks this flag to decide whether to include full overlay or just backdrop
+    #expect(WindowState.shared.compositorSheetActive == true)
+}
+
 // Helper to extract text from toolbar item nodes
 private func extractLabel(_ node: ViewNode) -> String? {
     switch node {

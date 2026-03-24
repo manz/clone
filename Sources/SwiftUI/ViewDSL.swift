@@ -387,8 +387,14 @@ public extension ViewNode {
         let panel = ViewNode.frame(width: maxW, height: nil, child: panelContent)
             .background(Color(white: 1.0), cornerRadius: 12)
 
-        // Store sheet content and size for compositor surface rendering
-        let sheetHeight: CGFloat = 300 // estimated; compositor will measure
+        // Measure sheet content — the compositor renders it as a separate surface
+        // that can overflow the parent window. Use window height as the measurement
+        // constraint so ScrollViews fill the proposed size rather than expanding
+        // unboundedly. Cap to GPU texture limit (8192px / 2x scale = 4096pt).
+        let windowH = WindowState.shared.height
+        let measured = Layout.measure(panelContent, constraint: SizeConstraint(maxWidth: maxW, maxHeight: windowH))
+        let sheetHeight = min(max(measured.height, 100), 4096)
+
         WindowState.shared.activeSheetContent = panel
         WindowState.shared.activeSheetSize = CGSize(width: maxW, height: sheetHeight)
 

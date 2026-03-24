@@ -195,12 +195,20 @@ extension App {
                     // Sheet just dismissed
                     client.send(.dismissSheet)
                     _sheetDismissAction = nil
+                    WindowState.shared.compositorSheetActive = false
                 }
                 _wasSheetActive = sheetActive
-                // Don't overlay sheet in main frame — compositor renders it as separate surface.
-                // But keep overlay as fallback until compositor surface is active.
+                // Sheet overlay: once the compositor is rendering the panel as a
+                // separate surface, only include the backdrop (dimmed + tap-to-dismiss).
+                // Before that, include the full overlay as fallback.
                 if let sheetOverlay = WindowState.shared.activeSheetOverlay {
-                    viewTree = .zstack(children: [viewTree, sheetOverlay])
+                    if WindowState.shared.compositorSheetActive,
+                       case .zstack(_, let children) = sheetOverlay,
+                       let backdrop = children.first {
+                        viewTree = .zstack(children: [viewTree, backdrop])
+                    } else {
+                        viewTree = .zstack(children: [viewTree, sheetOverlay])
+                    }
                 }
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
@@ -315,6 +323,7 @@ extension App {
             }
             // Sheet frame request — compositor asks for sheet render commands
             app.client.onSheetFrameRequest = { w, h in
+                WindowState.shared.compositorSheetActive = true
                 guard let sheetContent = WindowState.shared.activeSheetContent else { return [] }
                 let sheetW = CGFloat(w)
                 let sheetH = CGFloat(h)

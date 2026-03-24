@@ -34,6 +34,9 @@ public final class WindowState: @unchecked Sendable {
     public var activeSheetContent: ViewNode? = nil
     /// Sheet size for compositor surface.
     public var activeSheetSize: CGSize? = nil
+    /// True once the compositor has requested a sheet frame — the panel is rendered
+    /// as a separate surface and should not appear in the main window frame.
+    public var compositorSheetActive = false
 
     /// Add toolbar items, skipping duplicates from the same source location.
     public func addToolbarItems(_ items: [ToolbarItemData], sourceKey: String) {
