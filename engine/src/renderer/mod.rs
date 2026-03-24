@@ -152,7 +152,8 @@ impl DesktopRenderer {
         // First command = 1.0 (farthest), last = near 0.0 (closest).
         let total_drawable = commands.iter().filter(|c| matches!(c,
             RenderCommand::Rect { .. } | RenderCommand::RoundedRect { .. } |
-            RenderCommand::Shadow { .. } | RenderCommand::Text { .. }
+            RenderCommand::Shadow { .. } | RenderCommand::Text { .. } |
+            RenderCommand::Icon { .. }
         )).count().max(1);
 
         // Process commands in draw groups separated by PushClip/PopClip.
