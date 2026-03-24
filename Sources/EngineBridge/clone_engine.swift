@@ -1180,6 +1180,102 @@ public func FfiConverterTypeFontWeight_lower(_ value: FontWeight) -> RustBuffer 
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Which icon font variant to use (or None for regular text).
+ */
+
+public enum IconStyle: Equatable, Hashable {
+    
+    /**
+     * Not an icon — use the text font (Inter).
+     */
+    case none
+    /**
+     * Phosphor Regular (outline).
+     */
+    case regular
+    /**
+     * Phosphor Fill (solid).
+     */
+    case fill
+    /**
+     * Phosphor Duotone (two-tone with opacity).
+     */
+    case duotone
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension IconStyle: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIconStyle: FfiConverterRustBuffer {
+    typealias SwiftType = IconStyle
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IconStyle {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .regular
+        
+        case 3: return .fill
+        
+        case 4: return .duotone
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IconStyle, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .regular:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fill:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .duotone:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIconStyle_lift(_ buf: RustBuffer) throws -> IconStyle {
+    return try FfiConverterTypeIconStyle.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIconStyle_lower(_ value: IconStyle) -> RustBuffer {
+    return FfiConverterTypeIconStyle.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum RenderCommand: Equatable, Hashable {
     
@@ -1187,7 +1283,7 @@ public enum RenderCommand: Equatable, Hashable {
     )
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
     )
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, isIcon: Bool, maxWidth: Float?
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, iconStyle: IconStyle, maxWidth: Float?
     )
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: RgbaColor, ox: Float, oy: Float
     )
@@ -1233,7 +1329,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), isIcon: try FfiConverterBool.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), iconStyle: try FfiConverterTypeIconStyle.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
         )
         
         case 4: return .shadow(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), blur: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), ox: try FfiConverterFloat.read(from: &buf), oy: try FfiConverterFloat.read(from: &buf)
@@ -1289,7 +1385,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             
         
-        case let .text(x,y,content,fontSize,color,weight,isIcon,maxWidth):
+        case let .text(x,y,content,fontSize,color,weight,iconStyle,maxWidth):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1297,7 +1393,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterFloat.write(fontSize, into: &buf)
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
-            FfiConverterBool.write(isIcon, into: &buf)
+            FfiConverterTypeIconStyle.write(iconStyle, into: &buf)
             FfiConverterOptionFloat.write(maxWidth, into: &buf)
             
         

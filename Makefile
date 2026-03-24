@@ -1,7 +1,7 @@
-.PHONY: all engine bindings audio audio-bindings swift apps build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all engine bindings text text-bindings audio audio-bindings swift apps build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
 # Build everything: engine → bindings → audio → audio-bindings → libs + apps
-all: bindings audio-bindings swift apps
+all: bindings text-bindings audio-bindings swift apps
 
 # Rust engine
 engine:
@@ -17,6 +17,18 @@ bindings: engine
 		--language swift \
 		--out-dir Sources/EngineBridge
 	cp Sources/EngineBridge/clone_engineFFI.h Sources/CEngine/include/clone_engineFFI.h
+
+# Rust text measurement crate
+text:
+	cargo build -p clone-text
+
+# Generate UniFFI Swift bindings (text)
+text-bindings: text
+	cargo run -p clone-text --bin uniffi-bindgen-text generate \
+		--library target/debug/libclone_text.dylib \
+		--language swift \
+		--out-dir Sources/CloneText
+	cp Sources/CloneText/clone_textFFI.h Sources/CText/include/clone_textFFI.h
 
 # Rust audio engine
 audio:

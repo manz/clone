@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping, Weight};
 
-use crate::commands::FontWeight;
+use crate::commands::{FontWeight, IconStyle};
 
 /// Lazy-initialized FontSystem shared across all measurement calls.
 /// Loaded with the same bundled fonts as the renderer.
@@ -16,6 +16,10 @@ fn with_font_system<R>(f: impl FnOnce(&mut FontSystem) -> R) -> R {
             .load_font_data(include_bytes!("../assets/Inter.ttf").to_vec());
         fs.db_mut()
             .load_font_data(include_bytes!("../assets/Phosphor.ttf").to_vec());
+        fs.db_mut()
+            .load_font_data(include_bytes!("../assets/Phosphor-Fill.ttf").to_vec());
+        fs.db_mut()
+            .load_font_data(include_bytes!("../assets/Phosphor-Duotone.ttf").to_vec());
         *guard = Some(fs);
     }
     f(guard.as_mut().unwrap())
@@ -35,7 +39,7 @@ pub fn measure_text(
     content: String,
     font_size: f32,
     weight: FontWeight,
-    is_icon: bool,
+    icon_style: IconStyle,
 ) -> TextSize {
     if content.is_empty() {
         return TextSize {
@@ -54,10 +58,11 @@ pub fn measure_text(
             FontWeight::Semibold => Weight::SEMIBOLD,
             FontWeight::Bold => Weight::BOLD,
         };
-        let family = if is_icon {
-            Family::Name("Phosphor")
-        } else {
-            Family::Name("Inter Variable")
+        let family = match icon_style {
+            IconStyle::None => Family::Name("Inter Variable"),
+            IconStyle::Regular => Family::Name("Phosphor"),
+            IconStyle::Fill => Family::Name("Phosphor-Fill"),
+            IconStyle::Duotone => Family::Name("Phosphor-Duotone"),
         };
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(font_system, &content, attrs, Shaping::Advanced);

@@ -8,12 +8,9 @@
 
 FROM swift:6.2-noble AS base
 
-# Rust toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# System deps for wgpu, audio, SQLite
+# System deps + curl (needed for rustup)
 RUN apt-get update -qq && apt-get install -y -qq \
+    curl \
     pkg-config cmake \
     libvulkan-dev \
     libwayland-dev wayland-protocols libxkbcommon-dev \
@@ -22,16 +19,24 @@ RUN apt-get update -qq && apt-get install -y -qq \
     fontconfig libfontconfig-dev libfreetype-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . /root/.cargo/env \
+    && cargo --version \
+    && rustc --version
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 WORKDIR /clone
 
 # Cache Rust deps — copy manifests first
 COPY Cargo.toml Cargo.lock ./
 COPY engine/Cargo.toml engine/Cargo.toml
 COPY audio/Cargo.toml audio/Cargo.toml
+# Pre-fetch Rust deps (ok to fail if manifests don't match dummy sources)
 RUN mkdir -p engine/src audio/src \
-    && echo "fn main() {}" > engine/src/lib.rs \
-    && echo "fn main() {}" > audio/src/lib.rs \
-    && cargo build 2>/dev/null || true \
+    && echo "pub fn stub() {}" > engine/src/lib.rs \
+    && echo "pub fn stub() {}" > audio/src/lib.rs \
+    && cargo fetch || true \
     && rm -rf engine/src audio/src
 
 # Copy full source

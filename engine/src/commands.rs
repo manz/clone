@@ -35,6 +35,19 @@ pub enum FontWeight {
     Bold,
 }
 
+/// Which icon font variant to use (or None for regular text).
+#[derive(Clone, Debug, PartialEq, uniffi::Enum)]
+pub enum IconStyle {
+    /// Not an icon — use the text font (Inter).
+    None,
+    /// Phosphor Regular (outline).
+    Regular,
+    /// Phosphor Fill (solid).
+    Fill,
+    /// Phosphor Duotone (two-tone with opacity).
+    Duotone,
+}
+
 #[derive(Clone, Debug, PartialEq, uniffi::Enum)]
 pub enum RenderCommand {
     Rect {
@@ -59,7 +72,7 @@ pub enum RenderCommand {
         font_size: f32,
         color: RgbaColor,
         weight: FontWeight,
-        is_icon: bool,
+        icon_style: IconStyle,
         max_width: Option<f32>,
     },
     Shadow {
@@ -189,7 +202,7 @@ mod tests {
                 font_size: 14.0,
                 color: color.clone(),
                 weight: FontWeight::Regular,
-                is_icon: false,
+                icon_style: IconStyle::None,
                 max_width: None,
             },
             RenderCommand::PushClip {

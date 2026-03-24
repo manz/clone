@@ -6,7 +6,7 @@ public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: Color)
         case roundedRect(radius: CGFloat, color: Color)
-        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, isIcon: Bool = false)
+        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, iconStyle: IconStyle = .none)
         case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat)
         case pushClip(radius: CGFloat)
         case popClip
@@ -114,7 +114,8 @@ public enum CommandFlattener {
 
         case .image(let name, _, _, let tint):
             // Try Phosphor icon font, fall back to placeholder rect
-            if let char = PhosphorIcons.character(forName: name) {
+            let resolved = PhosphorIcons.resolve(name: name)
+            if let char = resolved.character {
                 let iconColor = tint ?? Color.primary
                 let iconSize = min(frame.width, frame.height)
                 let iconX = frame.x + (frame.width - iconSize) / 2
@@ -123,7 +124,7 @@ public enum CommandFlattener {
                     x: iconX, y: iconY,
                     width: iconSize, height: iconSize,
                     kind: .text(content: String(char), fontSize: iconSize,
-                               color: iconColor.withAlpha(opacity), isIcon: true)
+                               color: iconColor.withAlpha(opacity), iconStyle: resolved.style)
                 ))
             } else {
                 commands.append(FlatRenderCommand(

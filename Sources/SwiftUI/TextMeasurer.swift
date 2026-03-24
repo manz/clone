@@ -6,18 +6,18 @@ import CloneText
 enum TextMeasurer {
     nonisolated(unsafe) private static var cache: [UInt64: CGSize] = [:]
 
-    private static func cacheKey(_ text: String, _ fontSize: CGFloat, _ weight: FontWeight, _ isIcon: Bool) -> UInt64 {
+    private static func cacheKey(_ text: String, _ fontSize: CGFloat, _ weight: FontWeight, _ iconStyle: IconStyle) -> UInt64 {
         var hasher = Hasher()
         hasher.combine(text)
         hasher.combine(fontSize)
         hasher.combine(weight)
-        hasher.combine(isIcon)
+        hasher.combine(iconStyle)
         return UInt64(bitPattern: Int64(hasher.finalize()))
     }
 
     static func measure(_ text: String, fontSize: CGFloat, weight: FontWeight) -> CGSize {
         guard !text.isEmpty else { return CGSize(width: 0, height: fontSize * 1.2) }
-        let key = cacheKey(text, fontSize, weight, false)
+        let key = cacheKey(text, fontSize, weight, .none)
         if let cached = cache[key] { return cached }
 
         let result = CTTextMeasurer.measure(text, fontSize: fontSize, weight: weight)
@@ -26,12 +26,12 @@ enum TextMeasurer {
         return size
     }
 
-    static func measureIcon(_ text: String, fontSize: CGFloat) -> CGSize {
+    static func measureIcon(_ text: String, fontSize: CGFloat, style: IconStyle = .regular) -> CGSize {
         guard !text.isEmpty else { return CGSize(width: fontSize, height: fontSize) }
-        let key = cacheKey(text, fontSize, .regular, true)
+        let key = cacheKey(text, fontSize, .regular, style)
         if let cached = cache[key] { return cached }
 
-        let result = CTTextMeasurer.measure(text, fontSize: fontSize, weight: .regular, isIcon: true)
+        let result = CTTextMeasurer.measure(text, fontSize: fontSize, weight: .regular, iconStyle: style)
         let size = CGSize(width: CGFloat(result.width), height: CGFloat(result.height))
         cache[key] = size
         return size

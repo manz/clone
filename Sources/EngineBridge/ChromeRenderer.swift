@@ -51,9 +51,9 @@ struct ChromeRenderer {
             let minSym = String(PhosphorIcons.character(forName: "minus")!)
             let zoomName = isMaximized ? "arrows.in" : "arrows.out"
             let zoomSym = String(PhosphorIcons.character(forName: zoomName)!)
-            commands.append(.text(x: symX(btnX), y: symY, content: closeSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true, maxWidth: nil))
-            commands.append(.text(x: symX(btnX + btnStep), y: symY, content: minSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true, maxWidth: nil))
-            commands.append(.text(x: symX(btnX + btnStep * 2), y: symY, content: zoomSym, fontSize: iconSize, color: symColor, weight: .regular, isIcon: true, maxWidth: nil))
+            commands.append(.text(x: symX(btnX), y: symY, content: closeSym, fontSize: iconSize, color: symColor, weight: .regular, iconStyle: .regular, maxWidth: nil))
+            commands.append(.text(x: symX(btnX + btnStep), y: symY, content: minSym, fontSize: iconSize, color: symColor, weight: .regular, iconStyle: .regular, maxWidth: nil))
+            commands.append(.text(x: symX(btnX + btnStep * 2), y: symY, content: zoomSym, fontSize: iconSize, color: symColor, weight: .regular, iconStyle: .regular, maxWidth: nil))
         }
 
         // Title text
@@ -62,7 +62,7 @@ struct ChromeRenderer {
         let titleY = (Float(WindowChrome.titleBarHeight) - 13) / 2
         commands.append(.text(
             x: titleX, y: titleY, content: title, fontSize: 13,
-            color: titleColor.toEngine(), weight: .regular, isIcon: false, maxWidth: nil
+            color: titleColor.toEngine(), weight: .regular, iconStyle: .none, maxWidth: nil
         ))
         commands.append(.popClip)
 

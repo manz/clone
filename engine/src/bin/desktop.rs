@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use clone_engine::commands::{FontWeight, RenderCommand, RgbaColor, SurfaceFrame, SurfaceDesc};
+use clone_engine::commands::{FontWeight, IconStyle, RenderCommand, RgbaColor, SurfaceFrame, SurfaceDesc};
 use clone_engine::ffi::DesktopDelegate;
 
 /// Demo delegate that returns hardcoded render commands.
@@ -28,7 +28,7 @@ impl DesktopDelegate for DemoDelegate {
                 x: w / 2.0 - 80.0, y: h / 2.0 - 20.0,
                 content: "Clone Desktop".into(), font_size: 24.0,
                 color: RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                weight: FontWeight::Regular, is_icon: false, max_width: None,
+                weight: FontWeight::Regular, icon_style: IconStyle::None, max_width: None,
             },
             // Dock background
             RenderCommand::RoundedRect {

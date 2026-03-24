@@ -435,30 +435,6 @@ fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterBool : FfiConverter {
-    typealias FfiType = Int8
-    typealias SwiftType = Bool
-
-    public static func lift(_ value: Int8) throws -> Bool {
-        return value != 0
-    }
-
-    public static func lower(_ value: Bool) -> Int8 {
-        return value ? 1 : 0
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
-        return try lift(readInt(&buf))
-    }
-
-    public static func write(_ value: Bool, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -637,6 +613,90 @@ public func FfiConverterTypeFontWeight_lower(_ value: FontWeight) -> RustBuffer 
     return FfiConverterTypeFontWeight.lower(value)
 }
 
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Which icon font variant to use (or None for regular text).
+ */
+
+public enum IconStyle: Equatable, Hashable {
+    
+    case none
+    case regular
+    case fill
+    case duotone
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension IconStyle: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIconStyle: FfiConverterRustBuffer {
+    typealias SwiftType = IconStyle
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IconStyle {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .regular
+        
+        case 3: return .fill
+        
+        case 4: return .duotone
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IconStyle, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .regular:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fill:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .duotone:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIconStyle_lift(_ buf: RustBuffer) throws -> IconStyle {
+    return try FfiConverterTypeIconStyle.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIconStyle_lower(_ value: IconStyle) -> RustBuffer {
+    return FfiConverterTypeIconStyle.lower(value)
+}
+
 /**
  * Clear the measurement cache (e.g. on font change).
  */
@@ -648,13 +708,13 @@ public func clearTextCache()  {try! rustCall() {
 /**
  * Measure text using cosmic-text. Results are cached by (text, fontSize, weight, isIcon).
  */
-public func measureText(content: String, fontSize: Float, weight: FontWeight, isIcon: Bool) -> TextSize  {
+public func measureText(content: String, fontSize: Float, weight: FontWeight, iconStyle: IconStyle) -> TextSize  {
     return try!  FfiConverterTypeTextSize_lift(try! rustCall() {
     uniffi_clone_text_fn_func_measure_text(
         FfiConverterString.lower(content),
         FfiConverterFloat.lower(fontSize),
         FfiConverterTypeFontWeight_lower(weight),
-        FfiConverterBool.lower(isIcon),$0
+        FfiConverterTypeIconStyle_lower(iconStyle),$0
     )
 })
 }
@@ -677,7 +737,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_text_checksum_func_clear_text_cache() != 52062) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_text_checksum_func_measure_text() != 3041) {
+    if (uniffi_clone_text_checksum_func_measure_text() != 899) {
         return InitializationResult.apiChecksumMismatch
     }
 

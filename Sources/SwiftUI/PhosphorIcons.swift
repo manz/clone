@@ -1,11 +1,41 @@
+import CloneText
+
+/// Resolved icon: the character to render and which Phosphor font variant to use.
+public struct ResolvedIcon {
+    public let character: Character?
+    public let style: IconStyle
+}
+
 /// Maps SF Symbols–style icon names to Phosphor Icons Unicode codepoints.
 /// Font: Phosphor Regular (MIT license, https://phosphoricons.com)
 public enum PhosphorIcons {
 
     /// Returns the Unicode character for a Phosphor icon, or nil if not mapped.
     public static func character(forName name: String) -> Character? {
-        guard let scalar = codepoints[name] else { return nil }
-        return Character(Unicode.Scalar(scalar)!)
+        resolve(name: name).character
+    }
+
+    /// Resolve an icon name to its character and font style.
+    /// Names ending in ".fill" use Phosphor-Fill, ".duotone" use Phosphor-Duotone,
+    /// otherwise Phosphor Regular.
+    public static func resolve(name: String) -> ResolvedIcon {
+        // Detect style suffix
+        if name.hasSuffix(".fill") {
+            let base = String(name.dropLast(5)) // drop ".fill"
+            if let scalar = codepoints[base] ?? codepoints[name] {
+                return ResolvedIcon(character: Character(Unicode.Scalar(scalar)!), style: .fill)
+            }
+        } else if name.hasSuffix(".duotone") {
+            let base = String(name.dropLast(8)) // drop ".duotone"
+            if let scalar = codepoints[base] ?? codepoints[name] {
+                return ResolvedIcon(character: Character(Unicode.Scalar(scalar)!), style: .duotone)
+            }
+        }
+        // Regular (outline)
+        if let scalar = codepoints[name] {
+            return ResolvedIcon(character: Character(Unicode.Scalar(scalar)!), style: .regular)
+        }
+        return ResolvedIcon(character: nil, style: .regular)
     }
 
     // MARK: - Codepoint table

@@ -18,13 +18,13 @@ public enum Bridge {
                     x: cx, y: cy, w: cw, h: ch,
                     radius: Float(radius), color: color.toEngine()
                 )
-            case .text(let content, let fontSize, let color, let weight, let isIcon):
+            case .text(let content, let fontSize, let color, let weight, let iconStyle):
                 return .text(
                     x: cx, y: cy,
                     content: content, fontSize: Float(fontSize),
                     color: color.toEngine(),
                     weight: weight.toEngine(),
-                    isIcon: isIcon,
+                    iconStyle: iconStyle.toEngine(),
                     maxWidth: nil
                 )
             case .shadow(let radius, let blur, let color, let offsetX, let offsetY):
@@ -52,9 +52,9 @@ public enum Bridge {
                 return .rect(x: x + offsetX, y: y + offsetY, w: w, h: h, color: color.toEngine())
             case .roundedRect(let x, let y, let w, let h, let radius, let color):
                 return .roundedRect(x: x + offsetX, y: y + offsetY, w: w, h: h, radius: radius, color: color.toEngine())
-            case .text(let x, let y, let content, let fontSize, let color, let weight, let isIcon, let maxWidth):
+            case .text(let x, let y, let content, let fontSize, let color, let weight, let iconStyle, let maxWidth):
                 return .text(x: x + offsetX, y: y + offsetY, content: content, fontSize: fontSize,
-                            color: color.toEngine(), weight: weight.toEngine(), isIcon: isIcon,
+                            color: color.toEngine(), weight: weight.toEngine(), iconStyle: iconStyle.toEngine(),
                             maxWidth: maxWidth)
             case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
                 return .shadow(x: x + offsetX, y: y + offsetY, w: w, h: h,
@@ -81,9 +81,9 @@ public enum Bridge {
             return .rect(x: x, y: y + dy, w: w, h: h, color: color.toEngine())
         case .roundedRect(let x, let y, let w, let h, let radius, let color):
             return .roundedRect(x: x, y: y + dy, w: w, h: h, radius: radius, color: color.toEngine())
-        case .text(let x, let y, let content, let fontSize, let color, let weight, let isIcon, let maxWidth):
+        case .text(let x, let y, let content, let fontSize, let color, let weight, let iconStyle, let maxWidth):
             return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
-                        color: color.toEngine(), weight: weight.toEngine(), isIcon: isIcon,
+                        color: color.toEngine(), weight: weight.toEngine(), iconStyle: iconStyle.toEngine(),
                         maxWidth: maxWidth)
         case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
             return .shadow(x: x, y: y + dy, w: w, h: h,
@@ -133,6 +133,28 @@ extension IPCFontWeight {
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        }
+    }
+}
+
+extension CloneText.IconStyle {
+    func toEngine() -> EngineBridge.IconStyle {
+        switch self {
+        case .none: return .none
+        case .regular: return .regular
+        case .fill: return .fill
+        case .duotone: return .duotone
+        }
+    }
+}
+
+extension IPCIconStyle {
+    func toEngine() -> EngineBridge.IconStyle {
+        switch self {
+        case .none: return .none
+        case .regular: return .regular
+        case .fill: return .fill
+        case .duotone: return .duotone
         }
     }
 }
