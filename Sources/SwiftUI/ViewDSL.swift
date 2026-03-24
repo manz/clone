@@ -316,7 +316,7 @@ public extension ViewNode {
     /// On Clone, renders content as overlay when presented.
     func sheet(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: () -> some View) -> ViewNode {
         if isPresented.wrappedValue {
-            return .zstack(children: [self, buildSheetOverlay(content: content(), dismiss: {
+            return .zstack(children: [self, buildSheetOverlay(contentBuilder: content, dismiss: {
                 isPresented.wrappedValue = false
                 onDismiss?()
             })])
@@ -327,7 +327,7 @@ public extension ViewNode {
     /// `.sheet(item:onDismiss:content:)` — presents a sheet for an optional item.
     func sheet<Item>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> some View) -> ViewNode {
         if let value = item.wrappedValue {
-            return .zstack(children: [self, buildSheetOverlay(content: content(value), dismiss: {
+            return .zstack(children: [self, buildSheetOverlay(contentBuilder: { content(value) }, dismiss: {
                 item.wrappedValue = nil
                 onDismiss?()
             })])
@@ -336,7 +336,7 @@ public extension ViewNode {
     }
 
     /// Build a sheet modal overlay: dimmed backdrop + centered rounded panel with own toolbar.
-    private func buildSheetOverlay<V: View>(content: V, dismiss: @escaping () -> Void) -> ViewNode {
+    private func buildSheetOverlay(contentBuilder: () -> some View, dismiss: @escaping () -> Void) -> ViewNode {
         let backdropTapId = TapRegistry.shared.register { dismiss() }
         let backdrop = ViewNode.onTap(id: backdropTapId, child:
             ViewNode.rect(width: nil, height: nil, fill: Color(white: 0, opacity: 0.3)))
@@ -344,10 +344,10 @@ public extension ViewNode {
         // Set dismiss action for @Environment(\.dismiss)
         setDismissAction(dismiss)
 
-        // Resolve sheet content in sheet scope
+        // Set sheet scope BEFORE evaluating content (toolbar captures go to sheet)
         WindowState.shared.isInsideSheet = true
         WindowState.shared.sheetToolbarItems = []
-        let sheetBody = _resolve(content)
+        let sheetBody = _resolve(contentBuilder())
         let sheetToolbar = WindowState.shared.sheetToolbarItems
         WindowState.shared.isInsideSheet = false
 
