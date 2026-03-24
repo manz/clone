@@ -22,7 +22,7 @@ public final class WindowState: @unchecked Sendable {
     /// Current color scheme for this window. Set by compositor via IPC.
     public var colorScheme: ColorScheme = .light
     /// Source keys already seen this frame — prevents duplicates from multi-path evaluation.
-    private var toolbarSourceKeys: Set<String> = []
+    public internal(set) var toolbarSourceKeys: Set<String> = []
 
     /// Add toolbar items, skipping duplicates from the same source location.
     public func addToolbarItems(_ items: [ToolbarItemData], sourceKey: String) {

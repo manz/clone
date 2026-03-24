@@ -335,14 +335,59 @@ public extension ViewNode {
         return self
     }
 
-    /// Build a sheet modal overlay: dimmed backdrop + centered rounded panel.
+    /// Build a sheet modal overlay: dimmed backdrop + centered rounded panel with own toolbar.
     private func buildSheetOverlay<V: View>(content: V, dismiss: @escaping () -> Void) -> ViewNode {
         let backdropTapId = TapRegistry.shared.register { dismiss() }
         let backdrop = ViewNode.onTap(id: backdropTapId, child:
             ViewNode.rect(width: nil, height: nil, fill: Color(white: 0, opacity: 0.3)))
-        let panel = _resolve(content)
-            .padding(EdgeInsets(top: 16, leading: 20, bottom: 16, trailing: 20))
+
+        // Save parent toolbar state, build sheet content in isolated scope
+        let savedToolbar = WindowState.shared.toolbarItems
+        let savedKeys = WindowState.shared.toolbarSourceKeys
+        WindowState.shared.toolbarItems = []
+        WindowState.shared.toolbarSourceKeys = []
+
+        let sheetBody = _resolve(content)
+
+        // Collect sheet's toolbar items
+        let sheetToolbar = WindowState.shared.toolbarItems
+
+        // Restore parent toolbar
+        WindowState.shared.toolbarItems = savedToolbar
+        WindowState.shared.toolbarSourceKeys = savedKeys
+
+        // Build the sheet panel: toolbar bar (if any) + content
+        let maxW: CGFloat = 500
+        var panelChildren: [ViewNode] = []
+
+        if !sheetToolbar.isEmpty {
+            let leftPlacements: Set<ToolbarItemPlacement> = [.cancellationAction]
+            let rightPlacements: Set<ToolbarItemPlacement> = [.confirmationAction, .primaryAction, .destructiveAction]
+
+            let leftItems = sheetToolbar.filter { leftPlacements.contains($0.placement) }
+            let rightItems = sheetToolbar.filter { rightPlacements.contains($0.placement) }
+
+            var barChildren: [ViewNode] = []
+            for item in leftItems {
+                barChildren.append(item.node)
+            }
+            barChildren.append(.spacer(minLength: 0))
+            for item in rightItems {
+                barChildren.append(item.node)
+            }
+
+            let toolbarBar = ViewNode.hstack(alignment: .center, spacing: 8, children: barChildren)
+                .padding(EdgeInsets(top: 8, leading: 12, bottom: 4, trailing: 12))
+            panelChildren.append(toolbarBar)
+            panelChildren.append(ViewNode.rect(width: nil, height: 1, fill: Color(white: 0.88)))
+        }
+
+        panelChildren.append(sheetBody.padding(EdgeInsets(top: 12, leading: 16, bottom: 16, trailing: 16)))
+
+        let panelContent = ViewNode.vstack(alignment: .leading, spacing: 0, children: panelChildren)
+        let panel = ViewNode.frame(width: maxW, height: nil, child: panelContent)
             .background(Color(white: 1.0), cornerRadius: 12)
+
         let centered = ViewNode.vstack(alignment: .center, spacing: 0, children: [
             .spacer(minLength: 0),
             ViewNode.hstack(alignment: .center, spacing: 0, children: [
