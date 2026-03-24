@@ -24,6 +24,11 @@ public final class WindowState: @unchecked Sendable {
     /// Source keys already seen this frame — prevents duplicates from multi-path evaluation.
     public internal(set) var toolbarSourceKeys: Set<String> = []
 
+    /// When true, toolbar items go to the sheet's toolbar, not the main toolbar.
+    public var isInsideSheet = false
+    /// Sheet toolbar items (separate from main toolbar).
+    public var sheetToolbarItems: [ToolbarItemData] = []
+
     /// Add toolbar items, skipping duplicates from the same source location.
     public func addToolbarItems(_ items: [ToolbarItemData], sourceKey: String) {
         guard toolbarSourceKeys.insert(sourceKey).inserted else { return }
@@ -42,6 +47,8 @@ public final class WindowState: @unchecked Sendable {
         self.navigationTitle = nil // Reset — views will set it during tree build
         self.toolbarItems = []
         self.toolbarSourceKeys = []
+        self.isInsideSheet = false
+        self.sheetToolbarItems = []
     }
 
     /// Returns true if the title changed since last frame.

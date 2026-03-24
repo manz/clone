@@ -586,7 +586,11 @@ public extension View {
         let sourceKey = "\(file):\(line)"
         let nodes = _flattenToNodes(content())
         let items = nodes.map { ToolbarItemData(placement: .automatic, node: $0, sourceKey: sourceKey) }
-        WindowState.shared.addToolbarItems(items, sourceKey: sourceKey)
+        if WindowState.shared.isInsideSheet {
+            WindowState.shared.sheetToolbarItems.append(contentsOf: items)
+        } else {
+            WindowState.shared.addToolbarItems(items, sourceKey: sourceKey)
+        }
         return _ModifiedView(node: _resolve(self))
     }
 

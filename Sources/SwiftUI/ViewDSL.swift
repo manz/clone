@@ -341,20 +341,18 @@ public extension ViewNode {
         let backdrop = ViewNode.onTap(id: backdropTapId, child:
             ViewNode.rect(width: nil, height: nil, fill: Color(white: 0, opacity: 0.3)))
 
-        // Save parent toolbar state, build sheet content in isolated scope
-        let savedToolbar = WindowState.shared.toolbarItems
-        let savedKeys = WindowState.shared.toolbarSourceKeys
-        WindowState.shared.toolbarItems = []
-        WindowState.shared.toolbarSourceKeys = []
+        // Set dismiss action for @Environment(\.dismiss)
+        setDismissAction(dismiss)
 
+        // Resolve sheet content in sheet scope
+        WindowState.shared.isInsideSheet = true
+        WindowState.shared.sheetToolbarItems = []
         let sheetBody = _resolve(content)
+        let sheetToolbar = WindowState.shared.sheetToolbarItems
+        WindowState.shared.isInsideSheet = false
 
-        // Collect sheet's toolbar items
-        let sheetToolbar = WindowState.shared.toolbarItems
-
-        // Restore parent toolbar
-        WindowState.shared.toolbarItems = savedToolbar
-        WindowState.shared.toolbarSourceKeys = savedKeys
+        // Reset dismiss to no-op
+        clearDismissAction()
 
         // Build the sheet panel: toolbar bar (if any) + content
         let maxW: CGFloat = 500

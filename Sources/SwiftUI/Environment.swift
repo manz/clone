@@ -31,6 +31,16 @@ extension EnvironmentValues {
 /// Shared global environment — in a full implementation, this would be per-view-tree.
 nonisolated(unsafe) private var _globalEnvironment = EnvironmentValues()
 
+/// Set dismiss action for the current sheet scope.
+public func setDismissAction(_ action: @escaping () -> Void) {
+    _globalEnvironment[DismissActionKey.self] = DismissAction(action)
+}
+
+/// Clear dismiss action after sheet scope.
+public func clearDismissAction() {
+    _globalEnvironment[DismissActionKey.self] = DismissAction {}
+}
+
 /// A property wrapper that reads a value from the environment.
 @propertyWrapper
 public struct Environment<Value> {
@@ -47,7 +57,7 @@ public struct Environment<Value> {
 
 // MARK: - Common environment keys
 
-private struct DismissActionKey: EnvironmentKey {
+struct DismissActionKey: EnvironmentKey {
     static let defaultValue: DismissAction = DismissAction {}
 }
 
