@@ -71,6 +71,20 @@ public final class LaunchServicesClient: @unchecked Sendable {
         _ = sendRequest(.scan(directories: directories))
     }
 
+    /// Launch an app by bundle identifier. Returns the registration if launched.
+    public func launch(bundleIdentifier: String) -> AppRegistration? {
+        guard let response = sendRequest(.launch(bundleIdentifier: bundleIdentifier)) else { return nil }
+        if case .launched(let reg) = response { return reg }
+        return nil
+    }
+
+    /// Launch an .app bundle at a given path. Registers it first if not known.
+    public func launchBundle(path: String) -> AppRegistration? {
+        guard let response = sendRequest(.launchBundle(path: path)) else { return nil }
+        if case .launched(let reg) = response { return reg }
+        return nil
+    }
+
     // MARK: - Wire
 
     private func sendRequest(_ request: LSDRequest) -> LSDResponse? {

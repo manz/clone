@@ -391,6 +391,10 @@ public enum LSDRequest: Codable, Sendable {
     case allApps
     /// Register a single .app bundle by path.
     case register(path: String)
+    /// Launch an app by bundle identifier. Returns the registration if found and launched.
+    case launch(bundleIdentifier: String)
+    /// Launch an .app bundle at a given path (doesn't need to be in /Applications).
+    case launchBundle(path: String)
 }
 
 /// launchservicesd → Client
@@ -398,6 +402,7 @@ public enum LSDResponse: Codable, Sendable {
     case scanComplete(count: Int)
     case app(AppRegistration?)
     case apps([AppRegistration])
+    case launched(AppRegistration)
     case error(String)
 }
 

@@ -2,51 +2,87 @@ import Foundation
 import CloneProtocol
 import CloneLaunchServices
 
-/// Clone's `open` command — opens files with their default application via launchservicesd.
-/// Usage: open <file> [file2 ...]
+/// Clone's `open` command — opens files and launches app bundles via launchservicesd.
+/// Usage: open <file|app.app> [file2 ...]
+///        open -a <appname>
 ///        open -a <appname> <file>
 
-let args = CommandLine.arguments.dropFirst()
+let args = Array(CommandLine.arguments.dropFirst())
 
 guard !args.isEmpty else {
     fputs("Usage: open [-a application] file ...\n", stderr)
+    fputs("       open <app.app>\n", stderr)
     exit(1)
 }
 
-var appBundleId: String?
+var appName: String?
 var files: [String] = []
-var i = args.startIndex
-while i < args.endIndex {
+var i = 0
+while i < args.count {
     if args[i] == "-a" {
-        i = args.index(after: i)
-        guard i < args.endIndex else {
+        i += 1
+        guard i < args.count else {
             fputs("open: -a requires an argument\n", stderr)
             exit(1)
         }
-        appBundleId = args[i]
+        appName = args[i]
     } else {
         files.append(args[i])
     }
-    i = args.index(after: i)
-}
-
-guard !files.isEmpty else {
-    fputs("open: no files specified\n", stderr)
-    exit(1)
+    i += 1
 }
 
 // Connect to launchservicesd
-let client = LaunchServicesClient()
+let lsClient = LaunchServicesClient()
 do {
-    try client.connect()
+    try lsClient.connect()
 } catch {
     fputs("open: cannot connect to launchservicesd: \(error)\n", stderr)
     exit(1)
 }
 
+// Case 1: open -a AppName (no file) — launch by name
+if let name = appName, files.isEmpty {
+    // Try as bundle identifier first, then as display name
+    if lsClient.launch(bundleIdentifier: name) != nil {
+        exit(0)
+    }
+    if lsClient.launch(bundleIdentifier: "com.clone.\(name.lowercased())") != nil {
+        exit(0)
+    }
+    // Search all registered apps by display name
+    let allApps = lsClient.allApps()
+    if let match = allApps.first(where: { $0.displayName.caseInsensitiveCompare(name) == .orderedSame || $0.bundleName.caseInsensitiveCompare(name) == .orderedSame }) {
+        if lsClient.launch(bundleIdentifier: match.bundleIdentifier) != nil {
+            exit(0)
+        }
+    }
+    fputs("open: no application named \"\(name)\"\n", stderr)
+    exit(1)
+}
+
+// Case 2: open Foo.app — launch an app bundle directly
+// Case 3: open file.txt — open a file with its default app
+// Case 4: open -a AppName file.txt — open a file with a specific app
+
 for file in files {
     let path = file.hasPrefix("/") ? file : FileManager.default.currentDirectoryPath + "/" + file
 
+    // .app bundle — launch it directly via launchservicesd
+    if path.hasSuffix(".app") {
+        guard FileManager.default.fileExists(atPath: path) else {
+            fputs("open: \(file): No such file or directory\n", stderr)
+            continue
+        }
+        if lsClient.launchBundle(path: path) != nil {
+            fputs("open: launching \(file)\n", stderr)
+        } else {
+            fputs("open: failed to launch \(file)\n", stderr)
+        }
+        continue
+    }
+
+    // Regular file — find the app to open it with
     guard FileManager.default.fileExists(atPath: path) else {
         fputs("open: \(file): No such file or directory\n", stderr)
         continue
@@ -54,17 +90,16 @@ for file in files {
 
     let ext = (path as NSString).pathExtension.lowercased()
 
-    // Find the app to open with
     let reg: AppRegistration?
-    if let bundleId = appBundleId {
-        reg = client.appInfo(bundleIdentifier: bundleId)
-            ?? client.appInfo(bundleIdentifier: "com.clone.\(bundleId.lowercased())")
+    if let name = appName {
+        reg = lsClient.appInfo(bundleIdentifier: name)
+            ?? lsClient.appInfo(bundleIdentifier: "com.clone.\(name.lowercased())")
     } else {
         guard !ext.isEmpty else {
             fputs("open: \(file): no file extension, cannot determine app\n", stderr)
             continue
         }
-        reg = client.defaultApp(forExtension: ext)
+        reg = lsClient.defaultApp(forExtension: ext)
     }
 
     guard let app = reg else {
@@ -74,8 +109,7 @@ for file in files {
 
     fputs("open: opening \(file) with \(app.displayName)\n", stderr)
 
-    // Send openFile to compositor via IPC
-    // The open command connects directly to the compositor to request file opening
+    // Tell compositor to open the file in the app
     let compositorFd = socket(AF_UNIX, SOCK_STREAM, 0)
     guard compositorFd >= 0 else {
         fputs("open: cannot create socket\n", stderr)
@@ -99,7 +133,6 @@ for file in files {
     }
 
     if result == 0 {
-        // Register as a transient app, then send openFile
         let registerMsg = AppMessage.register(appId: "com.clone.open", title: "open", width: 0, height: 0, role: .window)
         if let data = try? WireProtocol.encode(registerMsg) {
             data.withUnsafeBytes { _ = write(compositorFd, $0.baseAddress!, data.count) }
@@ -108,7 +141,6 @@ for file in files {
         if let data = try? WireProtocol.encode(openMsg) {
             data.withUnsafeBytes { _ = write(compositorFd, $0.baseAddress!, data.count) }
         }
-        // Send close immediately — we're a one-shot command
         let closeMsg = AppMessage.close
         if let data = try? WireProtocol.encode(closeMsg) {
             data.withUnsafeBytes { _ = write(compositorFd, $0.baseAddress!, data.count) }

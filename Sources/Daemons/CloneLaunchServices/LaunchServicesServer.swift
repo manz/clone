@@ -164,6 +164,37 @@ public final class LaunchServicesServer {
             } else {
                 client.send(.error("Failed to parse bundle at \(path)"))
             }
+
+        case .launch(let bundleId):
+            if let reg = apps[bundleId] {
+                launchProcess(reg: reg)
+                client.send(.launched(reg))
+            } else {
+                client.send(.error("No app registered for \(bundleId)"))
+            }
+
+        case .launchBundle(let path):
+            // Register on the fly if not already known, then launch
+            if let reg = parseBundle(at: path) {
+                registerApp(reg)
+                launchProcess(reg: reg)
+                client.send(.launched(reg))
+            } else {
+                client.send(.error("Failed to parse bundle at \(path)"))
+            }
+        }
+    }
+
+    /// Spawn an app process from its registration.
+    private func launchProcess(reg: AppRegistration) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: reg.executablePath)
+        process.standardError = FileHandle.standardError
+        do {
+            try process.run()
+            fputs("[launchservicesd] Launched \(reg.displayName) (pid \(process.processIdentifier)) from \(reg.executablePath)\n", stderr)
+        } catch {
+            fputs("[launchservicesd] Failed to launch \(reg.displayName): \(error)\n", stderr)
         }
     }
 

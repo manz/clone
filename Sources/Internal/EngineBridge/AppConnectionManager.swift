@@ -230,8 +230,8 @@ final class AppConnectionManager {
                 updateFocusedAppName(windowManager: windowManager)
             } else if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
                 animateRestore(windowId: window.id, windowManager: windowManager, animationManager: animationManager)
-            } else if let reg = lsClient?.appInfo(bundleIdentifier: appId) {
-                launchApp(reg.executablePath, isFullPath: true)
+            } else if lsClient?.launch(bundleIdentifier: appId) != nil {
+                // launchservicesd found and spawned the app
             } else if let name = appBinaries[appId] {
                 launchApp(name)
             }
