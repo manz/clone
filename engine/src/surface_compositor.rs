@@ -86,11 +86,14 @@ pub struct SurfaceCompositor {
     uniform_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
     sampler: wgpu::Sampler,
-    surface_format: wgpu::TextureFormat,
+    offscreen_format: wgpu::TextureFormat,
 }
 
 impl SurfaceCompositor {
-    pub fn new(device: &wgpu::Device, surface_format: wgpu::TextureFormat) -> Self {
+    /// Create a compositor.
+    /// - `offscreen_format`: format for per-window offscreen textures (linear)
+    /// - `screen_format`: format for the composite pipeline output (sRGB)
+    pub fn new(device: &wgpu::Device, offscreen_format: wgpu::TextureFormat, screen_format: wgpu::TextureFormat) -> Self {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("compositor_bgl"),
             entries: &[
@@ -162,7 +165,7 @@ impl SurfaceCompositor {
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: surface_format,
+                    format: screen_format,
                     blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -205,16 +208,16 @@ impl SurfaceCompositor {
             uniform_buffer,
             instance_buffer,
             sampler,
-            surface_format,
+            offscreen_format,
         }
     }
 
     /// Ensure a surface exists for a given ID at the given physical size.
     pub fn ensure_surface(&mut self, device: &wgpu::Device, surface_id: u64, width: u32, height: u32) {
         let entry = self.surfaces.entry(surface_id).or_insert_with(|| {
-            WindowSurface::new(device, self.surface_format, width, height)
+            WindowSurface::new(device, self.offscreen_format, width, height)
         });
-        entry.resize(device, self.surface_format, width, height);
+        entry.resize(device, self.offscreen_format, width, height);
     }
 
     /// Get the texture view for a surface to render into.

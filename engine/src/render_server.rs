@@ -8,12 +8,15 @@ pub struct RenderServer {
 }
 
 impl RenderServer {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: wgpu::TextureFormat) -> Self {
-        let mut renderer = DesktopRenderer::new(format);
+    /// Create a render server.
+    /// - `offscreen_format`: format for per-window offscreen textures (should be linear, e.g. Bgra8Unorm)
+    /// - `screen_format`: format for the final screen surface (should be sRGB, e.g. Bgra8UnormSrgb)
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, offscreen_format: wgpu::TextureFormat, screen_format: wgpu::TextureFormat) -> Self {
+        let mut renderer = DesktopRenderer::new(offscreen_format);
         renderer.init_pipelines(device, queue);
         Self {
             renderer,
-            compositor: SurfaceCompositor::new(device, format),
+            compositor: SurfaceCompositor::new(device, offscreen_format, screen_format),
         }
     }
 

@@ -63,12 +63,26 @@ impl App {
                 })?;
 
         let caps = surface.get_capabilities(&adapter);
-        let surface_format = caps.formats[0];
+        // Screen surface: sRGB for correct display gamma.
+        // Offscreen textures: linear (Unorm) so sRGB color values from Swift are stored as-is.
+        // The compositor pipeline reads linear offscreen → writes sRGB screen.
+        let screen_format = caps
+            .formats
+            .iter()
+            .find(|f| f.is_srgb())
+            .copied()
+            .unwrap_or(caps.formats[0]);
+        let offscreen_format = match screen_format {
+            wgpu::TextureFormat::Bgra8UnormSrgb => wgpu::TextureFormat::Bgra8Unorm,
+            wgpu::TextureFormat::Rgba8UnormSrgb => wgpu::TextureFormat::Rgba8Unorm,
+            other => other,
+        };
+        log::info!("Screen format: {:?}, offscreen: {:?}, all: {:?}", screen_format, offscreen_format, caps.formats);
 
         let size = window.inner_size();
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
+            format: screen_format,
             view_formats: vec![],
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             width: size.width.max(1),
@@ -78,7 +92,7 @@ impl App {
         };
         surface.configure(&device, &surface_config);
 
-        let mut render_server = RenderServer::new(&device, &queue, surface_format);
+        let mut render_server = RenderServer::new(&device, &queue, offscreen_format, screen_format);
 
         let wallpaper_path = self.delegate.wallpaper_path();
         if !wallpaper_path.is_empty() {
