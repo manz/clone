@@ -50,6 +50,21 @@ public enum SurfaceRole: String, Codable, Sendable {
     case menubar
     /// Login window — fullscreen, no chrome, gates user session.
     case loginWindow
+    /// Background service — no surface, connected only for event routing.
+    case service
+}
+
+// MARK: - AvocadoEvents (Clone's Apple Events equivalent)
+
+/// Inter-process events routed through the compositor.
+/// Services and apps can send events to other apps by appId.
+public enum AvocadoEvent: Codable, Sendable {
+    /// Request the app to open documents (equivalent to kAEOpenDocuments).
+    case openDocuments(paths: [String])
+    /// Request the app to quit (equivalent to kAEQuitApplication).
+    case quit
+    /// Request the app to activate (bring to front).
+    case activate
 }
 
 // MARK: - App menus
@@ -116,6 +131,8 @@ public enum AppMessage: Codable, Sendable {
     /// App asks compositor to open a file (NSWorkspace.open flow).
     /// Compositor queries launchservicesd for the default app and launches it.
     case openFile(path: String)
+    /// Route an AvocadoEvent to another app by its bundle identifier.
+    case avocadoEvent(targetAppId: String, event: AvocadoEvent)
 }
 
 // MARK: - Messages: Compositor → App
@@ -161,6 +178,8 @@ public enum CompositorMessage: Codable, Sendable {
     case sheetPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
     /// Compositor tells the app to open a file.
     case openFile(path: String)
+    /// An AvocadoEvent from another process.
+    case avocadoEvent(AvocadoEvent)
 }
 
 // MARK: - Daemon (now-playing service)
@@ -395,6 +414,9 @@ public enum LSDRequest: Codable, Sendable {
     case launch(bundleIdentifier: String)
     /// Launch an .app bundle at a given path (doesn't need to be in /Applications).
     case launchBundle(path: String)
+    /// Open a file with its default app (or a specific app). Launches the app if needed
+    /// and passes the file path via CLONE_OPEN_FILE environment variable.
+    case openFile(path: String, withApp: String? = nil)
 }
 
 /// launchservicesd → Client

@@ -182,6 +182,25 @@ public final class LaunchServicesServer {
             } else {
                 client.send(.error("Failed to parse bundle at \(path)"))
             }
+
+        case .openFile(let path, let withApp):
+            // Resolve the app — explicit override or default for extension
+            let reg: AppRegistration?
+            if let appId = withApp {
+                reg = apps[appId] ?? apps["com.clone.\(appId.lowercased())"]
+            } else {
+                let ext = (path as NSString).pathExtension.lowercased()
+                let bundleId = extensionMap[ext]
+                reg = bundleId.flatMap { apps[$0] }
+            }
+            guard let app = reg else {
+                client.send(.error("No app for \(path)"))
+                return
+            }
+            // Launch the app — the caller (open command) will route the file
+            // to the app via the compositor's openFile IPC.
+            launchProcess(reg: app)
+            client.send(.launched(app))
         }
     }
 

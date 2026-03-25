@@ -50,6 +50,8 @@ public final class AppClient {
     public var onSheetPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
     /// Callback when compositor tells the app to open a file.
     public var onOpenFile: (@MainActor (String) -> Void)?
+    /// Callback for AvocadoEvents routed through the compositor.
+    public var onAvocadoEvent: (@MainActor (AvocadoEvent) -> Void)?
 
     public init() {}
 
@@ -186,6 +188,9 @@ public final class AppClient {
 
         case .openFile(let path):
             onOpenFile?(path)
+
+        case .avocadoEvent(let event):
+            onAvocadoEvent?(event)
         }
     }
 

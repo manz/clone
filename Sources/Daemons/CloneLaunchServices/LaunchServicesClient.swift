@@ -85,6 +85,13 @@ public final class LaunchServicesClient: @unchecked Sendable {
         return nil
     }
 
+    /// Open a file with its default app (or a specific app).
+    public func openFile(path: String, withApp: String? = nil) -> AppRegistration? {
+        guard let response = sendRequest(.openFile(path: path, withApp: withApp)) else { return nil }
+        if case .launched(let reg) = response { return reg }
+        return nil
+    }
+
     // MARK: - Wire
 
     private func sendRequest(_ request: LSDRequest) -> LSDResponse? {

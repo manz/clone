@@ -34,18 +34,22 @@ impl RenderServer {
         scale: f32,
         frames: &[SurfaceFrame],
     ) {
-        // Ensure offscreen textures exist for each surface
+        // Ensure offscreen textures exist for each surface (skip zero-size)
         let mut active_ids: Vec<u64> = Vec::new();
         for sf in frames {
             let phys_w = (sf.desc.width * scale) as u32;
             let phys_h = (sf.desc.height * scale) as u32;
+            if phys_w == 0 || phys_h == 0 {
+                continue;
+            }
             self.compositor.ensure_surface(device, sf.desc.surface_id, phys_w, phys_h);
             active_ids.push(sf.desc.surface_id);
         }
         self.compositor.gc(&active_ids);
 
-        // Render each surface's commands into its offscreen texture
+        // Render each surface's commands into its offscreen texture (skip zero-size)
         for sf in frames {
+            if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
             let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
                 match cmd {
                     crate::commands::RenderCommand::Rect { color, .. } |

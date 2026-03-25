@@ -437,7 +437,7 @@ final class AppConnectionManager {
             case .menubar:
                 app.send(.focusedApp(name: focusedAppName))
                 app.send(.appMenus(appName: focusedAppName, menus: focusedMenus))
-            case .window, .loginWindow:
+            case .window, .loginWindow, .service:
                 break
             }
         }

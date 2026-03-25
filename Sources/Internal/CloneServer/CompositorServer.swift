@@ -276,6 +276,22 @@ public final class CompositorServer {
 
         case .openFile(let path):
             onOpenFile?(path)
+
+        case .avocadoEvent(let targetAppId, let event):
+            routeAvocadoEvent(targetAppId: targetAppId, event: event)
+        }
+    }
+
+    /// Route an AvocadoEvent to a connected app by bundle identifier.
+    func routeAvocadoEvent(targetAppId: String, event: AvocadoEvent) {
+        lock.lock()
+        let targets = apps.values.filter { $0.appId == targetAppId }
+        lock.unlock()
+        for app in targets {
+            app.send(.avocadoEvent(event))
+        }
+        if targets.isEmpty {
+            fputs("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n", stderr)
         }
     }
 
@@ -294,6 +310,7 @@ public final class CompositorServer {
         let snapshot = Array(apps.values)
         lock.unlock()
         for app in snapshot {
+            if app.role == .service { continue }
             app.send(.requestFrame(width: app.width, height: app.height))
             if let sheet = app.sheetSize {
                 app.send(.requestSheetFrame(width: sheet.width, height: sheet.height))

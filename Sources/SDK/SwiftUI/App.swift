@@ -66,6 +66,9 @@ public protocol App {
     /// Called when a menu item is selected from the menu bar.
     func onMenuAction(itemId: String)
 
+    /// Called when the app is asked to open a file (Clone's equivalent of kAEOpenDocuments).
+    func onOpenFile(path: String)
+
     /// Called when an open-file dialog returns a result.
     func onOpenPanelResult(path: String?)
 
@@ -101,6 +104,7 @@ extension App {
     public func onKey(keycode: UInt32, pressed: Bool) {}
     public func onKeyChar(character: String) {}
     public func onMenuAction(itemId: String) {}
+    public func onOpenFile(path: String) {}
     public func onOpenPanelResult(path: String?) {}
     public func onAppMenus(appName: String, menus: [AppMenu]) {}
     public func onFocusedApp(name: String) {}
@@ -440,6 +444,19 @@ extension App {
             }
             // Also forward to imperative handler
             app.onMenuAction(itemId: itemId)
+        }
+        app.client.onOpenFile = { path in
+            app.onOpenFile(path: path)
+        }
+        app.client.onAvocadoEvent = { event in
+            switch event {
+            case .openDocuments(let paths):
+                for path in paths { app.onOpenFile(path: path) }
+            case .quit:
+                exit(0)
+            case .activate:
+                break // TODO: bring window to front
+            }
         }
         app.client.onOpenPanelResult = { path in
             app.onOpenPanelResult(path: path)
