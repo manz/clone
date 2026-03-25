@@ -215,6 +215,18 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
         print("ycodebuild: copied \(items.count) resource(s)")
     }
 
+    // Ad-hoc code sign — macOS requires valid signatures for .app bundles
+    let codesign = Process()
+    codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+    codesign.arguments = ["-s", "-", "--force", "--deep", appDir]
+    codesign.standardOutput = FileHandle.nullDevice
+    codesign.standardError = FileHandle.nullDevice
+    try? codesign.run()
+    codesign.waitUntilExit()
+    if codesign.terminationStatus == 0 {
+        print("ycodebuild: signed \(target).app")
+    }
+
     return appDir
 }
 
