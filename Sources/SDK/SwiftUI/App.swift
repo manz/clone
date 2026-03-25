@@ -428,6 +428,11 @@ extension App {
             AppearanceManager.shared.current = dark ? .dark : .light
         }
         app.client.onMenuAction = { itemId in
+            // Fire declarative .commands action if registered
+            if let action = MenuRegistry.shared.actions[itemId] {
+                action()
+            }
+            // Also forward to imperative handler
             app.onMenuAction(itemId: itemId)
         }
         app.client.onOpenPanelResult = { path in

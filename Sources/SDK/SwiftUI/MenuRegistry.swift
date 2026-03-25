@@ -12,6 +12,9 @@ public final class MenuRegistry: @unchecked Sendable {
     /// Whether we're currently inside a collectFromCommands call.
     private var collecting = false
 
+    /// Action closures keyed by menu item ID — fired when onMenuAction arrives.
+    nonisolated(unsafe) public var actions: [String: () -> Void] = [:]
+
     private init() {}
 
     /// Evaluate a commands block and return the collected menus.
@@ -55,8 +58,13 @@ public func _menuItemsFromNode(_ node: ViewNode) -> [AppMenuItem] {
     case .rect(_, let height, _) where height == 1:
         // Divider
         return [AppMenuItem(id: "separator", title: "", shortcut: nil, isSeparator: true)]
-    case .onTap(_, let child):
-        return _menuItemsFromNode(child)
+    case .onTap(let tapId, let child):
+        // Extract the label, then wire the tap action to the menu item ID
+        let items = _menuItemsFromNode(child)
+        for item in items where !item.isSeparator {
+            MenuRegistry.shared.actions[item.id] = { TapRegistry.shared.fire(id: tapId) }
+        }
+        return items
     case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(_, let children):
         return children.flatMap { _menuItemsFromNode($0) }
     case .padding(_, let child), .frame(_, _, let child):
