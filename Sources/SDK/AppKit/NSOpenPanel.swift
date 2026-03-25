@@ -2,8 +2,8 @@ import Foundation
 
 // MARK: - NSSavePanel
 
-/// Base panel for file save/open dialogs. On Clone, panels render inside the app's
-/// own window frame using SwiftUI views — the app owns the UI, not the compositor.
+/// Base panel for file save/open dialogs. On Clone, panels render as a sheet
+/// using the shared FileBrowserState and FileListView from the SwiftUI SDK.
 open class NSSavePanel {
     public enum Response: Int, Sendable {
         case OK = 1
@@ -31,11 +31,7 @@ open class NSSavePanel {
     public func begin(completionHandler: @escaping @MainActor (Response) -> Void) {
         self.completionHandler = completionHandler
         isVisible = true
-        // Load the initial directory
-        let startPath = directoryURL?.path ?? FileManager.default.currentDirectoryPath
-        panelState.currentPath = startPath
-        panelState.loadDirectory()
-        // Register globally so the app's event loop can drive the panel
+        startPath = directoryURL?.path ?? NSHomeDirectory()
         NSSavePanel._activePanel = self
     }
 
@@ -47,12 +43,14 @@ open class NSSavePanel {
         completionHandler = nil
     }
 
-    // MARK: - Internal state (public for cross-module access from SwiftUI)
+    // MARK: - Internal
 
     public var completionHandler: (@MainActor (Response) -> Void)?
-    public var panelState = PanelState()
 
-    /// The currently active panel (one at a time). The App render loop checks this.
+    /// Starting path resolved at begin() time.
+    public var startPath: String = NSHomeDirectory()
+
+    /// The currently active panel (one at a time).
     nonisolated(unsafe) public static var _activePanel: NSSavePanel?
 
     /// Resolve with a selected file path.
@@ -68,46 +66,8 @@ open class NSSavePanel {
 // MARK: - NSOpenPanel
 
 /// A panel that lets the user choose files or directories to open.
-/// On Clone, this renders as a SwiftUI overlay inside the app's window.
 open class NSOpenPanel: NSSavePanel {
-    /// Whether the user can select directories.
     public var canChooseDirectories: Bool = false
-    /// Whether the user can select files.
     public var canChooseFiles: Bool = true
-    /// Whether multiple selection is allowed.
     public var allowsMultipleSelection: Bool = false
-}
-
-// MARK: - Panel state (internal, drives the file browser UI)
-
-public final class PanelState {
-    public var currentPath: String = ""
-    public var entries: [PanelEntry] = []
-    public var selectedIndex: Int = 0
-    public var mouseX: CGFloat = 0
-    public var mouseY: CGFloat = 0
-
-    public struct PanelEntry {
-        public let name: String
-        public let isDirectory: Bool
-        public let path: String
-    }
-
-    public func loadDirectory() {
-        let fm = FileManager.default
-        var result: [PanelEntry] = []
-        if currentPath != "/" {
-            result.append(PanelEntry(name: "..", isDirectory: true, path: (currentPath as NSString).deletingLastPathComponent))
-        }
-        if let contents = try? fm.contentsOfDirectory(atPath: currentPath) {
-            for name in contents.sorted() where !name.hasPrefix(".") {
-                let fullPath = (currentPath as NSString).appendingPathComponent(name)
-                var isDir: ObjCBool = false
-                fm.fileExists(atPath: fullPath, isDirectory: &isDir)
-                result.append(PanelEntry(name: name, isDirectory: isDir.boolValue, path: fullPath))
-            }
-        }
-        entries = result
-        selectedIndex = min(selectedIndex, max(entries.count - 1, 0))
-    }
 }
