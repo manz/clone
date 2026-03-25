@@ -178,6 +178,15 @@ struct PreviewApp: App {
             previewView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
             #endif
         }
+        .commands {
+            CommandMenu("File") {
+                Button("Open…") {
+                    #if canImport(CloneClient)
+                    client.send(.showOpenPanel(allowedTypes: ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp", "svg", "pdf"]))
+                    #endif
+                }
+            }
+        }
     }
 
     init() {

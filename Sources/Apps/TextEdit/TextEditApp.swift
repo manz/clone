@@ -202,6 +202,15 @@ struct TextEditApp: App {
             textEditView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
             #endif
         }
+        .commands {
+            CommandMenu("File") {
+                Button("Open…") {
+                    #if canImport(CloneClient)
+                    client.send(.showOpenPanel(allowedTypes: ["txt", "md", "rtf", "text", "log"]))
+                    #endif
+                }
+            }
+        }
     }
 
     #if canImport(CloneClient)
