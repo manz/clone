@@ -203,17 +203,10 @@ extension App {
                     WindowState.shared.compositorSheetActive = false
                 }
                 _wasSheetActive = sheetActive
-                // Sheet overlay: once the compositor is rendering the panel as a
-                // separate surface, only include the backdrop (dimmed + tap-to-dismiss).
-                // Before that, include the full overlay as fallback.
+                // Sheet overlay — rendered in-window (full overlay with backdrop + panel).
+                // Tap handlers on Cancel/Done work through the normal hit-test path.
                 if let sheetOverlay = WindowState.shared.activeSheetOverlay {
-                    if WindowState.shared.compositorSheetActive,
-                       case .zstack(_, let children) = sheetOverlay,
-                       let backdrop = children.first {
-                        viewTree = .zstack(children: [viewTree, backdrop])
-                    } else {
-                        viewTree = .zstack(children: [viewTree, sheetOverlay])
-                    }
+                    viewTree = .zstack(children: [viewTree, sheetOverlay])
                 }
                 // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree

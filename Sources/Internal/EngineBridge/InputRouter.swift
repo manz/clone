@@ -68,33 +68,9 @@ struct InputRouter {
                     }
                 }
 
-                // Sheet click interception — before normal window hit-test
-                if let focusedId = windowManager.focusedWindowId,
-                   let window = windowManager.windows.first(where: { $0.id == focusedId }),
-                   let sheetSize = appManager.sheetSize(for: focusedId) {
-                    // Check if click is within parent window bounds
-                    let parentX = window.x
-                    let parentY = window.y
-                    let parentW = window.width
-                    let parentH = window.height
-                    if x >= parentX && x < parentX + parentW && y >= parentY && y < parentY + parentH {
-                        // Sheet is centered in the parent
-                        let sheetW = CGFloat(sheetSize.width)
-                        let sheetH = CGFloat(sheetSize.height)
-                        let sheetX = parentX + (parentW - sheetW) / 2
-                        let sheetY = parentY + (parentH - sheetH) / 3
-                        if x >= sheetX && x < sheetX + sheetW && y >= sheetY && y < sheetY + sheetH {
-                            // Click inside sheet — send sheet-local coordinates
-                            let localX = x - sheetX
-                            let localY = y - sheetY
-                            appManager.sendSheetPointerButton(wmWindowId: focusedId, button: button, pressed: true, x: Float(localX), y: Float(localY))
-                        } else {
-                            // Click on backdrop — dismiss sheet
-                            appManager.sendSheetBackdropTapped(wmWindowId: focusedId)
-                        }
-                        return
-                    }
-                }
+                // Sheet clicks are handled in-window via the normal tap path.
+                // When sheets move to separate compositor surfaces, re-enable
+                // the sheet interception here (sheetPointerButton / sheetBackdropTapped).
 
                 if let window = windowManager.windowAt(x: x, y: y) {
                     // Traffic light buttons
