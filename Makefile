@@ -67,6 +67,8 @@ apps:
 CLONE_ROOT ?= $(HOME)/.clone
 install:
 	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
+	@echo "Cleaning stale bundles..."
+	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
 			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "Installed $$(basename $$app)"; \

@@ -78,15 +78,11 @@ impl TextRenderer {
 
 impl TextRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, surface_format: wgpu::TextureFormat) -> Self {
-        let mut font_system = FontSystem::new();
-        // Load bundled Inter font (system UI text)
-        font_system
-            .db_mut()
-            .load_font_data(include_bytes!("../../assets/Inter.ttf").to_vec());
-        // Phosphor icon font kept for fallback glyph rendering
-        font_system
-            .db_mut()
-            .load_font_data(include_bytes!("../../assets/Phosphor.ttf").to_vec());
+        // Use empty font DB — only bundled Inter, no system font fallback spam
+        let mut db = cosmic_text::fontdb::Database::new();
+        db.load_font_data(include_bytes!("../../assets/Inter.ttf").to_vec());
+        let locale = "en-US".to_string();
+        let mut font_system = FontSystem::new_with_locale_and_db(locale, db);
         let swash_cache = SwashCache::new();
 
         let atlas_data = vec![0u8; (ATLAS_SIZE * ATLAS_SIZE) as usize];

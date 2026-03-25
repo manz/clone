@@ -40,9 +40,11 @@ static STATE: Mutex<Option<TextState>> = Mutex::new(None);
 fn with_state<R>(f: impl FnOnce(&mut TextState) -> R) -> R {
     let mut guard = STATE.lock().unwrap();
     if guard.is_none() {
-        let mut fs = FontSystem::new();
-        fs.db_mut()
-            .load_font_data(include_bytes!("../../engine/assets/Inter.ttf").to_vec());
+        // Empty font DB — only bundled Inter, no system font fallback
+        let mut db = cosmic_text::fontdb::Database::new();
+        db.load_font_data(include_bytes!("../../engine/assets/Inter.ttf").to_vec());
+        let locale = "en-US".to_string();
+        let fs = FontSystem::new_with_locale_and_db(locale, db);
         *guard = Some(TextState {
             font_system: fs,
             cache: FxHashMap::default(),
