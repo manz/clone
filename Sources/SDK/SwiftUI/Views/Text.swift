@@ -87,12 +87,17 @@ public struct Text: _PrimitiveView {
 
 // MARK: - LocalizedStringKey
 
-/// A key used to look up a localized string. On Clone, just wraps the string.
+/// A key used to look up a localized string via Bundle.main.
 public struct LocalizedStringKey: ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Sendable {
     public let key: String
     public init(_ value: String) { self.key = value }
     public init(stringLiteral value: String) { self.key = value }
     public init(stringInterpolation: StringInterpolation) { self.key = stringInterpolation.result }
+
+    /// Resolve the localized string via Bundle.main.
+    public var localizedValue: String {
+        Bundle.main.localizedString(forKey: key, value: key, table: nil)
+    }
 
     public struct StringInterpolation: StringInterpolationProtocol {
         var result: String = ""
@@ -109,6 +114,6 @@ public struct LocalizedStringKey: ExpressibleByStringLiteral, ExpressibleByStrin
 extension Text {
     /// `Text(LocalizedStringKey)` — creates text from a localized string key.
     public init(_ key: LocalizedStringKey) {
-        self.init(key.key)
+        self.init(key.localizedValue)
     }
 }

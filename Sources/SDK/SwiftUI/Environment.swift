@@ -1,4 +1,5 @@
 import Foundation
+import CloneProtocol
 
 /// A key for accessing values in the environment.
 public protocol EnvironmentKey {
@@ -170,7 +171,10 @@ public struct AppStorage<Value> {
 
     public var wrappedValue: Value {
         get { AppStorage._storage[key] as? Value ?? defaultValue }
-        nonmutating set { _appStorageBacking[key] = newValue }
+        nonmutating set {
+            _appStorageBacking[key] = newValue
+            _AppStorageFile.save(_appStorageBacking)
+        }
     }
 
     public var projectedValue: Binding<Value> {
@@ -213,8 +217,34 @@ extension AppStorage where Value == Double {
     }
 }
 
-/// Backing store for @AppStorage
-nonisolated(unsafe) private var _appStorageBacking: [String: Any] = [:]
+/// File-backed plist store for @AppStorage, scoped to $CLONE_ROOT/Library/Preferences/.
+nonisolated(unsafe) private var _appStorageBacking: [String: Any] = {
+    _AppStorageFile.load()
+}()
+
+/// Persistence helper for @AppStorage — reads/writes plist under CloneRoot.
+enum _AppStorageFile {
+    private static var plistPath: String {
+        let bundleId = Bundle.main.bundleIdentifier ?? "com.clone.unknown"
+        return "\(clonePreferencesPath)/\(bundleId).plist"
+    }
+
+    static func load() -> [String: Any] {
+        guard let data = FileManager.default.contents(atPath: plistPath),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            return [:]
+        }
+        return dict
+    }
+
+    static func save(_ dict: [String: Any]) {
+        let dir = (plistPath as NSString).deletingLastPathComponent
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        if let data = try? PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0) {
+            try? data.write(to: URL(fileURLWithPath: plistPath))
+        }
+    }
+}
 
 // MARK: - @SceneStorage
 

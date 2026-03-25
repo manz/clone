@@ -1,4 +1,5 @@
 import Foundation
+import CloneProtocol
 
 /// Configuration for where and how to store model data.
 public struct ModelConfiguration {
@@ -47,7 +48,7 @@ public struct ModelConfiguration {
         if let url = url { return url.path }
         guard let appId = appId else { return ":memory:" }
 
-        let appSupport = NSHomeDirectory() + "/Library/Application Support/\(appId)"
+        let appSupport = cloneAppSupportPath(bundleId: appId)
         try? FileManager.default.createDirectory(atPath: appSupport, withIntermediateDirectories: true)
         return appSupport + "/data.sqlite"
     }

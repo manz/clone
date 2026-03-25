@@ -48,6 +48,8 @@ public final class AppClient {
     public var onSheetBackdropTapped: (@MainActor () -> Void)?
     /// Callback for pointer button events within sheet bounds (sheet-local coords).
     public var onSheetPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
+    /// Callback when compositor tells the app to open a file.
+    public var onOpenFile: (@MainActor (String) -> Void)?
 
     public init() {}
 
@@ -181,6 +183,9 @@ public final class AppClient {
 
         case .sheetPointerButton(let button, let pressed, let x, let y):
             onSheetPointerButton?(button, pressed, x, y)
+
+        case .openFile(let path):
+            onOpenFile?(path)
         }
     }
 

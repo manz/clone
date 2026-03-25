@@ -1,0 +1,20 @@
+/* Finder sidebar sections */
+"Favorites" = "Favorites";
+"Recents" = "Recents";
+
+/* Finder sidebar items */
+"Desktop" = "Desktop";
+"Documents" = "Documents";
+"Downloads" = "Downloads";
+"Applications" = "Applications";
+"Home" = "Home";
+
+/* Toolbar */
+"Back" = "Back";
+"Forward" = "Forward";
+
+/* Context menu */
+"Open" = "Open";
+"Get Info" = "Get Info";
+"Move to Trash" = "Move to Trash";
+"New Folder" = "New Folder";

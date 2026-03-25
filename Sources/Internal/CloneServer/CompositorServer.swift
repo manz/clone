@@ -216,6 +216,8 @@ public final class CompositorServer {
     /// Callback when LoginWindow signals authentication succeeded.
     public var onSetColorScheme: ((Bool) -> Void)?
     public var onSessionReady: (() -> Void)?
+    /// Callback when an app requests to open a file (NSWorkspace.open flow).
+    public var onOpenFile: ((String) -> Void)?
 
     func handle(message: AppMessage, from app: ConnectedApp) {
         switch message {
@@ -271,6 +273,9 @@ public final class CompositorServer {
         case .dismissSheet:
             app.sheetSize = nil
             app.updateSheetCommands([])
+
+        case .openFile(let path):
+            onOpenFile?(path)
         }
     }
 

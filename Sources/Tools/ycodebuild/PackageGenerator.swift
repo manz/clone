@@ -154,8 +154,10 @@ enum PackageGenerator {
     /// Find files/directories that should be excluded (platform-specific + non-Swift resources).
     private static func findExcludes(in directory: String) -> [String] {
         let fm = FileManager.default
+        // Resolve symlinks so enumerator paths match the directory prefix
+        let resolvedDirectory = (directory as NSString).resolvingSymlinksInPath
         guard let enumerator = fm.enumerator(
-            at: URL(fileURLWithPath: directory),
+            at: URL(fileURLWithPath: resolvedDirectory),
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return [] }
@@ -169,8 +171,9 @@ enum PackageGenerator {
             "metal", "mlmodel", "intentdefinition",
         ]
         let excludedDirExtensions: Set<String> = [
-            "xcassets", "xcdatamodeld", "icon", "xcodeproj", "xcworkspace",
+            "xcassets", "xcdatamodeld", "icon", "xcodeproj", "xcworkspace", "lproj",
         ]
+        let excludedDirNames: Set<String> = ["Resources"]
 
         var excludes: [String] = []
         var excludedDirs: Set<String> = []
@@ -184,10 +187,10 @@ enum PackageGenerator {
 
             let filename = fileURL.lastPathComponent
             let ext = fileURL.pathExtension.lowercased()
-            let rel = path.replacingOccurrences(of: directory + "/", with: "")
+            let rel = path.replacingOccurrences(of: resolvedDirectory + "/", with: "")
 
             let isDir = (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if isDir && excludedDirExtensions.contains(ext) {
+            if isDir && (excludedDirExtensions.contains(ext) || excludedDirNames.contains(filename)) {
                 excludes.append(rel)
                 excludedDirs.insert(path)
                 continue

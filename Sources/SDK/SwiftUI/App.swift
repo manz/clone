@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import CloneClient
 import CloneProtocol
 
@@ -91,7 +92,7 @@ extension App {
         if let wg = scene as? (any _WindowGroupProtocol) {
             return WindowConfiguration(title: wg.windowTitle)
         }
-        return WindowConfiguration(title: _resolveAppId())
+        return WindowConfiguration(title: _resolveAppName())
     }
 
     public func render(width: CGFloat, height: CGFloat) -> [IPCRenderCommand]? { nil }
@@ -139,6 +140,10 @@ extension App {
         }
         SystemActions.shared.setColorScheme = SetColorSchemeAction { dark in
             client.send(.setColorScheme(dark: dark))
+        }
+        _openFileHandler = { path in
+            client.send(.openFile(path: path))
+            return true
         }
 
         if usesDeclarativeRendering {
@@ -572,9 +577,23 @@ func _viewToNode<V: View>(_ view: V) -> ViewNode {
     _resolve(view)
 }
 
-/// Resolve the app ID from the executable name.
+/// Resolve the app ID from Bundle.main (when running as .app bundle) or executable name.
 func _resolveAppId() -> String {
-    "com.clone.\(ProcessInfo.processInfo.processName.lowercased())"
+    if let bundleId = Bundle.main.bundleIdentifier {
+        return bundleId
+    }
+    return "com.clone.\(ProcessInfo.processInfo.processName.lowercased())"
+}
+
+/// Resolve the app display name from Bundle.main or executable name.
+func _resolveAppName() -> String {
+    if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String {
+        return name
+    }
+    if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String {
+        return name
+    }
+    return ProcessInfo.processInfo.processName
 }
 
 // MARK: - IPC Conversion

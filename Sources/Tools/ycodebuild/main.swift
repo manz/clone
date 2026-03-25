@@ -6,6 +6,7 @@ struct YCodeBuild {
     let sourceDir: String
     let prebuilt: Bool
     let outputDir: String?
+    let bundle: Bool
 
     func run() throws {
         let sourceDirURL = URL(fileURLWithPath: sourceDir)
@@ -139,6 +140,16 @@ struct YCodeBuild {
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? parentDir.appendingPathComponent(".build/debug").path
             let binaryPath = "\(binDir)/\(target)"
             print("ycodebuild: binary at \(binaryPath)")
+
+            if bundle {
+                let bundlePath = try assembleBundle(
+                    target: target,
+                    binaryPath: binaryPath,
+                    sourceDir: sourceDir,
+                    outputDir: parentDir.path
+                )
+                print("ycodebuild: bundle at \(bundlePath)")
+            }
         } else {
             print("ycodebuild: build failed with exit code \(process.terminationStatus)")
             throw YCodeBuildError.buildFailed(Int(process.terminationStatus))
@@ -149,6 +160,74 @@ struct YCodeBuild {
 enum YCodeBuildError: Error {
     case buildFailed(Int)
     case missingArgument(String)
+}
+
+// MARK: - Bundle Assembly
+
+func assembleBundle(target: String, binaryPath: String, sourceDir: String, outputDir: String) throws -> String {
+    let fm = FileManager.default
+    let appDir = "\(outputDir)/\(target).app"
+    let contentsDir = "\(appDir)/Contents"
+    let macosDir = "\(contentsDir)/MacOS"
+    let resourcesDir = "\(contentsDir)/Resources"
+
+    // Create directory structure
+    try fm.createDirectory(atPath: macosDir, withIntermediateDirectories: true)
+    try fm.createDirectory(atPath: resourcesDir, withIntermediateDirectories: true)
+
+    // Copy binary
+    let destBinary = "\(macosDir)/\(target)"
+    if fm.fileExists(atPath: destBinary) { try fm.removeItem(atPath: destBinary) }
+    try fm.copyItem(atPath: binaryPath, toPath: destBinary)
+
+    // Info.plist: use source dir's if present, otherwise generate default
+    let plistDest = "\(contentsDir)/Info.plist"
+    let sourcePlist = "\(sourceDir)/Info.plist"
+    if fm.fileExists(atPath: sourcePlist) {
+        // Merge: load source plist, fill in missing defaults
+        let sourceData = try Data(contentsOf: URL(fileURLWithPath: sourcePlist))
+        var plist = try PropertyListSerialization.propertyList(from: sourceData, format: nil) as? [String: Any] ?? [:]
+        let defaults = generateInfoPlist(target: target)
+        for (key, value) in defaults where plist[key] == nil {
+            plist[key] = value
+        }
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try data.write(to: URL(fileURLWithPath: plistDest))
+        print("ycodebuild: merged Info.plist from \(sourcePlist)")
+    } else {
+        // Generate default
+        let plist = generateInfoPlist(target: target)
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try data.write(to: URL(fileURLWithPath: plistDest))
+        print("ycodebuild: generated default Info.plist")
+    }
+
+    // Copy Resources (icons, lproj dirs) if they exist
+    let sourceResources = "\(sourceDir)/Resources"
+    if fm.fileExists(atPath: sourceResources) {
+        let items = try fm.contentsOfDirectory(atPath: sourceResources)
+        for item in items {
+            let src = "\(sourceResources)/\(item)"
+            let dest = "\(resourcesDir)/\(item)"
+            if fm.fileExists(atPath: dest) { try fm.removeItem(atPath: dest) }
+            try fm.copyItem(atPath: src, toPath: dest)
+        }
+        print("ycodebuild: copied \(items.count) resource(s)")
+    }
+
+    return appDir
+}
+
+func generateInfoPlist(target: String) -> [String: Any] {
+    [
+        "CFBundleIdentifier": "com.clone.\(target.lowercased())",
+        "CFBundleName": target,
+        "CFBundleDisplayName": target,
+        "CFBundleExecutable": target,
+        "CFBundlePackageType": "APPL",
+        "CFBundleVersion": "1",
+        "CFBundleShortVersionString": "0.1.0",
+    ]
 }
 
 // MARK: - SDK Manifest
@@ -209,6 +288,7 @@ func parseArguments() throws -> YCodeBuild {
     var target: String?
     var sourceDir: String?
     var prebuilt = false
+    var bundle = false
     var outputDir: String?
 
     var i = 1
@@ -232,6 +312,8 @@ func parseArguments() throws -> YCodeBuild {
             outputDir = args[i]
         case "--prebuilt":
             prebuilt = true
+        case "--bundle":
+            bundle = true
         case "--help", "-h":
             printUsage()
             exit(0)
@@ -255,13 +337,14 @@ func parseArguments() throws -> YCodeBuild {
         target: resolvedTarget,
         sourceDir: resolvedSource,
         prebuilt: prebuilt,
-        outputDir: outputDir
+        outputDir: outputDir,
+        bundle: bundle
     )
 }
 
 func printUsage() {
     print("""
-    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>] [--output-dir <path>] [--prebuilt]
+    USAGE: ycodebuild [--sdk-path <path>] [--target <name>] [--source-dir <path>] [--output-dir <path>] [--prebuilt] [--bundle]
 
     OPTIONS:
       --sdk-path    Path to Clone SDK repo (default: $AQUAX_SDK_PATH or ~/Projects/clone)
@@ -269,6 +352,7 @@ func printUsage() {
       --source-dir  Path to app source files (default: .)
       --output-dir  Directory for generated Package.swift and build output (default: source-dir/..)
       --prebuilt    Link against prebuilt .framework bundles instead of building from source
+      --bundle      Assemble a .app bundle after build (Info.plist, Resources, etc.)
       -h, --help    Show this help message
     """)
 }

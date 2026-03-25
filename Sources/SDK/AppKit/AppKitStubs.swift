@@ -268,7 +268,23 @@ open class NSWorkspace: @unchecked Sendable {
     nonisolated(unsafe) public static let shared = NSWorkspace()
     public var notificationCenter: NotificationCenter { .default }
     public static let didWakeNotification = Notification.Name("NSWorkspaceDidWake")
+
+    /// Open a file URL with the default application.
+    /// On Clone, sends `.openFile` to the compositor which queries launchservicesd.
+    @discardableResult
+    open func open(_ url: URL) -> Bool {
+        _openFileHandler?(url.path) ?? false
+    }
+
+    /// Open a file at the given path with the default application.
+    @discardableResult
+    open func openFile(_ fullPath: String) -> Bool {
+        _openFileHandler?(fullPath) ?? false
+    }
 }
+
+/// Internal handler wired by App.main() to send .openFile over IPC.
+nonisolated(unsafe) public var _openFileHandler: ((String) -> Bool)?
 
 // MARK: - NSGraphicsContext
 

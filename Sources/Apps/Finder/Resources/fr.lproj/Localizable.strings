@@ -1,0 +1,20 @@
+/* Sections de la barre latérale du Finder */
+"Favorites" = "Favoris";
+"Recents" = "Récents";
+
+/* Éléments de la barre latérale */
+"Desktop" = "Bureau";
+"Documents" = "Documents";
+"Downloads" = "Téléchargements";
+"Applications" = "Applications";
+"Home" = "Départ";
+
+/* Barre d'outils */
+"Back" = "Précédent";
+"Forward" = "Suivant";
+
+/* Menu contextuel */
+"Open" = "Ouvrir";
+"Get Info" = "Lire les informations";
+"Move to Trash" = "Placer dans la corbeille";
+"New Folder" = "Nouveau dossier";

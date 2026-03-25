@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CloneServer
 import CloneProtocol
+import CloneLaunchServices
 
 /// A pending file dialog request from an app.
 struct FileDialogRequest {
@@ -44,10 +45,12 @@ final class AppConnectionManager {
     private let server = CompositorServer()
     private var externalWindows: [UInt64: UInt64] = [:] // server windowId → wm windowId
     private var childProcesses: [Process] = []
+    private var lsClient: LaunchServicesClient?
     var pendingLaunches: [String] = []
     var pendingRestores: [String] = []
     var pendingMenuActions: [String] = []
     var pendingOpenPanels: [(windowId: UInt64, types: [String])] = []
+    var pendingOpenFiles: [String] = []
     private var focusedAppName: String = "Finder"
     private(set) var sessionStarted = false
     private var pendingSessionReady = false
@@ -91,10 +94,25 @@ final class AppConnectionManager {
         server.onSessionReady = { [weak self] in
             self?.pendingSessionReady = true
         }
+        server.onOpenFile = { [weak self] path in
+            self?.pendingOpenFiles.append(path)
+        }
 
         // Launch pre-session daemons and LoginWindow
         launchApp("cloned")
         launchApp("keychaind")
+        launchApp("launchservicesd")
+        // Connect to launchservicesd after a short delay to let it start
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            let client = LaunchServicesClient()
+            do {
+                try client.connect()
+                DispatchQueue.main.async { self?.lsClient = client }
+                fputs("Connected to launchservicesd\n", stderr)
+            } catch {
+                fputs("Could not connect to launchservicesd: \(error)\n", stderr)
+            }
+        }
         launchApp("LoginWindow")
     }
 
@@ -107,17 +125,24 @@ final class AppConnectionManager {
         launchApp("Finder")
     }
 
-    func launchApp(_ name: String) {
+    func launchApp(_ name: String, isFullPath: Bool = false) {
         let fm = FileManager.default
-        let candidates = [
-            URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
-            ".build/debug/\(name)",
-            "target/debug/\(name)",
-        ]
-
-        guard let path = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
-            fputs("Could not find \(name) binary\n", stderr)
-            return
+        let path: String
+        if isFullPath && fm.isExecutableFile(atPath: name) {
+            path = name
+        } else {
+            let candidates = [
+                URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
+                "\(cloneSystemPath)/\(name)",
+                "\(cloneApplicationsPath)/\(name).app/Contents/MacOS/\(name)",
+                ".build/debug/\(name)",
+                "target/debug/\(name)",
+            ]
+            guard let found = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
+                fputs("Could not find \(name) binary\n", stderr)
+                return
+            }
+            path = found
         }
 
         let process = Process()
@@ -205,6 +230,8 @@ final class AppConnectionManager {
                 updateFocusedAppName(windowManager: windowManager)
             } else if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
                 animateRestore(windowId: window.id, windowManager: windowManager, animationManager: animationManager)
+            } else if let reg = lsClient?.appInfo(bundleIdentifier: appId) {
+                launchApp(reg.executablePath, isFullPath: true)
             } else if let name = appBinaries[appId] {
                 launchApp(name)
             }
@@ -242,6 +269,40 @@ final class AppConnectionManager {
         if let dark = pendingColorScheme {
             pendingColorScheme = nil
             broadcastColorScheme(dark: dark)
+        }
+
+        // Process open file requests (NSWorkspace.open flow)
+        for path in pendingOpenFiles {
+            openFileWithDefaultApp(path)
+        }
+        pendingOpenFiles.removeAll()
+    }
+
+    /// Open a file with its default app via launchservicesd.
+    func openFileWithDefaultApp(_ path: String) {
+        let ext = (path as NSString).pathExtension.lowercased()
+        guard !ext.isEmpty else {
+            fputs("openFile: no extension for \(path)\n", stderr)
+            return
+        }
+        guard let reg = lsClient?.defaultApp(forExtension: ext) else {
+            fputs("openFile: no app registered for .\(ext)\n", stderr)
+            return
+        }
+        // Launch the app if not already running
+        let fm = FileManager.default
+        let alreadyRunning = server.connectedApps.contains(where: { $0.appId == reg.bundleIdentifier })
+        if !alreadyRunning {
+            if fm.isExecutableFile(atPath: reg.executablePath) {
+                launchApp(reg.executablePath, isFullPath: true)
+            } else {
+                launchApp(reg.bundleName)
+            }
+        }
+        // Send openFile to the app (it may take a moment to connect)
+        // For now, send to any connected app matching the bundle ID
+        for app in server.connectedApps where app.appId == reg.bundleIdentifier {
+            app.send(.openFile(path: path))
         }
     }
 
@@ -337,8 +398,11 @@ final class AppConnectionManager {
         }
     }
 
-    /// Derive display name from appId: use known binary name or capitalize last component.
+    /// Derive display name from appId: query LaunchServices, fall back to known binaries or capitalize.
     private func displayName(from appId: String) -> String {
+        if let reg = lsClient?.appInfo(bundleIdentifier: appId) {
+            return reg.displayName
+        }
         if let known = appBinaries[appId] { return known }
         guard let last = appId.split(separator: ".").last else { return appId }
         return last.prefix(1).uppercased() + last.dropFirst()

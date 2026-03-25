@@ -4,6 +4,7 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "Clone",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         // Public SDK products — external apps depend on these
@@ -91,7 +92,7 @@ let package = Package(
         ),
         .target(
             name: "EngineBridge",
-            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol"],
+            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol", "CloneLaunchServices"],
             path: "Sources/Internal/EngineBridge"
         ),
         .macro(
@@ -117,7 +118,7 @@ let package = Package(
         ),
         .target(
             name: "SwiftData",
-            dependencies: ["CSQLite", "SwiftDataMacros"],
+            dependencies: ["CSQLite", "SwiftDataMacros", "CloneProtocol"],
             path: "Sources/SDK/SwiftData"
         ),
         .target(
@@ -165,7 +166,9 @@ let package = Package(
         .executableTarget(
             name: "Finder",
             dependencies: ["SwiftUI"],
-            path: "Sources/Apps/Finder"
+            path: "Sources/Apps/Finder",
+            exclude: ["Info.plist"],
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "Settings",
@@ -190,12 +193,14 @@ let package = Package(
         .executableTarget(
             name: "TextEditApp",
             dependencies: ["SwiftUI", "CloneProtocol"],
-            path: "Sources/Apps/TextEdit"
+            path: "Sources/Apps/TextEdit",
+            exclude: ["Info.plist"]
         ),
         .executableTarget(
             name: "PreviewApp",
             dependencies: ["SwiftUI", "CloneProtocol"],
-            path: "Sources/Apps/Preview"
+            path: "Sources/Apps/Preview",
+            exclude: ["Info.plist"]
         ),
         .executableTarget(
             name: "LoginWindow",
@@ -225,10 +230,26 @@ let package = Package(
             path: "Sources/Daemons/keychaind"
         ),
 
+        .target(
+            name: "CloneLaunchServices",
+            dependencies: ["CloneProtocol", "PosixShim"],
+            path: "Sources/Daemons/CloneLaunchServices"
+        ),
+        .executableTarget(
+            name: "launchservicesd",
+            dependencies: ["CloneLaunchServices", "CloneProtocol"],
+            path: "Sources/Daemons/launchservicesd"
+        ),
+
         // ── Tools ────────────────────────────────────────────────
         .executableTarget(
             name: "ycodebuild",
             path: "Sources/Tools/ycodebuild"
+        ),
+        .executableTarget(
+            name: "open",
+            dependencies: ["CloneProtocol", "CloneLaunchServices"],
+            path: "Sources/Tools/open"
         ),
 
         // ── Tests ────────────────────────────────────────────────
@@ -261,6 +282,11 @@ let package = Package(
             name: "SecurityTests",
             dependencies: ["KeychainServices"],
             path: "Tests/SecurityTests"
+        ),
+        .testTarget(
+            name: "CloneLaunchServicesTests",
+            dependencies: ["CloneLaunchServices", "CloneProtocol"],
+            path: "Tests/CloneLaunchServicesTests"
         ),
     ]
 )

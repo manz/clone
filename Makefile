@@ -1,4 +1,4 @@
-.PHONY: all engine bindings text text-bindings audio audio-bindings swift apps build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all engine bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
 # Build everything: engine → bindings → audio → audio-bindings → compositor → SDK → apps
 all: bindings text-bindings audio-bindings swift sdk apps
@@ -47,10 +47,12 @@ swift:
 	swift build --product CloneDesktop
 	swift build --product keychaind
 	swift build --product cloned
+	swift build --product launchservicesd
 
 # App processes — built against prebuilt SDK frameworks
 # --output-dir puts the generated Package.swift outside Clone's source tree
-APPBUILD = swift run ycodebuild --prebuilt --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
+# --bundle assembles .app bundles with Info.plist and Resources
+APPBUILD = swift run ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
 	$(call APPBUILD,Finder,Finder)
 	$(call APPBUILD,Settings,Settings)
@@ -60,6 +62,21 @@ apps:
 	$(call APPBUILD,TextEditApp,TextEdit)
 	$(call APPBUILD,PreviewApp,Preview)
 	$(call APPBUILD,LoginWindow,LoginWindow)
+
+# Install to $CLONE_ROOT (~/.clone by default)
+CLONE_ROOT ?= $(HOME)/.clone
+install: all apps
+	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
+	@for d in .build/apps/*/; do \
+		for app in "$$d"*.app; do \
+			[ -d "$$app" ] && cp -r "$$app" $(CLONE_ROOT)/Applications/ && echo "Installed $$(basename $$app)"; \
+		done; \
+	done
+	@cp .build/debug/CloneDesktop $(CLONE_ROOT)/System/ 2>/dev/null || true
+	@cp .build/debug/cloned $(CLONE_ROOT)/System/ 2>/dev/null || true
+	@cp .build/debug/keychaind $(CLONE_ROOT)/System/ 2>/dev/null || true
+	@cp .build/debug/launchservicesd $(CLONE_ROOT)/System/ 2>/dev/null || true
+	@echo "Installed to $(CLONE_ROOT)"
 
 # Alias
 build: all

@@ -113,6 +113,9 @@ public enum AppMessage: Codable, Sendable {
     case sheetFrame(commands: [IPCRenderCommand])
     /// App dismisses its sheet.
     case dismissSheet
+    /// App asks compositor to open a file (NSWorkspace.open flow).
+    /// Compositor queries launchservicesd for the default app and launches it.
+    case openFile(path: String)
 }
 
 // MARK: - Messages: Compositor → App
@@ -156,6 +159,8 @@ public enum CompositorMessage: Codable, Sendable {
     case sheetBackdropTapped
     /// Pointer button event within sheet bounds (sheet-local coordinates).
     case sheetPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
+    /// Compositor tells the app to open a file.
+    case openFile(path: String)
 }
 
 // MARK: - Daemon (now-playing service)
@@ -321,6 +326,79 @@ public enum KeychainErrorCode: Int32, Codable, Sendable {
     case decode = -26275
     case param = -50
     case unimplemented = -4
+}
+
+// MARK: - Launch Services daemon
+
+/// Socket path for the launch services daemon.
+public let launchservicesdSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-launchservicesd.sock"
+}()
+
+/// Registered app bundle info, parsed from Info.plist.
+public struct AppRegistration: Codable, Sendable, Equatable {
+    public var bundleIdentifier: String
+    public var bundleName: String
+    public var displayName: String
+    public var executablePath: String
+    public var bundlePath: String
+    public var iconFile: String?
+    public var version: String?
+    public var documentTypes: [DocumentTypeInfo]
+
+    public init(
+        bundleIdentifier: String, bundleName: String, displayName: String,
+        executablePath: String, bundlePath: String,
+        iconFile: String? = nil, version: String? = nil,
+        documentTypes: [DocumentTypeInfo] = []
+    ) {
+        self.bundleIdentifier = bundleIdentifier
+        self.bundleName = bundleName
+        self.displayName = displayName
+        self.executablePath = executablePath
+        self.bundlePath = bundlePath
+        self.iconFile = iconFile
+        self.version = version
+        self.documentTypes = documentTypes
+    }
+}
+
+/// A document type declared in CFBundleDocumentTypes.
+public struct DocumentTypeInfo: Codable, Sendable, Equatable {
+    public var name: String
+    public var extensions: [String]
+    public var utis: [String]
+    public var role: String  // "Editor", "Viewer", "None"
+
+    public init(name: String, extensions: [String] = [], utis: [String] = [], role: String = "Viewer") {
+        self.name = name
+        self.extensions = extensions
+        self.utis = utis
+        self.role = role
+    }
+}
+
+/// Client → launchservicesd
+public enum LSDRequest: Codable, Sendable {
+    /// Rescan directories for .app bundles.
+    case scan(directories: [String])
+    /// Which app opens this file extension?
+    case defaultApp(forExtension: String)
+    /// Get registration for a bundle identifier.
+    case appInfo(bundleIdentifier: String)
+    /// List all registered apps.
+    case allApps
+    /// Register a single .app bundle by path.
+    case register(path: String)
+}
+
+/// launchservicesd → Client
+public enum LSDResponse: Codable, Sendable {
+    case scanComplete(count: Int)
+    case app(AppRegistration?)
+    case apps([AppRegistration])
+    case error(String)
 }
 
 // MARK: - Wire format: 4-byte length prefix + JSON
