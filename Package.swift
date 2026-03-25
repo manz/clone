@@ -186,18 +186,18 @@ let package = Package(
             path: "Sources/Apps/MenuBar"
         ),
         .executableTarget(
-            name: "PasswordApp",
+            name: "Password",
             dependencies: ["SwiftUI"],
             path: "Sources/Apps/Password"
         ),
         .executableTarget(
-            name: "TextEditApp",
+            name: "TextEdit",
             dependencies: ["SwiftUI", "CloneProtocol"],
             path: "Sources/Apps/TextEdit",
             exclude: ["Info.plist"]
         ),
         .executableTarget(
-            name: "PreviewApp",
+            name: "Preview",
             dependencies: ["SwiftUI", "CloneProtocol"],
             path: "Sources/Apps/Preview",
             exclude: ["Info.plist"]

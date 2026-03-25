@@ -9,7 +9,7 @@ import CloneProtocol
     try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(atPath: tempDir) }
 
-    let server = LaunchServicesServer(socketPath: socketPath)
+    let server = LaunchServicesServer(socketPath: socketPath, scanDirectories: [])
     try server.start()
     #expect(FileManager.default.fileExists(atPath: socketPath))
     server.stop()
@@ -21,7 +21,7 @@ import CloneProtocol
     try FileManager.default.createDirectory(atPath: tempDir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(atPath: tempDir) }
 
-    let server = LaunchServicesServer(socketPath: socketPath)
+    let server = LaunchServicesServer(socketPath: socketPath, scanDirectories: [])
     try server.start()
     defer { server.stop() }
 
@@ -29,7 +29,7 @@ import CloneProtocol
     try client.connect()
     defer { client.disconnect() }
 
-    // No apps registered yet
+    // No apps registered (empty scan dirs)
     let apps = client.allApps()
     #expect(apps.isEmpty)
 }
@@ -64,7 +64,7 @@ import CloneProtocol
     // Write a dummy executable
     try Data().write(to: URL(fileURLWithPath: "\(appDir)/MacOS/TestApp"))
 
-    let server = LaunchServicesServer(socketPath: socketPath)
+    let server = LaunchServicesServer(socketPath: socketPath, scanDirectories: [])
     try server.start()
     defer { server.stop() }
 

@@ -60,14 +60,16 @@ public final class LaunchServicesServer {
 
     private var clients: [Int32: LSDClient] = [:]
     private let socketPath: String
+    private let initialScanDirs: [String]
 
     /// Registered apps, keyed by bundle identifier.
     private var apps: [String: AppRegistration] = [:]
     /// Extension → default bundle identifier.
     private var extensionMap: [String: String] = [:]
 
-    public init(socketPath: String = launchservicesdSocketPath) {
+    public init(socketPath: String = launchservicesdSocketPath, scanDirectories: [String]? = nil) {
         self.socketPath = socketPath
+        self.initialScanDirs = scanDirectories ?? [cloneApplicationsPath]
     }
 
     public func start() throws {
@@ -104,8 +106,8 @@ public final class LaunchServicesServer {
             throw LSDError.listenFailed
         }
 
-        // Scan default directories on startup
-        scanDirectories([cloneApplicationsPath])
+        // Scan configured directories on startup
+        scanDirectories(initialScanDirs)
 
         let source = DispatchSource.makeReadSource(fileDescriptor: serverSocket, queue: ioQueue)
         source.setEventHandler { [weak self] in self?.acceptNewConnections() }

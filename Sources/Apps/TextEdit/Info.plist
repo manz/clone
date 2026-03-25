@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.clone.texteditapp</string>
+	<string>com.clone.textedit</string>
 	<key>CFBundleName</key>
 	<string>TextEdit</string>
 	<key>CFBundleDisplayName</key>

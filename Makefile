@@ -58,9 +58,9 @@ apps:
 	$(call APPBUILD,Settings,Settings)
 	$(call APPBUILD,Dock,Dock)
 	$(call APPBUILD,MenuBar,MenuBar)
-	$(call APPBUILD,PasswordApp,Password)
-	$(call APPBUILD,TextEditApp,TextEdit)
-	$(call APPBUILD,PreviewApp,Preview)
+	$(call APPBUILD,Password,Password)
+	$(call APPBUILD,TextEdit,TextEdit)
+	$(call APPBUILD,Preview,Preview)
 	$(call APPBUILD,LoginWindow,LoginWindow)
 
 # Install to $CLONE_ROOT (~/.clone by default)

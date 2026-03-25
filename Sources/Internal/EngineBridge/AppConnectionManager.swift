@@ -62,9 +62,9 @@ final class AppConnectionManager {
         "com.clone.dock": "Dock",
         "com.clone.menubar": "MenuBar",
         "com.clone.settings": "Settings",
-        "com.clone.passwordapp": "PasswordApp",
-        "com.clone.texteditapp": "TextEditApp",
-        "com.clone.previewapp": "PreviewApp",
+        "com.clone.password": "Password",
+        "com.clone.textedit": "TextEdit",
+        "com.clone.preview": "Preview",
         "com.clone.loginwindow": "LoginWindow",
     ]
 
