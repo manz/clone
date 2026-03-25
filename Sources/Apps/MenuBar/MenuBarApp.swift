@@ -161,22 +161,34 @@ final class MenuBarActionRegistry: @unchecked Sendable {
 
         // Bar content
         HStack(spacing: 0) {
-            // Avocado logo (Phosphor)
+            // Avocado logo (Phosphor) — tappable, opens system menu
             Image(systemName: "avocado.fill")
                 .foregroundColor(textColor)
                 .frame(width: iconFontSize, height: iconFontSize)
                 .padding(.leading, 12)
+                .onTapGesture {
+                    state.openMenuIndex = state.openMenuIndex == -1 ? nil : -1
+                }
 
-            // App name (bold)
+            // App name (bold) — tappable, opens the app menu (menus[0])
             Text(state.focusedAppName)
                 .font(.system(size: menuFontSize, weight: .bold))
-                .foregroundColor(textColor)
-                .padding(.leading, 12)
-                .padding(.trailing, 16)
+                .foregroundColor(state.openMenuIndex == 0 ? .white : textColor)
+                .padding(.horizontal, menuPadH)
+                .padding(.vertical, 2)
+                .background(
+                    state.openMenuIndex == 0
+                        ? RoundedRectangle(cornerRadius: 4).fill(highlightBg)
+                        : RoundedRectangle(cornerRadius: 4).fill(Color(red: 0, green: 0, blue: 0, opacity: 0))
+                )
+                .padding(.leading, 8)
+                .onTapGesture {
+                    state.openMenuIndex = state.openMenuIndex == 0 ? nil : 0
+                }
 
-            // Menu titles
-            ForEach(Array(menus.enumerated()), id: \.offset) { i, menu in
-                menuTitleView(state: state, title: menu.title, index: i)
+            // Menu titles — skip index 0 (app name menu, already shown above as bold)
+            ForEach(Array(menus.dropFirst().enumerated()), id: \.offset) { i, menu in
+                menuTitleView(state: state, title: menu.title, index: i + 1)
             }
 
             Spacer()
@@ -194,7 +206,15 @@ final class MenuBarActionRegistry: @unchecked Sendable {
         .frame(width: width, height: barHeight)
 
         // Dropdown overlay
-        if let openIdx = state.openMenuIndex, openIdx < menus.count {
+        if let openIdx = state.openMenuIndex, openIdx == -1 {
+            // Avocado system menu
+            let systemMenu = AppMenu(title: "Clone", items: [
+                AppMenuItem(id: "about", title: "About Clone"),
+                AppMenuItem.separator(),
+                AppMenuItem(id: "quit.desktop", title: "Quit CloneDesktop", shortcut: "⌃⌘Q"),
+            ])
+            dropdownView(state: state, menu: systemMenu, menuIndex: -1, menus: menus)
+        } else if let openIdx = state.openMenuIndex, openIdx >= 0, openIdx < menus.count {
             dropdownView(state: state, menu: menus[openIdx], menuIndex: openIdx, menus: menus)
         }
     }
@@ -305,9 +325,16 @@ final class MenuBarActionRegistry: @unchecked Sendable {
 }
 
 func computeDropdownX(state: MenuBarState, menuIndex: Int, menus: [AppMenu]) -> CGFloat {
+    // Avocado system menu — aligned to the left edge
+    if menuIndex == -1 { return 4 }
+    // App name menu (index 0) — after avocado + padding
     let appNameWidth = CGFloat(state.focusedAppName.count) * 7.5
-    var x: CGFloat = 12 + 14 + 12 + appNameWidth + 16
-    for i in 0..<menuIndex {
+    var x: CGFloat = 12 + 14 + 8 + menuPadH // avocado + padding
+    if menuIndex == 0 { return x }
+    // Subsequent menus — after app name
+    x += appNameWidth + menuPadH * 2 + 4
+    for i in 1..<menuIndex {
+        guard i < menus.count else { break }
         let titleW = CGFloat(menus[i].title.count) * 7.5 + menuPadH * 2
         x += titleW + 4
     }
@@ -359,13 +386,25 @@ struct MenuBarApp: App {
         // If a menu is open, hovering over another title switches menus
         if state.openMenuIndex != nil && y < barHeight {
             let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
-            let appNameWidth = CGFloat(state.focusedAppName.count) * 7.5
-            var mx: CGFloat = 12 + 14 + 12 + appNameWidth + 16
-            for (i, menu) in menus.enumerated() {
-                let titleW = CGFloat(menu.title.count) * 7.5 + menuPadH * 2
+            // Avocado area
+            if x < 12 + 14 + 4 {
+                state.openMenuIndex = -1
+                return
+            }
+            // App name area
+            let appNameWidth = CGFloat(state.focusedAppName.count) * 7.5 + menuPadH * 2
+            let appNameStart: CGFloat = 12 + 14 + 8
+            if x >= appNameStart && x < appNameStart + appNameWidth {
+                state.openMenuIndex = 0
+                return
+            }
+            // Rest of menus (skip index 0 which is the app name)
+            var mx = appNameStart + appNameWidth + 4
+            for i in 1..<menus.count {
+                let titleW = CGFloat(menus[i].title.count) * 7.5 + menuPadH * 2
                 if x >= mx && x < mx + titleW {
                     state.openMenuIndex = i
-                    break
+                    return
                 }
                 mx += titleW + 4
             }

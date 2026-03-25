@@ -248,7 +248,10 @@ final class AppConnectionManager {
         // Forward menu actions to the focused app
         if let focusedId = windowManager.focusedWindowId {
             for itemId in pendingMenuActions {
-                if itemId == "app.quit" {
+                if itemId == "quit.desktop" {
+                    fputs("Quit CloneDesktop requested\n", stderr)
+                    exit(0)
+                } else if itemId == "app.quit" {
                     terminateFocusedApp(windowManager: windowManager)
                 } else {
                     sendMenuAction(wmWindowId: focusedId, itemId: itemId)
