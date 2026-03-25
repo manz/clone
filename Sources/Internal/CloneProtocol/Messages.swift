@@ -56,7 +56,7 @@ public enum SurfaceRole: String, Codable, Sendable {
 
 // MARK: - AvocadoEvents (Clone's Apple Events equivalent)
 
-/// Inter-process events routed through the compositor.
+/// Inter-process events routed via avocadoeventsd.
 /// Services and apps can send events to other apps by appId.
 public enum AvocadoEvent: Codable, Sendable {
     /// Request the app to open documents (equivalent to kAEOpenDocuments).
@@ -65,6 +65,8 @@ public enum AvocadoEvent: Codable, Sendable {
     case quit
     /// Request the app to activate (bring to front).
     case activate
+    /// Request launchservicesd to launch an app by bundle identifier.
+    case launchApp(bundleIdentifier: String)
 }
 
 // MARK: - App menus

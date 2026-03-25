@@ -146,6 +146,8 @@ extension App {
                         exit(0)
                     case .activate:
                         break // TODO: bring window to front
+                    case .launchApp:
+                        break // handled by launchservicesd, not regular apps
                     }
                 }
             }
@@ -156,10 +158,18 @@ extension App {
             fputs("Note: could not connect to avocadoeventsd: \(error)\n", stderr)
         }
 
-        // Wire up system actions so apps can launch/restore without touching client.
+        // Wire up system actions.
         let client = app.client
         SystemActions.shared.launchApp = LaunchAppAction { appId in
-            client.send(.launchApp(appId: appId))
+            // Route through avocadoeventsd → launchservicesd
+            let launcher = AvocadoEventsClient()
+            if let _ = try? launcher.connect() {
+                launcher.send(to: "com.clone.launchservicesd", event: .launchApp(bundleIdentifier: appId))
+                launcher.disconnect()
+            } else {
+                // Fallback: compositor route (legacy)
+                client.send(.launchApp(appId: appId))
+            }
         }
         SystemActions.shared.restoreApp = RestoreAppAction { appId in
             client.send(.restoreApp(appId: appId))
@@ -482,6 +492,8 @@ extension App {
                 exit(0)
             case .activate:
                 break
+            case .launchApp:
+                break // handled by launchservicesd
             }
         }
         app.client.onOpenPanelResult = { path in

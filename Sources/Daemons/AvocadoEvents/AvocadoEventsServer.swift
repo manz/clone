@@ -55,6 +55,8 @@ public final class AvocadoEventsServer {
     private var clients: [Int32: AEClient] = [:]
     /// Apps registered by appId → list of client fds (multiple windows per app possible).
     private var appClients: [String: [Int32]] = [:]
+    /// Buffered events for apps that haven't connected yet.
+    private var pendingEvents: [String: [AvocadoEvent]] = [:]
     private let socketPath: String
 
     public init(socketPath: String = avocadoeventsdSocketPath) {
@@ -116,20 +118,28 @@ public final class AvocadoEventsServer {
             lock.lock()
             client.appId = appId
             appClients[appId, default: []].append(client.fd)
+            // Flush any buffered events for this appId
+            let buffered = pendingEvents.removeValue(forKey: appId) ?? []
             lock.unlock()
             client.send(.ok)
+            for event in buffered {
+                client.send(.event(event))
+                fputs("[avocadoeventsd] Delivered buffered event to \(appId)\n", stderr)
+            }
             fputs("[avocadoeventsd] Registered \(appId)\n", stderr)
 
         case .send(let targetAppId, let event):
             lock.lock()
             let targetFds = appClients[targetAppId] ?? []
             let targets = targetFds.compactMap { clients[$0] }
-            lock.unlock()
-
             if targets.isEmpty {
-                fputs("[avocadoeventsd] No connected app: \(targetAppId)\n", stderr)
-                client.send(.error("No connected app: \(targetAppId)"))
+                // Buffer for when the app connects
+                pendingEvents[targetAppId, default: []].append(event)
+                lock.unlock()
+                fputs("[avocadoeventsd] Buffered event for \(targetAppId) (not yet connected)\n", stderr)
+                client.send(.ok)
             } else {
+                lock.unlock()
                 for target in targets {
                     target.send(.event(event))
                 }

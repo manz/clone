@@ -108,9 +108,8 @@ if !filesToRoute.isEmpty {
         byApp[appId, default: []].append(path)
     }
 
-    // Give the launched app a moment to register with avocadoeventsd
-    usleep(500_000)
-
+    // avocadoeventsd buffers events for apps that haven't connected yet,
+    // so no sleep needed — the event will be delivered when the app registers.
     for (appId, paths) in byApp {
         aeClient.send(to: appId, event: .openDocuments(paths: paths))
     }

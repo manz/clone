@@ -237,7 +237,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "launchservicesd",
-            dependencies: ["CloneLaunchServices", "CloneProtocol"],
+            dependencies: ["CloneLaunchServices", "CloneProtocol", "AvocadoEvents"],
             path: "Sources/Daemons/launchservicesd"
         ),
         .target(
