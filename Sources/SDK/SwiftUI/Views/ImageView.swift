@@ -4,6 +4,7 @@ import Foundation
 /// Currently renders as a colored placeholder rect (no real image loading).
 public struct Image: _PrimitiveView {
     let name: String
+    var fontSize: CGFloat?
 
     /// `Image(systemName:)` — SF Symbol stub.
     public init(systemName: String) {
@@ -21,7 +22,14 @@ public struct Image: _PrimitiveView {
     }
 
     public var _nodeRepresentation: ViewNode {
-        .image(name: name, width: nil, height: nil)
+        .image(name: name, width: fontSize, height: fontSize)
+    }
+
+    /// `.font()` on Image sets the icon size (like SF Symbols).
+    public func font(_ font: Font) -> Image {
+        var copy = self
+        copy.fontSize = font.size
+        return copy
     }
 
     /// Image rendering scale.

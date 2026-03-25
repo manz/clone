@@ -15,10 +15,10 @@ struct DockItem {
 
 let items: [DockItem] = [
     DockItem(appId: "com.clone.finder", name: "Finder", icon: "folder.fill", color: .blue),
-    DockItem(appId: "com.clone.settings", name: "Settings", icon: "gear", color: .gray),
-    DockItem(appId: "com.clone.textedit", name: "TextEdit", icon: "doc.text", color: .orange),
-    DockItem(appId: "com.clone.preview", name: "Preview", icon: "photo", color: .green),
-    DockItem(appId: "com.clone.password", name: "Password", icon: "lock", color: .purple),
+    DockItem(appId: "com.clone.settings", name: "Settings", icon: "gear.fill", color: .gray),
+    DockItem(appId: "com.clone.textedit", name: "TextEdit", icon: "doc.text.fill", color: .orange),
+    DockItem(appId: "com.clone.preview", name: "Preview", icon: "photo.fill", color: .green),
+    DockItem(appId: "com.clone.password", name: "Password", icon: "lock.fill", color: .purple),
 ]
 
 // MARK: - Constants

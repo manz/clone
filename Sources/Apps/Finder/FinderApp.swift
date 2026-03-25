@@ -12,7 +12,7 @@ struct FileEntry: Identifiable {
     let ext: String
 
     var icon: String {
-        if isDirectory { return "folder.fill" }
+        if isDirectory { return "folder" }
         switch ext {
         case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb": return "file.code"
         case "png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "tiff": return "file.image"
