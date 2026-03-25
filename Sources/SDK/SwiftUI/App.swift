@@ -344,28 +344,14 @@ extension App {
                 _sheetDismissAction?()
             }
 
-            // Sheet pointer button — hit-test within sheet content
+            // Sheet pointer button — hit-test the cached sheet content from last frame.
+            // Tap IDs are already registered in TapRegistry from the render pass.
             app.client.onSheetPointerButton = { button, pressed, px, py in
                 guard button == 0, pressed else { return }
                 guard let sheetContent = WindowState.shared.activeSheetContent else { return }
                 let sheetSize = WindowState.shared.activeSheetSize ?? CGSize(width: 500, height: 300)
-                // Rebuild sheet for tap handling
-                GeometryReaderRegistry.shared.clear()
-                TapRegistry.shared.resetCounter()
-                TextFieldRegistry.shared.resetCounter()
-                HoverRegistry.shared.resetCounter()
-                OnceRegistry.shared.resetCounter()
-                OnChangeRegistry.shared.resetCounter()
-                TagRegistry.shared.resetCounter()
-                StateGraph.shared.resetCounter()
-                ScrollRegistry.shared.resetCounter()
-                WindowState.shared.update(width: CGFloat(app.client.width), height: CGFloat(app.client.height))
-                let _ = windowGroup.buildViewNode()
-                OnChangeRegistry.shared.flushActions()
-                // Sheet content is now in WindowState from the rebuild
-                guard let rebuiltSheet = WindowState.shared.activeSheetContent else { return }
                 let layoutNode = Layout.layout(
-                    rebuiltSheet,
+                    sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
                 )
                 if let tapId = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
