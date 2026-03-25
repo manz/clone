@@ -320,6 +320,7 @@ public extension ViewNode {
             // Register at window level — sheet covers the entire window
             WindowState.shared.activeSheetOverlay = buildSheetOverlay(contentBuilder: content, dismiss: {
                 isPresented.wrappedValue = false
+                clearDismissAction()
                 onDismiss?()
             })
         }
@@ -331,6 +332,7 @@ public extension ViewNode {
         if let value = item.wrappedValue {
             WindowState.shared.activeSheetOverlay = buildSheetOverlay(contentBuilder: { content(value) }, dismiss: {
                 item.wrappedValue = nil
+                clearDismissAction()
                 onDismiss?()
             })
         }
@@ -343,7 +345,8 @@ public extension ViewNode {
         let backdrop = ViewNode.onTap(id: backdropTapId, child:
             ViewNode.rect(width: nil, height: nil, fill: Color(white: 0, opacity: 0.3)))
 
-        // Set dismiss action for @Environment(\.dismiss)
+        // Set dismiss action for @Environment(\.dismiss) — stays active for the sheet's lifetime.
+        // Button closures that call dismiss() fire later (on tap), so the action must persist.
         setDismissAction(dismiss)
 
         // Set sheet scope BEFORE evaluating content (toolbar captures go to sheet)
@@ -352,9 +355,7 @@ public extension ViewNode {
         let sheetBody = _resolve(contentBuilder())
         let sheetToolbar = WindowState.shared.sheetToolbarItems
         WindowState.shared.isInsideSheet = false
-
-        // Reset dismiss to no-op
-        clearDismissAction()
+        // NOTE: do NOT clearDismissAction() here — it must survive until sheet is dismissed
 
         // Build the sheet panel: content + bottom toolbar (if any)
         let maxW: CGFloat = 500
