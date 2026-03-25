@@ -45,6 +45,7 @@ final class PreviewState {
     var scale: CGFloat = 1.0
     var mouseX: CGFloat = 0
     var mouseY: CGFloat = 0
+    var showingOpenPanel: Bool = false
 
     let toolbarHeight: CGFloat = 40
     let lineHeight: CGFloat = 18
@@ -170,21 +171,21 @@ struct PreviewApp: App {
 
     var body: some Scene {
         WindowGroup("Preview") {
-            #if canImport(AppKit) && !canImport(CloneClient)
             GeometryReader { proxy in
                 previewView(state: state, width: proxy.size.width, height: proxy.size.height)
             }
-            #else
-            previewView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
-            #endif
+            .fileImporter(
+                isPresented: Binding(get: { state.showingOpenPanel }, set: { state.showingOpenPanel = $0 }),
+                allowedContentTypes: [.image, .pdf]
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    state.loadFile(url.path)
+                }
+            }
         }
         .commands {
             CommandMenu("File") {
-                Button("Open…") {
-                    #if canImport(CloneClient)
-                    client.send(.showOpenPanel(allowedTypes: ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp", "svg", "pdf"]))
-                    #endif
-                }
+                Button("Open…") { state.showingOpenPanel = true }
             }
         }
     }

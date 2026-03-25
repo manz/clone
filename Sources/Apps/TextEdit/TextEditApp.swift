@@ -32,6 +32,7 @@ final class TextEditorState {
     var fontSize: CGFloat = 14
     var mouseX: CGFloat = 0
     var mouseY: CGFloat = 0
+    var showingOpenPanel: Bool = false
 
     let gutterWidth: CGFloat = 44
     let statusHeight: CGFloat = 24
@@ -194,21 +195,24 @@ struct TextEditApp: App {
 
     var body: some Scene {
         WindowGroup("TextEdit") {
-            #if canImport(AppKit) && !canImport(CloneClient)
             GeometryReader { proxy in
                 textEditView(state: state, width: proxy.size.width, height: proxy.size.height)
             }
-            #else
-            textEditView(state: state, width: WindowState.shared.width, height: WindowState.shared.height)
-            #endif
+            .fileImporter(
+                isPresented: Binding(get: { state.showingOpenPanel }, set: { state.showingOpenPanel = $0 }),
+                allowedContentTypes: [.text]
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    state.text = (try? String(contentsOfFile: url.path, encoding: .utf8)) ?? ""
+                    state.cursorLine = 0
+                    state.cursorCol = 0
+                }
+            }
         }
         .commands {
             CommandMenu("File") {
-                Button("Open…") {
-                    #if canImport(CloneClient)
-                    client.send(.showOpenPanel(allowedTypes: ["txt", "md", "rtf", "text", "log"]))
-                    #endif
-                }
+                Button("New") { state.text = ""; state.cursorLine = 0; state.cursorCol = 0 }
+                Button("Open…") { state.showingOpenPanel = true }
             }
         }
     }

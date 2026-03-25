@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UniformTypeIdentifiers
 
 // MARK: - Modifier chains on ViewNode
 
@@ -435,6 +436,26 @@ public extension ViewNode {
     /// `.confirmationDialog(_:isPresented:actions:)` — no-op on Clone.
     func confirmationDialog(_ title: String, isPresented: Binding<Bool>, titleVisibility: Visibility = .automatic, @ViewBuilder actions: () -> some View) -> ViewNode {
         self
+    }
+
+    /// `.fileImporter(isPresented:allowedContentTypes:onCompletion:)` — shows a file open panel.
+    /// On Clone, this uses NSOpenPanel which renders as an in-window overlay.
+    @MainActor func fileImporter(isPresented: Binding<Bool>, allowedContentTypes: [UTType], allowsMultipleSelection: Bool = false, onCompletion: @escaping @MainActor (Result<[URL], Error>) -> Void) -> ViewNode {
+        if isPresented.wrappedValue {
+            let panel = NSOpenPanel()
+            panel.allowedContentTypes = allowedContentTypes.compactMap { $0.preferredFilenameExtension ?? String($0.identifier.split(separator: ".").last ?? "") }
+            panel.allowsMultipleSelection = allowsMultipleSelection
+            nonisolated(unsafe) let binding = isPresented
+            nonisolated(unsafe) let completion = onCompletion
+            nonisolated(unsafe) let p = panel
+            p.begin { response in
+                binding.wrappedValue = false
+                if response == .OK, let url = p.url {
+                    completion(.success([url]))
+                }
+            }
+        }
+        return self
     }
 
     /// `.confirmationDialog(_:isPresented:actions:message:)` — no-op on Clone.
@@ -1081,5 +1102,14 @@ public extension ViewNode {
     /// `.listRowBackground(_:)` — alias for background, matches SwiftUI naming.
     func listRowBackground(_ color: Color) -> ViewNode {
         background(color)
+    }
+}
+
+// MARK: - View extensions (for modifiers that need to work on any View, not just ViewNode)
+
+public extension View {
+    /// `.fileImporter(isPresented:allowedContentTypes:onCompletion:)` — shows a file open panel.
+    @MainActor func fileImporter(isPresented: Binding<Bool>, allowedContentTypes: [UTType], allowsMultipleSelection: Bool = false, onCompletion: @escaping @MainActor (Result<[URL], Error>) -> Void) -> ViewNode {
+        _resolve(self).fileImporter(isPresented: isPresented, allowedContentTypes: allowedContentTypes, allowsMultipleSelection: allowsMultipleSelection, onCompletion: onCompletion)
     }
 }
