@@ -65,17 +65,17 @@ apps:
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
-install: all apps
+install:
 	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
-			[ -d "$$app" ] && cp -r "$$app" $(CLONE_ROOT)/Applications/ && echo "Installed $$(basename $$app)"; \
+			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "Installed $$(basename $$app)"; \
 		done; \
 	done
-	@cp .build/debug/CloneDesktop $(CLONE_ROOT)/System/ 2>/dev/null || true
-	@cp .build/debug/cloned $(CLONE_ROOT)/System/ 2>/dev/null || true
-	@cp .build/debug/keychaind $(CLONE_ROOT)/System/ 2>/dev/null || true
-	@cp .build/debug/launchservicesd $(CLONE_ROOT)/System/ 2>/dev/null || true
+	@ditto .build/debug/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
+	@ditto .build/debug/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
+	@ditto .build/debug/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
+	@ditto .build/debug/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT)"
 
 # Alias

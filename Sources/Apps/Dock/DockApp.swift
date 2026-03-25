@@ -9,17 +9,16 @@ import CloneClient
 struct DockItem {
     let appId: String
     let name: String
+    let icon: String
     let color: Color
 }
 
 let items: [DockItem] = [
-    DockItem(appId: "com.clone.finder", name: "Finder", color: .blue),
-    DockItem(appId: "com.clone.safari", name: "Safari", color: .blue),
-    DockItem(appId: "com.clone.mail", name: "Mail", color: .blue),
-    DockItem(appId: "com.clone.music", name: "Music", color: .red),
-    DockItem(appId: "com.clone.photos", name: "Photos", color: .green),
-    DockItem(appId: "com.clone.terminal", name: "Terminal", color: .black),
-    DockItem(appId: "com.clone.settings", name: "Settings", color: .gray),
+    DockItem(appId: "com.clone.finder", name: "Finder", icon: "folder.fill", color: .blue),
+    DockItem(appId: "com.clone.settings", name: "Settings", icon: "gear", color: .gray),
+    DockItem(appId: "com.clone.textedit", name: "TextEdit", icon: "doc.text", color: .orange),
+    DockItem(appId: "com.clone.preview", name: "Preview", icon: "photo", color: .green),
+    DockItem(appId: "com.clone.password", name: "Password", icon: "lock", color: .purple),
 ]
 
 // MARK: - Constants
@@ -70,9 +69,15 @@ func magnifiedSize(index: Int, mouseX: CGFloat, totalBaseWidth: CGFloat, startX:
             }
             .frame(height: 26)
         }
-        RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(item.color)
-            .frame(width: size, height: size)
+        ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(item.color)
+                .frame(width: size, height: size)
+            Image(systemName: item.icon)
+                .font(.system(size: size * 0.5))
+                .foregroundColor(.white)
+        }
+        .frame(width: size, height: size)
             .onHover { hovered in
                 state.hoveredAppId = hovered ? item.appId : nil
             }
