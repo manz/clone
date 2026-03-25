@@ -78,11 +78,13 @@ impl TextRenderer {
 
 impl TextRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, surface_format: wgpu::TextureFormat) -> Self {
-        // Use empty font DB — only bundled Inter, no system font fallback spam
+        // Use empty font DB — only bundled Inter (static per-weight), no system font fallback
         let mut db = cosmic_text::fontdb::Database::new();
-        db.load_font_data(include_bytes!("../../assets/Inter.ttf").to_vec());
-        let locale = "en-US".to_string();
-        let mut font_system = FontSystem::new_with_locale_and_db(locale, db);
+        db.load_font_data(include_bytes!("../../assets/Inter-Regular.ttf").to_vec());
+        db.load_font_data(include_bytes!("../../assets/Inter-Medium.ttf").to_vec());
+        db.load_font_data(include_bytes!("../../assets/Inter-SemiBold.ttf").to_vec());
+        db.load_font_data(include_bytes!("../../assets/Inter-Bold.ttf").to_vec());
+        let font_system = FontSystem::new_with_locale_and_db("en-US".to_string(), db);
         let swash_cache = SwashCache::new();
 
         let atlas_data = vec![0u8; (ATLAS_SIZE * ATLAS_SIZE) as usize];
@@ -279,7 +281,7 @@ impl TextRenderer {
             crate::commands::FontWeight::Semibold => Weight::SEMIBOLD,
             crate::commands::FontWeight::Bold => Weight::BOLD,
         };
-        let family = Family::Name("Inter Variable");
+        let family = Family::Name("Inter");
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);

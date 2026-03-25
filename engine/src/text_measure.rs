@@ -11,11 +11,13 @@ static FONT_SYSTEM: Mutex<Option<FontSystem>> = Mutex::new(None);
 fn with_font_system<R>(f: impl FnOnce(&mut FontSystem) -> R) -> R {
     let mut guard = FONT_SYSTEM.lock().unwrap();
     if guard.is_none() {
-        // Empty font DB — only bundled Inter, no system font fallback
+        // Empty font DB — only bundled Inter (static per-weight), no system font fallback
         let mut db = cosmic_text::fontdb::Database::new();
-        db.load_font_data(include_bytes!("../assets/Inter.ttf").to_vec());
-        let locale = "en-US".to_string();
-        let fs = FontSystem::new_with_locale_and_db(locale, db);
+        db.load_font_data(include_bytes!("../assets/Inter-Regular.ttf").to_vec());
+        db.load_font_data(include_bytes!("../assets/Inter-Medium.ttf").to_vec());
+        db.load_font_data(include_bytes!("../assets/Inter-SemiBold.ttf").to_vec());
+        db.load_font_data(include_bytes!("../assets/Inter-Bold.ttf").to_vec());
+        let fs = FontSystem::new_with_locale_and_db("en-US".to_string(), db);
         *guard = Some(fs);
     }
     f(guard.as_mut().unwrap())
@@ -53,7 +55,7 @@ pub fn measure_text(
             FontWeight::Semibold => Weight::SEMIBOLD,
             FontWeight::Bold => Weight::BOLD,
         };
-        let family = Family::Name("Inter Variable");
+        let family = Family::Name("Inter");
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(font_system, &content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(font_system, false);
