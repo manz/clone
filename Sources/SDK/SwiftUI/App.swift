@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import CloneClient
 import CloneProtocol
+import AvocadoEvents
 
 // MARK: - Window Configuration
 
@@ -129,6 +130,30 @@ extension App {
         } catch {
             fputs("Failed to connect to compositor: \(error)\n", stderr)
             exit(1)
+        }
+
+        // Connect to avocadoeventsd for inter-process event delivery.
+        let aeClient = AvocadoEventsClient()
+        do {
+            try aeClient.connect()
+            aeClient.register(appId: appId)
+            aeClient.onEvent = { @Sendable event in
+                DispatchQueue.main.async {
+                    switch event {
+                    case .openDocuments(let paths):
+                        for path in paths { app.onOpenFile(path: path) }
+                    case .quit:
+                        exit(0)
+                    case .activate:
+                        break // TODO: bring window to front
+                    }
+                }
+            }
+            // Listen on a background thread
+            DispatchQueue.global().async { aeClient.listen() }
+        } catch {
+            // Non-fatal — avocadoeventsd may not be running yet
+            fputs("Note: could not connect to avocadoeventsd: \(error)\n", stderr)
         }
 
         // Wire up system actions so apps can launch/restore without touching client.
@@ -448,6 +473,7 @@ extension App {
         app.client.onOpenFile = { path in
             app.onOpenFile(path: path)
         }
+        // Compositor-routed AvocadoEvents (legacy fallback)
         app.client.onAvocadoEvent = { event in
             switch event {
             case .openDocuments(let paths):
@@ -455,7 +481,7 @@ extension App {
             case .quit:
                 exit(0)
             case .activate:
-                break // TODO: bring window to front
+                break
             }
         }
         app.client.onOpenPanelResult = { path in

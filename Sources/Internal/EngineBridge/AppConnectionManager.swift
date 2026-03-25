@@ -102,6 +102,7 @@ final class AppConnectionManager {
         launchApp("cloned")
         launchApp("keychaind")
         launchApp("launchservicesd")
+        launchApp("avocadoeventsd")
         // Connect to launchservicesd after a short delay to let it start
         DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
             let client = LaunchServicesClient()

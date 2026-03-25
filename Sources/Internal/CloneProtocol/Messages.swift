@@ -355,6 +355,32 @@ public let launchservicesdSocketPath: String = {
     return "\(base)/clone-launchservicesd.sock"
 }()
 
+// MARK: - AvocadoEvents daemon
+
+/// Socket path for avocadoeventsd.
+public let avocadoeventsdSocketPath: String = {
+    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
+    return "\(base)/clone-avocadoevents.sock"
+}()
+
+/// Client → avocadoeventsd
+public enum AERequest: Codable, Sendable {
+    /// Register this connection with an appId so events can be routed to it.
+    case register(appId: String)
+    /// Send an event to a target app.
+    case send(targetAppId: String, event: AvocadoEvent)
+}
+
+/// avocadoeventsd → Client
+public enum AEResponse: Codable, Sendable {
+    /// An event delivered to this app.
+    case event(AvocadoEvent)
+    /// Acknowledgement.
+    case ok
+    /// Error.
+    case error(String)
+}
+
 /// Registered app bundle info, parsed from Info.plist.
 public struct AppRegistration: Codable, Sendable, Equatable {
     public var bundleIdentifier: String

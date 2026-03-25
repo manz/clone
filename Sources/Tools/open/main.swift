@@ -1,14 +1,15 @@
 import Foundation
 import CloneProtocol
 import CloneLaunchServices
+import AvocadoEvents
 
 /// Clone's `open` command — opens files and launches app bundles.
 ///
 /// Mirrors macOS `open`:
-///   open file.txt          — launchservicesd resolves default app, launches it, routes file via AvocadoEvent
+///   open file.txt          — launchservicesd resolves default app, launches it, routes file via avocadoeventsd
 ///   open Foo.app           — launchservicesd launches the bundle
 ///   open -a AppName        — launchservicesd launches by name
-///   open -a AppName file   — launchservicesd resolves app, launches it, routes file via AvocadoEvent
+///   open -a AppName file   — launchservicesd resolves app, launches it, routes file via avocadoeventsd
 
 let args = Array(CommandLine.arguments.dropFirst())
 
@@ -91,64 +92,28 @@ for file in files {
     filesToRoute.append((path: path, appId: reg.bundleIdentifier))
 }
 
-// Route files to apps via AvocadoEvents through the compositor
+// Route files to apps via AvocadoEvents
 if !filesToRoute.isEmpty {
+    let aeClient = AvocadoEventsClient()
+    do {
+        try aeClient.connect()
+    } catch {
+        fputs("open: cannot connect to avocadoeventsd: \(error)\n", stderr)
+        exit(1)
+    }
+
     // Group by target app
     var byApp: [String: [String]] = [:]
     for (path, appId) in filesToRoute {
         byApp[appId, default: []].append(path)
     }
 
-    // Connect to compositor as a service (no window, just event routing)
-    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-    guard fd >= 0 else {
-        fputs("open: cannot create socket\n", stderr)
-        exit(1)
-    }
+    // Give the launched app a moment to register with avocadoeventsd
+    usleep(500_000)
 
-    var addr = sockaddr_un()
-    addr.sun_family = sa_family_t(AF_UNIX)
-    compositorSocketPath.withCString { ptr in
-        withUnsafeMutablePointer(to: &addr.sun_path) { pathPtr in
-            pathPtr.withMemoryRebound(to: CChar.self, capacity: 104) { dest in
-                _ = strlcpy(dest, ptr, 104)
-            }
-        }
-    }
-
-    let result = withUnsafePointer(to: &addr) { ptr in
-        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-            Foundation.connect(fd, sockPtr, socklen_t(MemoryLayout<sockaddr_un>.size))
-        }
-    }
-
-    guard result == 0 else {
-        fputs("open: cannot connect to compositor for AvocadoEvent routing\n", stderr)
-        close(fd)
-        exit(1)
-    }
-
-    // Register as a service — no window surface
-    let registerMsg = AppMessage.register(appId: "com.clone.open", title: "open", width: 0, height: 0, role: .service)
-    if let data = try? WireProtocol.encode(registerMsg) {
-        data.withUnsafeBytes { _ = write(fd, $0.baseAddress!, data.count) }
-    }
-
-    // Brief wait for registration
-    usleep(50_000)
-
-    // Send AvocadoEvents to each target app
     for (appId, paths) in byApp {
-        let event = AppMessage.avocadoEvent(targetAppId: appId, event: .openDocuments(paths: paths))
-        if let data = try? WireProtocol.encode(event) {
-            data.withUnsafeBytes { _ = write(fd, $0.baseAddress!, data.count) }
-        }
+        aeClient.send(to: appId, event: .openDocuments(paths: paths))
     }
 
-    // Clean disconnect
-    let closeMsg = AppMessage.close
-    if let data = try? WireProtocol.encode(closeMsg) {
-        data.withUnsafeBytes { _ = write(fd, $0.baseAddress!, data.count) }
-    }
-    close(fd)
+    aeClient.disconnect()
 }

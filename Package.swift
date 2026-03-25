@@ -112,7 +112,7 @@ let package = Package(
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -240,6 +240,16 @@ let package = Package(
             dependencies: ["CloneLaunchServices", "CloneProtocol"],
             path: "Sources/Daemons/launchservicesd"
         ),
+        .target(
+            name: "AvocadoEvents",
+            dependencies: ["CloneProtocol", "PosixShim"],
+            path: "Sources/Daemons/AvocadoEvents"
+        ),
+        .executableTarget(
+            name: "avocadoeventsd",
+            dependencies: ["AvocadoEvents", "CloneProtocol"],
+            path: "Sources/Daemons/avocadoeventsd"
+        ),
 
         // ── Tools ────────────────────────────────────────────────
         .executableTarget(
@@ -248,7 +258,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "open",
-            dependencies: ["CloneProtocol", "CloneLaunchServices"],
+            dependencies: ["CloneProtocol", "CloneLaunchServices", "AvocadoEvents"],
             path: "Sources/Tools/open"
         ),
 
