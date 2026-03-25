@@ -129,11 +129,17 @@ final class MenuBarDaemonClient: @unchecked Sendable {
 // MARK: - Menu bar action registry
 
 /// Shared registry for menu bar item clicks.
-/// The App's onPointerButton reads the last action and sends it via client.
+/// Fires actions immediately via the wired send closure.
 final class MenuBarActionRegistry: @unchecked Sendable {
     static let shared = MenuBarActionRegistry()
     var lastItemId: String? = nil
     var toggleMenuIndex: Int? = nil
+    /// Wired by App.main() to send .menuAction over IPC immediately.
+    var sendAction: ((String) -> Void)?
+
+    func fire(_ itemId: String) {
+        sendAction?(itemId)
+    }
 
     func consume() -> String? {
         let id = lastItemId
@@ -319,8 +325,8 @@ final class MenuBarActionRegistry: @unchecked Sendable {
     }
     .frame(width: dropdownW - 8, height: dropdownRowH)
     .onTapGesture {
-        MenuBarActionRegistry.shared.lastItemId = item.id
         state.openMenuIndex = nil
+        MenuBarActionRegistry.shared.fire(item.id)
     }
 }
 
@@ -353,6 +359,12 @@ struct MenuBarApp: App {
             state.nowPlaying = info
         }
         daemonClient.connect()
+        // Wire menu action to send immediately via IPC
+        #if canImport(CloneClient)
+        MenuBarActionRegistry.shared.sendAction = { [self] itemId in
+            client.send(.menuAction(itemId: itemId))
+        }
+        #endif
     }
 
     var body: some Scene {
