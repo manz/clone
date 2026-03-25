@@ -144,17 +144,13 @@ extension App {
                         for path in paths { app.onOpenFile(path: path) }
                     case .quit:
                         exit(0)
-                    case .activate:
-                        break // TODO: bring window to front
-                    case .launchApp:
-                        break // handled by launchservicesd, not regular apps
+                    case .activate, .launchApp:
+                        break
                     }
                 }
             }
-            // Listen on a background thread
             DispatchQueue.global().async { aeClient.listen() }
         } catch {
-            // Non-fatal — avocadoeventsd may not be running yet
             fputs("Note: could not connect to avocadoeventsd: \(error)\n", stderr)
         }
 

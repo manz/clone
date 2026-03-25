@@ -78,6 +78,7 @@ install:
 	@ditto .build/debug/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
 	@ditto .build/debug/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
 	@ditto .build/debug/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
+	@ditto .build/debug/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT)"
 
 # Alias
