@@ -29,6 +29,9 @@ public final class StateGraph: @unchecked Sendable {
     /// Cached scope prefix, rebuilt on push/pop.
     private var scopePrefix: String = ""
 
+    /// Current scope path (e.g. "album-7/track-42/") for external keying.
+    public var currentScope: String { scopePrefix }
+
     private init() {}
 
     /// Push an identity scope (used by ForEach for each item's id).

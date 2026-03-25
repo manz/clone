@@ -14,7 +14,8 @@ public struct ScrollView<Content: View>: _PrimitiveView {
         file: String = #fileID, line: Int = #line
     ) {
         self.axis = axis.contains(.horizontal) ? .horizontal : .vertical
-        self.key = "\(file):\(line)"
+        let scope = StateGraph.shared.currentScope
+        self.key = scope.isEmpty ? "\(file):\(line)" : "\(scope)/\(file):\(line)"
         if let nodes = content() as? [ViewNode] { self.children = nodes }
         else { self.children = [_resolve(content())] }
     }
