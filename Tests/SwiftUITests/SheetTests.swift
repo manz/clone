@@ -215,6 +215,100 @@ import Foundation
     #expect(WindowState.shared.compositorSheetActive == true)
 }
 
+@Test @MainActor func sheetButtonTapViaHitTest() {
+    TapRegistry.shared.clear()
+    WindowState.shared.update(width: 800, height: 600)
+
+    var showSheet = true
+    let binding = Binding(get: { showSheet }, set: { showSheet = $0 })
+    var cancelFired = false
+    var doneFired = false
+
+    let _ = _resolve(Text("Main"))
+        .sheet(isPresented: binding) {
+            Text("Sheet Body")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { cancelFired = true }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { doneFired = true }
+                    }
+                }
+        }
+
+    // Sheet content and size must exist
+    guard let sheetContent = WindowState.shared.activeSheetContent else {
+        Issue.record("No activeSheetContent")
+        return
+    }
+    guard let sheetSize = WindowState.shared.activeSheetSize else {
+        Issue.record("No activeSheetSize")
+        return
+    }
+
+    // Layout the sheet content exactly as the compositor would
+    let layoutNode = Layout.layout(
+        sheetContent,
+        in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
+    )
+
+    // The sheet content should have a non-zero size
+    #expect(layoutNode.frame.width > 0, "Sheet layout width should be > 0")
+    #expect(layoutNode.frame.height > 0, "Sheet layout height should be > 0")
+
+    // Find all tappable areas in the layout
+    var tappableAreas: [(id: UInt64, frame: LayoutFrame, label: String)] = []
+    collectTappableAreas(layoutNode, into: &tappableAreas)
+
+    #expect(!tappableAreas.isEmpty, "Sheet should have tappable buttons (Cancel, Done)")
+
+    // Find Cancel and Done buttons by label
+    let cancelArea = tappableAreas.first(where: { $0.label.contains("Cancel") })
+    let doneArea = tappableAreas.first(where: { $0.label.contains("Done") })
+
+    #expect(cancelArea != nil, "Should find Cancel button tappable area — found: \(tappableAreas.map(\.label))")
+    #expect(doneArea != nil, "Should find Done button tappable area — found: \(tappableAreas.map(\.label))")
+
+    // Hit-test at the center of the Cancel button
+    if let cancel = cancelArea {
+        let cx = cancel.frame.x + cancel.frame.width / 2
+        let cy = cancel.frame.y + cancel.frame.height / 2
+        let tapId = layoutNode.hitTestTap(x: cx, y: cy)
+        #expect(tapId != nil, "Hit-test at Cancel center (\(cx), \(cy)) should find a tap — frame: \(cancel.frame)")
+        if let id = tapId {
+            TapRegistry.shared.fire(id: id)
+            #expect(cancelFired, "Firing tap at Cancel position should trigger cancelFired")
+        }
+    }
+
+    // Hit-test at the center of the Done button
+    if let done = doneArea {
+        let cx = done.frame.x + done.frame.width / 2
+        let cy = done.frame.y + done.frame.height / 2
+        let tapId = layoutNode.hitTestTap(x: cx, y: cy)
+        #expect(tapId != nil, "Hit-test at Done center (\(cx), \(cy)) should find a tap — frame: \(done.frame)")
+        if let id = tapId {
+            TapRegistry.shared.fire(id: id)
+            #expect(doneFired, "Firing tap at Done position should trigger doneFired")
+        }
+    }
+}
+
+/// Walk the layout tree and collect all onTap areas with their frames and labels.
+private func collectTappableAreas(_ node: LayoutNode, into areas: inout [(id: UInt64, frame: LayoutFrame, label: String)]) {
+    switch node.node {
+    case .onTap(let id, let child):
+        let label = extractLabel(child) ?? "(unknown)"
+        areas.append((id: id, frame: node.frame, label: label))
+    default:
+        break
+    }
+    for child in node.children {
+        collectTappableAreas(child, into: &areas)
+    }
+}
+
 // Helper to extract text from toolbar item nodes
 private func extractLabel(_ node: ViewNode) -> String? {
     switch node {

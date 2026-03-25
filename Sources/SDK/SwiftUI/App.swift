@@ -296,6 +296,26 @@ extension App {
                     OnChangeRegistry.shared.flushActions()
                     // Prepend toolbar (must match render layout for hit testing)
                     viewTree = prependToolbar(viewTree, role: config.role)
+                    // Sheet overlay (must match render path)
+                    if let sheetOverlay = WindowState.shared.activeSheetOverlay {
+                        if WindowState.shared.compositorSheetActive,
+                           case .zstack(_, let children) = sheetOverlay,
+                           let backdrop = children.first {
+                            viewTree = .zstack(children: [viewTree, backdrop])
+                        } else {
+                            viewTree = .zstack(children: [viewTree, sheetOverlay])
+                        }
+                    }
+                    // Context menu overlay
+                    if ContextMenuRegistry.shared.isOpen {
+                        let menuOverlay = buildContextMenuOverlay(
+                            items: ContextMenuRegistry.shared.menuItems,
+                            x: ContextMenuRegistry.shared.position.x,
+                            y: ContextMenuRegistry.shared.position.y,
+                            width: cw, height: ch
+                        )
+                        viewTree = .zstack(children: [viewTree, menuOverlay])
+                    }
                     let layoutNode = Layout.layout(
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)

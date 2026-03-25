@@ -59,10 +59,12 @@ public func _menuItemsFromNode(_ node: ViewNode) -> [AppMenuItem] {
         // Divider
         return [AppMenuItem(id: "separator", title: "", shortcut: nil, isSeparator: true)]
     case .onTap(let tapId, let child):
-        // Extract the label, then wire the tap action to the menu item ID
+        // Extract the label, then capture the actual closure (not the tap ID which gets stale)
         let items = _menuItemsFromNode(child)
-        for item in items where !item.isSeparator {
-            MenuRegistry.shared.actions[item.id] = { TapRegistry.shared.fire(id: tapId) }
+        if let action = TapRegistry.shared.handler(for: tapId) {
+            for item in items where !item.isSeparator {
+                MenuRegistry.shared.actions[item.id] = action
+            }
         }
         return items
     case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(_, let children):

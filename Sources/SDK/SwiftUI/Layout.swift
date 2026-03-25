@@ -270,7 +270,7 @@ public enum Layout {
             // Menu invisible until triggered — measure the child only
             return measure(child, constraint: constraint)
 
-        case .tagged(_, let child):
+        case .tagged(_, let child), .toolbarItem(_, let child):
             return measure(child, constraint: constraint)
 
         case .clipped(_, let child):
@@ -423,7 +423,7 @@ public enum Layout {
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
-        case .tagged(_, let child):
+        case .tagged(_, let child), .toolbarItem(_, let child):
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 

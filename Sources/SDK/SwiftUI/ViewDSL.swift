@@ -440,22 +440,19 @@ public extension ViewNode {
 
     /// `.fileImporter(isPresented:allowedContentTypes:onCompletion:)` — shows a file open panel.
     /// On Clone, this uses NSOpenPanel which renders as an in-window overlay.
+    /// `.fileImporter(isPresented:allowedContentTypes:onCompletion:)` — presents a file open panel as a sheet.
     @MainActor func fileImporter(isPresented: Binding<Bool>, allowedContentTypes: [UTType], allowsMultipleSelection: Bool = false, onCompletion: @escaping @MainActor (Result<[URL], Error>) -> Void) -> ViewNode {
-        if isPresented.wrappedValue {
-            let panel = NSOpenPanel()
-            panel.allowedContentTypes = allowedContentTypes.compactMap { $0.preferredFilenameExtension ?? String($0.identifier.split(separator: ".").last ?? "") }
-            panel.allowsMultipleSelection = allowsMultipleSelection
-            nonisolated(unsafe) let binding = isPresented
-            nonisolated(unsafe) let completion = onCompletion
-            nonisolated(unsafe) let p = panel
-            p.begin { response in
-                binding.wrappedValue = false
-                if response == .OK, let url = p.url {
-                    completion(.success([url]))
-                }
-            }
+        // Present the file browser as a sheet
+        nonisolated(unsafe) let binding = isPresented
+        nonisolated(unsafe) let completion = onCompletion
+        let extensions = allowedContentTypes.compactMap { $0.preferredFilenameExtension ?? String($0.identifier.split(separator: ".").last ?? "") }
+        return self.sheet(isPresented: isPresented) {
+            _FileImporterContent(
+                extensions: extensions,
+                dismiss: { binding.wrappedValue = false },
+                onCompletion: completion
+            )
         }
-        return self
     }
 
     /// `.confirmationDialog(_:isPresented:actions:message:)` — no-op on Clone.

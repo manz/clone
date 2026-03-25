@@ -272,7 +272,8 @@ public struct ToolbarItem<ID, Content: View>: _PrimitiveView {
 
 extension ToolbarItem where ID == Void {
     public init(placement: ToolbarItemPlacement = .automatic, @ViewBuilder content: () -> Content) {
-        self.content = _resolve(content())
+        // Tag the resolved content with placement info
+        self.content = .toolbarItem(placement: placement, child: _resolve(content()))
     }
 }
 

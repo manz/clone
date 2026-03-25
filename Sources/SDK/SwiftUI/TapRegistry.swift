@@ -22,6 +22,11 @@ public final class TapRegistry: @unchecked Sendable {
         handlers[id]?()
     }
 
+    /// Get the closure for a tap ID (for capturing in long-lived registries like menus).
+    public func handler(for id: UInt64) -> (() -> Void)? {
+        handlers[id]
+    }
+
     /// Number of registered handlers.
     public var count: Int { handlers.count }
 

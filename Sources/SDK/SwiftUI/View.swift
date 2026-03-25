@@ -585,7 +585,13 @@ public extension View {
     func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C, file: String = #fileID, line: Int = #line) -> _ModifiedView<Self> {
         let sourceKey = "\(file):\(line)"
         let nodes = _flattenToNodes(content())
-        let items = nodes.map { ToolbarItemData(placement: .automatic, node: $0, sourceKey: sourceKey) }
+        let items = nodes.map { node -> ToolbarItemData in
+            // Extract placement from .toolbarItem wrapper if present
+            if case .toolbarItem(let placement, let child) = node {
+                return ToolbarItemData(placement: placement, node: child, sourceKey: sourceKey)
+            }
+            return ToolbarItemData(placement: .automatic, node: node, sourceKey: sourceKey)
+        }
         if WindowState.shared.isInsideSheet {
             WindowState.shared.sheetToolbarItems.append(contentsOf: items)
         } else {
