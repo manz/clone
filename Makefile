@@ -1,4 +1,4 @@
-.PHONY: all all-release engine bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -6,8 +6,8 @@ CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
 SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
 CARGO_OUT = target/$(CONFIG)
 
-# Build everything: engine → bindings → audio → audio-bindings → compositor → SDK → apps
-all: bindings text-bindings audio-bindings swift sdk apps
+# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → apps
+all: bindings render-bindings text-bindings audio-bindings swift sdk apps
 
 # Release shorthand
 all-release:
@@ -16,6 +16,19 @@ all-release:
 # Rust engine
 engine:
 	cargo build -p clone-engine $(CARGO_FLAGS)
+
+# Rust render crate (app-side headless rendering)
+render:
+	cargo build -p clone-render --features uniffi $(CARGO_FLAGS)
+
+# Generate UniFFI Swift bindings for clone-render (app-side FFI)
+render-bindings: render
+	cargo run -p clone-render --features uniffi $(CARGO_FLAGS) --bin uniffi-bindgen-render generate \
+		--library $(CARGO_OUT)/libclone_render.dylib \
+		--language swift \
+		--out-dir /tmp/clone-render-bindings
+	cp /tmp/clone-render-bindings/clone_renderFFI.h Sources/FFI/CRender/include/clone_renderFFI.h
+	cp /tmp/clone-render-bindings/clone_render.swift Sources/Internal/CloneRender/clone_render.swift
 
 # Generate UniFFI Swift bindings (engine + clone-render types)
 bindings: engine

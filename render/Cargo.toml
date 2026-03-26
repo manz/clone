@@ -3,6 +3,9 @@ name = "clone-render"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["lib", "cdylib"]
+
 [features]
 default = []
 uniffi = ["dep:uniffi"]
@@ -18,3 +21,9 @@ rustc-hash = "2"
 resvg = "0.44"
 include_dir = "0.7"
 pollster = "0.4"
+thiserror = "1"
+
+[[bin]]
+name = "uniffi-bindgen-render"
+path = "uniffi-bindgen.rs"
+required-features = ["uniffi"]

@@ -44,6 +44,10 @@ let package = Package(
             path: "Sources/FFI/CText"
         ),
         .systemLibrary(
+            name: "clone_renderFFI",
+            path: "Sources/FFI/CRender"
+        ),
+        .systemLibrary(
             name: "CSQLite",
             path: "Sources/FFI/CSQLite",
             pkgConfig: "sqlite3"
@@ -57,6 +61,18 @@ let package = Package(
         .target(
             name: "SharedSurface",
             path: "Sources/Internal/SharedSurface"
+        ),
+        .target(
+            name: "CloneRender",
+            dependencies: ["clone_renderFFI"],
+            path: "Sources/Internal/CloneRender",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-lclone_render",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                ]),
+            ]
         ),
         .target(
             name: "CloneProtocol",
@@ -124,7 +140,7 @@ let package = Package(
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),

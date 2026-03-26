@@ -29,7 +29,9 @@ fi
 # Framework modules to package — ordered by dependency (leaves first).
 FRAMEWORKS=(
     PosixShim
+    SharedSurface
     CloneProtocol
+    CloneRender
     QuartzCore
     AppKit
     UniformTypeIdentifiers
@@ -121,6 +123,10 @@ for MOD in "${FRAMEWORKS[@]}"; do
         for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do
             [ -f "$po" ] && OBJ_FILES+=("$po")
         done
+    fi
+    # CloneRender needs Rust render lib
+    if [ "$MOD" = "CloneRender" ]; then
+        FWFLAGS+=(-lclone_render)
     fi
 
     swiftc \

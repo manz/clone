@@ -7,8 +7,8 @@ import Foundation
 // Depending on the consumer's build setup, the low-level FFI code
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
-#if canImport(clone_engineFFI)
-import clone_engineFFI
+#if canImport(clone_renderFFI)
+import clone_renderFFI
 #endif
 
 fileprivate extension RustBuffer {

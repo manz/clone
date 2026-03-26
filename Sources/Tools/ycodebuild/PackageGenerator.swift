@@ -101,13 +101,13 @@ enum PackageGenerator {
         let macroPlugin = "\(sdk)/.build/arm64-apple-macosx/debug/SwiftDataMacros-tool#SwiftDataMacros"
         let rustLib = "\(sdk)/target/debug"
 
-        let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine"].flatMap { dir in
+        let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine", "CRender"].flatMap { dir in
             ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
         }.joined(separator: ", ")
 
         let fwLinkFlags = [
             "CloneProtocol", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
-            "CloneClient", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
+            "CloneClient", "CloneRender", "SharedSurface", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
         ].flatMap { name in
             ["\"-framework\"", "\"\(name)\""]
         }.joined(separator: ", ")
@@ -136,6 +136,8 @@ enum PackageGenerator {
                         .unsafeFlags([
                             "-F", "\(fw)",
                             \(fwLinkFlags),
+                            "-L", "\(rustLib)",
+                            "-lclone_render",
                             "-Xlinker", "-rpath", "-Xlinker", "\(fw)",
                             "-Xlinker", "-rpath", "-Xlinker", "\(rustLib)",
                         ]),

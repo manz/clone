@@ -1,0 +1,4 @@
+module clone_renderFFI {
+    header "include/clone_renderFFI.h"
+    export *
+}

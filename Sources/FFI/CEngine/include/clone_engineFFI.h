@@ -934,6 +934,27 @@ typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureRes
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_CLONE_APPRENDERER
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_CLONE_APPRENDERER
+uint64_t uniffi_clone_render_fn_clone_apprenderer(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_FREE_APPRENDERER
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_FREE_APPRENDERER
+void uniffi_clone_render_fn_free_apprenderer(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_CONSTRUCTOR_APPRENDERER_NEW
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_CONSTRUCTOR_APPRENDERER_NEW
+uint64_t uniffi_clone_render_fn_constructor_apprenderer_new(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS
+RustBuffer uniffi_clone_render_fn_method_apprenderer_render_to_pixels(uint64_t ptr, RustBuffer commands, uint32_t width, uint32_t height, float scale, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUSTBUFFER_ALLOC
 RustBuffer ffi_clone_render_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -1192,6 +1213,18 @@ void ffi_clone_render_rust_future_free_void(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 void ffi_clone_render_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER_TO_PIXELS
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER_TO_PIXELS
+uint16_t uniffi_clone_render_checksum_method_apprenderer_render_to_pixels(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_CONSTRUCTOR_APPRENDERER_NEW
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_CONSTRUCTOR_APPRENDERER_NEW
+uint16_t uniffi_clone_render_checksum_constructor_apprenderer_new(void
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_UNIFFI_CONTRACT_VERSION

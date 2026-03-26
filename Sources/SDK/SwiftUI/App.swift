@@ -16,7 +16,6 @@ public struct WindowConfiguration {
     public var width: CGFloat
     public var height: CGFloat
     public var role: SurfaceRole
-
     public init(title: String, width: CGFloat = 600, height: CGFloat = 400, role: SurfaceRole = .window) {
         self.title = title
         self.width = width
@@ -193,6 +192,9 @@ extension App {
             return true
         }
 
+        // App-side renderer — used by all declarative apps
+        let appRenderer = AppSideRenderer(client: app.client)
+
         if usesDeclarativeRendering {
             // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)
             var _cachedViewTree: ViewNode?
@@ -211,9 +213,8 @@ extension App {
             if !appMenus.isEmpty {
                 app.client.send(.registerMenus(menus: appMenus))
             }
-            app.client.onFrameRequest = { w, h in
-                let width = CGFloat(w)
-                let height = CGFloat(h)
+            // Shared frame-building closure used by both rendering paths
+            let buildFrame: (_ width: CGFloat, _ height: CGFloat) -> [IPCRenderCommand] = { width, height in
                 GeometryReaderRegistry.shared.clear()
                 TapRegistry.shared.resetCounter()
                 TextFieldRegistry.shared.resetCounter()
@@ -234,25 +235,19 @@ extension App {
                 // Sheet compositor surface lifecycle
                 let sheetActive = WindowState.shared.activeSheetContent != nil
                 if sheetActive && !_wasSheetActive {
-                    // Sheet just appeared — tell compositor to create surface
                     let size = WindowState.shared.activeSheetSize ?? CGSize(width: 500, height: 300)
                     client.send(.showSheet(width: Float(size.width), height: Float(size.height)))
-                    // Capture the dismiss action from the backdrop tap in the overlay
                     if case .zstack(_, let children) = WindowState.shared.activeSheetOverlay,
                        let first = children.first,
                        case .onTap(let tapId, _) = first {
                         _sheetDismissAction = { TapRegistry.shared.fire(id: tapId) }
                     }
                 } else if !sheetActive && _wasSheetActive {
-                    // Sheet just dismissed
                     client.send(.dismissSheet)
                     _sheetDismissAction = nil
                     WindowState.shared.compositorSheetActive = false
                 }
                 _wasSheetActive = sheetActive
-                // Sheet overlay: once the compositor is rendering the panel as a
-                // separate surface, only include the backdrop (dimmed + tap-to-dismiss).
-                // Before that, include the full overlay as fallback.
                 if let sheetOverlay = WindowState.shared.activeSheetOverlay {
                     if WindowState.shared.compositorSheetActive,
                        case .zstack(_, let children) = sheetOverlay,
@@ -262,9 +257,7 @@ extension App {
                         viewTree = .zstack(children: [viewTree, sheetOverlay])
                     }
                 }
-                // Cache for hover hit-testing (avoids full rebuild on pointer move)
                 _cachedViewTree = viewTree
-                // Overlay context menu if open
                 if ContextMenuRegistry.shared.isOpen {
                     let menuOverlay = buildContextMenuOverlay(
                         items: ContextMenuRegistry.shared.menuItems,
@@ -274,7 +267,6 @@ extension App {
                     )
                     viewTree = .zstack(children: [viewTree, menuOverlay])
                 }
-                // Overlay open panel if active
                 if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
                     viewTree = .zstack(children: [viewTree, panelOverlay])
                 }
@@ -282,12 +274,23 @@ extension App {
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: width, height: height)
                 )
-                // Propagate .navigationTitle() if it changed.
                 if WindowState.shared.titleDidChange(),
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
                 return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
+            }
+
+            // App-side rendering: app renders pixels via headless GPU → shared memory
+            appRenderer.buildFrame = buildFrame
+            app.client.onWindowCreated = { _, w, h in
+                appRenderer.start(width: CGFloat(w), height: CGFloat(h))
+            }
+            // Respond to requestFrame by marking dirty (compositor still asks during transition)
+            // Return empty commands — the compositor will use the shared surface pixels instead
+            app.client.onFrameRequest = { w, h in
+                appRenderer.setNeedsDisplay()
+                return []
             }
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
@@ -378,6 +381,7 @@ extension App {
                        let newTitle = WindowState.shared.navigationTitle {
                         app.client.send(.setTitle(title: newTitle))
                     }
+                    appRenderer.setNeedsDisplay()
                 }
             }
             app.client.onPointerMove = { px, py in
@@ -393,6 +397,7 @@ extension App {
                 )
                 let hitIds = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
                 HoverRegistry.shared.update(hitIds: hitIds, position: CGPoint(x: CGFloat(px), y: CGFloat(py)))
+                appRenderer.setNeedsDisplay()
             }
             // Sheet frame request — compositor asks for sheet render commands
             app.client.onSheetFrameRequest = { w, h in
@@ -469,14 +474,17 @@ extension App {
                 }
             }
             app.onKey(keycode: keycode, pressed: pressed)
+            appRenderer.setNeedsDisplay()
         }
         app.client.onKeyChar = { character in
             // Route to focused text field first
             TextFieldRegistry.shared.handleKeyChar(character)
             app.onKeyChar(character: character)
+            appRenderer.setNeedsDisplay()
         }
         app.client.onScroll = { dx, dy in
             ScrollRegistry.shared.scroll(deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
+            appRenderer.setNeedsDisplay()
         }
         app.client.onColorScheme = { dark in
             WindowState.shared.colorScheme = dark ? .dark : .light
