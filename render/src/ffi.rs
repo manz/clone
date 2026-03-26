@@ -37,7 +37,29 @@ impl AppRenderer {
         })
     }
 
-    /// Render commands to BGRA8 pixel data with opaque background.
+    /// Render commands into an IOSurface-backed texture.
+    /// Returns the IOSurface ID for cross-process sharing (zero-copy).
+    /// The compositor imports by this ID — no pixel readback needed.
+    pub fn render(
+        &self,
+        commands: Vec<RenderCommand>,
+        width: u32,
+        height: u32,
+        scale: f32,
+        transparent: bool,
+    ) -> Result<u32, RenderError> {
+        let mut device = self.inner.lock().unwrap();
+        device
+            .render(&commands, width, height, scale, transparent)
+            .map_err(|e| RenderError::RenderFailed { reason: e })
+    }
+
+    /// Get the current IOSurface ID. Returns 0 if no render has happened yet.
+    pub fn iosurface_id(&self) -> u32 {
+        self.inner.lock().unwrap().iosurface_id()
+    }
+
+    /// Render commands to BGRA8 pixel data (legacy — uses readback, slow).
     pub fn render_to_pixels(
         &self,
         commands: Vec<RenderCommand>,
@@ -49,8 +71,7 @@ impl AppRenderer {
         Ok(device.render_to_pixels(&commands, width, height, scale))
     }
 
-    /// Render commands to BGRA8 pixel data with transparent background.
-    /// Used for overlay surfaces (dock, menubar) that composite over other content.
+    /// Render commands to BGRA8 pixel data with transparent background (legacy).
     pub fn render_to_pixels_transparent(
         &self,
         commands: Vec<RenderCommand>,

@@ -135,12 +135,12 @@ public enum AppMessage: Codable, Sendable {
     case openFile(path: String)
     /// Route an AvocadoEvent to another app by its bundle identifier.
     case avocadoEvent(targetAppId: String, event: AvocadoEvent)
-    /// App created a shared memory surface for app-side rendering.
-    case surfaceCreated(shmName: String, width: UInt32, height: UInt32)
-    /// App rendered a new frame into the shared memory surface.
+    /// App created an IOSurface-backed GPU texture for app-side rendering.
+    case surfaceCreated(iosurfaceId: UInt32, width: UInt32, height: UInt32)
+    /// App rendered a new frame into the shared texture.
     case surfaceUpdated
-    /// App resized its shared memory surface.
-    case surfaceResized(width: UInt32, height: UInt32)
+    /// App resized its shared texture (new IOSurface ID).
+    case surfaceResized(iosurfaceId: UInt32, width: UInt32, height: UInt32)
 }
 
 // MARK: - Messages: Compositor → App

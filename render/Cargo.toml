@@ -22,6 +22,7 @@ resvg = "0.44"
 include_dir = "0.7"
 pollster = "0.4"
 thiserror = "1"
+wgpu-iosurface = { path = "../wgpu-iosurface" }
 
 [[bin]]
 name = "uniffi-bindgen-render"

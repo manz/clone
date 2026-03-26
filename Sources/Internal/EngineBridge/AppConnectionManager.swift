@@ -3,7 +3,6 @@ import SwiftUI
 import CloneServer
 import CloneProtocol
 import CloneLaunchServices
-import SharedSurface
 
 /// A pending file dialog request from an app.
 struct FileDialogRequest {
@@ -196,17 +195,17 @@ final class AppConnectionManager {
         return server.commands(for: serverWid)
     }
 
-    /// Returns the shared memory surface name if the app uses app-side rendering.
-    func shmName(for wmWindowId: UInt64) -> String? {
-        guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
-        return server.app(for: serverWid)?.shmName
+    /// Returns the IOSurface ID if the app uses app-side rendering (0 = not using).
+    func iosurfaceId(for wmWindowId: UInt64) -> UInt32 {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return 0 }
+        return server.app(for: serverWid)?.iosurfaceId ?? 0
     }
 
-    /// Returns the shared memory surface dimensions (physical pixels).
-    func shmDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
+    /// Returns the shared texture dimensions (physical pixels).
+    func surfaceDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
-        guard let app = server.app(for: serverWid), app.shmName != nil else { return nil }
-        return (app.shmWidth, app.shmHeight)
+        guard let app = server.app(for: serverWid), app.iosurfaceId != 0 else { return nil }
+        return (app.surfaceWidth, app.surfaceHeight)
     }
 
     func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
@@ -500,18 +499,18 @@ final class AppConnectionManager {
     }
 
     /// Returns overlay surfaces (dock + menubar + loginWindow) for compositing.
-    func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64, sharedSurfaces: inout [UInt64: SharedSurface]) -> [SurfaceFrame] {
+    func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
         for app in server.connectedApps {
             if app.role == .loginWindow && sessionStarted { continue }
             guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
 
-            // Determine surface dimensions — shm apps use their actual content size,
-            // non-shm overlays use full screen (they render at absolute coords)
+            // Determine surface dimensions — IOSurface apps use their content size,
+            // compositor-rendered overlays use full screen (they render at absolute coords)
             let surfaceW: Float
             let surfaceH: Float
-            if app.shmName != nil {
+            if app.iosurfaceId != 0 {
                 surfaceW = app.width
                 surfaceH = app.height
             } else {
@@ -519,19 +518,8 @@ final class AppConnectionManager {
                 surfaceH = Float(screenHeight)
             }
 
-            // Check for app-side rendered surface
-            if app.shmName != nil {
-                let shmKey = app.windowId + 10000
-                if sharedSurfaces[shmKey] == nil, let shmName = app.shmName {
-                    sharedSurfaces[shmKey] = SharedSurface(
-                        name: shmName, width: Int(app.shmWidth), height: Int(app.shmHeight), create: false
-                    )
-                }
-                var pixelData: Data? = nil
-                if let shm = sharedSurfaces[shmKey], shm.isDirty, let front = shm.frontBuffer() {
-                    pixelData = Data(bytes: front, count: shm.bufferSize)
-                    shm.clearDirty()
-                }
+            // IOSurface-backed app: emit surface with iosurfaceId for compositor import
+            if app.iosurfaceId != 0 {
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -540,7 +528,8 @@ final class AppConnectionManager {
                         cornerRadius: 0, opacity: 1
                     ),
                     commands: [],
-                    pixelData: pixelData
+                    pixelData: nil,
+                    iosurfaceId: app.iosurfaceId
                 ))
                 continue
             }
@@ -556,7 +545,8 @@ final class AppConnectionManager {
                         cornerRadius: 0, opacity: 1
                     ),
                     commands: engineCommands,
-                    pixelData: nil
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
             }
         }

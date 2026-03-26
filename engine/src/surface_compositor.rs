@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
+use wgpu_iosurface::SharedTexture;
 
 /// An offscreen surface for a single window.
 pub struct WindowSurface {
@@ -223,6 +224,50 @@ impl SurfaceCompositor {
     /// Get the texture view for a surface to render into.
     pub fn surface_view(&self, surface_id: u64) -> Option<&wgpu::TextureView> {
         self.surfaces.get(&surface_id).map(|s| &s.view)
+    }
+
+    /// Import an IOSurface by ID as a compositor surface.
+    /// The texture is shared with the app process — zero-copy.
+    pub fn import_iosurface(
+        &mut self,
+        device: &wgpu::Device,
+        surface_id: u64,
+        iosurface_id: u32,
+        width: u32,
+        height: u32,
+    ) -> bool {
+        match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
+            Ok(shared) => {
+                // Create a WindowSurface that wraps the imported IOSurface texture view
+                let view = shared.texture().create_view(&Default::default());
+                let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("imported_depth"),
+                    size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Depth32Float,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                });
+                let depth_view = depth_texture.create_view(&Default::default());
+                // Store as WindowSurface — the texture field won't match (it's IOSurface-backed)
+                // but the view is what composite() uses for sampling.
+                self.surfaces.insert(surface_id, WindowSurface {
+                    texture: shared.into_texture(),
+                    view,
+                    depth_texture,
+                    depth_view,
+                    width,
+                    height,
+                });
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to import IOSurface {iosurface_id}: {e}");
+                false
+            }
+        }
     }
 
     /// Remove surfaces not in the active set.

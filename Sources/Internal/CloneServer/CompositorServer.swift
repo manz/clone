@@ -17,11 +17,11 @@ public final class ConnectedApp {
     public var sheetSize: (width: Float, height: Float)?
     private var sheetCommands: [IPCRenderCommand] = []
 
-    /// Shared memory surface state — non-nil when app uses app-side rendering.
-    public var shmName: String?
-    public var shmWidth: UInt32 = 0
-    public var shmHeight: UInt32 = 0
-    public var shmDirty: Bool = false
+    /// IOSurface texture sharing state — non-zero when app uses app-side rendering.
+    public var iosurfaceId: UInt32 = 0
+    public var surfaceWidth: UInt32 = 0
+    public var surfaceHeight: UInt32 = 0
+    public var surfaceDirty: Bool = false
 
     let fd: Int32
     var readBuffer = Data()
@@ -286,18 +286,19 @@ public final class CompositorServer {
         case .avocadoEvent(let targetAppId, let event):
             routeAvocadoEvent(targetAppId: targetAppId, event: event)
 
-        case .surfaceCreated(let shmName, let width, let height):
-            app.shmName = shmName
-            app.shmWidth = width
-            app.shmHeight = height
+        case .surfaceCreated(let iosurfaceId, let width, let height):
+            app.iosurfaceId = iosurfaceId
+            app.surfaceWidth = width
+            app.surfaceHeight = height
             app.send(.surfaceReady(surfaceId: app.windowId))
 
         case .surfaceUpdated:
-            app.shmDirty = true
+            app.surfaceDirty = true
 
-        case .surfaceResized(let width, let height):
-            app.shmWidth = width
-            app.shmHeight = height
+        case .surfaceResized(let iosurfaceId, let width, let height):
+            app.iosurfaceId = iosurfaceId
+            app.surfaceWidth = width
+            app.surfaceHeight = height
         }
     }
 

@@ -1,18 +1,17 @@
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
+use wgpu_iosurface::SharedTexture;
 
 /// A headless wgpu rendering context for app-side rendering.
-/// Creates a GPU device without a window and renders commands
-/// to an offscreen texture, returning BGRA8 pixel data.
+/// Renders into an IOSurface-backed texture for zero-copy cross-process sharing.
+/// The compositor imports the same IOSurface by ID — no copies involved.
 pub struct HeadlessDevice {
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: DesktopRenderer,
-    texture: Option<wgpu::Texture>,
-    texture_view: Option<wgpu::TextureView>,
+    shared_texture: Option<SharedTexture>,
     depth_texture: Option<wgpu::Texture>,
     depth_view: Option<wgpu::TextureView>,
-    staging_buffer: Option<wgpu::Buffer>,
     width: u32,
     height: u32,
     format: wgpu::TextureFormat,
@@ -49,84 +48,93 @@ impl HeadlessDevice {
             device,
             queue,
             renderer,
-            texture: None,
-            texture_view: None,
+            shared_texture: None,
             depth_texture: None,
             depth_view: None,
-            staging_buffer: None,
             width: 0,
             height: 0,
             format,
         })
     }
 
-    /// Ensure the offscreen texture and staging buffer match the requested size.
-    fn ensure_size(&mut self, width: u32, height: u32) {
+    /// Ensure the shared texture matches the requested physical size.
+    /// Returns the IOSurface ID (changes on resize).
+    fn ensure_size(&mut self, width: u32, height: u32) -> Result<u32, String> {
         let width = width.max(1);
         let height = height.max(1);
-        if self.width == width && self.height == height {
-            return;
+
+        if self.width != width || self.height != height {
+            self.width = width;
+            self.height = height;
+
+            // Create new IOSurface-backed shared texture
+            self.shared_texture = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+
+            // Create depth texture
+            let depth = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("headless_depth"),
+                size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Depth32Float,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            });
+            self.depth_view = Some(depth.create_view(&Default::default()));
+            self.depth_texture = Some(depth);
         }
-        self.width = width;
-        self.height = height;
 
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("headless_color"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        self.texture_view = Some(texture.create_view(&Default::default()));
-        self.texture = Some(texture);
-
-        let depth = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("headless_depth"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        });
-        self.depth_view = Some(depth.create_view(&Default::default()));
-        self.depth_texture = Some(depth);
-
-        // Staging buffer for readback — row stride aligned to 256
-        let bytes_per_row = Self::aligned_bytes_per_row(width);
-        let buffer_size = (bytes_per_row * height) as u64;
-        self.staging_buffer = Some(self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("headless_staging"),
-            size: buffer_size,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        }));
+        Ok(self.shared_texture.as_ref().unwrap().iosurface_id())
     }
 
-    /// Bytes per row aligned to wgpu's 256-byte requirement.
-    fn aligned_bytes_per_row(width: u32) -> u32 {
-        let unpadded = width * 4;
-        (unpadded + 255) & !255
+    /// Get the current IOSurface ID. Returns 0 if no texture has been created yet.
+    pub fn iosurface_id(&self) -> u32 {
+        self.shared_texture.as_ref().map_or(0, |t| t.iosurface_id())
     }
 
-    /// Render commands to an offscreen texture and return BGRA8 pixel data.
-    ///
-    /// The returned buffer is `width * height * 4` bytes (tightly packed, no padding).
-    /// Pixel format is BGRA8 (same as wgpu's Bgra8Unorm).
-    /// Set `transparent` to true for overlay surfaces (dock, menubar) that need
-    /// a transparent background instead of using the first command's color.
+    /// Render commands into the IOSurface-backed texture.
+    /// Returns the IOSurface ID for cross-process sharing.
+    /// No readback, no copies — the compositor imports by this ID.
+    pub fn render(
+        &mut self,
+        commands: &[RenderCommand],
+        width: u32,
+        height: u32,
+        scale: f32,
+        transparent: bool,
+    ) -> Result<u32, String> {
+        let phys_w = ((width as f32) * scale) as u32;
+        let phys_h = ((height as f32) * scale) as u32;
+        let iosurface_id = self.ensure_size(phys_w, phys_h)?;
+
+        let view = self.shared_texture.as_ref().unwrap().view();
+        let depth_view = self.depth_view.as_ref().unwrap();
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("headless_render"),
+            });
+
+        if transparent {
+            self.renderer.render_transparent(
+                &self.device, &self.queue, &mut encoder,
+                view, depth_view, commands, phys_w, phys_h, scale,
+            );
+        } else {
+            self.renderer.render(
+                &self.device, &self.queue, &mut encoder,
+                view, depth_view, commands, phys_w, phys_h, scale,
+            );
+        }
+
+        self.queue.submit([encoder.finish()]);
+
+        Ok(iosurface_id)
+    }
+
+    /// Render commands to BGRA8 pixel data (legacy path for testing/PNG export).
     pub fn render_to_pixels(
         &mut self,
         commands: &[RenderCommand],
@@ -158,17 +166,15 @@ impl HeadlessDevice {
     ) -> Vec<u8> {
         let phys_w = ((width as f32) * scale) as u32;
         let phys_h = ((height as f32) * scale) as u32;
-        self.ensure_size(phys_w, phys_h);
+        let _ = self.ensure_size(phys_w, phys_h);
 
-        let view = self.texture_view.as_ref().unwrap();
+        let texture = self.shared_texture.as_ref().unwrap().texture();
+        let view = self.shared_texture.as_ref().unwrap().view();
         let depth_view = self.depth_view.as_ref().unwrap();
 
-        // Render commands into offscreen texture
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("headless_render"),
-            });
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("headless_render"),
+        });
 
         if transparent {
             self.renderer.render_transparent(
@@ -182,58 +188,55 @@ impl HeadlessDevice {
             );
         }
 
-        // Copy texture to staging buffer
+        // Readback from the IOSurface texture
         let bytes_per_row = Self::aligned_bytes_per_row(phys_w);
+        let buffer_size = (bytes_per_row * phys_h) as u64;
+        let staging = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: self.texture.as_ref().unwrap(),
+                texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
             wgpu::TexelCopyBufferInfo {
-                buffer: self.staging_buffer.as_ref().unwrap(),
+                buffer: &staging,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(bytes_per_row),
                     rows_per_image: Some(phys_h),
                 },
             },
-            wgpu::Extent3d {
-                width: phys_w,
-                height: phys_h,
-                depth_or_array_layers: 1,
-            },
+            wgpu::Extent3d { width: phys_w, height: phys_h, depth_or_array_layers: 1 },
         );
-
         self.queue.submit([encoder.finish()]);
 
-        // Map and read back
-        let staging = self.staging_buffer.as_ref().unwrap();
         let slice = staging.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
-        slice.map_async(wgpu::MapMode::Read, move |r| {
-            let _ = tx.send(r);
-        });
-        self.device
-            .poll(wgpu::PollType::wait_indefinitely())
-            .ok();
+        slice.map_async(wgpu::MapMode::Read, move |r| { let _ = tx.send(r); });
+        self.device.poll(wgpu::PollType::wait_indefinitely()).ok();
         let _ = rx.recv();
 
         let mapped = slice.get_mapped_range();
-
-        // Strip row padding to produce tightly-packed output
         let tight_row = (phys_w * 4) as usize;
         let mut pixels = Vec::with_capacity(tight_row * phys_h as usize);
         for row in 0..phys_h {
             let start = (row * bytes_per_row) as usize;
             pixels.extend_from_slice(&mapped[start..start + tight_row]);
         }
-
         drop(mapped);
         staging.unmap();
-
         pixels
+    }
+
+    fn aligned_bytes_per_row(width: u32) -> u32 {
+        (width * 4 + 255) & !255
     }
 
     /// Render commands and save as a PNG file (for testing).
@@ -249,39 +252,24 @@ impl HeadlessDevice {
         let phys_w = ((width as f32) * scale) as u32;
         let phys_h = ((height as f32) * scale) as u32;
 
-        // Convert BGRA to RGBA for PNG
         let mut rgba = Vec::with_capacity(pixels.len());
         for chunk in pixels.chunks_exact(4) {
-            rgba.push(chunk[2]); // R (from B)
-            rgba.push(chunk[1]); // G
-            rgba.push(chunk[0]); // B (from R)
-            rgba.push(chunk[3]); // A
+            rgba.push(chunk[2]);
+            rgba.push(chunk[1]);
+            rgba.push(chunk[0]);
+            rgba.push(chunk[3]);
         }
 
-        let file =
-            std::fs::File::create(path).map_err(|e| format!("Failed to create {path}: {e}"))?;
+        let file = std::fs::File::create(path).map_err(|e| format!("Failed to create {path}: {e}"))?;
         let w = std::io::BufWriter::new(file);
         let encoder = image::codecs::png::PngEncoder::new(w);
         use image::ImageEncoder;
-        encoder
-            .write_image(&rgba, phys_w, phys_h, image::ExtendedColorType::Rgba8)
+        encoder.write_image(&rgba, phys_w, phys_h, image::ExtendedColorType::Rgba8)
             .map_err(|e| format!("PNG encode failed: {e}"))?;
-
         Ok(())
     }
 
-    /// Access the underlying wgpu device.
-    pub fn device(&self) -> &wgpu::Device {
-        &self.device
-    }
-
-    /// Access the underlying wgpu queue.
-    pub fn queue(&self) -> &wgpu::Queue {
-        &self.queue
-    }
-
-    /// Access the renderer for advanced usage.
-    pub fn renderer_mut(&mut self) -> &mut DesktopRenderer {
-        &mut self.renderer
-    }
+    pub fn device(&self) -> &wgpu::Device { &self.device }
+    pub fn queue(&self) -> &wgpu::Queue { &self.queue }
+    pub fn renderer_mut(&mut self) -> &mut DesktopRenderer { &mut self.renderer }
 }

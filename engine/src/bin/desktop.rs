@@ -57,6 +57,7 @@ impl DesktopDelegate for DemoDelegate {
             },
             commands,
             pixel_data: None,
+            iosurface_id: 0,
         }]
     }
 

@@ -259,6 +259,16 @@ uint64_t uniffi_clone_render_fn_constructor_apprenderer_new(RustCallStatus *_Non
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_IOSURFACE_ID
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_IOSURFACE_ID
+uint32_t uniffi_clone_render_fn_method_apprenderer_iosurface_id(uint64_t ptr, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER
+uint32_t uniffi_clone_render_fn_method_apprenderer_render(uint64_t ptr, RustBuffer commands, uint32_t width, uint32_t height, float scale, int8_t transparent, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS
 RustBuffer uniffi_clone_render_fn_method_apprenderer_render_to_pixels(uint64_t ptr, RustBuffer commands, uint32_t width, uint32_t height, float scale, RustCallStatus *_Nonnull out_status
@@ -527,6 +537,18 @@ void ffi_clone_render_rust_future_free_void(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 void ffi_clone_render_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_IOSURFACE_ID
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_IOSURFACE_ID
+uint16_t uniffi_clone_render_checksum_method_apprenderer_iosurface_id(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER
+uint16_t uniffi_clone_render_checksum_method_apprenderer_render(void
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER_TO_PIXELS

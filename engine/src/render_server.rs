@@ -51,7 +51,17 @@ impl RenderServer {
         for sf in frames {
             if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
 
-            // App-side rendered: upload pre-rendered pixels directly
+            // IOSurface-backed: import the shared texture (zero-copy)
+            if sf.iosurface_id != 0 {
+                let phys_w = (sf.desc.width * scale) as u32;
+                let phys_h = (sf.desc.height * scale) as u32;
+                self.compositor.import_iosurface(
+                    device, sf.desc.surface_id, sf.iosurface_id, phys_w, phys_h,
+                );
+                continue;
+            }
+
+            // Legacy: upload pre-rendered pixels directly
             if let Some(ref pixels) = sf.pixel_data {
                 let phys_w = (sf.desc.width * scale) as u32;
                 let phys_h = (sf.desc.height * scale) as u32;
@@ -61,7 +71,7 @@ impl RenderServer {
                 continue;
             }
 
-            // No pixel data and no commands — keep existing texture (app-side rendered, no new frame)
+            // No pixel data, no iosurface, no commands — keep existing texture
             if sf.commands.is_empty() {
                 continue;
             }

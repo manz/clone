@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import CloneProtocol
-import SharedSurface
 
 /// Orchestrates window management, input routing, chrome rendering, and app lifecycle.
 /// This is the "brain" of the compositor — produces SurfaceFrames for the RenderServer.
@@ -14,8 +13,6 @@ public final class WindowServer {
     private var mouseY: Double = 0
     private var mouseDown = false
 
-    /// Cached SharedSurface readers keyed by window ID (compositor side).
-    private var sharedSurfaces: [UInt64: SharedSurface] = [:]
 
     /// Surface IDs: 0 = desktop, 1 = dock, 2 = menubar, 100+ = windows
     private let desktopSurfaceId: UInt64 = 0
@@ -43,14 +40,14 @@ public final class WindowServer {
         frames.append(SurfaceFrame(
             desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
             commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
-            pixelData: nil
+            pixelData: nil,
+            iosurfaceId: 0
         ))
 
         // Pre-session: only wallpaper + LoginWindow overlay
         if !appManager.sessionStarted {
             frames.append(contentsOf: appManager.overlaySurfaces(
-                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase, sharedSurfaces: &sharedSurfaces
-            ))
+                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,             ))
             appManager.requestFrames()
             return frames
         }
@@ -83,31 +80,11 @@ public final class WindowServer {
             )
 
             // App content: either from shared memory (app-side rendered) or IPC commands
-            var contentPixelData: Data?
-            if let shmName = appManager.shmName(for: window.id),
-               let shmDims = appManager.shmDimensions(for: window.id) {
-                // Open/reuse shared surface reader
-                if sharedSurfaces[window.id] == nil {
-                    let shm = SharedSurface(
-                        name: shmName, width: Int(shmDims.width), height: Int(shmDims.height), create: false
-                    )
-                    if shm == nil {
-                        fputs("[Compositor] Failed to open SharedSurface: /tmp/\(shmName)\n", stderr)
-                    } else {
-                        fputs("[Compositor] Opened SharedSurface: \(shmName) \(shmDims.width)x\(shmDims.height) valid=\(shm!.isValid)\n", stderr)
-                    }
-                    sharedSurfaces[window.id] = shm
-                }
-                if let shm = sharedSurfaces[window.id] {
-                    if shm.isDirty, let front = shm.frontBuffer() {
-                        contentPixelData = Data(bytes: front, count: shm.bufferSize)
-                        shm.clearDirty()
-                    }
-                }
-            }
+            // Check if app uses IOSurface-backed rendering
+            let iosurfaceId = appManager.iosurfaceId(for: window.id)
+            let hasIOSurface = iosurfaceId != 0
 
-            let hasShmSurface = appManager.shmName(for: window.id) != nil
-            if contentPixelData == nil && !hasShmSurface {
+            if !hasIOSurface {
                 // Compositor-rendered: insert IPC commands into chrome
                 let ipcCommands = appManager.commands(for: window.id)
                 if !ipcCommands.isEmpty {
@@ -135,13 +112,13 @@ public final class WindowServer {
                 frameOpacity = animOpacity
             }
 
-            if hasShmSurface {
+            if hasIOSurface {
                 // App-side rendered: chrome + content as separate surfaces
                 let contentSurfaceId = surfaceId + 50000
                 let titleBarH = Float(WindowChrome.titleBarHeight)
                 let contentH = Float(frameH) - titleBarH
 
-                // Chrome surface first (back) — title bar + window frame + background
+                // Chrome surface first (back)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -151,10 +128,11 @@ public final class WindowServer {
                         opacity: Float(frameOpacity)
                     ),
                     commands: windowCommands,
-                    pixelData: nil
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
 
-                // Content surface on top (front) — app-rendered pixels
+                // Content surface on top — IOSurface (zero-copy)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: contentSurfaceId,
@@ -164,7 +142,8 @@ public final class WindowServer {
                         opacity: Float(frameOpacity)
                     ),
                     commands: [],
-                    pixelData: contentPixelData
+                    pixelData: nil,
+                    iosurfaceId: iosurfaceId
                 ))
             } else {
                 // Compositor-rendered: single surface with chrome + content
@@ -177,7 +156,8 @@ public final class WindowServer {
                         opacity: Float(frameOpacity)
                     ),
                     commands: windowCommands,
-                    pixelData: nil
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
             }
 
@@ -202,7 +182,8 @@ public final class WindowServer {
                         cornerRadius: 0, opacity: 1
                     ),
                     commands: backdropCommands,
-                    pixelData: nil
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
 
                 // Sheet surface — centered over parent
@@ -221,15 +202,15 @@ public final class WindowServer {
                         cornerRadius: 12, opacity: 1
                     ),
                     commands: sheetEngineCommands,
-                    pixelData: nil
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
             }
         }
 
         // 3. Overlay surfaces (dock, menubar)
         frames.append(contentsOf: appManager.overlaySurfaces(
-            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase, sharedSurfaces: &sharedSurfaces
-        ))
+            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,         ))
 
         // Send state updates to dock and menubar
         let minimizedIds = windowManager.minimizedWindows.map(\.appId)

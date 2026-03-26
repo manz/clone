@@ -84,6 +84,14 @@ impl SharedTexture {
 
     pub fn width(&self) -> u32 { self.width }
     pub fn height(&self) -> u32 { self.height }
+
+    /// Consume the SharedTexture and return the underlying wgpu::Texture.
+    /// The IOSurface is kept alive by the texture's Metal backend.
+    pub fn into_texture(self) -> wgpu::Texture {
+        let texture = unsafe { std::ptr::read(&self.texture) };
+        std::mem::forget(self); // don't run Drop (which would release IOSurface)
+        texture
+    }
 }
 
 impl Drop for SharedTexture {

@@ -115,7 +115,7 @@ let package = Package(
         ),
         .target(
             name: "EngineBridge",
-            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol", "CloneLaunchServices", "SharedSurface"],
+            dependencies: ["clone_engineFFI", "SwiftUI", "CloneServer", "CloneProtocol", "CloneLaunchServices"],
             path: "Sources/Internal/EngineBridge"
         ),
         .macro(

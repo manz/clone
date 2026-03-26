@@ -467,6 +467,30 @@ fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -533,10 +557,26 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 public protocol AppRendererProtocol: AnyObject, Sendable {
     
     /**
-     * Render commands to BGRA8 pixel data.
-     * Returns tightly-packed pixels (width * height * 4 bytes at the given scale).
+     * Get the current IOSurface ID. Returns 0 if no render has happened yet.
+     */
+    func iosurfaceId()  -> UInt32
+    
+    /**
+     * Render commands into an IOSurface-backed texture.
+     * Returns the IOSurface ID for cross-process sharing (zero-copy).
+     * The compositor imports by this ID — no pixel readback needed.
+     */
+    func render(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float, transparent: Bool) throws  -> UInt32
+    
+    /**
+     * Render commands to BGRA8 pixel data (legacy — uses readback, slow).
      */
     func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
+    
+    /**
+     * Render commands to BGRA8 pixel data with transparent background (legacy).
+     */
+    func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
     
 }
 /**
@@ -607,12 +647,55 @@ public convenience init()throws  {
 
     
     /**
-     * Render commands to BGRA8 pixel data.
-     * Returns tightly-packed pixels (width * height * 4 bytes at the given scale).
+     * Get the current IOSurface ID. Returns 0 if no render has happened yet.
+     */
+open func iosurfaceId() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_iosurface_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Render commands into an IOSurface-backed texture.
+     * Returns the IOSurface ID for cross-process sharing (zero-copy).
+     * The compositor imports by this ID — no pixel readback needed.
+     */
+open func render(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float, transparent: Bool)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
+    uniffi_clone_render_fn_method_apprenderer_render(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeRenderCommand.lower(commands),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterFloat.lower(scale),
+        FfiConverterBool.lower(transparent),$0
+    )
+})
+}
+    
+    /**
+     * Render commands to BGRA8 pixel data (legacy — uses readback, slow).
      */
 open func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
     uniffi_clone_render_fn_method_apprenderer_render_to_pixels(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeRenderCommand.lower(commands),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterFloat.lower(scale),$0
+    )
+})
+}
+    
+    /**
+     * Render commands to BGRA8 pixel data with transparent background (legacy).
+     */
+open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
+    uniffi_clone_render_fn_method_apprenderer_render_to_pixels_transparent(
             self.uniffiCloneHandle(),
         FfiConverterSequenceTypeRenderCommand.lower(commands),
         FfiConverterUInt32.lower(width),
@@ -817,23 +900,31 @@ public struct SurfaceFrame: Equatable, Hashable {
     public var desc: SurfaceDesc
     public var commands: [RenderCommand]
     /**
-     * Pre-rendered BGRA8 pixel data from app-side rendering.
-     * When set, the render server uploads these pixels directly
-     * instead of rendering the commands.
+     * Pre-rendered BGRA8 pixel data from app-side rendering (legacy shm path).
      */
     public var pixelData: Data?
+    /**
+     * IOSurface ID for zero-copy GPU texture sharing.
+     * When non-zero, the compositor imports this IOSurface directly —
+     * no pixel upload or command rendering needed.
+     */
+    public var iosurfaceId: UInt32
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(desc: SurfaceDesc, commands: [RenderCommand], 
         /**
-         * Pre-rendered BGRA8 pixel data from app-side rendering.
-         * When set, the render server uploads these pixels directly
-         * instead of rendering the commands.
-         */pixelData: Data?) {
+         * Pre-rendered BGRA8 pixel data from app-side rendering (legacy shm path).
+         */pixelData: Data?, 
+        /**
+         * IOSurface ID for zero-copy GPU texture sharing.
+         * When non-zero, the compositor imports this IOSurface directly —
+         * no pixel upload or command rendering needed.
+         */iosurfaceId: UInt32) {
         self.desc = desc
         self.commands = commands
         self.pixelData = pixelData
+        self.iosurfaceId = iosurfaceId
     }
 
     
@@ -854,7 +945,8 @@ public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
             try SurfaceFrame(
                 desc: FfiConverterTypeSurfaceDesc.read(from: &buf), 
                 commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf), 
-                pixelData: FfiConverterOptionData.read(from: &buf)
+                pixelData: FfiConverterOptionData.read(from: &buf), 
+                iosurfaceId: FfiConverterUInt32.read(from: &buf)
         )
     }
 
@@ -862,6 +954,7 @@ public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
         FfiConverterTypeSurfaceDesc.write(value.desc, into: &buf)
         FfiConverterSequenceTypeRenderCommand.write(value.commands, into: &buf)
         FfiConverterOptionData.write(value.pixelData, into: &buf)
+        FfiConverterUInt32.write(value.iosurfaceId, into: &buf)
     }
 }
 
@@ -1466,7 +1559,16 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 2112) {
+    if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_render() != 11015) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 34067) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 62831) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_constructor_apprenderer_new() != 17454) {

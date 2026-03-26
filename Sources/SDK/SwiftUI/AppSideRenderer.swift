@@ -2,28 +2,26 @@ import Foundation
 import CloneClient
 import CloneProtocol
 import CloneRender
-import SharedSurface
 import QuartzCore
 
 /// Manages app-side rendering: drives frame loop via CADisplayLink,
-/// renders view tree through the headless GPU renderer, and writes
-/// pixels to a shared memory surface for the compositor.
+/// renders view tree through the headless GPU renderer into an IOSurface,
+/// and signals the compositor. Zero-copy — the compositor imports the
+/// IOSurface directly.
 @MainActor
 final class AppSideRenderer: NSObject {
     private let client: AppClient
     private var renderer: AppRenderer?
-    private var surface: SharedSurface?
     private var displayLink: CADisplayLink?
     private var needsRender: Bool = true
     private var width: CGFloat = 0
     private var height: CGFloat = 0
     private var scale: CGFloat = 2.0
-    private var shmName: String?
+    private var currentIOSurfaceId: UInt32 = 0
     /// Use transparent background for overlay surfaces (dock, menubar, loginWindow).
     var transparentBackground: Bool = false
 
     /// Closure that builds the current frame's render commands.
-    /// Called only when the surface needs redrawing.
     var buildFrame: ((_ width: CGFloat, _ height: CGFloat) -> [IPCRenderCommand])?
 
     init(client: AppClient) {
@@ -31,13 +29,11 @@ final class AppSideRenderer: NSObject {
         super.init()
     }
 
-    /// Start app-side rendering. Creates the GPU device, shared surface,
-    /// and begins the display link.
+    /// Start app-side rendering. Creates the GPU device and begins the display link.
     func start(width: CGFloat, height: CGFloat) {
         self.width = width
         self.height = height
 
-        // Create headless GPU renderer
         do {
             renderer = try AppRenderer()
         } catch {
@@ -45,121 +41,73 @@ final class AppSideRenderer: NSObject {
             return
         }
 
-        // Create shared memory surface
-        let name = "clone-surface-\(ProcessInfo.processInfo.processIdentifier)"
-        shmName = name
-        let physW = Int(width * scale)
-        let physH = Int(height * scale)
-        guard let shm = SharedSurface(name: name, width: physW, height: physH, create: true) else {
-            fputs("[AppSideRenderer] Failed to create shared surface\n", stderr)
-            return
-        }
-        surface = shm
-
-        // Tell compositor about the surface
-        client.send(.surfaceCreated(shmName: name, width: UInt32(physW), height: UInt32(physH)))
-        fputs("[AppSideRenderer] Started: \(name) \(physW)x\(physH)\n", stderr)
-
         // Start display link
         let link = CADisplayLink(target: self, selector: #selector(tick))
         link.add(to: .main, forMode: .default)
         displayLink = link
     }
 
-    /// Mark the surface as needing a redraw (called on state changes).
     func setNeedsDisplay() {
         needsRender = true
     }
 
-    /// Handle resize from compositor.
     func resize(width: CGFloat, height: CGFloat) {
         self.width = width
         self.height = height
-        let physW = Int(width * scale)
-        let physH = Int(height * scale)
-        if surface?.resize(width: physW, height: physH) == true {
-            client.send(.surfaceResized(width: UInt32(physW), height: UInt32(physH)))
-            needsRender = true
-        }
+        needsRender = true
     }
 
-    /// Stop rendering and clean up.
     func stop() {
         displayLink?.invalidate()
         displayLink = nil
-        surface = nil
         renderer = nil
     }
 
     @objc private func tick() {
         guard needsRender else { return }
-        guard let renderer, let surface, let buildFrame else { return }
+        guard let renderer, let buildFrame else { return }
         guard width > 0 && height > 0 else { return }
         needsRender = false
 
         // Build render commands from the view tree
         let ipcCommands = buildFrame(width, height)
-
-        // Convert IPC commands to engine commands
         let commands = ipcCommands.map { $0.toRenderCommand() }
 
-        // Render to pixels via headless GPU
-        let pixelData: Data
+        // Render into IOSurface-backed texture (zero-copy)
+        let iosurfaceId: UInt32
         do {
-            if transparentBackground {
-                pixelData = try renderer.renderToPixelsTransparent(
-                    commands: commands,
-                    width: UInt32(width),
-                    height: UInt32(height),
-                    scale: Float(scale)
-                )
-            } else {
-                pixelData = try renderer.renderToPixels(
-                    commands: commands,
-                    width: UInt32(width),
-                    height: UInt32(height),
-                    scale: Float(scale)
-                )
-            }
+            iosurfaceId = try renderer.render(
+                commands: commands,
+                width: UInt32(width),
+                height: UInt32(height),
+                scale: Float(scale),
+                transparent: transparentBackground
+            )
         } catch {
             fputs("[AppSideRenderer] Render failed: \(error)\n", stderr)
             return
         }
 
-        // Copy pixels to shared memory back buffer
-        guard let backBuf = surface.backBuffer() else { return }
-        let physW = Int(width * scale)
-        let physH = Int(height * scale)
-        let shmStride = surface.stride
-        let srcStride = physW * 4
-
-        pixelData.withUnsafeBytes { src in
-            guard let srcBase = src.baseAddress else { return }
-            if shmStride == srcStride {
-                backBuf.copyMemory(from: srcBase, byteCount: min(src.count, surface.bufferSize))
+        // If IOSurface ID changed (first frame or resize), notify compositor
+        if iosurfaceId != currentIOSurfaceId {
+            let physW = UInt32(width * scale)
+            let physH = UInt32(height * scale)
+            if currentIOSurfaceId == 0 {
+                client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
             } else {
-                for row in 0..<physH {
-                    let srcOffset = row * srcStride
-                    let dstOffset = row * shmStride
-                    (backBuf + dstOffset).copyMemory(
-                        from: srcBase + srcOffset,
-                        byteCount: srcStride
-                    )
-                }
+                client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
             }
+            currentIOSurfaceId = iosurfaceId
         }
 
-        // Flip and notify compositor
-        surface.flip()
+        // Signal compositor that a new frame is ready
         client.send(.surfaceUpdated)
-        fputs("[AppSideRenderer] Frame rendered: \(Int(width))x\(Int(height)) pixels=\(pixelData.count)\n", stderr)
     }
 }
 
 // MARK: - IPCRenderCommand → RenderCommand conversion
 
 extension IPCRenderCommand {
-    /// Convert an IPC render command to a clone-render RenderCommand.
     func toRenderCommand() -> CloneRender.RenderCommand {
         switch self {
         case .rect(let x, let y, let w, let h, let color):
