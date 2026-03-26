@@ -28,6 +28,7 @@ fi
 
 # Framework modules to package — ordered by dependency (leaves first).
 FRAMEWORKS=(
+    PosixShim
     CloneProtocol
     AppKit
     UniformTypeIdentifiers

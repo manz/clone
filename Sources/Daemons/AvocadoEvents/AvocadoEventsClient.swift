@@ -51,13 +51,16 @@ public final class AvocadoEventsClient: @unchecked Sendable {
     deinit { disconnect() }
 
     /// Register this connection with an appId so events can be delivered to it.
+    /// Waits for acknowledgement before returning.
     public func register(appId: String) {
         sendRequest(.register(appId: appId))
+        _ = readOneResponse()
     }
 
-    /// Send an event to a target app.
+    /// Send an event to a target app. Waits for acknowledgement.
     public func send(to targetAppId: String, event: AvocadoEvent) {
         sendRequest(.send(targetAppId: targetAppId, event: event))
+        _ = readOneResponse()
     }
 
     /// Blocking read loop — call on a background thread. Dispatches events to `onEvent`.
@@ -74,6 +77,21 @@ public final class AvocadoEventsClient: @unchecked Sendable {
                 }
             }
         }
+    }
+
+    /// Blocking read of a single response.
+    private func readOneResponse() -> AEResponse? {
+        var buf = [UInt8](repeating: 0, count: 65536)
+        while fd >= 0 {
+            let bytesRead = posix_read(fd, &buf, buf.count)
+            guard bytesRead > 0 else { return nil }
+            readBuffer.append(contentsOf: buf[0..<bytesRead])
+            if let (msg, consumed) = WireProtocol.decode(AEResponse.self, from: readBuffer) {
+                readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
+                return msg
+            }
+        }
+        return nil
     }
 
     private func sendRequest(_ request: AERequest) {

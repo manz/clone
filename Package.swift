@@ -22,6 +22,8 @@ let package = Package(
         // can't name our target "Security" without a circular dep. On Linux
         // (where there is no system Security) this will be renamed to "Security".
         .library(name: "KeychainServices", targets: ["KeychainServices"]),
+        // Internal shared library — promoted to framework for transitive linking
+        .library(name: "PosixShim", targets: ["PosixShim"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),

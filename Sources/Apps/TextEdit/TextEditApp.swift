@@ -33,6 +33,8 @@ final class TextEditorState {
     var mouseX: CGFloat = 0
     var mouseY: CGFloat = 0
     var showingOpenPanel: Bool = false
+    var filePath: String? = nil
+    var fileName: String { filePath.map { ($0 as NSString).lastPathComponent } ?? "Untitled" }
 
     let gutterWidth: CGFloat = 44
     let statusHeight: CGFloat = 24
@@ -198,6 +200,7 @@ struct TextEditApp: App {
             GeometryReader { proxy in
                 textEditView(state: state, width: proxy.size.width, height: proxy.size.height)
             }
+            .navigationTitle("TextEdit — \(state.fileName)")
             .fileImporter(
                 isPresented: Binding(get: { state.showingOpenPanel }, set: { state.showingOpenPanel = $0 }),
                 allowedContentTypes: [.text]
@@ -280,6 +283,14 @@ struct TextEditApp: App {
             ]),
         ]))
         TextEditApp.menusRegistered = true
+    }
+
+    func onOpenFile(path: String) {
+        let content = (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Unable to read file"
+        state.text = content
+        state.cursorLine = 0
+        state.cursorCol = 0
+        state.filePath = path
     }
 
     func onMenuAction(itemId: String) {

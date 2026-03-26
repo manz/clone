@@ -2,6 +2,9 @@ import Foundation
 import AvocadoEvents
 import CloneProtocol
 
+// Ignore SIGPIPE — clients may disconnect before we finish writing responses.
+signal(SIGPIPE, SIG_IGN)
+
 let server = AvocadoEventsServer()
 do {
     try server.start()
