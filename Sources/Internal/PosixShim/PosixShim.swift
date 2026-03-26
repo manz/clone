@@ -3,7 +3,7 @@
 // Avoids `Darwin.connect`, `Darwin.read` etc. scattered across the codebase.
 
 import Foundation
-import CPosixShim
+@_exported import CPosixShim
 
 #if canImport(Darwin)
 import Darwin

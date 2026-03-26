@@ -101,7 +101,7 @@ enum PackageGenerator {
         let macroPlugin = "\(sdk)/.build/arm64-apple-macosx/debug/SwiftDataMacros-tool#SwiftDataMacros"
         let rustLib = "\(sdk)/target/debug"
 
-        let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine", "CRender"].flatMap { dir in
+        let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine", "CRender", "CPosixShim"].flatMap { dir in
             ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
         }.joined(separator: ", ")
 

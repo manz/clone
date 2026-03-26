@@ -8,6 +8,10 @@ public final class AppClient {
     private var socketFd: Int32 = -1
     private var readBuffer = Data()
     public private(set) var windowId: UInt64 = 0
+    #if canImport(Darwin)
+    /// Mach send port for IOSurface transfer to compositor.
+    private var machSendPort: UInt32 = 0
+    #endif
     public private(set) var width: Float = 0
     public private(set) var height: Float = 0
     public private(set) var isConnected = false
@@ -79,6 +83,14 @@ public final class AppClient {
         // Register with compositor
         send(.register(appId: appId, title: title, width: width, height: height, role: role))
 
+        #if canImport(Darwin)
+        // Look up the Mach port for IOSurface transfer
+        let (machOk, port) = posix_mach_lookup_port("com.clone.compositor.surfaces")
+        if machOk {
+            machSendPort = port
+        }
+        #endif
+
         // Set non-blocking for initial read
         let flags = fcntl(socketFd, F_GETFL)
         fcntl(socketFd, F_SETFL, flags | O_NONBLOCK)
@@ -90,6 +102,15 @@ public final class AppClient {
             usleep(10_000) // 10ms
         }
     }
+
+    #if canImport(Darwin)
+    /// Send an IOSurface Mach port to the compositor via the Mach channel.
+    /// Call this alongside the regular .surfaceCreated IPC message.
+    public func sendIOSurfaceMachPort(_ machPort: UInt32) {
+        guard machSendPort != 0 else { return }
+        _ = posix_mach_send_port(dest: machSendPort, port: machPort)
+    }
+    #endif
 
     public func send(_ message: AppMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }

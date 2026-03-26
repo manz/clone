@@ -92,6 +92,16 @@ final class AppSideRenderer: NSObject {
         if iosurfaceId != currentIOSurfaceId {
             let physW = UInt32(width * scale)
             let physH = UInt32(height * scale)
+
+            // Send the Mach port via the Mach channel first (imports IOSurface into compositor)
+            #if canImport(Darwin)
+            let machPort = renderer.machPort()
+            if machPort != 0 {
+                client.sendIOSurfaceMachPort(machPort)
+            }
+            #endif
+
+            // Then send metadata via JSON IPC
             if currentIOSurfaceId == 0 {
                 client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
             } else {

@@ -33,6 +33,10 @@ int clone_mach_send_port(uint32_t dest_port, uint32_t port_to_send);
 /// Blocks until a message arrives. The received port is written to *out_port.
 int clone_mach_recv_port(uint32_t recv_port, uint32_t *out_port);
 
+/// Import an IOSurface from a Mach port and return its global ID.
+/// Returns 0 on failure. The imported IOSurface stays alive in this process.
+uint32_t clone_import_iosurface_port(uint32_t mach_port);
+
 #endif
 
 #endif

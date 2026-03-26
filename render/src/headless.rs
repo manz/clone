@@ -272,4 +272,5 @@ impl HeadlessDevice {
     pub fn device(&self) -> &wgpu::Device { &self.device }
     pub fn queue(&self) -> &wgpu::Queue { &self.queue }
     pub fn renderer_mut(&mut self) -> &mut DesktopRenderer { &mut self.renderer }
+    pub fn shared_texture(&self) -> Option<&SharedTexture> { self.shared_texture.as_ref() }
 }

@@ -123,6 +123,13 @@ public final class CompositorServer {
     private var nextWindowId: UInt64 = 1
     private let socketPath: String
 
+    #if canImport(Darwin)
+    /// Mach receive port for IOSurface transfer from apps.
+    private var machRecvPort: UInt32 = 0
+    /// Bootstrap service name for the Mach port channel.
+    public static let machServiceName = "com.clone.compositor.surfaces"
+    #endif
+
     /// Callback when a new app connects (called on ioQueue).
     public var onAppConnected: ((ConnectedApp) -> Void)?
     /// Callback when an app disconnects.
@@ -180,7 +187,39 @@ public final class CompositorServer {
         }
         source.resume()
         acceptSource = source
+
+        #if canImport(Darwin)
+        // Register Mach port for IOSurface transfer from apps
+        let (ok, port) = posix_mach_register_port(Self.machServiceName)
+        if ok {
+            machRecvPort = port
+            startMachPortReceiver()
+        } else {
+            fputs("[compositor] Warning: failed to register Mach port for IOSurface transfer\n", stderr)
+        }
+        #endif
     }
+
+    #if canImport(Darwin)
+    /// Background thread that receives IOSurface Mach ports from apps.
+    /// When a port arrives, the IOSurface is imported into this process,
+    /// making it visible to IOSurfaceLookup for the Rust render engine.
+    private func startMachPortReceiver() {
+        let recvPort = machRecvPort
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            while true {
+                let (ok, port) = posix_mach_recv_port(recvPort: recvPort)
+                guard ok, port != 0 else { continue }
+                // Import the IOSurface into this process — makes IOSurfaceLookup work
+                let surfaceId = clone_import_iosurface_port(port)
+                if surfaceId != 0 {
+                    fputs("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n", stderr)
+                }
+            }
+        }
+    }
+
+    #endif
 
     private func acceptNewConnections() {
         while true {

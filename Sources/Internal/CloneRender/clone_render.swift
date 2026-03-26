@@ -562,6 +562,12 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
     func iosurfaceId()  -> UInt32
     
     /**
+     * Create a Mach port send right for the current IOSurface.
+     * Send this port to the compositor via the Mach channel for cross-process import.
+     */
+    func machPort()  -> UInt32
+    
+    /**
      * Render commands into an IOSurface-backed texture.
      * Returns the IOSurface ID for cross-process sharing (zero-copy).
      * The compositor imports by this ID — no pixel readback needed.
@@ -652,6 +658,18 @@ public convenience init()throws  {
 open func iosurfaceId() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_clone_render_fn_method_apprenderer_iosurface_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Create a Mach port send right for the current IOSurface.
+     * Send this port to the compositor via the Mach channel for cross-process import.
+     */
+open func machPort() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_mach_port(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -1560,6 +1578,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 582) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_render() != 11015) {

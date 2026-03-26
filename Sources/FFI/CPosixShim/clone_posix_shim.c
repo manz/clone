@@ -74,6 +74,7 @@ int clone_recvmsg_fd(int sock, void *buf, size_t len, int *out_fd) {
 
 #ifdef __APPLE__
 #include <mach/mach.h>
+#include <IOSurface/IOSurface.h>
 #include <mach/mach_port.h>
 #include <mach/message.h>
 #include <servers/bootstrap.h>
@@ -176,6 +177,15 @@ int clone_mach_recv_port(uint32_t recv_port, uint32_t *out_port) {
 
     *out_port = (uint32_t)msg.port_descriptor.name;
     return 0;
+}
+
+uint32_t clone_import_iosurface_port(uint32_t mach_port) {
+    IOSurfaceRef surface = IOSurfaceLookupFromMachPort((mach_port_t)mach_port);
+    if (!surface) return 0;
+    uint32_t sid = IOSurfaceGetID(surface);
+    // Keep the surface alive — don't CFRelease.
+    // The Rust engine will import it by ID via IOSurfaceLookup (now works, same process).
+    return sid;
 }
 
 #endif

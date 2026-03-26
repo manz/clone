@@ -112,16 +112,22 @@ for MOD in "${FRAMEWORKS[@]}"; do
         done
         FWFLAGS+=(-lclone_text)
     fi
-    # CloneProtocol needs PosixShim .o files
+    # CloneProtocol needs PosixShim + CPosixShim .o files
     if [ "$MOD" = "CloneProtocol" ] && [ -d "$BUILD_DIR/PosixShim.build" ]; then
         for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do
             [ -f "$po" ] && OBJ_FILES+=("$po")
         done
+        for co in "$BUILD_DIR/CPosixShim.build"/*.c.o; do
+            [ -f "$co" ] && OBJ_FILES+=("$co")
+        done
     fi
-    # CloneClient needs PosixShim .o files (also depends on it)
+    # CloneClient needs PosixShim + CPosixShim .o files (also depends on it)
     if [ "$MOD" = "CloneClient" ] && [ -d "$BUILD_DIR/PosixShim.build" ]; then
         for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do
             [ -f "$po" ] && OBJ_FILES+=("$po")
+        done
+        for co in "$BUILD_DIR/CPosixShim.build"/*.c.o; do
+            [ -f "$co" ] && OBJ_FILES+=("$co")
         done
     fi
     # CloneRender needs Rust render lib
