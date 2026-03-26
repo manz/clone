@@ -35,9 +35,12 @@ impl App {
     }
 
     fn init_gpu(&mut self, window: Arc<Window>) -> Result<(), EngineError> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
-            ..Default::default()
+            backend_options: wgpu::BackendOptions::default(),
+            flags: wgpu::InstanceFlags::default(),
+            memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
+            display: None,
         });
 
         let surface = instance
@@ -157,9 +160,10 @@ impl App {
 
         // Get screen texture
         let surface_texture = match gpu.surface.get_current_texture() {
-            Ok(t) => t,
-            Err(e) => {
-                log::warn!("Surface texture error: {e}");
+            wgpu::CurrentSurfaceTexture::Success(texture)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
+            other => {
+                log::warn!("Surface texture unavailable: {other:?}");
                 return;
             }
         };

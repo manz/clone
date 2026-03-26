@@ -22,9 +22,12 @@ impl HeadlessDevice {
     /// Create a new headless rendering device.
     /// Uses Bgra8Unorm (linear) format for the offscreen texture.
     pub fn new() -> Result<Self, String> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
-            ..Default::default()
+            backend_options: wgpu::BackendOptions::default(),
+            flags: wgpu::InstanceFlags::default(),
+            memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
+            display: None,
         });
 
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {

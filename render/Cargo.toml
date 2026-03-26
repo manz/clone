@@ -11,7 +11,7 @@ default = []
 uniffi = ["dep:uniffi"]
 
 [dependencies]
-wgpu = "28"
+wgpu = "29"
 uniffi = { version = "0.31", features = ["cli"], optional = true }
 bytemuck = { version = "1.4", features = ["derive"] }
 log = "0.4"

@@ -8,7 +8,7 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 clone-render = { path = "../render", features = ["uniffi"] }
-wgpu = "28"
+wgpu = "29"
 winit = "0.30"
 uniffi = { version = "0.31", features = ["cli"] }
 pollster = "0.4"

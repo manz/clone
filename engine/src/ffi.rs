@@ -70,9 +70,12 @@ impl DesktopEngine {
     pub fn new(delegate: Box<dyn DesktopDelegate>) -> Result<Arc<Self>, EngineError> {
         env_logger::try_init().ok();
 
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
-            ..Default::default()
+            backend_options: wgpu::BackendOptions::default(),
+            flags: wgpu::InstanceFlags::default(),
+            memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
+            display: None,
         });
 
         let adapter =
