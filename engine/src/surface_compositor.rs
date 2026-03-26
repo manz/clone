@@ -299,6 +299,40 @@ impl SurfaceCompositor {
         }
     }
 
+    /// Upload pre-rendered BGRA8 pixels directly into a surface's texture.
+    /// Used for app-side rendered windows where the app already produced pixels.
+    pub fn upload_pixels(
+        &self,
+        surface_id: u64,
+        queue: &wgpu::Queue,
+        pixels: &[u8],
+        width: u32,
+        height: u32,
+    ) {
+        let Some(surface) = self.surfaces.get(&surface_id) else { return };
+        if surface.width != width || surface.height != height { return; }
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &surface.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
     /// Render commands into a window's offscreen surface.
     pub fn render_to_surface(
         &self,

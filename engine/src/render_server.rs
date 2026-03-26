@@ -50,6 +50,18 @@ impl RenderServer {
         // Render each surface's commands into its offscreen texture (skip zero-size)
         for sf in frames {
             if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
+
+            // App-side rendered: upload pre-rendered pixels directly
+            if let Some(ref pixels) = sf.pixel_data {
+                let phys_w = (sf.desc.width * scale) as u32;
+                let phys_h = (sf.desc.height * scale) as u32;
+                self.compositor.upload_pixels(
+                    sf.desc.surface_id, queue, pixels, phys_w, phys_h,
+                );
+                continue;
+            }
+
+            // Compositor-rendered: render commands into offscreen texture
             let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
                 match cmd {
                     crate::commands::RenderCommand::Rect { color, .. } |
@@ -57,8 +69,6 @@ impl RenderServer {
                     _ => true,
                 }
             });
-            // Surface textures are already in physical pixels (ensure_surface uses phys dimensions).
-            // Pass scale so the renderer converts logical command coords to physical pixel coords.
             self.compositor.render_to_surface(
                 sf.desc.surface_id,
                 &mut self.renderer,

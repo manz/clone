@@ -19,6 +19,10 @@ pub struct SurfaceDesc {
 pub struct SurfaceFrame {
     pub desc: SurfaceDesc,
     pub commands: Vec<RenderCommand>,
+    /// Pre-rendered BGRA8 pixel data from app-side rendering.
+    /// When set, the render server uploads these pixels directly
+    /// instead of rendering the commands.
+    pub pixel_data: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

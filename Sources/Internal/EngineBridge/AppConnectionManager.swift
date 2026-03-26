@@ -195,6 +195,12 @@ final class AppConnectionManager {
         return server.commands(for: serverWid)
     }
 
+    /// Returns the shared memory surface name if the app uses app-side rendering.
+    func shmName(for wmWindowId: UInt64) -> String? {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
+        return server.app(for: serverWid)?.shmName
+    }
+
     func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
         externalWindows.first(where: { $0.value == wmWindowId })?.key
     }
@@ -502,7 +508,8 @@ final class AppConnectionManager {
                         width: Float(screenWidth), height: Float(screenHeight),
                         cornerRadius: 0, opacity: 1
                     ),
-                    commands: engineCommands
+                    commands: engineCommands,
+                    pixelData: nil
                 ))
             }
         }

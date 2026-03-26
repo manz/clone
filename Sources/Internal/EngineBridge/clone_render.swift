@@ -816,12 +816,24 @@ public func FfiConverterTypeSurfaceDesc_lower(_ value: SurfaceDesc) -> RustBuffe
 public struct SurfaceFrame: Equatable, Hashable {
     public var desc: SurfaceDesc
     public var commands: [RenderCommand]
+    /**
+     * Pre-rendered BGRA8 pixel data from app-side rendering.
+     * When set, the render server uploads these pixels directly
+     * instead of rendering the commands.
+     */
+    public var pixelData: Data?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(desc: SurfaceDesc, commands: [RenderCommand]) {
+    public init(desc: SurfaceDesc, commands: [RenderCommand], 
+        /**
+         * Pre-rendered BGRA8 pixel data from app-side rendering.
+         * When set, the render server uploads these pixels directly
+         * instead of rendering the commands.
+         */pixelData: Data?) {
         self.desc = desc
         self.commands = commands
+        self.pixelData = pixelData
     }
 
     
@@ -841,13 +853,15 @@ public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
         return
             try SurfaceFrame(
                 desc: FfiConverterTypeSurfaceDesc.read(from: &buf), 
-                commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf)
+                commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf), 
+                pixelData: FfiConverterOptionData.read(from: &buf)
         )
     }
 
     public static func write(_ value: SurfaceFrame, into buf: inout [UInt8]) {
         FfiConverterTypeSurfaceDesc.write(value.desc, into: &buf)
         FfiConverterSequenceTypeRenderCommand.write(value.commands, into: &buf)
+        FfiConverterOptionData.write(value.pixelData, into: &buf)
     }
 }
 
@@ -1383,6 +1397,30 @@ fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
+    typealias SwiftType = Data?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterData.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
