@@ -35,6 +35,7 @@ FRAMEWORKS=(
     AVKit
     KeychainServices
     CloneClient
+    CloneLaunchServices
     AvocadoEvents
     MediaPlayer
     SwiftData

@@ -114,7 +114,7 @@ let package = Package(
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),

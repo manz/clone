@@ -286,6 +286,7 @@ open class NSWorkspace: @unchecked Sendable {
 /// Internal handler wired by App.main() to send .openFile over IPC.
 nonisolated(unsafe) public var _openFileHandler: ((String) -> Bool)?
 
+
 // MARK: - NSGraphicsContext
 
 open class NSGraphicsContext {

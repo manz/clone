@@ -1,57 +1,67 @@
-.PHONY: all engine bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all all-release engine bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+
+# Config: debug (default) or release
+CONFIG ?= debug
+CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
+SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
+CARGO_OUT = target/$(CONFIG)
 
 # Build everything: engine → bindings → audio → audio-bindings → compositor → SDK → apps
 all: bindings text-bindings audio-bindings swift sdk apps
 
+# Release shorthand
+all-release:
+	$(MAKE) all CONFIG=release
+
 # Rust engine
 engine:
-	cargo build -p clone-engine
-
-engine-release:
-	cargo build -p clone-engine --release
+	cargo build -p clone-engine $(CARGO_FLAGS)
 
 # Generate UniFFI Swift bindings (engine)
 bindings: engine
-	cargo run -p clone-engine --bin uniffi-bindgen generate \
-		--library target/debug/libclone_engine.dylib \
+	cargo run -p clone-engine $(CARGO_FLAGS) --bin uniffi-bindgen generate \
+		--library $(CARGO_OUT)/libclone_engine.dylib \
 		--language swift \
 		--out-dir Sources/Internal/EngineBridge
 	cp Sources/Internal/EngineBridge/clone_engineFFI.h Sources/FFI/CEngine/include/clone_engineFFI.h
 
 # Rust text measurement crate
 text:
-	cargo build -p clone-text
+	cargo build -p clone-text $(CARGO_FLAGS)
 
 # Generate UniFFI Swift bindings (text)
 text-bindings: text
-	cargo run -p clone-text --bin uniffi-bindgen-text generate \
-		--library target/debug/libclone_text.dylib \
+	cargo run -p clone-text $(CARGO_FLAGS) --bin uniffi-bindgen-text generate \
+		--library $(CARGO_OUT)/libclone_text.dylib \
 		--language swift \
 		--out-dir Sources/Internal/CloneText
 	cp Sources/Internal/CloneText/clone_textFFI.h Sources/FFI/CText/include/clone_textFFI.h
 
 # Rust audio engine
 audio:
-	cargo build -p clone-audio
+	cargo build -p clone-audio $(CARGO_FLAGS)
 
 # Generate UniFFI Swift bindings (audio)
 audio-bindings: audio
-	cargo run -p clone-audio --bin uniffi-bindgen generate \
-		--library target/debug/libclone_audio.dylib \
+	cargo run -p clone-audio $(CARGO_FLAGS) --bin uniffi-bindgen generate \
+		--library $(CARGO_OUT)/libclone_audio.dylib \
 		--language swift \
 		--out-dir Sources/Internal/AudioBridge
 	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Swift package — compositor + daemons only (not apps)
 swift:
-	swift build --product CloneDesktop
-	swift build --product keychaind
-	swift build --product cloned
-	swift build --product launchservicesd
+	swift build $(SWIFT_FLAGS) --product CloneDesktop
+	swift build $(SWIFT_FLAGS) --product keychaind
+	swift build $(SWIFT_FLAGS) --product cloned
+	swift build $(SWIFT_FLAGS) --product launchservicesd
+	swift build $(SWIFT_FLAGS) --product avocadoeventsd
+
+# SDK frameworks
+sdk:
+	./scripts/build-sdk.sh $(CONFIG)
 
 # App processes — built against prebuilt SDK frameworks
-# --output-dir puts the generated Package.swift outside Clone's source tree
-# --bundle assembles .app bundles with Info.plist and Resources
 APPBUILD = swift run ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
 	$(call APPBUILD,Finder,Finder)
@@ -65,6 +75,7 @@ apps:
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
+SWIFT_BUILD_DIR = .build/$(CONFIG)
 install:
 	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
 	@echo "Cleaning stale bundles..."
@@ -74,12 +85,12 @@ install:
 			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "Installed $$(basename $$app)"; \
 		done; \
 	done
-	@ditto .build/debug/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
-	@ditto .build/debug/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
-	@ditto .build/debug/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
-	@ditto .build/debug/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
-	@ditto .build/debug/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
-	@echo "Installed to $(CLONE_ROOT)"
+	@ditto $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
+	@ditto $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
+	@ditto $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
+	@ditto $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
+	@ditto $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
+	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias
 build: all
@@ -96,14 +107,8 @@ test-swift:
 test: test-rust test-swift
 
 # Assemble SDK frameworks (.framework bundles with .dylib/.so + .swiftmodule)
-# Full swift build needed — build-sdk.sh requires all module .o files and .swiftmodule outputs
-sdk:
-	swift build
-	./scripts/build-sdk.sh debug
-
-sdk-release: bindings audio-bindings
-	swift build -c release
-	./scripts/build-sdk.sh release
+sdk-release:
+	$(MAKE) sdk CONFIG=release
 
 # --- Docker (Linux build environment) ---
 
@@ -139,4 +144,4 @@ vm-run:
 clean:
 	cargo clean
 	swift package clean
-	rm -rf .build/sdk
+	rm -rf .build/sdk .build/apps
