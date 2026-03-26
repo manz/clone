@@ -681,11 +681,10 @@ extension FlatRenderCommand {
         case .roundedRect(let radius, let color):
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
-        case .text(let content, let fontSize, let color, let weight):
-            // Pass frame width as maxWidth for word wrapping (only if constrained)
-            let maxW: Float? = fw > 0 && fw < 10000 ? fw : nil
+        case .text(let content, let fontSize, let color, let weight, let maxWidth):
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
-                         color: color.toIPC(), weight: weight.toIPC(), maxWidth: maxW)
+                         color: color.toIPC(), weight: weight.toIPC(),
+                         maxWidth: maxWidth.map { Float($0) })
         case .icon(let name, let style, let color):
             return .icon(name: name, style: style.toIPC(),
                         x: fx, y: fy, w: fw, h: fh,

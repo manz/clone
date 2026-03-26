@@ -11,7 +11,7 @@ public struct FlatRenderCommand: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case rect(color: Color)
         case roundedRect(radius: CGFloat, color: Color)
-        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular)
+        case text(content: String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, maxWidth: CGFloat? = nil)
         /// Phosphor SVG icon — name is the Phosphor icon name (e.g. "folder", "avocado").
         case icon(name: String, style: PhosphorIconStyle, color: Color)
         case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat)
@@ -63,10 +63,14 @@ public enum CommandFlattener {
             ))
 
         case .text(let content, let fontSize, let color, let weight):
+            // Only send maxWidth when text actually needs wrapping (natural width > frame)
+            let natural = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
+            let needsWrap = natural.width > frame.width && frame.width > 0 && frame.width < 10000
             commands.append(FlatRenderCommand(
                 x: frame.x, y: frame.y,
                 width: frame.width, height: frame.height,
-                kind: .text(content: content, fontSize: fontSize, color: color.withAlpha(color.a * opacity), weight: weight)
+                kind: .text(content: content, fontSize: fontSize, color: color.withAlpha(color.a * opacity), weight: weight,
+                           maxWidth: needsWrap ? frame.width : nil)
             ))
 
         case .shadow(let radius, let blur, let color, let offsetX, let offsetY, _):

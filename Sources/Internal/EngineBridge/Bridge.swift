@@ -18,13 +18,13 @@ public enum Bridge {
                     x: cx, y: cy, w: cw, h: ch,
                     radius: Float(radius), color: color.toEngine()
                 )
-            case .text(let content, let fontSize, let color, let weight):
+            case .text(let content, let fontSize, let color, let weight, let maxWidth):
                 return .text(
                     x: cx, y: cy,
                     content: content, fontSize: Float(fontSize),
                     color: color.toEngine(),
                     weight: weight.toEngine(),
-                    maxWidth: nil
+                    maxWidth: maxWidth.map { Float($0) }
                 )
             case .icon(let name, let style, let color):
                 return .icon(
