@@ -249,6 +249,11 @@ void uniffi_clone_text_fn_func_clear_text_cache(RustCallStatus *_Nonnull out_sta
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_CURSOR_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_CURSOR_POSITION
+RustBuffer uniffi_clone_text_fn_func_cursor_position(RustBuffer content, uint32_t char_offset, float font_size, RustBuffer weight, RustBuffer max_width, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
 RustBuffer uniffi_clone_text_fn_func_measure_text(RustBuffer content, float font_size, RustBuffer weight, RustBuffer max_width, RustCallStatus *_Nonnull out_status
@@ -517,6 +522,12 @@ void ffi_clone_text_rust_future_complete_void(uint64_t handle, RustCallStatus *_
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_CLEAR_TEXT_CACHE
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_CLEAR_TEXT_CACHE
 uint16_t uniffi_clone_text_checksum_func_clear_text_cache(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_CURSOR_POSITION
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_CURSOR_POSITION
+uint16_t uniffi_clone_text_checksum_func_cursor_position(void
     
 );
 #endif

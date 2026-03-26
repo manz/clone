@@ -419,6 +419,22 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
@@ -471,6 +487,67 @@ fileprivate struct FfiConverterString: FfiConverter {
         writeInt(&buf, len)
         writeBytes(&buf, value.utf8)
     }
+}
+
+
+/**
+ * Cursor position within a (possibly wrapped) text block.
+ */
+public struct CursorPosition: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var height: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, height: Float) {
+        self.x = x
+        self.y = y
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CursorPosition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCursorPosition: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CursorPosition {
+        return
+            try CursorPosition(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                height: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CursorPosition, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCursorPosition_lift(_ buf: RustBuffer) throws -> CursorPosition {
+    return try FfiConverterTypeCursorPosition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCursorPosition_lower(_ value: CursorPosition) -> RustBuffer {
+    return FfiConverterTypeCursorPosition.lower(value)
 }
 
 
@@ -646,6 +723,22 @@ public func clearTextCache()  {try! rustCall() {
 }
 }
 /**
+ * Find the pixel position of a cursor at the given character offset within
+ * a (possibly wrapped) text block. Returns (x, y) relative to the text
+ * block's top-left corner, plus the line height at that position.
+ */
+public func cursorPosition(content: String, charOffset: UInt32, fontSize: Float, weight: FontWeight, maxWidth: Float?) -> CursorPosition  {
+    return try!  FfiConverterTypeCursorPosition_lift(try! rustCall() {
+    uniffi_clone_text_fn_func_cursor_position(
+        FfiConverterString.lower(content),
+        FfiConverterUInt32.lower(charOffset),
+        FfiConverterFloat.lower(fontSize),
+        FfiConverterTypeFontWeight_lower(weight),
+        FfiConverterOptionFloat.lower(maxWidth),$0
+    )
+})
+}
+/**
  * Measure text using cosmic-text. Results are cached by (text, fontSize, weight, maxWidth).
  * When max_width is Some, word wrapping is enabled.
  */
@@ -676,6 +769,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.contractVersionMismatch
     }
     if (uniffi_clone_text_checksum_func_clear_text_cache() != 52062) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_text_checksum_func_cursor_position() != 56098) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_text_checksum_func_measure_text() != 11824) {

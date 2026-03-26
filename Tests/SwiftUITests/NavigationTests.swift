@@ -23,8 +23,8 @@ import Foundation
     #expect(selected == 1)
 
     // Find and fire the tap for "Albums" row
-    if let tapId = layout.hitTestTap(x: 110, y: 30) {  // approximate y for second item
-        TapRegistry.shared.fire(id: tapId)
+    if let hit = layout.hitTestTap(x: 110, y: 30) {  // approximate y for second item
+        TapRegistry.shared.fire(id: hit.id)
     }
 
     // After tapping, selection should change

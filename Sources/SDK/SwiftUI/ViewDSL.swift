@@ -173,9 +173,9 @@ public extension ViewNode {
         return .onTap(id: id, child: self)
     }
 
-    /// `.onTapGesture(count:coordinateSpace:perform:)` — with location.
+    /// `.onTapGesture(count:coordinateSpace:perform:)` — with location in local coordinates.
     func onTapGesture(count: Int = 1, coordinateSpace: CoordinateSpace = .local, perform handler: @escaping (CGPoint) -> Void) -> ViewNode {
-        let id = TapRegistry.shared.register { handler(.zero) }
+        let id = TapRegistry.shared.registerSpatial(handler)
         return .onTap(id: id, child: self)
     }
 

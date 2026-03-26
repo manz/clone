@@ -128,6 +128,78 @@ pub fn measure_text(
     })
 }
 
+/// Cursor position within a (possibly wrapped) text block.
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct CursorPosition {
+    pub x: f32,
+    pub y: f32,
+    pub height: f32,
+}
+
+/// Find the pixel position of a cursor at the given character offset within
+/// a (possibly wrapped) text block. Returns (x, y) relative to the text
+/// block's top-left corner, plus the line height at that position.
+#[uniffi::export]
+pub fn cursor_position(
+    content: String,
+    char_offset: u32,
+    font_size: f32,
+    weight: FontWeight,
+    max_width: Option<f32>,
+) -> CursorPosition {
+    let default_height = font_size * 1.2;
+
+    if content.is_empty() {
+        return CursorPosition { x: 0.0, y: 0.0, height: default_height };
+    }
+
+    let byte_off: usize = content
+        .char_indices()
+        .nth(char_offset as usize)
+        .map(|(i, _)| i)
+        .unwrap_or(content.len());
+
+    with_state(|state| {
+        let metrics = Metrics::new(font_size, font_size * 1.2);
+        let mut buffer = Buffer::new(&mut state.font_system, metrics);
+
+        if let Some(mw) = max_width {
+            buffer.set_size(&mut state.font_system, Some(mw), None);
+        }
+
+        let (family, cosmic_weight) = match &weight {
+            FontWeight::Regular => (Family::Name("Inter"), Weight::NORMAL),
+            FontWeight::Medium => (Family::Name("Inter Medium"), Weight(500)),
+            FontWeight::Semibold => (Family::Name("Inter SemiBold"), Weight::SEMIBOLD),
+            FontWeight::Bold => (Family::Name("Inter"), Weight::BOLD),
+        };
+        let attrs = Attrs::new().family(family).weight(cosmic_weight);
+        buffer.set_text(&mut state.font_system, &content, attrs, Shaping::Advanced);
+        buffer.shape_until_scroll(&mut state.font_system, false);
+
+        let mut line_top = 0.0_f32;
+        let mut last_x = 0.0_f32;
+        let mut last_y = 0.0_f32;
+        let mut last_h = default_height;
+
+        for run in buffer.layout_runs() {
+            last_h = run.line_height;
+
+            for glyph in run.glyphs.iter() {
+                if byte_off < glyph.end {
+                    return CursorPosition { x: glyph.x, y: line_top, height: run.line_height };
+                }
+            }
+
+            last_x = run.glyphs.last().map_or(0.0, |g| g.x + g.w);
+            last_y = line_top;
+            line_top += run.line_height;
+        }
+
+        CursorPosition { x: last_x, y: last_y, height: last_h }
+    })
+}
+
 /// Clear the measurement cache (e.g. on font change).
 #[uniffi::export]
 pub fn clear_text_cache() {

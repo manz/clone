@@ -30,16 +30,14 @@ final class TextEditorState {
     var cursorLine: Int = 0
     var cursorCol: Int = 0
     var fontSize: CGFloat = 14
-    var mouseX: CGFloat = 0
-    var mouseY: CGFloat = 0
     var showingOpenPanel: Bool = false
     var filePath: String? = nil
     var fileName: String { filePath.map { ($0 as NSString).lastPathComponent } ?? "Untitled" }
 
     let gutterWidth: CGFloat = 44
     let statusHeight: CGFloat = 24
-    let lineHeight: CGFloat = 20
-    let charWidth: CGFloat = 8.4
+    let textPaddingH: CGFloat = 8
+    let textPaddingTop: CGFloat = 4
 
     var lines: [String] { text.components(separatedBy: "\n") }
     var lineCount: Int { lines.count }
@@ -94,6 +92,57 @@ final class TextEditorState {
         let len = cursorLine < lines.count ? lines[cursorLine].count : 0
         if cursorCol < len { cursorCol += 1 } else if cursorLine < lines.count - 1 { cursorLine += 1; cursorCol = 0 }
     }
+
+    #if canImport(CloneClient)
+    /// Handle a tap at local coordinates within the text area (below gutter+padding).
+    func handleTap(at point: CGPoint, textAreaWidth: CGFloat) {
+        let clickX = point.x - gutterWidth - textPaddingH
+        let clickY = point.y - textPaddingTop
+        let totalLines = lines
+        let wrapWidth = textAreaWidth
+
+        // Find which logical line was clicked by walking wrapped heights
+        var accY: CGFloat = 0
+        var clickedLine = totalLines.count - 1
+        for i in 0..<totalLines.count {
+            let line = totalLines[i]
+            let h = TextMeasurer.measure(
+                line.isEmpty ? " " : line,
+                fontSize: fontSize, weight: .regular,
+                maxWidth: wrapWidth
+            ).height
+            if clickY < accY + h {
+                clickedLine = i
+                break
+            }
+            accY += h
+        }
+
+        // Find column within the line using cursor position (closest match)
+        let lineText = totalLines[clickedLine]
+        let yInLine = clickY - accY
+        var bestCol = 0
+        var bestDist = CGFloat.greatestFiniteMagnitude
+        for col in 0...lineText.count {
+            let pos = TextMeasurer.cursorPosition(
+                in: lineText.isEmpty ? " " : lineText,
+                at: col,
+                fontSize: fontSize,
+                maxWidth: wrapWidth
+            )
+            let dx = pos.x - clickX
+            let dy = pos.y - yInLine
+            let dist = dx * dx + dy * dy
+            if dist < bestDist {
+                bestDist = dist
+                bestCol = col
+            }
+        }
+
+        cursorLine = clickedLine
+        cursorCol = min(bestCol, lineText.count)
+    }
+    #endif
 }
 
 // MARK: - Keycodes (winit physical key codes)
@@ -105,53 +154,38 @@ private let kKeyRight: UInt32 = 79
 private let kKeyBackspace: UInt32 = 42
 private let kKeyEnter: UInt32 = 40
 
-// MARK: - Line number row
-
-@MainActor private func lineNumberRow(number: Int, state: TextEditorState) -> some View {
-    Text("\(number)")
-        .font(.system(size: 12))
-        .foregroundColor(gutterText)
-        .frame(width: state.gutterWidth - 8, height: state.lineHeight)
-}
-
-// MARK: - Text line row
-
-@MainActor private func textLineRow(line: String, state: TextEditorState) -> some View {
-    Text(line.isEmpty ? " " : line)
-        .font(.system(size: state.fontSize))
-        .foregroundColor(.primary)
-        .lineLimit(1)
-        .frame(height: state.lineHeight)
-}
-
 // MARK: - Root view
 
 @MainActor func textEditView(state: TextEditorState, width: CGFloat, height: CGFloat) -> some View {
     let editorHeight = height - state.statusHeight - 1
-    let textAreaWidth = width - state.gutterWidth
+    let textAreaWidth = width - state.gutterWidth - state.textPaddingH * 2
     let totalLines = state.lines
-    let cursorX = 8 + CGFloat(state.cursorCol) * state.charWidth
-    let cursorY = 4 + CGFloat(state.cursorLine) * state.lineHeight
 
-    let gutter = VStack(alignment: .trailing, spacing: 0) {
-        ForEach(Array(totalLines.enumerated()), id: \.offset) { i, _ in
-            lineNumberRow(number: i + 1, state: state)
-        }
-        Spacer()
+    #if canImport(CloneClient)
+    // Compute cursor pixel position using text measurement
+    let cursorLineText = state.cursorLine < totalLines.count ? totalLines[state.cursorLine] : ""
+    let cursorPos = TextMeasurer.cursorPosition(
+        in: cursorLineText.isEmpty ? " " : cursorLineText,
+        at: min(state.cursorCol, cursorLineText.count),
+        fontSize: state.fontSize,
+        maxWidth: textAreaWidth
+    )
+
+    // Cursor Y: sum of wrapped heights of all lines before cursorLine
+    var cursorYAccum: CGFloat = state.textPaddingTop
+    for i in 0..<state.cursorLine {
+        let line = totalLines[i]
+        let h = TextMeasurer.measure(
+            line.isEmpty ? " " : line,
+            fontSize: state.fontSize, weight: .regular,
+            maxWidth: textAreaWidth
+        ).height
+        cursorYAccum += h
     }
-    .padding(EdgeInsets(top: 4, leading: 0, bottom: 0, trailing: 4))
-
-    let textArea = VStack(alignment: .leading, spacing: 0) {
-        ForEach(Array(totalLines.enumerated()), id: \.offset) { i, line in
-            textLineRow(line: line, state: state)
-        }
-        Spacer()
-    }
-    .padding(EdgeInsets(top: 4, leading: 8, bottom: 0, trailing: 8))
-
-    let cursor = Rectangle()
-        .foregroundColor(cursorColor)
-        .frame(width: 2, height: state.lineHeight)
+    let cursorX = state.gutterWidth + state.textPaddingH + cursorPos.x
+    let cursorY = cursorYAccum + cursorPos.y
+    let cursorHeight = cursorPos.height
+    #endif
 
     let statusBar = HStack(spacing: 16) {
         Text("Ln \(state.cursorLine + 1), Col \(state.cursorCol + 1)")
@@ -168,18 +202,51 @@ private let kKeyEnter: UInt32 = 40
     .padding(.horizontal, 12)
 
     return VStack(spacing: 0) {
-        HStack(alignment: .top, spacing: 0) {
-            ZStack {
-                Rectangle().fill(gutterBg).frame(width: state.gutterWidth, height: editorHeight)
-                gutter
-            }.frame(width: state.gutterWidth, height: editorHeight)
+        ZStack(alignment: .topLeading) {
+            // Background layers (fixed, don't scroll)
+            HStack(spacing: 0) {
+                Rectangle().fill(gutterBg).frame(width: state.gutterWidth)
+                Rectangle().fill(editorBg)
+            }.frame(width: width, height: editorHeight)
 
-            ZStack(alignment: .topLeading) {
-                Rectangle().fill(editorBg).frame(width: textAreaWidth, height: editorHeight)
-                textArea
-                cursor.padding(EdgeInsets(top: cursorY, leading: cursorX, bottom: 0, trailing: 0))
-            }.frame(width: textAreaWidth, height: editorHeight)
-        }
+            // Scrollable content: gutter + text in per-row HStacks
+            ScrollView {
+                ZStack(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(totalLines.enumerated()), id: \.offset) { i, line in
+                            HStack(alignment: .top, spacing: 0) {
+                                // Gutter number
+                                Text("\(i + 1)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(gutterText)
+                                    .frame(width: state.gutterWidth - 4)
+
+                                // Text line — wraps naturally, no lineLimit
+                                Text(line.isEmpty ? " " : line)
+                                    .font(.system(size: state.fontSize))
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, state.textPaddingTop)
+                    .padding(.trailing, state.textPaddingH)
+
+                    #if canImport(CloneClient)
+                    // Cursor overlay — positioned within scrollable content
+                    Rectangle()
+                        .foregroundColor(cursorColor)
+                        .frame(width: 2, height: cursorHeight)
+                        .padding(EdgeInsets(top: cursorY, leading: cursorX, bottom: 0, trailing: 0))
+                    #endif
+                }
+            }
+            .onTapGesture(coordinateSpace: .local) { location in
+                #if canImport(CloneClient)
+                state.handleTap(at: location, textAreaWidth: textAreaWidth)
+                #endif
+            }
+        }.frame(width: width, height: editorHeight)
 
         Rectangle().fill(statusBorder).frame(width: width, height: 1)
 
@@ -224,23 +291,6 @@ struct TextEditApp: App {
     #if canImport(CloneClient)
     var configuration: WindowConfiguration {
         WindowConfiguration(title: "TextEdit", width: 700, height: 500, role: .window)
-    }
-
-    func onPointerMove(x: CGFloat, y: CGFloat) {
-        state.mouseX = x
-        state.mouseY = y
-    }
-
-    func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {
-        guard button == 0 && pressed else { return }
-        if x > state.gutterWidth {
-            let textX = x - state.gutterWidth - 8
-            let textY = y - 4
-            let line = max(0, min(Int(textY / state.lineHeight), state.lines.count - 1))
-            let col = max(0, min(Int(textX / state.charWidth), state.lines[line].count))
-            state.cursorLine = line
-            state.cursorCol = col
-        }
     }
 
     func onKey(keycode: UInt32, pressed: Bool) {

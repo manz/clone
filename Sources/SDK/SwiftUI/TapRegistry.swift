@@ -1,10 +1,18 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#endif
 
 /// Registry for onTap handlers. Maps tap IDs to closures.
 public final class TapRegistry: @unchecked Sendable {
     public static let shared = TapRegistry()
 
-    private var handlers: [UInt64: () -> Void] = [:]
+    private enum TapHandler {
+        case simple(() -> Void)
+        case spatial((CGPoint) -> Void)
+    }
+
+    private var handlers: [UInt64: TapHandler] = [:]
     private var nextId: UInt64 = 1
 
     private init() {}
@@ -13,18 +21,34 @@ public final class TapRegistry: @unchecked Sendable {
     public func register(_ handler: @escaping () -> Void) -> UInt64 {
         let id = nextId
         nextId += 1
-        handlers[id] = handler
+        handlers[id] = .simple(handler)
         return id
     }
 
-    /// Fire a tap handler by ID.
-    public func fire(id: UInt64) {
-        handlers[id]?()
+    /// Register a spatial tap handler (receives tap location in local coordinates).
+    public func registerSpatial(_ handler: @escaping (CGPoint) -> Void) -> UInt64 {
+        let id = nextId
+        nextId += 1
+        handlers[id] = .spatial(handler)
+        return id
+    }
+
+    /// Fire a tap handler by ID, optionally with location.
+    public func fire(id: UInt64, at point: CGPoint = .zero) {
+        guard let handler = handlers[id] else { return }
+        switch handler {
+        case .simple(let action): action()
+        case .spatial(let action): action(point)
+        }
     }
 
     /// Get the closure for a tap ID (for capturing in long-lived registries like menus).
     public func handler(for id: UInt64) -> (() -> Void)? {
-        handlers[id]
+        guard let handler = handlers[id] else { return nil }
+        switch handler {
+        case .simple(let action): return action
+        case .spatial(let action): return { action(.zero) }
+        }
     }
 
     /// Number of registered handlers.

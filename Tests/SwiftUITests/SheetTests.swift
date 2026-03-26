@@ -274,10 +274,10 @@ import Foundation
     if let cancel = cancelArea {
         let cx = cancel.frame.x + cancel.frame.width / 2
         let cy = cancel.frame.y + cancel.frame.height / 2
-        let tapId = layoutNode.hitTestTap(x: cx, y: cy)
-        #expect(tapId != nil, "Hit-test at Cancel center (\(cx), \(cy)) should find a tap — frame: \(cancel.frame)")
-        if let id = tapId {
-            TapRegistry.shared.fire(id: id)
+        let hit = layoutNode.hitTestTap(x: cx, y: cy)
+        #expect(hit != nil, "Hit-test at Cancel center (\(cx), \(cy)) should find a tap — frame: \(cancel.frame)")
+        if let hit = hit {
+            TapRegistry.shared.fire(id: hit.id)
             #expect(cancelFired, "Firing tap at Cancel position should trigger cancelFired")
         }
     }
@@ -286,10 +286,10 @@ import Foundation
     if let done = doneArea {
         let cx = done.frame.x + done.frame.width / 2
         let cy = done.frame.y + done.frame.height / 2
-        let tapId = layoutNode.hitTestTap(x: cx, y: cy)
-        #expect(tapId != nil, "Hit-test at Done center (\(cx), \(cy)) should find a tap — frame: \(done.frame)")
-        if let id = tapId {
-            TapRegistry.shared.fire(id: id)
+        let hit = layoutNode.hitTestTap(x: cx, y: cy)
+        #expect(hit != nil, "Hit-test at Done center (\(cx), \(cy)) should find a tap — frame: \(done.frame)")
+        if let hit = hit {
+            TapRegistry.shared.fire(id: hit.id)
             #expect(doneFired, "Firing tap at Done position should trigger doneFired")
         }
     }

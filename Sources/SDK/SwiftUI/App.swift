@@ -367,8 +367,9 @@ extension App {
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                     )
-                    if let tapId = layoutNode.hitTestTap(x: x, y: y) {
-                        TapRegistry.shared.fire(id: tapId)
+                    if let hit = layoutNode.hitTestTap(x: x, y: y) {
+                        let local = CGPoint(x: x - hit.frame.x, y: y - hit.frame.y)
+                        TapRegistry.shared.fire(id: hit.id, at: local)
                     }
                     // Text field focus
                     TextFieldRegistry.shared.handleClick(x: x, y: y)
@@ -421,8 +422,9 @@ extension App {
                     sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
                 )
-                if let tapId = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
-                    TapRegistry.shared.fire(id: tapId)
+                if let hit = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
+                    let local = CGPoint(x: CGFloat(px) - hit.frame.x, y: CGFloat(py) - hit.frame.y)
+                    TapRegistry.shared.fire(id: hit.id, at: local)
                 }
             }
         } else {

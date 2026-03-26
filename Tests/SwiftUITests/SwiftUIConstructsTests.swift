@@ -87,9 +87,15 @@ import Testing
 }
 
 @Test @MainActor func toggleCreatesNode() {
+    TapRegistry.shared.clear()
     let binding = Binding(get: { true }, set: { _ in })
     let node = _resolve(Toggle("Wi-Fi", isOn: binding))
-    if case .toggle(let isOn, let label) = node {
+    // Toggle wraps in .onTap for interactivity
+    guard case .onTap(_, let inner) = node else {
+        Issue.record("Expected onTap wrapper, got \(node)")
+        return
+    }
+    if case .toggle(let isOn, let label) = inner {
         #expect(isOn == true)
         if case .text(let content, _, _, _) = label {
             #expect(content == "Wi-Fi")
@@ -97,7 +103,7 @@ import Testing
             Issue.record("Expected text label in Toggle")
         }
     } else {
-        Issue.record("Expected toggle node")
+        Issue.record("Expected toggle node inside onTap, got \(inner)")
     }
 }
 

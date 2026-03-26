@@ -90,3 +90,123 @@ import Foundation
     #expect(unwrapped.width != wrapped.width || unwrapped.height != wrapped.height,
             "Wrapped and unwrapped should produce different sizes")
 }
+
+// MARK: - Cursor position tests
+
+@Test func cursorPositionAtStartIsZero() {
+    let pos = TextMeasurer.cursorPosition(in: "Hello", at: 0, fontSize: 14)
+    #expect(pos.x == 0, "Cursor at start should have x=0, got \(pos.x)")
+    #expect(pos.y == 0, "Cursor at start should have y=0, got \(pos.y)")
+    #expect(pos.height > 0, "Cursor height should be positive, got \(pos.height)")
+}
+
+@Test func cursorPositionAdvancesWithOffset() {
+    let pos0 = TextMeasurer.cursorPosition(in: "Hello", at: 0, fontSize: 14)
+    let pos3 = TextMeasurer.cursorPosition(in: "Hello", at: 3, fontSize: 14)
+    let pos5 = TextMeasurer.cursorPosition(in: "Hello", at: 5, fontSize: 14)
+
+    #expect(pos3.x > pos0.x, "Cursor at offset 3 should be right of offset 0")
+    #expect(pos5.x > pos3.x, "Cursor at offset 5 should be right of offset 3")
+    // All on same visual line
+    #expect(pos0.y == pos3.y && pos3.y == pos5.y, "All cursors should be on same visual line")
+}
+
+@Test func cursorPositionWrapsToNextVisualLine() {
+    let longText = "This is a long sentence that will wrap when constrained to a narrow width"
+    let maxWidth: CGFloat = 100
+
+    // Cursor at start: on first visual line
+    let posStart = TextMeasurer.cursorPosition(in: longText, at: 0, fontSize: 14, maxWidth: maxWidth)
+    // Cursor near end: should be on a later visual line
+    let posEnd = TextMeasurer.cursorPosition(in: longText, at: longText.count, fontSize: 14, maxWidth: maxWidth)
+
+    #expect(posEnd.y > posStart.y,
+            "Cursor at end of wrapped text should be on a later visual line (y=\(posEnd.y) vs y=\(posStart.y))")
+}
+
+@Test func cursorPositionEmptyStringReturnsOrigin() {
+    let pos = TextMeasurer.cursorPosition(in: "", at: 0, fontSize: 14)
+    // Special case handled in TextMeasurer: empty text returns (0, 0, lineHeight)
+    #expect(pos.x == 0)
+    #expect(pos.y == 0)
+    #expect(pos.height > 0)
+}
+
+@Test func cursorPositionEndOfLineMatchesTextWidth() {
+    let text = "Hello"
+    let textWidth = TextMeasurer.measure(text, fontSize: 14, weight: .regular).width
+    let posEnd = TextMeasurer.cursorPosition(in: text, at: text.count, fontSize: 14)
+
+    // Cursor at end should be approximately at the text width
+    #expect(abs(posEnd.x - textWidth) < 2,
+            "Cursor at end (\(posEnd.x)) should be near text width (\(textWidth))")
+}
+
+// MARK: - Spatial tap tests
+
+@Test @MainActor func spatialTapHandlerReceivesCoordinates() {
+    TapRegistry.shared.clear()
+
+    var receivedPoint: CGPoint? = nil
+    let id = TapRegistry.shared.registerSpatial { point in
+        receivedPoint = point
+    }
+
+    TapRegistry.shared.fire(id: id, at: CGPoint(x: 42, y: 99))
+    #expect(receivedPoint != nil, "Spatial handler should have been called")
+    #expect(receivedPoint?.x == 42, "X should be 42, got \(receivedPoint?.x ?? -1)")
+    #expect(receivedPoint?.y == 99, "Y should be 99, got \(receivedPoint?.y ?? -1)")
+}
+
+@Test @MainActor func hitTestTapReturnsFrame() {
+    TapRegistry.shared.clear()
+
+    let tapId = TapRegistry.shared.register {}
+    let child = ViewNode.text("Click me", fontSize: 14, color: .primary)
+    let tapNode = ViewNode.onTap(id: tapId, child: child)
+
+    let layoutNode = Layout.layout(tapNode, in: LayoutFrame(x: 50, y: 30, width: 200, height: 40))
+    let hit = layoutNode.hitTestTap(x: 60, y: 35)
+
+    #expect(hit != nil, "Should hit the tap node")
+    #expect(hit?.id == tapId, "Should return correct tap ID")
+    #expect(hit?.frame.x == 50, "Frame x should be 50, got \(hit?.frame.x ?? -1)")
+    #expect(hit?.frame.y == 30, "Frame y should be 30, got \(hit?.frame.y ?? -1)")
+}
+
+@Test @MainActor func hitTestTapMissReturnsNil() {
+    TapRegistry.shared.clear()
+
+    let tapId = TapRegistry.shared.register {}
+    let child = ViewNode.text("Click me", fontSize: 14, color: .primary)
+    let tapNode = ViewNode.onTap(id: tapId, child: child)
+
+    let layoutNode = Layout.layout(tapNode, in: LayoutFrame(x: 50, y: 30, width: 200, height: 40))
+    let hit = layoutNode.hitTestTap(x: 0, y: 0)  // Outside the frame
+
+    #expect(hit == nil, "Should not hit anything outside the frame")
+}
+
+// MARK: - Dynamic line height in VStack
+
+@Test func vstackWithWrappedTextHasDynamicHeight() {
+    // Two lines: one short, one that wraps at narrow width
+    let shortLine = ViewNode.text("Hi", fontSize: 14, color: .primary)
+    let longLine = ViewNode.text("This is a much longer line that should wrap", fontSize: 14, color: .primary)
+
+    let vstack = ViewNode.vstack(alignment: .leading, spacing: 0, children: [shortLine, longLine])
+    let constraint = SizeConstraint(maxWidth: 100, maxHeight: 500)
+
+    let shortSize = Layout.measure(shortLine, constraint: constraint)
+    let longSize = Layout.measure(longLine, constraint: constraint)
+    let vstackSize = Layout.measure(vstack, constraint: constraint)
+
+    // VStack height should be sum of both lines
+    let expectedHeight = shortSize.height + longSize.height
+    #expect(abs(vstackSize.height - expectedHeight) < 1,
+            "VStack height (\(vstackSize.height)) should equal sum of line heights (\(expectedHeight))")
+
+    // Long line should be taller than short line (it wraps)
+    #expect(longSize.height > shortSize.height,
+            "Wrapped line should be taller (\(longSize.height)) than short line (\(shortSize.height))")
+}
