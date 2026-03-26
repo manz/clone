@@ -82,6 +82,8 @@ struct CompositeInstance {
 /// Manages per-window offscreen textures and composites them onto the screen.
 pub struct SurfaceCompositor {
     surfaces: HashMap<u64, WindowSurface>,
+    /// Tracks which surface_id → iosurface_id mapping is active, to avoid reimporting.
+    imported_iosurfaces: HashMap<u64, u32>,
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
     uniform_buffer: wgpu::Buffer,
@@ -204,6 +206,7 @@ impl SurfaceCompositor {
 
         Self {
             surfaces: HashMap::new(),
+            imported_iosurfaces: HashMap::new(),
             pipeline,
             bind_group_layout,
             uniform_buffer,
@@ -227,7 +230,7 @@ impl SurfaceCompositor {
     }
 
     /// Import an IOSurface by ID as a compositor surface.
-    /// The texture is shared with the app process — zero-copy.
+    /// Caches the import — only reimports when the IOSurface ID changes.
     pub fn import_iosurface(
         &mut self,
         device: &wgpu::Device,
@@ -236,6 +239,11 @@ impl SurfaceCompositor {
         width: u32,
         height: u32,
     ) -> bool {
+        // Skip if already imported with the same IOSurface ID
+        if self.imported_iosurfaces.get(&surface_id) == Some(&iosurface_id) {
+            return true;
+        }
+
         match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
             Ok(shared) => {
                 // Create a WindowSurface that wraps the imported IOSurface texture view
@@ -261,10 +269,11 @@ impl SurfaceCompositor {
                     width,
                     height,
                 });
+                self.imported_iosurfaces.insert(surface_id, iosurface_id);
                 true
             }
             Err(e) => {
-                log::error!("Failed to import IOSurface {iosurface_id}: {e}");
+                log::error!("Failed to import IOSurface {iosurface_id} for surface {surface_id} ({width}x{height}): {e}");
                 false
             }
         }
@@ -273,6 +282,7 @@ impl SurfaceCompositor {
     /// Remove surfaces not in the active set.
     pub fn gc(&mut self, active_ids: &[u64]) {
         self.surfaces.retain(|id, _| active_ids.contains(id));
+        self.imported_iosurfaces.retain(|id, _| active_ids.contains(id));
     }
 
     /// Dump a surface texture to a PNG file for debugging.
