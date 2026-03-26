@@ -3,6 +3,10 @@ import AppKit
 import CloneClient
 import CloneProtocol
 import AvocadoEvents
+import CloneLaunchServices
+
+/// Shared AvocadoEvents client for the app's lifetime. Set by App.main().
+nonisolated(unsafe) var _sharedAEClient: AvocadoEventsClient?
 
 // MARK: - Window Configuration
 
@@ -132,7 +136,7 @@ extension App {
             exit(1)
         }
 
-        // Connect to avocadoeventsd for inter-process event delivery.
+        // Connect to avocadoeventsd — shared connection for the app's lifetime.
         let aeClient = AvocadoEventsClient()
         do {
             try aeClient.connect()
@@ -150,6 +154,7 @@ extension App {
                 }
             }
             DispatchQueue.global().async { aeClient.listen() }
+            _sharedAEClient = aeClient
         } catch {
             fputs("Note: could not connect to avocadoeventsd: \(error)\n", stderr)
         }
@@ -157,13 +162,9 @@ extension App {
         // Wire up system actions.
         let client = app.client
         SystemActions.shared.launchApp = LaunchAppAction { appId in
-            // Route through avocadoeventsd → launchservicesd
-            let launcher = AvocadoEventsClient()
-            if let _ = try? launcher.connect() {
-                launcher.send(to: "com.clone.launchservicesd", event: .launchApp(bundleIdentifier: appId))
-                launcher.disconnect()
+            if let ae = _sharedAEClient {
+                ae.send(to: "com.clone.launchservicesd", event: .launchApp(bundleIdentifier: appId))
             } else {
-                // Fallback: compositor route (legacy)
                 client.send(.launchApp(appId: appId))
             }
         }
@@ -177,7 +178,18 @@ extension App {
             client.send(.setColorScheme(dark: dark))
         }
         _openFileHandler = { path in
-            client.send(.openFile(path: path))
+            DispatchQueue.global().async {
+                let lsClient = LaunchServicesClient()
+                guard let _ = try? lsClient.connect() else { return }
+                guard let reg = lsClient.openFile(path: path) else {
+                    lsClient.disconnect()
+                    return
+                }
+                lsClient.disconnect()
+                if let ae = _sharedAEClient {
+                    ae.send(to: reg.bundleIdentifier, event: .openDocuments(paths: [path]))
+                }
+            }
             return true
         }
 
@@ -670,8 +682,10 @@ extension FlatRenderCommand {
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
         case .text(let content, let fontSize, let color, let weight):
+            // Pass frame width as maxWidth for word wrapping (only if constrained)
+            let maxW: Float? = fw > 0 && fw < 10000 ? fw : nil
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
-                         color: color.toIPC(), weight: weight.toIPC())
+                         color: color.toIPC(), weight: weight.toIPC(), maxWidth: maxW)
         case .icon(let name, let style, let color):
             return .icon(name: name, style: style.toIPC(),
                         x: fx, y: fy, w: fw, h: fh,

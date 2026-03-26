@@ -613,6 +613,30 @@ public func FfiConverterTypeFontWeight_lower(_ value: FontWeight) -> RustBuffer 
     return FfiConverterTypeFontWeight.lower(value)
 }
 
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
+    typealias SwiftType = Float?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterFloat.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
 /**
  * Clear the measurement cache (e.g. on font change).
  */
@@ -622,14 +646,16 @@ public func clearTextCache()  {try! rustCall() {
 }
 }
 /**
- * Measure text using cosmic-text. Results are cached by (text, fontSize, weight).
+ * Measure text using cosmic-text. Results are cached by (text, fontSize, weight, maxWidth).
+ * When max_width is Some, word wrapping is enabled.
  */
-public func measureText(content: String, fontSize: Float, weight: FontWeight) -> TextSize  {
+public func measureText(content: String, fontSize: Float, weight: FontWeight, maxWidth: Float?) -> TextSize  {
     return try!  FfiConverterTypeTextSize_lift(try! rustCall() {
     uniffi_clone_text_fn_func_measure_text(
         FfiConverterString.lower(content),
         FfiConverterFloat.lower(fontSize),
-        FfiConverterTypeFontWeight_lower(weight),$0
+        FfiConverterTypeFontWeight_lower(weight),
+        FfiConverterOptionFloat.lower(maxWidth),$0
     )
 })
 }
@@ -652,7 +678,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_text_checksum_func_clear_text_cache() != 52062) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_text_checksum_func_measure_text() != 55190) {
+    if (uniffi_clone_text_checksum_func_measure_text() != 11824) {
         return InitializationResult.apiChecksumMismatch
     }
 

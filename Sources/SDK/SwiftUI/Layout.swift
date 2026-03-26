@@ -135,7 +135,9 @@ public enum Layout {
             return MeasuredSize()
 
         case .text(let content, let fontSize, _, let weight):
-            let size = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
+            // If constrained width is finite, enable word wrapping
+            let maxW: CGFloat? = constraint.maxWidth < 10000 ? constraint.maxWidth : nil
+            let size = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, maxWidth: maxW)
             return MeasuredSize(width: size.width, height: size.height)
 
         case .rect(let width, let height, _):

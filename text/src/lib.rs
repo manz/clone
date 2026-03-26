@@ -27,6 +27,8 @@ struct MeasureKey {
     text: String,
     /// font_size as bits for exact comparison
     font_size_bits: u32,
+    /// max_width as bits (None = no wrapping)
+    max_width_bits: Option<u32>,
     weight: FontWeight,
 }
 
@@ -55,12 +57,14 @@ fn with_state<R>(f: impl FnOnce(&mut TextState) -> R) -> R {
     f(guard.as_mut().unwrap())
 }
 
-/// Measure text using cosmic-text. Results are cached by (text, fontSize, weight).
+/// Measure text using cosmic-text. Results are cached by (text, fontSize, weight, maxWidth).
+/// When max_width is Some, word wrapping is enabled.
 #[uniffi::export]
 pub fn measure_text(
     content: String,
     font_size: f32,
     weight: FontWeight,
+    max_width: Option<f32>,
 ) -> TextSize {
     if content.is_empty() {
         return TextSize {
@@ -72,6 +76,7 @@ pub fn measure_text(
     let key = MeasureKey {
         text: content.clone(),
         font_size_bits: font_size.to_bits(),
+        max_width_bits: max_width.map(|w| w.to_bits()),
         weight: weight.clone(),
     };
 
@@ -84,6 +89,10 @@ pub fn measure_text(
         // Cache miss — measure with cosmic-text
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(&mut state.font_system, metrics);
+        // Enable word wrapping if max_width is set
+        if let Some(mw) = max_width {
+            buffer.set_size(&mut state.font_system, Some(mw), None);
+        }
 
         let cosmic_weight = match &weight {
             FontWeight::Regular => Weight::NORMAL,
