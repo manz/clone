@@ -275,13 +275,13 @@ impl TextRenderer {
             buffer.set_size(&mut self.font_system, Some(mw), None);
         }
 
-        let cosmic_weight = match weight {
-            crate::commands::FontWeight::Regular => Weight::NORMAL,
-            crate::commands::FontWeight::Medium => Weight(500),
-            crate::commands::FontWeight::Semibold => Weight::SEMIBOLD,
-            crate::commands::FontWeight::Bold => Weight::BOLD,
+        // Static Inter fonts register with different family names per weight
+        let (family, cosmic_weight) = match weight {
+            crate::commands::FontWeight::Regular => (Family::Name("Inter"), Weight::NORMAL),
+            crate::commands::FontWeight::Medium => (Family::Name("Inter Medium"), Weight(500)),
+            crate::commands::FontWeight::Semibold => (Family::Name("Inter SemiBold"), Weight::SEMIBOLD),
+            crate::commands::FontWeight::Bold => (Family::Name("Inter"), Weight::BOLD),
         };
-        let family = Family::Name("Inter");
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(&mut self.font_system, false);

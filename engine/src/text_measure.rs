@@ -49,13 +49,13 @@ pub fn measure_text(
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(font_system, metrics);
 
-        let cosmic_weight = match weight {
-            FontWeight::Regular => Weight::NORMAL,
-            FontWeight::Medium => Weight(500),
-            FontWeight::Semibold => Weight::SEMIBOLD,
-            FontWeight::Bold => Weight::BOLD,
+        // Static Inter fonts register with different family names per weight
+        let (family, cosmic_weight) = match weight {
+            FontWeight::Regular => (Family::Name("Inter"), Weight::NORMAL),
+            FontWeight::Medium => (Family::Name("Inter Medium"), Weight(500)),
+            FontWeight::Semibold => (Family::Name("Inter SemiBold"), Weight::SEMIBOLD),
+            FontWeight::Bold => (Family::Name("Inter"), Weight::BOLD),
         };
-        let family = Family::Name("Inter");
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(font_system, &content, attrs, Shaping::Advanced);
         buffer.shape_until_scroll(font_system, false);
