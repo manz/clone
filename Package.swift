@@ -55,6 +55,10 @@ let package = Package(
             path: "Sources/Internal/PosixShim"
         ),
         .target(
+            name: "SharedSurface",
+            path: "Sources/Internal/SharedSurface"
+        ),
+        .target(
             name: "CloneProtocol",
             dependencies: ["PosixShim"],
             path: "Sources/Internal/CloneProtocol"
@@ -275,6 +279,11 @@ let package = Package(
             name: "QuartzCoreTests",
             dependencies: ["QuartzCore"],
             path: "Tests/QuartzCoreTests"
+        ),
+        .testTarget(
+            name: "SharedSurfaceTests",
+            dependencies: ["SharedSurface"],
+            path: "Tests/SharedSurfaceTests"
         ),
         .testTarget(
             name: "SwiftUITests",

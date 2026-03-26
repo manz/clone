@@ -17,6 +17,12 @@ public final class ConnectedApp {
     public var sheetSize: (width: Float, height: Float)?
     private var sheetCommands: [IPCRenderCommand] = []
 
+    /// Shared memory surface state — non-nil when app uses app-side rendering.
+    public var shmName: String?
+    public var shmWidth: UInt32 = 0
+    public var shmHeight: UInt32 = 0
+    public var shmDirty: Bool = false
+
     let fd: Int32
     var readBuffer = Data()
     var readSource: DispatchSourceRead?
@@ -279,6 +285,19 @@ public final class CompositorServer {
 
         case .avocadoEvent(let targetAppId, let event):
             routeAvocadoEvent(targetAppId: targetAppId, event: event)
+
+        case .surfaceCreated(let shmName, let width, let height):
+            app.shmName = shmName
+            app.shmWidth = width
+            app.shmHeight = height
+            app.send(.surfaceReady(surfaceId: app.windowId))
+
+        case .surfaceUpdated:
+            app.shmDirty = true
+
+        case .surfaceResized(let width, let height):
+            app.shmWidth = width
+            app.shmHeight = height
         }
     }
 

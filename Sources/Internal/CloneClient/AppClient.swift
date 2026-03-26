@@ -191,6 +191,12 @@ public final class AppClient {
 
         case .avocadoEvent(let event):
             onAvocadoEvent?(event)
+
+        case .surfaceReady:
+            break // handled by app-side rendering (Phase 5)
+
+        case .requestResize:
+            break // handled by app-side rendering (Phase 5)
         }
     }
 
