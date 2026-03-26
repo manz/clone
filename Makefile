@@ -17,13 +17,21 @@ all-release:
 engine:
 	cargo build -p clone-engine $(CARGO_FLAGS)
 
-# Generate UniFFI Swift bindings (engine)
+# Generate UniFFI Swift bindings (engine + clone-render types)
 bindings: engine
 	cargo run -p clone-engine $(CARGO_FLAGS) --bin uniffi-bindgen generate \
 		--library $(CARGO_OUT)/libclone_engine.dylib \
 		--language swift \
 		--out-dir Sources/Internal/EngineBridge
+	# Merge clone-render FFI header into engine FFI header (symbols live in the same dylib)
+	cat Sources/Internal/EngineBridge/clone_renderFFI.h >> Sources/Internal/EngineBridge/clone_engineFFI.h
 	cp Sources/Internal/EngineBridge/clone_engineFFI.h Sources/FFI/CEngine/include/clone_engineFFI.h
+	# clone_render.swift imports clone_renderFFI, but all symbols are in clone_engineFFI.
+	# Rewrite the import so it finds the C symbols from the merged header.
+	sed -i '' 's/canImport(clone_renderFFI)/canImport(clone_engineFFI)/' Sources/Internal/EngineBridge/clone_render.swift
+	sed -i '' 's/import clone_renderFFI/import clone_engineFFI/' Sources/Internal/EngineBridge/clone_render.swift
+	# Remove standalone clone-render FFI module files (not needed as a separate module)
+	rm -f Sources/Internal/EngineBridge/clone_renderFFI.h Sources/Internal/EngineBridge/clone_renderFFI.modulemap
 
 # Rust text measurement crate
 text:
