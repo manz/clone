@@ -10,6 +10,7 @@ let package = Package(
         // Public SDK products — external apps depend on these
         // AppKit is exposed transitively via SwiftUI (not listed here to avoid
         // shadowing macOS's real AppKit in the dependency resolver)
+        .library(name: "QuartzCore", targets: ["QuartzCore"]),
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
         // Stub modules for Apple frameworks Clone doesn't implement
@@ -108,8 +109,13 @@ let package = Package(
 
         // ── SDK ─────────────────────────────────────────────────
         .target(
-            name: "AppKit",
+            name: "QuartzCore",
             dependencies: [],
+            path: "Sources/SDK/QuartzCore"
+        ),
+        .target(
+            name: "AppKit",
+            dependencies: ["QuartzCore"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
@@ -265,6 +271,11 @@ let package = Package(
         ),
 
         // ── Tests ────────────────────────────────────────────────
+        .testTarget(
+            name: "QuartzCoreTests",
+            dependencies: ["QuartzCore"],
+            path: "Tests/QuartzCoreTests"
+        ),
         .testTarget(
             name: "SwiftUITests",
             dependencies: ["SwiftUI"],

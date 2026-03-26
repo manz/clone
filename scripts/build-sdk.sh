@@ -30,6 +30,7 @@ fi
 FRAMEWORKS=(
     PosixShim
     CloneProtocol
+    QuartzCore
     AppKit
     UniformTypeIdentifiers
     AVKit
