@@ -51,6 +51,30 @@ import Foundation
             "Wrapped text frame should be taller than single line height \(singleLineHeight), got \(layoutNode.frame.height)")
 }
 
+@Test func lineLimitPreventsWrapping() {
+    let longText = "This is a long line that would normally wrap in a narrow frame"
+
+    // Measure with constraint — text wraps
+    let wrappedSize = TextMeasurer.measure(longText, fontSize: 14, weight: .regular, maxWidth: 100)
+    let singleLineSize = TextMeasurer.measure(longText, fontSize: 14, weight: .regular)
+
+    #expect(wrappedSize.height > singleLineSize.height,
+            "Wrapped text should be taller than single line")
+
+    // lineLimit(1) in layout should measure child unconstrained
+    let constraint = SizeConstraint(maxWidth: 100, maxHeight: 200)
+    let limitedNode = ViewNode.lineLimit(limit: 1, child:
+        .text(longText, fontSize: 14, color: .primary)
+    )
+    let measured = Layout.measure(limitedNode, constraint: constraint)
+
+    // lineLimit(1) should produce single-line measurement despite narrow constraint
+    #expect(measured.width > 100,
+            "lineLimit(1) text should overflow constraint, got \(measured.width)")
+    #expect(measured.height <= singleLineSize.height + 1,
+            "lineLimit(1) text should stay single line (\(singleLineSize.height)), got \(measured.height)")
+}
+
 @Test func textMeasureCachesWrappedAndUnwrapped() {
     let text = "Cache test string"
     let unwrapped = TextMeasurer.measure(text, fontSize: 14, weight: .regular)

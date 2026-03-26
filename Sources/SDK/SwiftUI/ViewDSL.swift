@@ -542,9 +542,9 @@ public extension ViewNode {
         self
     }
 
-    /// `.lineLimit(_:)` — no-op on Clone.
+    /// `.lineLimit(_:)` — limits text wrapping. `1` prevents wrapping, `nil` is unlimited.
     func lineLimit(_ limit: Int?) -> ViewNode {
-        self
+        .lineLimit(limit: limit, child: self)
     }
 
     /// `.multilineTextAlignment(_:)` — no-op on Clone.
@@ -1101,6 +1101,7 @@ public extension ViewNode {
     func listRowBackground(_ color: Color) -> ViewNode {
         background(color)
     }
+
 }
 
 // MARK: - View extensions (for modifiers that need to work on any View, not just ViewNode)

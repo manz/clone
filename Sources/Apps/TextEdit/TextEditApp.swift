@@ -120,6 +120,7 @@ private let kKeyEnter: UInt32 = 40
     Text(line.isEmpty ? " " : line)
         .font(.system(size: state.fontSize))
         .foregroundColor(.primary)
+        .lineLimit(1)
         .frame(height: state.lineHeight)
 }
 

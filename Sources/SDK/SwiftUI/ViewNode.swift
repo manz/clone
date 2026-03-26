@@ -58,6 +58,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case clipped(radius: CGFloat, child: ViewNode)
     case tagged(tag: SendableHashable, child: ViewNode)
     case toolbarItem(placement: ToolbarItemPlacement, child: ViewNode)
+    case lineLimit(limit: Int?, child: ViewNode)
 }
 
 /// Axis for ScrollView direction.

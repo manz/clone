@@ -135,10 +135,19 @@ public enum Layout {
             return MeasuredSize()
 
         case .text(let content, let fontSize, _, let weight):
-            // If constrained width is finite, enable word wrapping
-            let maxW: CGFloat? = constraint.maxWidth < 10000 ? constraint.maxWidth : nil
-            let size = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, maxWidth: maxW)
-            return MeasuredSize(width: size.width, height: size.height)
+            // Measure text at natural (single-line) width first
+            let natural = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
+            // Wrap if text overflows the constraint width
+            if natural.width > constraint.maxWidth && constraint.maxWidth > 0 && constraint.maxWidth < 10000 {
+                let wrapped = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, maxWidth: constraint.maxWidth)
+                return MeasuredSize(width: min(wrapped.width, constraint.maxWidth), height: wrapped.height)
+            }
+            return MeasuredSize(width: natural.width, height: natural.height)
+
+        case .lineLimit(_, let child):
+            // .lineLimit(1) — measure child without wrapping (ignore constraint width for text)
+            let unconstrained = SizeConstraint(maxWidth: CGFloat.greatestFiniteMagnitude, maxHeight: constraint.maxHeight)
+            return measure(child, constraint: unconstrained)
 
         case .rect(let width, let height, _):
             return MeasuredSize(
@@ -426,6 +435,11 @@ public enum Layout {
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
         case .tagged(_, let child), .toolbarItem(_, let child):
+            let childLayout = layout(child, in: frame)
+            return LayoutNode(frame: frame, node: node, children: [childLayout])
+
+        case .lineLimit(_, let child):
+            // Pass through with same frame — the measure pass already handled unconstrained sizing
             let childLayout = layout(child, in: frame)
             return LayoutNode(frame: frame, node: node, children: [childLayout])
 
