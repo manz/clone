@@ -1,0 +1,4 @@
+module CPosixShim {
+    header "include/clone_posix_shim.h"
+    export *
+}

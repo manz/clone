@@ -53,9 +53,16 @@ let package = Package(
             pkgConfig: "sqlite3"
         ),
 
+        .target(
+            name: "CPosixShim",
+            path: "Sources/FFI/CPosixShim",
+            publicHeadersPath: "include"
+        ),
+
         // ── Internal ────────────────────────────────────────────
         .target(
             name: "PosixShim",
+            dependencies: ["CPosixShim"],
             path: "Sources/Internal/PosixShim"
         ),
         .target(

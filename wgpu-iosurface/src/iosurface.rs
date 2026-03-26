@@ -25,6 +25,10 @@ unsafe extern "C" {
     pub fn IOSurfaceGetBytesPerRow(surface: IOSurfaceRef) -> usize;
     pub fn IOSurfaceIncrementUseCount(surface: IOSurfaceRef);
     pub fn IOSurfaceDecrementUseCount(surface: IOSurfaceRef);
+    /// Create a Mach port for cross-process IOSurface sharing.
+    pub fn IOSurfaceCreateMachPort(surface: IOSurfaceRef) -> u32;
+    /// Import an IOSurface from a Mach port received from another process.
+    pub fn IOSurfaceLookupFromMachPort(port: u32) -> IOSurfaceRef;
 }
 
 // CoreFoundation types and functions
@@ -117,6 +121,45 @@ pub fn lookup(surface_id: u32) -> IOSurfaceRef {
 /// Get the global ID of an IOSurface (for cross-process sharing).
 pub fn get_id(surface: IOSurfaceRef) -> u32 {
     unsafe { IOSurfaceGetID(surface) }
+}
+
+/// Create a Mach port send right for cross-process sharing.
+pub fn create_mach_port(surface: IOSurfaceRef) -> u32 {
+    unsafe { IOSurfaceCreateMachPort(surface) }
+}
+
+/// Import an IOSurface from a Mach port.
+pub fn lookup_from_mach_port(port: u32) -> IOSurfaceRef {
+    unsafe { IOSurfaceLookupFromMachPort(port) }
+}
+
+// --- fileport: convert Mach port ↔ file descriptor for SCM_RIGHTS transfer ---
+
+unsafe extern "C" {
+    fn fileport_makefd(port: u32) -> i32;
+    fn fileport_makeport(fd: i32, port: *mut u32) -> i32;
+}
+
+/// Convert a Mach port send right to a file descriptor (via fileport).
+/// The fd can be sent to another process via SCM_RIGHTS.
+pub fn mach_port_to_fd(port: u32) -> Result<i32, String> {
+    let fd = unsafe { fileport_makefd(port) };
+    if fd < 0 {
+        Err(format!("fileport_makefd failed for port {port}"))
+    } else {
+        Ok(fd)
+    }
+}
+
+/// Convert a file descriptor (received via SCM_RIGHTS) back to a Mach port.
+pub fn fd_to_mach_port(fd: i32) -> Result<u32, String> {
+    let mut port: u32 = 0;
+    let result = unsafe { fileport_makeport(fd, &mut port) };
+    if result != 0 || port == 0 {
+        Err(format!("fileport_makeport failed for fd {fd}"))
+    } else {
+        Ok(port)
+    }
 }
 
 /// Release an IOSurface reference.

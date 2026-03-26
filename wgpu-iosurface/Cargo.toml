@@ -13,5 +13,9 @@ objc2-foundation = { version = "0.3", features = ["NSString", "NSDictionary", "N
 objc2-metal = { version = "0.3", features = ["MTLDevice", "MTLTexture", "MTLPixelFormat", "MTLResource", "MTLTypes"] }
 log = "0.4"
 
+[build-dependencies]
+cc = "1"
+
 [dev-dependencies]
 pollster = "0.4"
+libc = "0.2"

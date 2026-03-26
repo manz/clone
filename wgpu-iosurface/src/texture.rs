@@ -73,8 +73,60 @@ impl SharedTexture {
         Ok(Self { texture, view, iosurface: surface, surface_id, width, height })
     }
 
-    /// The IOSurface global ID — send this over IPC to the compositor.
+    /// The IOSurface global ID (same-process only — cross-process use mach_port()).
     pub fn iosurface_id(&self) -> u32 { self.surface_id }
+
+    /// Export a file descriptor for cross-process transfer via SCM_RIGHTS.
+    /// On macOS: IOSurface → Mach port → fileport → fd.
+    /// On Linux (future): dmabuf → fd.
+    /// Caller must close the fd after sendmsg.
+    pub fn export_fd(&self) -> Result<i32, String> {
+        let port = iosurface::create_mach_port(self.iosurface);
+        if port == 0 {
+            return Err("IOSurfaceCreateMachPort returned MACH_PORT_NULL".into());
+        }
+        iosurface::mach_port_to_fd(port)
+    }
+
+    /// Import a SharedTexture from a file descriptor received via SCM_RIGHTS.
+    /// On macOS: fd → fileport → Mach port → IOSurface.
+    /// On Linux (future): fd → dmabuf import.
+    pub fn from_fd(
+        device: &wgpu::Device,
+        fd: i32,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+    ) -> Result<Self, String> {
+        let port = iosurface::fd_to_mach_port(fd)?;
+        Self::from_mach_port(device, port, width, height, format)
+    }
+
+    /// Create a Mach port send right (low-level, prefer export_fd for cross-process).
+    pub fn mach_port(&self) -> u32 {
+        iosurface::create_mach_port(self.iosurface)
+    }
+
+    /// Import from a Mach port (low-level, prefer from_fd for cross-process).
+    pub fn from_mach_port(
+        device: &wgpu::Device,
+        port: u32,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+    ) -> Result<Self, String> {
+        let surface = iosurface::lookup_from_mach_port(port);
+        if surface.is_null() {
+            return Err(format!("IOSurfaceLookupFromMachPort failed for port {port}"));
+        }
+        let surface_id = iosurface::get_id(surface);
+
+        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC;
+        let texture = create_wgpu_texture_from_iosurface(device, surface, width, height, format, usage)?;
+        let view = texture.create_view(&Default::default());
+
+        Ok(Self { texture, view, iosurface: surface, surface_id, width, height })
+    }
 
     /// The wgpu texture. Render into this (app) or sample from it (compositor).
     pub fn texture(&self) -> &wgpu::Texture { &self.texture }
