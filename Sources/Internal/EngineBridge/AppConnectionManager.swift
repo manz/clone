@@ -3,6 +3,7 @@ import SwiftUI
 import CloneServer
 import CloneProtocol
 import CloneLaunchServices
+import SharedSurface
 
 /// A pending file dialog request from an app.
 struct FileDialogRequest {
@@ -199,6 +200,13 @@ final class AppConnectionManager {
     func shmName(for wmWindowId: UInt64) -> String? {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
         return server.app(for: serverWid)?.shmName
+    }
+
+    /// Returns the shared memory surface dimensions (physical pixels).
+    func shmDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
+        guard let app = server.app(for: serverWid), app.shmName != nil else { return nil }
+        return (app.shmWidth, app.shmHeight)
     }
 
     func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
@@ -491,13 +499,52 @@ final class AppConnectionManager {
         server.sendOpenPanelResult(windowId: serverWid, path: path)
     }
 
-    /// Returns overlay surfaces (dock + menubar) for compositing.
-    func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
+    /// Returns overlay surfaces (dock + menubar + loginWindow) for compositing.
+    func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64, sharedSurfaces: inout [UInt64: SharedSurface]) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
         for app in server.connectedApps {
             if app.role == .loginWindow && sessionStarted { continue }
             guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
+
+            // Determine surface dimensions — shm apps use their actual content size,
+            // non-shm overlays use full screen (they render at absolute coords)
+            let surfaceW: Float
+            let surfaceH: Float
+            if app.shmName != nil {
+                surfaceW = app.width
+                surfaceH = app.height
+            } else {
+                surfaceW = Float(screenWidth)
+                surfaceH = Float(screenHeight)
+            }
+
+            // Check for app-side rendered surface
+            if app.shmName != nil {
+                let shmKey = app.windowId + 10000
+                if sharedSurfaces[shmKey] == nil, let shmName = app.shmName {
+                    sharedSurfaces[shmKey] = SharedSurface(
+                        name: shmName, width: Int(app.shmWidth), height: Int(app.shmHeight), create: false
+                    )
+                }
+                var pixelData: Data? = nil
+                if let shm = sharedSurfaces[shmKey], shm.isDirty, let front = shm.frontBuffer() {
+                    pixelData = Data(bytes: front, count: shm.bufferSize)
+                    shm.clearDirty()
+                }
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: surfaceId,
+                        x: 0, y: 0,
+                        width: surfaceW, height: surfaceH,
+                        cornerRadius: 0, opacity: 1
+                    ),
+                    commands: [],
+                    pixelData: pixelData
+                ))
+                continue
+            }
+
             let ipcCommands = app.getCommands()
             if !ipcCommands.isEmpty {
                 let engineCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: 0) }
@@ -505,7 +552,7 @@ final class AppConnectionManager {
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
                         x: 0, y: 0,
-                        width: Float(screenWidth), height: Float(screenHeight),
+                        width: surfaceW, height: surfaceH,
                         cornerRadius: 0, opacity: 1
                     ),
                     commands: engineCommands,

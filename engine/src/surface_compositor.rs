@@ -26,7 +26,7 @@ impl WindowSurface {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
@@ -311,6 +311,9 @@ impl SurfaceCompositor {
     ) {
         let Some(surface) = self.surfaces.get(&surface_id) else { return };
         if surface.width != width || surface.height != height { return; }
+        // Validate pixel buffer matches expected size (avoids crash during resize race)
+        let expected = (width * height * 4) as usize;
+        if pixels.len() < expected { return; }
 
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {

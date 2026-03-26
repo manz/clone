@@ -9,7 +9,7 @@ import QuartzCore
 /// renders view tree through the headless GPU renderer, and writes
 /// pixels to a shared memory surface for the compositor.
 @MainActor
-final class AppSideRenderer {
+final class AppSideRenderer: NSObject {
     private let client: AppClient
     private var renderer: AppRenderer?
     private var surface: SharedSurface?
@@ -19,6 +19,8 @@ final class AppSideRenderer {
     private var height: CGFloat = 0
     private var scale: CGFloat = 2.0
     private var shmName: String?
+    /// Use transparent background for overlay surfaces (dock, menubar, loginWindow).
+    var transparentBackground: Bool = false
 
     /// Closure that builds the current frame's render commands.
     /// Called only when the surface needs redrawing.
@@ -26,6 +28,7 @@ final class AppSideRenderer {
 
     init(client: AppClient) {
         self.client = client
+        super.init()
     }
 
     /// Start app-side rendering. Creates the GPU device, shared surface,
@@ -55,6 +58,7 @@ final class AppSideRenderer {
 
         // Tell compositor about the surface
         client.send(.surfaceCreated(shmName: name, width: UInt32(physW), height: UInt32(physH)))
+        fputs("[AppSideRenderer] Started: \(name) \(physW)x\(physH)\n", stderr)
 
         // Start display link
         let link = CADisplayLink(target: self, selector: #selector(tick))
@@ -102,12 +106,21 @@ final class AppSideRenderer {
         // Render to pixels via headless GPU
         let pixelData: Data
         do {
-            pixelData = try renderer.renderToPixels(
-                commands: commands,
-                width: UInt32(width),
-                height: UInt32(height),
-                scale: Float(scale)
-            )
+            if transparentBackground {
+                pixelData = try renderer.renderToPixelsTransparent(
+                    commands: commands,
+                    width: UInt32(width),
+                    height: UInt32(height),
+                    scale: Float(scale)
+                )
+            } else {
+                pixelData = try renderer.renderToPixels(
+                    commands: commands,
+                    width: UInt32(width),
+                    height: UInt32(height),
+                    scale: Float(scale)
+                )
+            }
         } catch {
             fputs("[AppSideRenderer] Render failed: \(error)\n", stderr)
             return
@@ -139,6 +152,7 @@ final class AppSideRenderer {
         // Flip and notify compositor
         surface.flip()
         client.send(.surfaceUpdated)
+        fputs("[AppSideRenderer] Frame rendered: \(Int(width))x\(Int(height)) pixels=\(pixelData.count)\n", stderr)
     }
 }
 

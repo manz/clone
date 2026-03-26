@@ -61,6 +61,11 @@ impl RenderServer {
                 continue;
             }
 
+            // No pixel data and no commands — keep existing texture (app-side rendered, no new frame)
+            if sf.commands.is_empty() {
+                continue;
+            }
+
             // Compositor-rendered: render commands into offscreen texture
             let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
                 match cmd {

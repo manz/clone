@@ -171,6 +171,7 @@ extension App {
             client.send(.restoreApp(appId: appId))
         }
         SystemActions.shared.sessionReady = SessionReadyAction {
+            fputs("[App] sessionReady fired, sending to compositor\n", stderr)
             client.send(.sessionReady)
         }
         SystemActions.shared.setColorScheme = SetColorSchemeAction { dark in
@@ -283,9 +284,11 @@ extension App {
 
             // App-side rendering: app renders pixels via headless GPU → shared memory
             appRenderer.buildFrame = buildFrame
-            app.client.onWindowCreated = { _, w, h in
-                appRenderer.start(width: CGFloat(w), height: CGFloat(h))
-            }
+            // Overlay surfaces need transparent background
+            let isOverlay = config.role == .dock || config.role == .menubar || config.role == .loginWindow
+            appRenderer.transparentBackground = isOverlay
+            // Start immediately — windowCreated was already received during connect()
+            appRenderer.start(width: CGFloat(app.client.width), height: CGFloat(app.client.height))
             // Respond to requestFrame by marking dirty (compositor still asks during transition)
             // Return empty commands — the compositor will use the shared surface pixels instead
             app.client.onFrameRequest = { w, h in
@@ -299,6 +302,7 @@ extension App {
                 if button == 0 && pressed && handleOpenPanelClick(x: x, y: y, width: CGFloat(app.client.width), height: CGFloat(app.client.height)) {
                     return
                 }
+                fputs("[App] pointerButton button=\(button) pressed=\(pressed) x=\(x) y=\(y)\n", stderr)
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 // Right-click: open context menu
                 if button == 1 && pressed {
@@ -371,8 +375,11 @@ extension App {
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                     )
                     if let hit = layoutNode.hitTestTap(x: x, y: y) {
+                        fputs("[App] tap hit id=\(hit.id) at \(x),\(y)\n", stderr)
                         let local = CGPoint(x: x - hit.frame.x, y: y - hit.frame.y)
                         TapRegistry.shared.fire(id: hit.id, at: local)
+                    } else {
+                        fputs("[App] tap miss at \(x),\(y)\n", stderr)
                     }
                     // Text field focus
                     TextFieldRegistry.shared.handleClick(x: x, y: y)

@@ -533,10 +533,15 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 public protocol AppRendererProtocol: AnyObject, Sendable {
     
     /**
-     * Render commands to BGRA8 pixel data.
-     * Returns tightly-packed pixels (width * height * 4 bytes at the given scale).
+     * Render commands to BGRA8 pixel data with opaque background.
      */
     func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
+    
+    /**
+     * Render commands to BGRA8 pixel data with transparent background.
+     * Used for overlay surfaces (dock, menubar) that composite over other content.
+     */
+    func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
     
 }
 /**
@@ -607,12 +612,27 @@ public convenience init()throws  {
 
     
     /**
-     * Render commands to BGRA8 pixel data.
-     * Returns tightly-packed pixels (width * height * 4 bytes at the given scale).
+     * Render commands to BGRA8 pixel data with opaque background.
      */
 open func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
     uniffi_clone_render_fn_method_apprenderer_render_to_pixels(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeRenderCommand.lower(commands),
+        FfiConverterUInt32.lower(width),
+        FfiConverterUInt32.lower(height),
+        FfiConverterFloat.lower(scale),$0
+    )
+})
+}
+    
+    /**
+     * Render commands to BGRA8 pixel data with transparent background.
+     * Used for overlay surfaces (dock, menubar) that composite over other content.
+     */
+open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
+    uniffi_clone_render_fn_method_apprenderer_render_to_pixels_transparent(
             self.uniffiCloneHandle(),
         FfiConverterSequenceTypeRenderCommand.lower(commands),
         FfiConverterUInt32.lower(width),
@@ -816,12 +836,24 @@ public func FfiConverterTypeSurfaceDesc_lower(_ value: SurfaceDesc) -> RustBuffe
 public struct SurfaceFrame: Equatable, Hashable {
     public var desc: SurfaceDesc
     public var commands: [RenderCommand]
+    /**
+     * Pre-rendered BGRA8 pixel data from app-side rendering.
+     * When set, the render server uploads these pixels directly
+     * instead of rendering the commands.
+     */
+    public var pixelData: Data?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(desc: SurfaceDesc, commands: [RenderCommand]) {
+    public init(desc: SurfaceDesc, commands: [RenderCommand], 
+        /**
+         * Pre-rendered BGRA8 pixel data from app-side rendering.
+         * When set, the render server uploads these pixels directly
+         * instead of rendering the commands.
+         */pixelData: Data?) {
         self.desc = desc
         self.commands = commands
+        self.pixelData = pixelData
     }
 
     
@@ -841,13 +873,15 @@ public struct FfiConverterTypeSurfaceFrame: FfiConverterRustBuffer {
         return
             try SurfaceFrame(
                 desc: FfiConverterTypeSurfaceDesc.read(from: &buf), 
-                commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf)
+                commands: FfiConverterSequenceTypeRenderCommand.read(from: &buf), 
+                pixelData: FfiConverterOptionData.read(from: &buf)
         )
     }
 
     public static func write(_ value: SurfaceFrame, into buf: inout [UInt8]) {
         FfiConverterTypeSurfaceDesc.write(value.desc, into: &buf)
         FfiConverterSequenceTypeRenderCommand.write(value.commands, into: &buf)
+        FfiConverterOptionData.write(value.pixelData, into: &buf)
     }
 }
 
@@ -1391,6 +1425,30 @@ fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
+    typealias SwiftType = Data?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer {
     typealias SwiftType = [RenderCommand]
 
@@ -1428,7 +1486,10 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 2112) {
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 51660) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 29220) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_constructor_apprenderer_new() != 17454) {

@@ -37,8 +37,7 @@ impl AppRenderer {
         })
     }
 
-    /// Render commands to BGRA8 pixel data.
-    /// Returns tightly-packed pixels (width * height * 4 bytes at the given scale).
+    /// Render commands to BGRA8 pixel data with opaque background.
     pub fn render_to_pixels(
         &self,
         commands: Vec<RenderCommand>,
@@ -48,5 +47,18 @@ impl AppRenderer {
     ) -> Result<Vec<u8>, RenderError> {
         let mut device = self.inner.lock().unwrap();
         Ok(device.render_to_pixels(&commands, width, height, scale))
+    }
+
+    /// Render commands to BGRA8 pixel data with transparent background.
+    /// Used for overlay surfaces (dock, menubar) that composite over other content.
+    pub fn render_to_pixels_transparent(
+        &self,
+        commands: Vec<RenderCommand>,
+        width: u32,
+        height: u32,
+        scale: f32,
+    ) -> Result<Vec<u8>, RenderError> {
+        let mut device = self.inner.lock().unwrap();
+        Ok(device.render_to_pixels_transparent(&commands, width, height, scale))
     }
 }

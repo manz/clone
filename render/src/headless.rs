@@ -122,12 +122,36 @@ impl HeadlessDevice {
     ///
     /// The returned buffer is `width * height * 4` bytes (tightly packed, no padding).
     /// Pixel format is BGRA8 (same as wgpu's Bgra8Unorm).
+    /// Set `transparent` to true for overlay surfaces (dock, menubar) that need
+    /// a transparent background instead of using the first command's color.
     pub fn render_to_pixels(
         &mut self,
         commands: &[RenderCommand],
         width: u32,
         height: u32,
         scale: f32,
+    ) -> Vec<u8> {
+        self.render_to_pixels_inner(commands, width, height, scale, false)
+    }
+
+    /// Same as `render_to_pixels` but with a transparent clear color.
+    pub fn render_to_pixels_transparent(
+        &mut self,
+        commands: &[RenderCommand],
+        width: u32,
+        height: u32,
+        scale: f32,
+    ) -> Vec<u8> {
+        self.render_to_pixels_inner(commands, width, height, scale, true)
+    }
+
+    fn render_to_pixels_inner(
+        &mut self,
+        commands: &[RenderCommand],
+        width: u32,
+        height: u32,
+        scale: f32,
+        transparent: bool,
     ) -> Vec<u8> {
         let phys_w = ((width as f32) * scale) as u32;
         let phys_h = ((height as f32) * scale) as u32;
@@ -143,17 +167,17 @@ impl HeadlessDevice {
                 label: Some("headless_render"),
             });
 
-        self.renderer.render(
-            &self.device,
-            &self.queue,
-            &mut encoder,
-            view,
-            depth_view,
-            commands,
-            phys_w,
-            phys_h,
-            scale,
-        );
+        if transparent {
+            self.renderer.render_transparent(
+                &self.device, &self.queue, &mut encoder,
+                view, depth_view, commands, phys_w, phys_h, scale,
+            );
+        } else {
+            self.renderer.render(
+                &self.device, &self.queue, &mut encoder,
+                view, depth_view, commands, phys_w, phys_h, scale,
+            );
+        }
 
         // Copy texture to staging buffer
         let bytes_per_row = Self::aligned_bytes_per_row(phys_w);

@@ -49,7 +49,7 @@ public final class WindowServer {
         // Pre-session: only wallpaper + LoginWindow overlay
         if !appManager.sessionStarted {
             frames.append(contentsOf: appManager.overlaySurfaces(
-                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
+                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase, sharedSurfaces: &sharedSurfaces
             ))
             appManager.requestFrames()
             return frames
@@ -84,20 +84,30 @@ public final class WindowServer {
 
             // App content: either from shared memory (app-side rendered) or IPC commands
             var contentPixelData: Data?
-            if let shmName = appManager.shmName(for: window.id) {
+            if let shmName = appManager.shmName(for: window.id),
+               let shmDims = appManager.shmDimensions(for: window.id) {
                 // Open/reuse shared surface reader
                 if sharedSurfaces[window.id] == nil {
-                    sharedSurfaces[window.id] = SharedSurface(
-                        name: shmName, width: Int(window.width * 2), height: Int(window.height * 2), create: false
+                    let shm = SharedSurface(
+                        name: shmName, width: Int(shmDims.width), height: Int(shmDims.height), create: false
                     )
+                    if shm == nil {
+                        fputs("[Compositor] Failed to open SharedSurface: /tmp/\(shmName)\n", stderr)
+                    } else {
+                        fputs("[Compositor] Opened SharedSurface: \(shmName) \(shmDims.width)x\(shmDims.height) valid=\(shm!.isValid)\n", stderr)
+                    }
+                    sharedSurfaces[window.id] = shm
                 }
-                if let shm = sharedSurfaces[window.id], shm.isDirty, let front = shm.frontBuffer() {
-                    contentPixelData = Data(bytes: front, count: shm.bufferSize)
-                    shm.clearDirty()
+                if let shm = sharedSurfaces[window.id] {
+                    if shm.isDirty, let front = shm.frontBuffer() {
+                        contentPixelData = Data(bytes: front, count: shm.bufferSize)
+                        shm.clearDirty()
+                    }
                 }
             }
 
-            if contentPixelData == nil {
+            let hasShmSurface = appManager.shmName(for: window.id) != nil
+            if contentPixelData == nil && !hasShmSurface {
                 // Compositor-rendered: insert IPC commands into chrome
                 let ipcCommands = appManager.commands(for: window.id)
                 if !ipcCommands.isEmpty {
@@ -125,26 +135,13 @@ public final class WindowServer {
                 frameOpacity = animOpacity
             }
 
-            if let pixelData = contentPixelData {
-                // App-side rendered: content surface with pre-rendered pixels
+            if hasShmSurface {
+                // App-side rendered: chrome + content as separate surfaces
                 let contentSurfaceId = surfaceId + 50000
                 let titleBarH = Float(WindowChrome.titleBarHeight)
                 let contentH = Float(frameH) - titleBarH
 
-                // Content surface (below title bar)
-                frames.append(SurfaceFrame(
-                    desc: SurfaceDesc(
-                        surfaceId: contentSurfaceId,
-                        x: Float(frameX), y: Float(frameY) + titleBarH,
-                        width: Float(frameW), height: contentH,
-                        cornerRadius: 0,
-                        opacity: Float(frameOpacity)
-                    ),
-                    commands: [],
-                    pixelData: pixelData
-                ))
-
-                // Chrome surface (title bar + window frame)
+                // Chrome surface first (back) — title bar + window frame + background
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -155,6 +152,19 @@ public final class WindowServer {
                     ),
                     commands: windowCommands,
                     pixelData: nil
+                ))
+
+                // Content surface on top (front) — app-rendered pixels
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: contentSurfaceId,
+                        x: Float(frameX), y: Float(frameY) + titleBarH,
+                        width: Float(frameW), height: contentH,
+                        cornerRadius: 0,
+                        opacity: Float(frameOpacity)
+                    ),
+                    commands: [],
+                    pixelData: contentPixelData
                 ))
             } else {
                 // Compositor-rendered: single surface with chrome + content
@@ -218,7 +228,7 @@ public final class WindowServer {
 
         // 3. Overlay surfaces (dock, menubar)
         frames.append(contentsOf: appManager.overlaySurfaces(
-            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
+            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase, sharedSurfaces: &sharedSurfaces
         ))
 
         // Send state updates to dock and menubar
