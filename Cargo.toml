@@ -1,5 +1,5 @@
 [workspace]
-members = ["engine", "audio", "text"]
+members = ["engine", "render", "audio", "text"]
 resolver = "2"
 
 [profile.dev.package."*"]
