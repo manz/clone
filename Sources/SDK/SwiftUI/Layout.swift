@@ -279,12 +279,14 @@ public enum Layout {
             )
 
         case .rasterImage(_, let imgW, let imgH, _):
-            // Use image dimensions (in points, assuming 1x).
-            // .frame() or .resizable() can override.
-            return MeasuredSize(
-                width: min(CGFloat(imgW), constraint.maxWidth),
-                height: min(CGFloat(imgH), constraint.maxHeight)
-            )
+            // Aspect-fit: scale image to fit constraint while preserving ratio.
+            let iw = CGFloat(imgW)
+            let ih = CGFloat(imgH)
+            guard iw > 0 && ih > 0 else { return MeasuredSize(width: 0, height: 0) }
+            let scaleX = constraint.maxWidth / iw
+            let scaleY = constraint.maxHeight / ih
+            let s = min(scaleX, scaleY, 1.0) // don't upscale beyond natural size
+            return MeasuredSize(width: iw * s, height: ih * s)
 
         case .toggle(_, let label):
             let labelSize = measure(label, constraint: constraint)

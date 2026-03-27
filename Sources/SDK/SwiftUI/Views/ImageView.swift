@@ -8,8 +8,8 @@ public struct Image: _PrimitiveView {
 
     // Raster image data (decoded RGBA)
     var textureId: UInt64?
-    var imageWidth: UInt32?
-    var imageHeight: UInt32?
+    public internal(set) var imageWidth: UInt32?
+    public internal(set) var imageHeight: UInt32?
     var rgbaData: [UInt8]?
 
     /// `Image(systemName:)` — SF Symbol / Phosphor icon.
