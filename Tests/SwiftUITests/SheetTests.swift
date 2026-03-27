@@ -90,7 +90,7 @@ import Foundation
         }
 
     // When not presented, sheet returns the original node and no overlay
-    if case .text(let content, _, _, _) = node {
+    if case .text(let content, _, _, _, _) = node {
         #expect(content == "Hello")
     } else {
         Issue.record("Expected plain text when sheet not presented, got \(node)")
@@ -312,7 +312,7 @@ private func collectTappableAreas(_ node: LayoutNode, into areas: inout [(id: UI
 // Helper to extract text from toolbar item nodes
 private func extractLabel(_ node: ViewNode) -> String? {
     switch node {
-    case .text(let content, _, _, _): return content
+    case .text(let content, _, _, _, _): return content
     case .onTap(_, let child): return extractLabel(child)
     case .padding(_, let child): return extractLabel(child)
     case .frame(_, _, let child): return extractLabel(child)

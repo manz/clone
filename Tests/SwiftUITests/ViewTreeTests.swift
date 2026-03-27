@@ -45,7 +45,7 @@ import Testing
     }
     let node = picker._nodeRepresentation
     if case .picker(_, let label, let children) = node {
-        if case .text(let text, _, _, _) = label {
+        if case .text(let text, _, _, _, _) = label {
             #expect(text == "Sort")
         } else {
             Issue.record("Expected text label")
@@ -79,7 +79,7 @@ import Testing
         return
     }
     // First child should be the header text
-    if case .text(let text, _, _, _) = children[0] {
+    if case .text(let text, _, _, _, _) = children[0] {
         #expect(text == "Settings")
     } else {
         Issue.record("Expected text header as first child, got \(children[0])")
@@ -96,7 +96,7 @@ import Testing
         return
     }
     // No header — first child should be the content directly
-    if case .text(let text, _, _, _) = children[0] {
+    if case .text(let text, _, _, _, _) = children[0] {
         #expect(text == "Row")
     } else {
         Issue.record("Expected text content as first child, got \(children[0])")
@@ -131,10 +131,10 @@ import Testing
     }
     // First child: header, last child: footer
     #expect(children.count >= 3, "At least header + content + footer")
-    if case .text(let first, _, _, _) = children.first! {
+    if case .text(let first, _, _, _, _) = children.first! {
         #expect(first == "Top")
     }
-    if case .text(let last, _, _, _) = children.last! {
+    if case .text(let last, _, _, _, _) = children.last! {
         #expect(last == "Bottom")
     }
 }

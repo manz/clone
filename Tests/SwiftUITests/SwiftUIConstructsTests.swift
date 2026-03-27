@@ -5,7 +5,7 @@ import Testing
 
 @Test @MainActor func importSwiftUIAndCreateText() {
     let node = _resolve(Text("hello"))
-    if case .text(let content, _, _, _) = node {
+    if case .text(let content, _, _, _, _) = node {
         #expect(content == "hello")
     } else {
         Issue.record("Expected text node")
@@ -26,7 +26,7 @@ import Testing
 @Test @MainActor func buttonWithStringLabel() {
     let node = _resolve(Button("Tap") {})
     if case .onTap(_, let child) = node {
-        if case .text(let content, _, let color, _) = child {
+        if case .text(let content, _, let color, _, _) = child {
             #expect(content == "Tap")
             #expect(color == .blue)
         } else {
@@ -42,7 +42,7 @@ import Testing
         Text("Custom")
     })
     if case .onTap(_, let child) = node {
-        if case .text(let content, _, _, _) = child {
+        if case .text(let content, _, _, _, _) = child {
             #expect(content == "Custom")
         } else {
             Issue.record("Expected text child in Button")
@@ -97,7 +97,7 @@ import Testing
     }
     if case .toggle(let isOn, let label) = inner {
         #expect(isOn == true)
-        if case .text(let content, _, _, _) = label {
+        if case .text(let content, _, _, _, _) = label {
             #expect(content == "Wi-Fi")
         } else {
             Issue.record("Expected text label in Toggle")

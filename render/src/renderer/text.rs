@@ -262,6 +262,7 @@ impl TextRenderer {
         color: &RgbaColor,
         weight: &crate::commands::FontWeight,
         max_width: Option<f32>,
+        family_name: Option<&str>,
     ) -> Vec<GlyphInstance> {
         let metrics = Metrics::new(font_size, font_size * 1.2);
         let mut buffer = Buffer::new(&mut self.font_system, metrics);
@@ -270,7 +271,7 @@ impl TextRenderer {
             buffer.set_size(&mut self.font_system, Some(mw), None);
         }
 
-        let (family, cosmic_weight) = match weight {
+        let (default_family, cosmic_weight) = match weight {
             crate::commands::FontWeight::UltraLight => (Family::Name("Inter"), Weight(100)),
             crate::commands::FontWeight::Thin => (Family::Name("Inter"), Weight(200)),
             crate::commands::FontWeight::Light => (Family::Name("Inter"), Weight(300)),
@@ -280,6 +281,10 @@ impl TextRenderer {
             crate::commands::FontWeight::Bold => (Family::Name("Inter"), Weight::BOLD),
             crate::commands::FontWeight::Heavy => (Family::Name("Inter"), Weight(800)),
             crate::commands::FontWeight::Black => (Family::Name("Inter"), Weight(900)),
+        };
+        let family = match family_name {
+            Some(name) => Family::Name(Box::leak(name.to_string().into_boxed_str())),
+            None => default_family,
         };
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);

@@ -27,7 +27,7 @@ public enum IPCIconStyle: String, Codable, Sendable {
 public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, maxWidth: Float? = nil)
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, maxWidth: Float? = nil, family: String? = nil)
     /// Phosphor SVG icon — rendered by the compositor.
     case icon(name: String, style: IPCIconStyle, x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)

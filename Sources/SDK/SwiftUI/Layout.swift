@@ -134,7 +134,7 @@ public enum Layout {
         case .empty:
             return MeasuredSize()
 
-        case .text(let content, let fontSize, _, let weight):
+        case .text(let content, let fontSize, _, let weight, _):
             // Measure text at natural (single-line) width first
             let natural = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
             // Wrap if text overflows the constraint width

@@ -5,6 +5,7 @@ import Foundation
 public struct Font: Equatable, Sendable {
     public let size: CGFloat
     public let weight: Weight
+    public let familyName: String?
 
     /// Font weight — matches Apple's Font.Weight.
     public struct Weight: Equatable, Sendable {
@@ -31,9 +32,10 @@ public struct Font: Equatable, Sendable {
         case monospaced
     }
 
-    internal init(size: CGFloat, weight: Weight) {
+    internal init(size: CGFloat, weight: Weight, familyName: String? = nil) {
         self.size = size
         self.weight = weight
+        self.familyName = familyName
     }
 
     // MARK: - System font
@@ -89,12 +91,12 @@ public struct Font: Equatable, Sendable {
 extension Font {
     /// Returns a bold version of this font.
     public func bold() -> Font {
-        Font(size: size, weight: .bold)
+        Font(size: size, weight: .bold, familyName: familyName)
     }
 
     /// Returns a version with the specified weight.
     public func weight(_ weight: Weight) -> Font {
-        Font(size: size, weight: weight)
+        Font(size: size, weight: weight, familyName: familyName)
     }
 
     /// Returns a version with monospaced digits.
@@ -144,11 +146,11 @@ extension Font {
 
     /// A custom font with the given name and size.
     public static func custom(_ name: String, size: CGFloat) -> Font {
-        Font(size: size, weight: .regular)
+        Font(size: size, weight: .regular, familyName: name)
     }
 
     /// A custom font with the given name, fixed size.
     public static func custom(_ name: String, fixedSize: CGFloat) -> Font {
-        Font(size: fixedSize, weight: .regular)
+        Font(size: fixedSize, weight: .regular, familyName: name)
     }
 }

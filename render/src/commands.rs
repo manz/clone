@@ -88,6 +88,7 @@ pub enum RenderCommand {
         color: RgbaColor,
         weight: FontWeight,
         max_width: Option<f32>,
+        family: Option<String>,
     },
     /// Render a Phosphor icon by name using SVG rasterization.
     Icon {
@@ -227,6 +228,7 @@ mod tests {
                 color: color.clone(),
                 weight: FontWeight::Regular,
                 max_width: None,
+                family: None,
             },
             RenderCommand::PushClip {
                 x: 0.0,

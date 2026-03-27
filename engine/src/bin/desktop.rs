@@ -28,7 +28,7 @@ impl DesktopDelegate for DemoDelegate {
                 x: w / 2.0 - 80.0, y: h / 2.0 - 20.0,
                 content: "Clone Desktop".into(), font_size: 24.0,
                 color: RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                weight: FontWeight::Regular, max_width: None,
+                weight: FontWeight::Regular, max_width: None, family: None,
             },
             // Dock background
             RenderCommand::RoundedRect {
