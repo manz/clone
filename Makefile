@@ -6,8 +6,8 @@ CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
 SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
 CARGO_OUT = target/$(CONFIG)
 
-# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → apps
-all: bindings render-bindings text-bindings audio-bindings swift sdk apps
+# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → install → apps
+all: bindings render-bindings text-bindings audio-bindings swift sdk install apps
 
 # Release shorthand
 all-release:
