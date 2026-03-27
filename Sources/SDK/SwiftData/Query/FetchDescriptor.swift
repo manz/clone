@@ -6,7 +6,13 @@ public struct SortDescriptor<Compared> {
     public let ascending: Bool
 
     public init<Value>(_ keyPath: KeyPath<Compared, Value>, order: SortOrder = .forward) {
-        self.key = "\(keyPath)"
+        // KeyPath stringifies as "\Type.property" — extract just the property name
+        let desc = "\(keyPath)"
+        if let dot = desc.lastIndex(of: ".") {
+            self.key = String(desc[desc.index(after: dot)...])
+        } else {
+            self.key = desc
+        }
         self.ascending = order == .forward
     }
 
