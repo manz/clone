@@ -18,6 +18,8 @@ final class AppSideRenderer: NSObject {
     private var height: CGFloat = 0
     private var scale: CGFloat = 2.0
     private var currentIOSurfaceId: UInt32 = 0
+    /// Track which IOSurface IDs we've already sent Mach ports for.
+    private var sentMachPorts: Set<UInt32> = []
     /// Use transparent background for overlay surfaces (dock, menubar, loginWindow).
     var transparentBackground: Bool = false
 
@@ -88,27 +90,27 @@ final class AppSideRenderer: NSObject {
             return
         }
 
-        // If IOSurface ID changed (first frame or resize), notify compositor
-        if iosurfaceId != currentIOSurfaceId {
-            let physW = UInt32(width * scale)
-            let physH = UInt32(height * scale)
-
-            // Send the Mach port via the Mach channel first (imports IOSurface into compositor)
-            #if canImport(Darwin)
+        // Send Mach port for any new IOSurface ID we haven't sent yet
+        #if canImport(Darwin)
+        if !sentMachPorts.contains(iosurfaceId) {
             let machPort = renderer.machPort()
             if machPort != 0 {
                 client.sendIOSurfaceMachPort(machPort)
+                sentMachPorts.insert(iosurfaceId)
             }
-            #endif
-
-            // Then send metadata via JSON IPC
-            if currentIOSurfaceId == 0 {
-                client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
-            } else {
-                client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
-            }
-            currentIOSurfaceId = iosurfaceId
         }
+        #endif
+
+        // Notify compositor of the current front surface
+        let physW = UInt32(width * scale)
+        let physH = UInt32(height * scale)
+        if currentIOSurfaceId == 0 {
+            client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
+        } else if iosurfaceId != currentIOSurfaceId {
+            // ID changed (double-buffer swap or resize)
+            client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
+        }
+        currentIOSurfaceId = iosurfaceId
 
         // Signal compositor that a new frame is ready
         client.send(.surfaceUpdated)

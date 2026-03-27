@@ -3,23 +3,24 @@ use crate::renderer::DesktopRenderer;
 use wgpu_iosurface::SharedTexture;
 
 /// A headless wgpu rendering context for app-side rendering.
-/// Renders into an IOSurface-backed texture for zero-copy cross-process sharing.
-/// The compositor imports the same IOSurface by ID — no copies involved.
+/// Double-buffered IOSurface textures: app renders to back, compositor reads front.
+/// Zero-copy cross-process sharing via Mach ports.
 pub struct HeadlessDevice {
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: DesktopRenderer,
-    shared_texture: Option<SharedTexture>,
+    /// Double-buffered: [0] = front (compositor reads), [1] = back (app renders)
+    textures: [Option<SharedTexture>; 2],
     depth_texture: Option<wgpu::Texture>,
     depth_view: Option<wgpu::TextureView>,
+    /// Which texture index is currently the "front" (compositor-visible)
+    front: usize,
     width: u32,
     height: u32,
     format: wgpu::TextureFormat,
 }
 
 impl HeadlessDevice {
-    /// Create a new headless rendering device.
-    /// Uses Bgra8Unorm (linear) format for the offscreen texture.
     pub fn new() -> Result<Self, String> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
@@ -48,18 +49,18 @@ impl HeadlessDevice {
             device,
             queue,
             renderer,
-            shared_texture: None,
+            textures: [None, None],
             depth_texture: None,
             depth_view: None,
+            front: 0,
             width: 0,
             height: 0,
             format,
         })
     }
 
-    /// Ensure the shared texture matches the requested physical size.
-    /// Returns the IOSurface ID (changes on resize).
-    fn ensure_size(&mut self, width: u32, height: u32) -> Result<u32, String> {
+    /// Ensure both textures match the requested physical size.
+    fn ensure_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         let width = width.max(1);
         let height = height.max(1);
 
@@ -67,10 +68,10 @@ impl HeadlessDevice {
             self.width = width;
             self.height = height;
 
-            // Create new IOSurface-backed shared texture
-            self.shared_texture = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+            self.textures[0] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+            self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+            self.front = 0;
 
-            // Create depth texture
             let depth = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("headless_depth"),
                 size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
@@ -85,17 +86,23 @@ impl HeadlessDevice {
             self.depth_texture = Some(depth);
         }
 
-        Ok(self.shared_texture.as_ref().unwrap().iosurface_id())
+        Ok(())
     }
 
-    /// Get the current IOSurface ID. Returns 0 if no texture has been created yet.
+    fn back_index(&self) -> usize { 1 - self.front }
+
+    /// Get the current front (compositor-visible) IOSurface ID.
     pub fn iosurface_id(&self) -> u32 {
-        self.shared_texture.as_ref().map_or(0, |t| t.iosurface_id())
+        self.textures[self.front].as_ref().map_or(0, |t| t.iosurface_id())
     }
 
-    /// Render commands into the IOSurface-backed texture.
-    /// Returns the IOSurface ID for cross-process sharing.
-    /// No readback, no copies — the compositor imports by this ID.
+    /// Get the current front texture (for mach_port export).
+    pub fn shared_texture(&self) -> Option<&SharedTexture> {
+        self.textures[self.front].as_ref()
+    }
+
+    /// Render commands into the BACK texture, then swap front/back.
+    /// Returns the new front IOSurface ID (which changed due to swap).
     pub fn render(
         &mut self,
         commands: &[RenderCommand],
@@ -106,9 +113,10 @@ impl HeadlessDevice {
     ) -> Result<u32, String> {
         let phys_w = ((width as f32) * scale) as u32;
         let phys_h = ((height as f32) * scale) as u32;
-        let iosurface_id = self.ensure_size(phys_w, phys_h)?;
+        self.ensure_size(phys_w, phys_h)?;
 
-        let view = self.shared_texture.as_ref().unwrap().view();
+        let back = self.back_index();
+        let view = self.textures[back].as_ref().unwrap().view();
         let depth_view = self.depth_view.as_ref().unwrap();
 
         let mut encoder = self
@@ -130,8 +138,12 @@ impl HeadlessDevice {
         }
 
         self.queue.submit([encoder.finish()]);
+        self.device.poll(wgpu::PollType::wait_indefinitely()).ok();
 
-        Ok(iosurface_id)
+        // Swap: back becomes the new front
+        self.front = back;
+
+        Ok(self.textures[self.front].as_ref().unwrap().iosurface_id())
     }
 
     /// Render commands to BGRA8 pixel data (legacy path for testing/PNG export).
@@ -145,7 +157,6 @@ impl HeadlessDevice {
         self.render_to_pixels_inner(commands, width, height, scale, false)
     }
 
-    /// Same as `render_to_pixels` but with a transparent clear color.
     pub fn render_to_pixels_transparent(
         &mut self,
         commands: &[RenderCommand],
@@ -168,8 +179,9 @@ impl HeadlessDevice {
         let phys_h = ((height as f32) * scale) as u32;
         let _ = self.ensure_size(phys_w, phys_h);
 
-        let texture = self.shared_texture.as_ref().unwrap().texture();
-        let view = self.shared_texture.as_ref().unwrap().view();
+        let back = self.back_index();
+        let texture = self.textures[back].as_ref().unwrap().texture();
+        let view = self.textures[back].as_ref().unwrap().view();
         let depth_view = self.depth_view.as_ref().unwrap();
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -188,7 +200,6 @@ impl HeadlessDevice {
             );
         }
 
-        // Readback from the IOSurface texture
         let bytes_per_row = Self::aligned_bytes_per_row(phys_w);
         let buffer_size = (bytes_per_row * phys_h) as u64;
         let staging = self.device.create_buffer(&wgpu::BufferDescriptor {
@@ -239,7 +250,6 @@ impl HeadlessDevice {
         (width * 4 + 255) & !255
     }
 
-    /// Render commands and save as a PNG file (for testing).
     pub fn render_to_png(
         &mut self,
         commands: &[RenderCommand],
@@ -272,5 +282,4 @@ impl HeadlessDevice {
     pub fn device(&self) -> &wgpu::Device { &self.device }
     pub fn queue(&self) -> &wgpu::Queue { &self.queue }
     pub fn renderer_mut(&mut self) -> &mut DesktopRenderer { &mut self.renderer }
-    pub fn shared_texture(&self) -> Option<&SharedTexture> { self.shared_texture.as_ref() }
 }
