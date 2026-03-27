@@ -214,6 +214,11 @@ struct PreviewApp: App {
     // Register menus on first frame
     private static var menusRegistered = false
 
+    func onOpenFile(path: String) {
+        state.loadFile(path)
+        client.send(.setTitle(title: "Preview — \(state.fileName)"))
+    }
+
     func onPointerMove(x: CGFloat, y: CGFloat) {
         state.mouseX = x
         state.mouseY = y
