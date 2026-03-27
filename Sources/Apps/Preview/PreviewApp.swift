@@ -168,7 +168,7 @@ final class PreviewState {
             if showText {
                 textContent
             } else if showImage, let img = imageContent {
-                ScrollView {
+                ScrollView([.horizontal, .vertical]) {
                     img.frame(
                         width: state.imagePixelWidth * state.scale,
                         height: state.imagePixelHeight * state.scale
