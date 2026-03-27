@@ -269,6 +269,11 @@ uint32_t uniffi_clone_render_fn_method_apprenderer_iosurface_id(uint64_t ptr, Ru
 uint32_t uniffi_clone_render_fn_method_apprenderer_mach_port(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_MACH_PORT_AT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_MACH_PORT_AT
+uint32_t uniffi_clone_render_fn_method_apprenderer_mach_port_at(uint64_t ptr, uint32_t index, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER
 uint32_t uniffi_clone_render_fn_method_apprenderer_render(uint64_t ptr, RustBuffer commands, uint32_t width, uint32_t height, float scale, int8_t transparent, RustCallStatus *_Nonnull out_status
@@ -282,6 +287,11 @@ RustBuffer uniffi_clone_render_fn_method_apprenderer_render_to_pixels(uint64_t p
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS_TRANSPARENT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_RENDER_TO_PIXELS_TRANSPARENT
 RustBuffer uniffi_clone_render_fn_method_apprenderer_render_to_pixels_transparent(uint64_t ptr, RustBuffer commands, uint32_t width, uint32_t height, float scale, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_TAKE_TEXTURES_CHANGED
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_METHOD_APPRENDERER_TAKE_TEXTURES_CHANGED
+int8_t uniffi_clone_render_fn_method_apprenderer_take_textures_changed(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUSTBUFFER_ALLOC
@@ -556,6 +566,12 @@ uint16_t uniffi_clone_render_checksum_method_apprenderer_mach_port(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_MACH_PORT_AT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_MACH_PORT_AT
+uint16_t uniffi_clone_render_checksum_method_apprenderer_mach_port_at(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER
 uint16_t uniffi_clone_render_checksum_method_apprenderer_render(void
@@ -571,6 +587,12 @@ uint16_t uniffi_clone_render_checksum_method_apprenderer_render_to_pixels(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER_TO_PIXELS_TRANSPARENT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_RENDER_TO_PIXELS_TRANSPARENT
 uint16_t uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_TAKE_TEXTURES_CHANGED
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_TAKE_TEXTURES_CHANGED
+uint16_t uniffi_clone_render_checksum_method_apprenderer_take_textures_changed(void
     
 );
 #endif

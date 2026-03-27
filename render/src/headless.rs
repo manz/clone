@@ -9,15 +9,17 @@ pub struct HeadlessDevice {
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: DesktopRenderer,
-    /// Double-buffered: [0] = front (compositor reads), [1] = back (app renders)
+    /// Double-buffered: [0] and [1] alternate as front/back.
     textures: [Option<SharedTexture>; 2],
     depth_texture: Option<wgpu::Texture>,
     depth_view: Option<wgpu::TextureView>,
-    /// Which texture index is currently the "front" (compositor-visible)
+    /// Which texture index is currently the "front" (compositor-visible).
     front: usize,
     width: u32,
     height: u32,
     format: wgpu::TextureFormat,
+    /// True when textures were just reallocated (new Mach ports needed).
+    pub textures_changed: bool,
 }
 
 impl HeadlessDevice {
@@ -56,21 +58,25 @@ impl HeadlessDevice {
             width: 0,
             height: 0,
             format,
+            textures_changed: false,
         })
     }
 
-    /// Ensure both textures match the requested physical size.
+    /// Ensure textures match the requested physical size exactly.
+    /// Reallocates only when size changes. Sets `textures_changed` flag
+    /// so the caller knows new Mach ports need to be sent.
     fn ensure_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         let width = width.max(1);
         let height = height.max(1);
 
-        if self.width != width || self.height != height {
+        if self.textures[0].is_none() || self.width != width || self.height != height {
             self.width = width;
             self.height = height;
 
             self.textures[0] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
             self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
             self.front = 0;
+            self.textures_changed = true;
 
             let depth = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("headless_depth"),
@@ -96,13 +102,26 @@ impl HeadlessDevice {
         self.textures[self.front].as_ref().map_or(0, |t| t.iosurface_id())
     }
 
-    /// Get the current front texture (for mach_port export).
+    /// Get IOSurface IDs for both buffers (for Mach port registration).
+    pub fn both_iosurface_ids(&self) -> [u32; 2] {
+        [
+            self.textures[0].as_ref().map_or(0, |t| t.iosurface_id()),
+            self.textures[1].as_ref().map_or(0, |t| t.iosurface_id()),
+        ]
+    }
+
+    /// Get the current front texture.
     pub fn shared_texture(&self) -> Option<&SharedTexture> {
         self.textures[self.front].as_ref()
     }
 
-    /// Render commands into the BACK texture, then swap front/back.
-    /// Returns the new front IOSurface ID (which changed due to swap).
+    /// Get a texture by index (for Mach port export of both buffers).
+    pub fn shared_texture_at(&self, index: usize) -> Option<&SharedTexture> {
+        self.textures.get(index).and_then(|t| t.as_ref())
+    }
+
+    /// Render commands into the back texture, then swap front/back.
+    /// Returns the new front IOSurface ID.
     pub fn render(
         &mut self,
         commands: &[RenderCommand],
@@ -146,7 +165,7 @@ impl HeadlessDevice {
         Ok(self.textures[self.front].as_ref().unwrap().iosurface_id())
     }
 
-    /// Render commands to BGRA8 pixel data (legacy path for testing/PNG export).
+    /// Render commands to BGRA8 pixel data (testing/PNG export only).
     pub fn render_to_pixels(
         &mut self,
         commands: &[RenderCommand],

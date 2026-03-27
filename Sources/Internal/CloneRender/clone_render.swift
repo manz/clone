@@ -562,10 +562,14 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
     func iosurfaceId()  -> UInt32
     
     /**
-     * Create a Mach port send right for the current IOSurface.
-     * Send this port to the compositor via the Mach channel for cross-process import.
+     * Create a Mach port send right for the current front IOSurface.
      */
     func machPort()  -> UInt32
+    
+    /**
+     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     */
+    func machPortAt(index: UInt32)  -> UInt32
     
     /**
      * Render commands into an IOSurface-backed texture.
@@ -583,6 +587,12 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
      * Render commands to BGRA8 pixel data with transparent background (legacy).
      */
     func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
+    
+    /**
+     * True if textures were reallocated since the last call (new Mach ports needed).
+     * Resets the flag after reading.
+     */
+    func takeTexturesChanged()  -> Bool
     
 }
 /**
@@ -664,13 +674,24 @@ open func iosurfaceId() -> UInt32  {
 }
     
     /**
-     * Create a Mach port send right for the current IOSurface.
-     * Send this port to the compositor via the Mach channel for cross-process import.
+     * Create a Mach port send right for the current front IOSurface.
      */
 open func machPort() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
     uniffi_clone_render_fn_method_apprenderer_mach_port(
             self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     */
+open func machPortAt(index: UInt32) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_mach_port_at(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(index),$0
     )
 })
 }
@@ -719,6 +740,18 @@ open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, he
         FfiConverterUInt32.lower(width),
         FfiConverterUInt32.lower(height),
         FfiConverterFloat.lower(scale),$0
+    )
+})
+}
+    
+    /**
+     * True if textures were reallocated since the last call (new Mach ports needed).
+     * Resets the flag after reading.
+     */
+open func takeTexturesChanged() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_take_textures_changed(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -1580,7 +1613,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 582) {
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 54178) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port_at() != 63353) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_render() != 11015) {
@@ -1590,6 +1626,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 62831) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_take_textures_changed() != 39340) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_constructor_apprenderer_new() != 17454) {

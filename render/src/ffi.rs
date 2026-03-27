@@ -59,11 +59,25 @@ impl AppRenderer {
         self.inner.lock().unwrap().iosurface_id()
     }
 
-    /// Create a Mach port send right for the current IOSurface.
-    /// Send this port to the compositor via the Mach channel for cross-process import.
+    /// Create a Mach port send right for the current front IOSurface.
     pub fn mach_port(&self) -> u32 {
         let device = self.inner.lock().unwrap();
         device.shared_texture().map_or(0, |t| t.mach_port())
+    }
+
+    /// Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+    pub fn mach_port_at(&self, index: u32) -> u32 {
+        let device = self.inner.lock().unwrap();
+        device.shared_texture_at(index as usize).map_or(0, |t| t.mach_port())
+    }
+
+    /// True if textures were reallocated since the last call (new Mach ports needed).
+    /// Resets the flag after reading.
+    pub fn take_textures_changed(&self) -> bool {
+        let mut device = self.inner.lock().unwrap();
+        let changed = device.textures_changed;
+        device.textures_changed = false;
+        changed
     }
 
     /// Render commands to BGRA8 pixel data (legacy — uses readback, slow).

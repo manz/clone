@@ -5,9 +5,8 @@ import CloneRender
 import QuartzCore
 
 /// Manages app-side rendering: drives frame loop via CADisplayLink,
-/// renders view tree through the headless GPU renderer into an IOSurface,
-/// and signals the compositor. Zero-copy — the compositor imports the
-/// IOSurface directly.
+/// renders view tree through the headless GPU renderer into IOSurfaces,
+/// and signals the compositor. Zero-copy via Mach port transfer.
 @MainActor
 final class AppSideRenderer: NSObject {
     private let client: AppClient
@@ -18,8 +17,6 @@ final class AppSideRenderer: NSObject {
     private var height: CGFloat = 0
     private var scale: CGFloat = 2.0
     private var currentIOSurfaceId: UInt32 = 0
-    /// Track which IOSurface IDs we've already sent Mach ports for.
-    private var sentMachPorts: Set<UInt32> = []
     /// Use transparent background for overlay surfaces (dock, menubar, loginWindow).
     var transparentBackground: Bool = false
 
@@ -31,7 +28,6 @@ final class AppSideRenderer: NSObject {
         super.init()
     }
 
-    /// Start app-side rendering. Creates the GPU device and begins the display link.
     func start(width: CGFloat, height: CGFloat) {
         self.width = width
         self.height = height
@@ -43,7 +39,6 @@ final class AppSideRenderer: NSObject {
             return
         }
 
-        // Start display link
         let link = CADisplayLink(target: self, selector: #selector(tick))
         link.add(to: .main, forMode: .default)
         displayLink = link
@@ -55,16 +50,14 @@ final class AppSideRenderer: NSObject {
 
     func resize(width: CGFloat, height: CGFloat) {
         guard width != self.width || height != self.height else {
-            // Same size — just mark dirty (normal requestFrame)
             needsRender = true
             return
         }
         self.width = width
         self.height = height
-        // New size means new IOSurfaces — clear Mach port tracking
-        sentMachPorts.removeAll()
-        currentIOSurfaceId = 0
         needsRender = true
+        // Render immediately at the new size — don't wait for display link
+        tick()
     }
 
     func stop() {
@@ -79,11 +72,9 @@ final class AppSideRenderer: NSObject {
         guard width > 0 && height > 0 else { return }
         needsRender = false
 
-        // Build render commands from the view tree
         let ipcCommands = buildFrame(width, height)
         let commands = ipcCommands.map { $0.toRenderCommand() }
 
-        // Render into IOSurface-backed texture (zero-copy)
         let iosurfaceId: UInt32
         do {
             iosurfaceId = try renderer.render(
@@ -98,14 +89,20 @@ final class AppSideRenderer: NSObject {
             return
         }
 
-        // Send Mach port for any new IOSurface ID we haven't sent yet
+        // If textures were reallocated (first frame or resize), send BOTH Mach ports
+        // BEFORE sending the JSON metadata. The compositor's Mach receiver thread
+        // imports the IOSurfaces, making IOSurfaceLookup work when the engine tries.
         #if canImport(Darwin)
-        if !sentMachPorts.contains(iosurfaceId) {
-            let machPort = renderer.machPort()
-            if machPort != 0 {
-                client.sendIOSurfaceMachPort(machPort)
-                sentMachPorts.insert(iosurfaceId)
+        if renderer.takeTexturesChanged() {
+            for i: UInt32 in 0..<2 {
+                let port = renderer.machPortAt(index: i)
+                if port != 0 {
+                    client.sendIOSurfaceMachPort(port)
+                }
             }
+            // Give the compositor's Mach receiver thread time to import.
+            // mach_msg is fast but the receiver runs on a background thread.
+            usleep(1000) // 1ms
         }
         #endif
 
@@ -115,12 +112,10 @@ final class AppSideRenderer: NSObject {
         if currentIOSurfaceId == 0 {
             client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
         } else if iosurfaceId != currentIOSurfaceId {
-            // ID changed (double-buffer swap or resize)
             client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
         }
         currentIOSurfaceId = iosurfaceId
 
-        // Signal compositor that a new frame is ready
         client.send(.surfaceUpdated)
     }
 }
