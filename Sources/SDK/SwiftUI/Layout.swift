@@ -73,7 +73,12 @@ extension LayoutNode {
 
     /// Find the deepest onTap node whose frame contains the point.
     /// Returns the tap ID and the onTap node's frame (for local coordinate conversion).
-    public func hitTestTap(x: CGFloat, y: CGFloat) -> (id: UInt64, frame: LayoutFrame)? {
+    public enum HitTestResult {
+        case tap(id: UInt64, frame: LayoutFrame)
+        case absorbed
+    }
+
+    public func hitTestTap(x: CGFloat, y: CGFloat) -> HitTestResult? {
         guard frame.contains(x: x, y: y) else { return nil }
 
         // Check children back-to-front
@@ -85,7 +90,13 @@ extension LayoutNode {
 
         // If this node itself is an onTap, return its ID and frame
         if case .onTap(let id, _) = node {
-            return (id, frame)
+            return .tap(id: id, frame: frame)
+        }
+
+        // Opaque visual elements absorb the event — prevent leak-through
+        // to windows/views behind this one
+        if node.isOpaqueHitTarget {
+            return .absorbed
         }
 
         return nil

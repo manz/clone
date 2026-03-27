@@ -373,12 +373,12 @@ extension App {
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                     )
-                    if let hit = layoutNode.hitTestTap(x: x, y: y) {
-                        fputs("[App] tap hit id=\(hit.id) at \(x),\(y)\n", stderr)
-                        let local = CGPoint(x: x - hit.frame.x, y: y - hit.frame.y)
-                        TapRegistry.shared.fire(id: hit.id, at: local)
-                    } else {
-                        fputs("[App] tap miss at \(x),\(y)\n", stderr)
+                    switch layoutNode.hitTestTap(x: x, y: y) {
+                    case .tap(let id, let hitFrame):
+                        let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
+                        TapRegistry.shared.fire(id: id, at: local)
+                    case .absorbed, .none:
+                        break
                     }
                     // Text field focus
                     TextFieldRegistry.shared.handleClick(x: x, y: y)
@@ -433,9 +433,9 @@ extension App {
                     sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
                 )
-                if let hit = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
-                    let local = CGPoint(x: CGFloat(px) - hit.frame.x, y: CGFloat(py) - hit.frame.y)
-                    TapRegistry.shared.fire(id: hit.id, at: local)
+                if case .tap(let id, let hitFrame) = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
+                    let local = CGPoint(x: CGFloat(px) - hitFrame.x, y: CGFloat(py) - hitFrame.y)
+                    TapRegistry.shared.fire(id: id, at: local)
                 }
             }
         } else {

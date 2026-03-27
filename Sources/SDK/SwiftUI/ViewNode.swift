@@ -61,6 +61,17 @@ public indirect enum ViewNode: Equatable, Sendable {
     case tagged(tag: SendableHashable, child: ViewNode)
     case toolbarItem(placement: ToolbarItemPlacement, child: ViewNode)
     case lineLimit(limit: Int?, child: ViewNode)
+
+    /// Whether this node is an opaque visual element that should absorb tap events
+    /// (prevent them from leaking through to views behind it).
+    var isOpaqueHitTarget: Bool {
+        switch self {
+        case .rect, .roundedRect, .image, .rasterImage, .toggle, .slider, .picker, .textField:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 /// Axis for ScrollView direction.

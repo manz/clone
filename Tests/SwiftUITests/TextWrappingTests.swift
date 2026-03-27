@@ -169,9 +169,13 @@ import Foundation
     let hit = layoutNode.hitTestTap(x: 60, y: 35)
 
     #expect(hit != nil, "Should hit the tap node")
-    #expect(hit?.id == tapId, "Should return correct tap ID")
-    #expect(hit?.frame.x == 50, "Frame x should be 50, got \(hit?.frame.x ?? -1)")
-    #expect(hit?.frame.y == 30, "Frame y should be 30, got \(hit?.frame.y ?? -1)")
+    if case .tap(let id, let hitFrame) = hit {
+        #expect(id == tapId, "Should return correct tap ID")
+        #expect(hitFrame.x == 50, "Frame x should be 50, got \(hitFrame.x)")
+        #expect(hitFrame.y == 30, "Frame y should be 30, got \(hitFrame.y)")
+    } else {
+        #expect(Bool(false), "Expected .tap result")
+    }
 }
 
 @Test @MainActor func hitTestTapMissReturnsNil() {
