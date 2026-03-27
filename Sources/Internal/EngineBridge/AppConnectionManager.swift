@@ -230,6 +230,9 @@ final class AppConnectionManager {
         let contentWidth = window.width
         let contentHeight = window.height - WindowChrome.titleBarHeight
         server.updateAppDimensions(windowId: serverWid, width: Float(contentWidth), height: Float(contentHeight))
+        // Send requestFrame directly to the resizing app so it knows the new size,
+        // even if it uses IOSurface rendering (skipped by bulk requestFrames).
+        server.sendRequestFrame(windowId: serverWid)
     }
 
     func processLaunchQueue(windowManager: WindowManager, animationManager: AnimationManager) {

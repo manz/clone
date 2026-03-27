@@ -370,10 +370,23 @@ public final class CompositorServer {
         lock.unlock()
         for app in snapshot {
             if app.role == .service { continue }
+            // Apps with IOSurface rendering drive their own frame loop —
+            // don't spam them with requestFrame every compositor frame.
+            if app.iosurfaceId != 0 { continue }
             app.send(.requestFrame(width: app.width, height: app.height))
             if let sheet = app.sheetSize {
                 app.send(.requestSheetFrame(width: sheet.width, height: sheet.height))
             }
+        }
+    }
+
+    /// Send requestFrame to a specific app (used during resize).
+    public func sendRequestFrame(windowId: UInt64) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        if let app {
+            app.send(.requestFrame(width: app.width, height: app.height))
         }
     }
 
