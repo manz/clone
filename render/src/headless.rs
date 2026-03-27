@@ -15,8 +15,12 @@ pub struct HeadlessDevice {
     depth_view: Option<wgpu::TextureView>,
     /// Which texture index is currently the "front" (compositor-visible).
     front: usize,
+    /// Current render dimensions (may be smaller than alloc dimensions).
     width: u32,
     height: u32,
+    /// Allocated texture dimensions (only grows, never shrinks).
+    alloc_width: u32,
+    alloc_height: u32,
     format: wgpu::TextureFormat,
     /// True when textures were just reallocated (new Mach ports needed).
     pub textures_changed: bool,
@@ -57,21 +61,25 @@ impl HeadlessDevice {
             front: 0,
             width: 0,
             height: 0,
+            alloc_width: 0,
+            alloc_height: 0,
             format,
             textures_changed: false,
         })
     }
 
-    /// Ensure textures match the requested physical size exactly.
-    /// Reallocates only when size changes. Sets `textures_changed` flag
-    /// so the caller knows new Mach ports need to be sent.
+    /// Ensure textures are large enough for the requested size.
+    /// Only reallocates when the new size EXCEEDS current allocation.
+    /// Shrinking reuses existing surfaces — no new Mach ports needed.
     fn ensure_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         let width = width.max(1);
         let height = height.max(1);
+        self.width = width;
+        self.height = height;
 
-        if self.textures[0].is_none() || self.width != width || self.height != height {
-            self.width = width;
-            self.height = height;
+        if self.textures[0].is_none() || width > self.alloc_width || height > self.alloc_height {
+            self.alloc_width = width;
+            self.alloc_height = height;
 
             self.textures[0] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
             self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
