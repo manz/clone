@@ -27,7 +27,7 @@ public struct SendableHashable: Hashable, @unchecked Sendable {
 
 public indirect enum ViewNode: Equatable, Sendable {
     case empty
-    case text(String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular)
+    case text(String, fontSize: CGFloat, color: Color, weight: FontWeight = .regular, family: String? = nil)
     case rect(width: CGFloat?, height: CGFloat?, fill: Color)
     case roundedRect(width: CGFloat?, height: CGFloat?, radius: CGFloat, fill: Color)
     case blur(radius: CGFloat)

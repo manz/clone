@@ -51,7 +51,7 @@ public func _extractMenuItems(_ view: some View) -> [AppMenuItem] {
 /// Walk a ViewNode and extract AppMenuItems.
 public func _menuItemsFromNode(_ node: ViewNode) -> [AppMenuItem] {
     switch node {
-    case .text(let content, _, _, _):
+    case .text(let content, _, _, _, _):
         // A standalone text — likely a Button label
         return [AppMenuItem(id: content.lowercased().replacingOccurrences(of: " ", with: "."),
                            title: content, shortcut: nil, isSeparator: false)]

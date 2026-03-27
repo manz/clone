@@ -11,6 +11,7 @@ default = []
 uniffi = ["dep:uniffi"]
 
 [dependencies]
+clone-text = { path = "../text" }
 wgpu = "29"
 uniffi = { version = "0.31", features = ["cli"], optional = true }
 bytemuck = { version = "1.4", features = ["derive"] }

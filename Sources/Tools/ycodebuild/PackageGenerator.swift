@@ -106,7 +106,7 @@ enum PackageGenerator {
         }.joined(separator: ", ")
 
         let fwLinkFlags = [
-            "CloneProtocol", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
+            "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
             "CloneClient", "CloneRender", "SharedSurface", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
         ].flatMap { name in
             ["\"-framework\"", "\"\(name)\""]

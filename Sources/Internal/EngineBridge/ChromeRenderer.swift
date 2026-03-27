@@ -59,7 +59,7 @@ struct ChromeRenderer {
         let titleY = (Float(WindowChrome.titleBarHeight) - 13) / 2
         commands.append(.text(
             x: titleX, y: titleY, content: title, fontSize: 13,
-            color: titleColor.toEngine(), weight: .regular, maxWidth: nil
+            color: titleColor.toEngine(), weight: .regular, maxWidth: nil, family: nil
         ))
         commands.append(.popClip)
 

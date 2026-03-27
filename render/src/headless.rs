@@ -165,7 +165,8 @@ impl HeadlessDevice {
         }
 
         self.queue.submit([encoder.finish()]);
-        self.device.poll(wgpu::PollType::wait_indefinitely()).ok();
+        // No GPU wait — double-buffering ensures the compositor reads the
+        // previous front (already complete) while we render into the back.
 
         // Swap: back becomes the new front
         self.front = back;

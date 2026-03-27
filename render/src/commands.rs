@@ -19,10 +19,12 @@ pub struct SurfaceDesc {
 pub struct SurfaceFrame {
     pub desc: SurfaceDesc,
     pub commands: Vec<RenderCommand>,
-    /// Pre-rendered BGRA8 pixel data from app-side rendering.
-    /// When set, the render server uploads these pixels directly
-    /// instead of rendering the commands.
+    /// Pre-rendered BGRA8 pixel data from app-side rendering (legacy shm path).
     pub pixel_data: Option<Vec<u8>>,
+    /// IOSurface ID for zero-copy GPU texture sharing.
+    /// When non-zero, the compositor imports this IOSurface directly —
+    /// no pixel upload or command rendering needed.
+    pub iosurface_id: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,10 +39,15 @@ pub struct RgbaColor {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
 pub enum FontWeight {
+    UltraLight,
+    Thin,
+    Light,
     Regular,
     Medium,
     Semibold,
     Bold,
+    Heavy,
+    Black,
 }
 
 /// Phosphor icon weight/style variant.
@@ -81,6 +88,7 @@ pub enum RenderCommand {
         color: RgbaColor,
         weight: FontWeight,
         max_width: Option<f32>,
+        family: Option<String>,
     },
     /// Render a Phosphor icon by name using SVG rasterization.
     Icon {
@@ -220,6 +228,7 @@ mod tests {
                 color: color.clone(),
                 weight: FontWeight::Regular,
                 max_width: None,
+                family: None,
             },
             RenderCommand::PushClip {
                 x: 0.0,

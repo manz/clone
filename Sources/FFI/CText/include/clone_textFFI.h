@@ -254,9 +254,30 @@ void uniffi_clone_text_fn_func_clear_text_cache(RustCallStatus *_Nonnull out_sta
 RustBuffer uniffi_clone_text_fn_func_cursor_position(RustBuffer content, uint32_t char_offset, float font_size, RustBuffer weight, RustBuffer max_width, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_LAYOUT_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_LAYOUT_TEXT
+RustBuffer uniffi_clone_text_fn_func_layout_text(RustBuffer content, float font_size, RustBuffer weight, float max_width, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_LIST_FONT_FAMILIES
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_LIST_FONT_FAMILIES
+RustBuffer uniffi_clone_text_fn_func_list_font_families(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT
 RustBuffer uniffi_clone_text_fn_func_measure_text(RustBuffer content, float font_size, RustBuffer weight, RustBuffer max_width, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT_WITH_FAMILY
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_MEASURE_TEXT_WITH_FAMILY
+RustBuffer uniffi_clone_text_fn_func_measure_text_with_family(RustBuffer content, float font_size, RustBuffer weight, RustBuffer max_width, RustBuffer family, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_RESOLVE_FONT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_FN_FUNC_RESOLVE_FONT
+RustBuffer uniffi_clone_text_fn_func_resolve_font(RustBuffer family, RustBuffer weight, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_TEXT_RUSTBUFFER_ALLOC
@@ -531,9 +552,33 @@ uint16_t uniffi_clone_text_checksum_func_cursor_position(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_LAYOUT_TEXT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_LAYOUT_TEXT
+uint16_t uniffi_clone_text_checksum_func_layout_text(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_LIST_FONT_FAMILIES
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_LIST_FONT_FAMILIES
+uint16_t uniffi_clone_text_checksum_func_list_font_families(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_MEASURE_TEXT
 #define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_MEASURE_TEXT
 uint16_t uniffi_clone_text_checksum_func_measure_text(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_MEASURE_TEXT_WITH_FAMILY
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_MEASURE_TEXT_WITH_FAMILY
+uint16_t uniffi_clone_text_checksum_func_measure_text_with_family(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_RESOLVE_FONT
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_TEXT_CHECKSUM_FUNC_RESOLVE_FONT
+uint16_t uniffi_clone_text_checksum_func_resolve_font(void
     
 );
 #endif

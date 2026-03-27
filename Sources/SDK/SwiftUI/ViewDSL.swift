@@ -76,8 +76,8 @@ public extension ViewNode {
     /// `.foregroundColor(.white)` — applies to text and image nodes
     func foregroundColor(_ color: Color) -> ViewNode {
         switch self {
-        case .text(let content, let fontSize, _, let weight):
-            return .text(content, fontSize: fontSize, color: color, weight: weight)
+        case .text(let content, let fontSize, _, let weight, let family):
+            return .text(content, fontSize: fontSize, color: color, weight: weight, family: family)
         case .image(let name, let width, let height, _):
             return .image(name: name, width: width, height: height, tint: color)
         default:
@@ -88,8 +88,8 @@ public extension ViewNode {
     /// `.font(.headline)` / `.font(.system(size: 14, weight: .semibold))`
     func font(_ font: Font) -> ViewNode {
         switch self {
-        case .text(let content, _, let color, _):
-            return .text(content, fontSize: font.size, color: color, weight: font.internalWeight)
+        case .text(let content, _, let color, _, _):
+            return .text(content, fontSize: font.size, color: color, weight: font.internalWeight, family: font.familyName)
         default:
             return self
         }
@@ -98,8 +98,8 @@ public extension ViewNode {
     /// `.bold()` — sets font weight to bold.
     func bold() -> ViewNode {
         switch self {
-        case .text(let content, let fontSize, let color, _):
-            return .text(content, fontSize: fontSize, color: color, weight: .bold)
+        case .text(let content, let fontSize, let color, _, let family):
+            return .text(content, fontSize: fontSize, color: color, weight: .bold, family: family)
         default:
             return self
         }
@@ -113,9 +113,9 @@ public extension ViewNode {
     /// `.fontWeight(.semibold)` — sets text weight. Matches Apple's SwiftUI.
     func fontWeight(_ weight: Font.Weight) -> ViewNode {
         switch self {
-        case .text(let content, let fontSize, let color, _):
+        case .text(let content, let fontSize, let color, _, let family):
             let fw = Font(size: fontSize, weight: weight).internalWeight
-            return .text(content, fontSize: fontSize, color: color, weight: fw)
+            return .text(content, fontSize: fontSize, color: color, weight: fw, family: family)
         default:
             return self
         }
@@ -581,8 +581,8 @@ public extension ViewNode {
 /// Rewrite all text colors in a ViewNode tree.
 private func recolorText(_ node: ViewNode, to color: Color) -> ViewNode {
     switch node {
-    case .text(let content, let size, _, let weight):
-        return .text(content, fontSize: size, color: color, weight: weight)
+    case .text(let content, let size, _, let weight, let family):
+        return .text(content, fontSize: size, color: color, weight: weight, family: family)
     case .hstack(let align, let spacing, let children):
         return .hstack(alignment: align, spacing: spacing, children: children.map { recolorText($0, to: color) })
     case .vstack(let align, let spacing, let children):
@@ -603,7 +603,7 @@ private func recolorText(_ node: ViewNode, to color: Color) -> ViewNode {
 /// Extract the text color from a ViewNode tree (walks down looking for .text color).
 private func extractTextColor(_ node: ViewNode) -> Color? {
     switch node {
-    case .text(_, _, let color, _):
+    case .text(_, _, let color, _, _):
         return color == .primary ? nil : color
     case .hstack(_, _, let children), .vstack(_, _, let children), .zstack(_, let children):
         for child in children {

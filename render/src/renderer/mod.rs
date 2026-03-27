@@ -264,13 +264,13 @@ impl DesktopRenderer {
                         _pad: [0.0; 3],
                     });
                 }
-                RenderCommand::Text { x, y, content, font_size, color, weight, max_width } => {
+                RenderCommand::Text { x, y, content, font_size, color, weight, max_width, family } => {
                     let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
                     cmd_index += 1;
                     if let Some(tr) = &mut self.text_renderer {
                         let scaled_max_width = max_width.map(|mw| mw * scale);
                         let mut g = tr.shape_text(
-                            content, *x * scale, *y * scale, *font_size * scale, color, weight, scaled_max_width,
+                            content, *x * scale, *y * scale, *font_size * scale, color, weight, scaled_max_width, family.as_deref(),
                         );
                         for glyph in &mut g {
                             glyph.z = z;

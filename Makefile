@@ -45,6 +45,8 @@ bindings: engine
 	sed -i '' 's/import clone_renderFFI/import clone_engineFFI/' Sources/Internal/EngineBridge/clone_render.swift
 	# Remove standalone clone-render FFI module files (not needed as a separate module)
 	rm -f Sources/Internal/EngineBridge/clone_renderFFI.h Sources/Internal/EngineBridge/clone_renderFFI.modulemap
+	# Remove clone-text bindings leaked through engine dylib (already in CloneText target)
+	rm -f Sources/Internal/EngineBridge/clone_text.swift Sources/Internal/EngineBridge/clone_textFFI.h Sources/Internal/EngineBridge/clone_textFFI.modulemap
 
 # Rust text measurement crate
 text:
@@ -93,12 +95,14 @@ apps:
 	$(call APPBUILD,TextEdit,TextEdit)
 	$(call APPBUILD,Preview,Preview)
 	$(call APPBUILD,LoginWindow,LoginWindow)
+	$(call APPBUILD,FontBook,FontBook)
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
 SWIFT_BUILD_DIR = .build/$(CONFIG)
 install:
-	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
+	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices $(CLONE_ROOT)/Library/Fonts "$(CLONE_ROOT)/Library/Application Support"
+	@cp -n engine/assets/Inter-*.ttf engine/assets/Iosevka-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
 	@echo "Cleaning stale bundles..."
 	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \

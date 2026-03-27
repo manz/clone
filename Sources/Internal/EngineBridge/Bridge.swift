@@ -18,13 +18,14 @@ public enum Bridge {
                     x: cx, y: cy, w: cw, h: ch,
                     radius: Float(radius), color: color.toEngine()
                 )
-            case .text(let content, let fontSize, let color, let weight, let maxWidth):
+            case .text(let content, let fontSize, let color, let weight, let maxWidth, let family):
                 return .text(
                     x: cx, y: cy,
                     content: content, fontSize: Float(fontSize),
                     color: color.toEngine(),
                     weight: weight.toEngine(),
-                    maxWidth: maxWidth.map { Float($0) }
+                    maxWidth: maxWidth.map { Float($0) },
+                    family: family
                 )
             case .icon(let name, let style, let color):
                 return .icon(
@@ -57,10 +58,10 @@ public enum Bridge {
                 return .rect(x: x + offsetX, y: y + offsetY, w: w, h: h, color: color.toEngine())
             case .roundedRect(let x, let y, let w, let h, let radius, let color):
                 return .roundedRect(x: x + offsetX, y: y + offsetY, w: w, h: h, radius: radius, color: color.toEngine())
-            case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth):
+            case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth, let family):
                 return .text(x: x + offsetX, y: y + offsetY, content: content, fontSize: fontSize,
                             color: color.toEngine(), weight: weight.toEngine(),
-                            maxWidth: maxWidth)
+                            maxWidth: maxWidth, family: family)
             case .icon(let name, let style, let x, let y, let w, let h, let color):
                 return .icon(name: name, style: style.toEngine(),
                             x: x + offsetX, y: y + offsetY, w: w, h: h,
@@ -90,10 +91,10 @@ public enum Bridge {
             return .rect(x: x, y: y + dy, w: w, h: h, color: color.toEngine())
         case .roundedRect(let x, let y, let w, let h, let radius, let color):
             return .roundedRect(x: x, y: y + dy, w: w, h: h, radius: radius, color: color.toEngine())
-        case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth):
+        case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth, let family):
             return .text(x: x, y: y + dy, content: content, fontSize: fontSize,
                         color: color.toEngine(), weight: weight.toEngine(),
-                        maxWidth: maxWidth)
+                        maxWidth: maxWidth, family: family)
         case .icon(let name, let style, let x, let y, let w, let h, let color):
             return .icon(name: name, style: style.toEngine(),
                         x: x, y: y + dy, w: w, h: h,
@@ -131,10 +132,15 @@ extension IPCColor {
 extension SwiftUI.FontWeight {
     func toEngine() -> FontWeight {
         switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
         case .regular: return .regular
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
         }
     }
 }
@@ -142,10 +148,15 @@ extension SwiftUI.FontWeight {
 extension IPCFontWeight {
     func toEngine() -> FontWeight {
         switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
         case .regular: return .regular
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
         }
     }
 }

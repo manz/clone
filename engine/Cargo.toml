@@ -8,6 +8,7 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 clone-render = { path = "../render", features = ["uniffi"] }
+clone-text = { path = "../text" }
 wgpu-iosurface = { path = "../wgpu-iosurface" }
 wgpu = "29"
 winit = "0.30"

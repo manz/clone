@@ -562,6 +562,16 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
     func iosurfaceId()  -> UInt32
     
     /**
+     * Create a Mach port send right for the current front IOSurface.
+     */
+    func machPort()  -> UInt32
+    
+    /**
+     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     */
+    func machPortAt(index: UInt32)  -> UInt32
+    
+    /**
      * Render commands into an IOSurface-backed texture.
      * Returns the IOSurface ID for cross-process sharing (zero-copy).
      * The compositor imports by this ID — no pixel readback needed.
@@ -577,6 +587,12 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
      * Render commands to BGRA8 pixel data with transparent background (legacy).
      */
     func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
+    
+    /**
+     * True if textures were reallocated since the last call (new Mach ports needed).
+     * Resets the flag after reading.
+     */
+    func takeTexturesChanged()  -> Bool
     
 }
 /**
@@ -658,6 +674,29 @@ open func iosurfaceId() -> UInt32  {
 }
     
     /**
+     * Create a Mach port send right for the current front IOSurface.
+     */
+open func machPort() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_mach_port(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     */
+open func machPortAt(index: UInt32) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_mach_port_at(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(index),$0
+    )
+})
+}
+    
+    /**
      * Render commands into an IOSurface-backed texture.
      * Returns the IOSurface ID for cross-process sharing (zero-copy).
      * The compositor imports by this ID — no pixel readback needed.
@@ -701,6 +740,18 @@ open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, he
         FfiConverterUInt32.lower(width),
         FfiConverterUInt32.lower(height),
         FfiConverterFloat.lower(scale),$0
+    )
+})
+}
+    
+    /**
+     * True if textures were reallocated since the last call (new Mach ports needed).
+     * Resets the flag after reading.
+     */
+open func takeTexturesChanged() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_clone_render_fn_method_apprenderer_take_textures_changed(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -978,10 +1029,15 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
 
 public enum FontWeight: Equatable, Hashable {
     
+    case ultraLight
+    case thin
+    case light
     case regular
     case medium
     case semibold
     case bold
+    case heavy
+    case black
 
 
 
@@ -1003,13 +1059,23 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .regular
+        case 1: return .ultraLight
         
-        case 2: return .medium
+        case 2: return .thin
         
-        case 3: return .semibold
+        case 3: return .light
         
-        case 4: return .bold
+        case 4: return .regular
+        
+        case 5: return .medium
+        
+        case 6: return .semibold
+        
+        case 7: return .bold
+        
+        case 8: return .heavy
+        
+        case 9: return .black
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1019,20 +1085,40 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         switch value {
         
         
-        case .regular:
+        case .ultraLight:
             writeInt(&buf, Int32(1))
         
         
-        case .medium:
+        case .thin:
             writeInt(&buf, Int32(2))
         
         
-        case .semibold:
+        case .light:
             writeInt(&buf, Int32(3))
         
         
-        case .bold:
+        case .regular:
             writeInt(&buf, Int32(4))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .semibold:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .bold:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .heavy:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .black:
+            writeInt(&buf, Int32(9))
         
         }
     }
@@ -1161,7 +1247,7 @@ public enum RenderCommand: Equatable, Hashable {
     )
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
     )
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, maxWidth: Float?
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, maxWidth: Float?, family: String?
     )
     /**
      * Render a Phosphor icon by name using SVG rasterization.
@@ -1212,7 +1298,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf), family: try FfiConverterOptionString.read(from: &buf)
         )
         
         case 4: return .icon(name: try FfiConverterString.read(from: &buf), style: try FfiConverterTypeIconStyle.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
@@ -1271,7 +1357,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             
         
-        case let .text(x,y,content,fontSize,color,weight,maxWidth):
+        case let .text(x,y,content,fontSize,color,weight,maxWidth,family):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1280,6 +1366,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
             FfiConverterOptionFloat.write(maxWidth, into: &buf)
+            FfiConverterOptionString.write(family, into: &buf)
             
         
         case let .icon(name,style,x,y,w,h,color):
@@ -1498,6 +1585,30 @@ fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
     typealias SwiftType = Data?
 
@@ -1562,6 +1673,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 54178) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port_at() != 63353) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_clone_render_checksum_method_apprenderer_render() != 11015) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -1569,6 +1686,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 62831) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_take_textures_changed() != 39340) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_constructor_apprenderer_new() != 17454) {

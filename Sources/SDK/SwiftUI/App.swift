@@ -697,10 +697,10 @@ extension FlatRenderCommand {
         case .roundedRect(let radius, let color):
             return .roundedRect(x: fx, y: fy, w: fw, h: fh,
                                 radius: Float(radius), color: color.toIPC())
-        case .text(let content, let fontSize, let color, let weight, let maxWidth):
+        case .text(let content, let fontSize, let color, let weight, let maxWidth, let family):
             return .text(x: fx, y: fy, content: content, fontSize: Float(fontSize),
                          color: color.toIPC(), weight: weight.toIPC(),
-                         maxWidth: maxWidth.map { Float($0) })
+                         maxWidth: maxWidth.map { Float($0) }, family: family)
         case .icon(let name, let style, let color):
             return .icon(name: name, style: style.toIPC(),
                         x: fx, y: fy, w: fw, h: fh,
@@ -739,10 +739,15 @@ extension PhosphorIconStyle {
 extension FontWeight {
     func toIPC() -> IPCFontWeight {
         switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
         case .regular: return .regular
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
         }
     }
 }

@@ -129,8 +129,8 @@ extension IPCRenderCommand {
             return .rect(x: x, y: y, w: w, h: h, color: color.toRgba())
         case .roundedRect(let x, let y, let w, let h, let radius, let color):
             return .roundedRect(x: x, y: y, w: w, h: h, radius: radius, color: color.toRgba())
-        case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth):
-            return .text(x: x, y: y, content: content, fontSize: fontSize, color: color.toRgba(), weight: weight.toFontWeight(), maxWidth: maxWidth)
+        case .text(let x, let y, let content, let fontSize, let color, let weight, let maxWidth, let family):
+            return .text(x: x, y: y, content: content, fontSize: fontSize, color: color.toRgba(), weight: weight.toFontWeight(), maxWidth: maxWidth, family: family)
         case .icon(let name, let style, let x, let y, let w, let h, let color):
             return .icon(name: name, style: style.toIconStyle(), x: x, y: y, w: w, h: h, color: color.toRgba())
         case .shadow(let x, let y, let w, let h, let radius, let blur, let color, let ox, let oy):
@@ -158,10 +158,15 @@ extension IPCColor {
 extension IPCFontWeight {
     func toFontWeight() -> CloneRender.FontWeight {
         switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
         case .regular: return .regular
         case .medium: return .medium
         case .semibold: return .semibold
         case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
         }
     }
 }

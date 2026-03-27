@@ -17,7 +17,7 @@ import Foundation
     }
 
     // Child is the text
-    if case .text(let content, _, _, _) = child {
+    if case .text(let content, _, _, _, _) = child {
         #expect(content == "Right-click me")
     } else {
         Issue.record("Expected text child")

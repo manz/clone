@@ -1029,10 +1029,15 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
 
 public enum FontWeight: Equatable, Hashable {
     
+    case ultraLight
+    case thin
+    case light
     case regular
     case medium
     case semibold
     case bold
+    case heavy
+    case black
 
 
 
@@ -1054,13 +1059,23 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .regular
+        case 1: return .ultraLight
         
-        case 2: return .medium
+        case 2: return .thin
         
-        case 3: return .semibold
+        case 3: return .light
         
-        case 4: return .bold
+        case 4: return .regular
+        
+        case 5: return .medium
+        
+        case 6: return .semibold
+        
+        case 7: return .bold
+        
+        case 8: return .heavy
+        
+        case 9: return .black
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1070,20 +1085,40 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         switch value {
         
         
-        case .regular:
+        case .ultraLight:
             writeInt(&buf, Int32(1))
         
         
-        case .medium:
+        case .thin:
             writeInt(&buf, Int32(2))
         
         
-        case .semibold:
+        case .light:
             writeInt(&buf, Int32(3))
         
         
-        case .bold:
+        case .regular:
             writeInt(&buf, Int32(4))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .semibold:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .bold:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .heavy:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .black:
+            writeInt(&buf, Int32(9))
         
         }
     }
@@ -1212,7 +1247,7 @@ public enum RenderCommand: Equatable, Hashable {
     )
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: RgbaColor
     )
-    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, maxWidth: Float?
+    case text(x: Float, y: Float, content: String, fontSize: Float, color: RgbaColor, weight: FontWeight, maxWidth: Float?, family: String?
     )
     /**
      * Render a Phosphor icon by name using SVG rasterization.
@@ -1263,7 +1298,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
         case 2: return .roundedRect(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), radius: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
         )
         
-        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf)
+        case 3: return .text(x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), content: try FfiConverterString.read(from: &buf), fontSize: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf), weight: try FfiConverterTypeFontWeight.read(from: &buf), maxWidth: try FfiConverterOptionFloat.read(from: &buf), family: try FfiConverterOptionString.read(from: &buf)
         )
         
         case 4: return .icon(name: try FfiConverterString.read(from: &buf), style: try FfiConverterTypeIconStyle.read(from: &buf), x: try FfiConverterFloat.read(from: &buf), y: try FfiConverterFloat.read(from: &buf), w: try FfiConverterFloat.read(from: &buf), h: try FfiConverterFloat.read(from: &buf), color: try FfiConverterTypeRgbaColor.read(from: &buf)
@@ -1322,7 +1357,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             
         
-        case let .text(x,y,content,fontSize,color,weight,maxWidth):
+        case let .text(x,y,content,fontSize,color,weight,maxWidth,family):
             writeInt(&buf, Int32(3))
             FfiConverterFloat.write(x, into: &buf)
             FfiConverterFloat.write(y, into: &buf)
@@ -1331,6 +1366,7 @@ public struct FfiConverterTypeRenderCommand: FfiConverterRustBuffer {
             FfiConverterTypeRgbaColor.write(color, into: &buf)
             FfiConverterTypeFontWeight.write(weight, into: &buf)
             FfiConverterOptionFloat.write(maxWidth, into: &buf)
+            FfiConverterOptionString.write(family, into: &buf)
             
         
         case let .icon(name,style,x,y,w,h,color):
@@ -1541,6 +1577,30 @@ fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }

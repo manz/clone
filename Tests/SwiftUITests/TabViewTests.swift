@@ -16,7 +16,7 @@ import Testing
 
     let node = tabView._nodeRepresentation
     // Tab bar now goes to toolbar — _nodeRepresentation returns just the selected content
-    if case .text(let text, _, _, _) = node {
+    if case .text(let text, _, _, _, _) = node {
         #expect(text == "Content B")
     } else {
         Issue.record("Expected text 'Content B' for selected tab, got \(node)")
