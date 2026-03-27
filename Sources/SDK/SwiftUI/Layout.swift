@@ -82,19 +82,30 @@ extension LayoutNode {
         guard frame.contains(x: x, y: y) else { return nil }
 
         // Check children back-to-front
+        var childAbsorbed = false
         for child in children.reversed() {
             if let hit = child.hitTestTap(x: x, y: y) {
-                return hit
+                switch hit {
+                case .tap:
+                    return hit // definitive tap — propagate immediately
+                case .absorbed:
+                    childAbsorbed = true // something opaque was hit, but no handler yet
+                }
             }
         }
 
-        // If this node itself is an onTap, return its ID and frame
+        // If this node is an onTap, it provides the handler.
+        // This fires even when a child was .absorbed (e.g. opaque background inside a button).
         if case .onTap(let id, _) = node {
             return .tap(id: id, frame: frame)
         }
 
-        // Opaque visual elements absorb the event — prevent leak-through
-        // to windows/views behind this one
+        // A child was absorbed — propagate upward (prevents leak-through)
+        if childAbsorbed {
+            return .absorbed
+        }
+
+        // This node itself is opaque — absorb
         if node.isOpaqueHitTarget {
             return .absorbed
         }
