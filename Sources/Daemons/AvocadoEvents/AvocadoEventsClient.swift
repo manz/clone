@@ -57,10 +57,11 @@ public final class AvocadoEventsClient: @unchecked Sendable {
         _ = readOneResponse()
     }
 
-    /// Send an event to a target app. Waits for acknowledgement.
+    /// Send an event to a target app. Fire-and-forget — the server acks with .ok
+    /// but listen() on the background thread consumes all responses, so we can't
+    /// safely block here (two threads reading the same fd = race condition).
     public func send(to targetAppId: String, event: AvocadoEvent) {
         sendRequest(.send(targetAppId: targetAppId, event: event))
-        _ = readOneResponse()
     }
 
     /// Blocking read loop — call on a background thread. Dispatches events to `onEvent`.
@@ -72,8 +73,9 @@ public final class AvocadoEventsClient: @unchecked Sendable {
             readBuffer.append(contentsOf: buf[0..<bytesRead])
             while let (msg, consumed) = WireProtocol.decode(AEResponse.self, from: readBuffer) {
                 readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
-                if case .event(let event) = msg {
-                    onEvent?(event)
+                switch msg {
+                case .event(let event): onEvent?(event)
+                case .ok, .error: break // ack from send(), discard
                 }
             }
         }
