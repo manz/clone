@@ -114,10 +114,12 @@ impl DesktopRenderer {
             ip.reset_instance_offset();
         }
 
-        let mut clear_color = Self::extract_background(commands);
-        if transparent_clear {
-            clear_color.a = 0.0;
-        }
+        let clear_color = if transparent_clear {
+            // Fully transparent clear — all channels zero for valid premultiplied alpha
+            RgbaColor { r: 0.0, g: 0.0, b: 0.0, a: 0.0 }
+        } else {
+            Self::extract_background(commands)
+        };
 
         // Clear
         {
