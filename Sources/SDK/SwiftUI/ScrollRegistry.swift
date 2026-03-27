@@ -5,51 +5,68 @@ import Foundation
 public final class ScrollRegistry: @unchecked Sendable {
     public static let shared = ScrollRegistry()
 
-    private var offsets: [String: CGFloat] = [:]
+    public struct ScrollOffset {
+        public var x: CGFloat = 0
+        public var y: CGFloat = 0
+    }
+
+    private var offsets: [String: ScrollOffset] = [:]
 
     private init() {}
 
     /// Reset per-frame state (frames for hit testing). Offsets persist.
     public func resetCounter() {
         frames.removeAll()
-        contentHeights.removeAll()
+        contentSizes.removeAll()
+        axesSets.removeAll()
     }
 
     /// Get scroll offset for a ScrollView by key.
-    public func offset(scrollKey: String) -> CGFloat {
-        offsets[scrollKey, default: 0]
+    public func offset(scrollKey: String) -> ScrollOffset {
+        offsets[scrollKey, default: ScrollOffset()]
     }
 
     /// Scroll by delta at a given screen position. Returns true if a ScrollView handled it.
-    public func scroll(deltaY: CGFloat, atX x: CGFloat, atY y: CGFloat) -> Bool {
-        // Find the ScrollView that contains this point using the stored frames
+    public func scroll(deltaX: CGFloat = 0, deltaY: CGFloat, atX x: CGFloat, atY y: CGFloat) -> Bool {
         for (key, frame) in frames {
             if x >= frame.x && x <= frame.x + frame.width &&
                y >= frame.y && y <= frame.y + frame.height {
-                let current = offsets[key, default: 0]
-                let contentHeight = contentHeights[key, default: 0]
-                let maxOffset = max(0, contentHeight - frame.height)
-                let newOffset = min(max(current - deltaY, 0), maxOffset)
-                offsets[key] = newOffset
+                var current = offsets[key, default: ScrollOffset()]
+                let contentSize = contentSizes[key] ?? (width: 0, height: 0)
+                let axes = axesSets[key] ?? .vertical
+
+                if axes.contains(.vertical) {
+                    let maxY = max(0, contentSize.height - frame.height)
+                    current.y = min(max(current.y - deltaY, 0), maxY)
+                }
+                if axes.contains(.horizontal) {
+                    let maxX = max(0, contentSize.width - frame.width)
+                    current.x = min(max(current.x - deltaX, 0), maxX)
+                }
+
+                offsets[key] = current
                 return true
             }
         }
         return false
     }
 
-    /// Register a ScrollView's frame and content height for hit testing.
+    /// Register a ScrollView's frame and content size for hit testing.
     private var frames: [String: LayoutFrame] = [:]
-    private var contentHeights: [String: CGFloat] = [:]
+    private var contentSizes: [String: (width: CGFloat, height: CGFloat)] = [:]
+    private var axesSets: [String: Axis.Set] = [:]
 
-    public func registerFrame(_ frame: LayoutFrame, contentHeight: CGFloat, key: String) {
+    public func registerFrame(_ frame: LayoutFrame, contentWidth: CGFloat, contentHeight: CGFloat, axes: Axis.Set, key: String) {
         frames[key] = frame
-        contentHeights[key] = contentHeight
+        contentSizes[key] = (contentWidth, contentHeight)
+        axesSets[key] = axes
     }
 
     /// Full reset (for tests).
     public func clear() {
         offsets.removeAll()
         frames.removeAll()
-        contentHeights.removeAll()
+        contentSizes.removeAll()
+        axesSets.removeAll()
     }
 }

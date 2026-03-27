@@ -44,7 +44,7 @@ public indirect enum ViewNode: Equatable, Sendable {
     case geometryReader(id: UInt64)
 
     // Step 4 additions
-    case scrollView(axis: Axis, children: [ViewNode], key: String)
+    case scrollView(axes: Axis.Set, children: [ViewNode], key: String)
     case list(children: [ViewNode])
     /// Lazy list: rows are built on-demand from LazyRowRegistry during layout.
     /// Only visible rows are materialized. Key identifies the registry entry.
