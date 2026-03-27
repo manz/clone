@@ -16,7 +16,7 @@ public struct NavigationSplitView: _PrimitiveView {
         // HStack: fixed sidebar + divider + detail fills rest
         .hstack(alignment: .top, spacing: 0, children: [
             ViewNode.frame(width: sidebarWidth, height: nil, child:
-                .scrollView(axis: .vertical, children: [
+                .scrollView(axes: Axis.Set.vertical, children: [
                     ViewNode.vstack(alignment: .leading, spacing: 0, children: sidebarNodes)
                         .padding(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
                 ], key: "NavigationSplitView:sidebar")),

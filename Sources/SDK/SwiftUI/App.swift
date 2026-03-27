@@ -492,7 +492,7 @@ extension App {
             appRenderer.setNeedsDisplay()
         }
         app.client.onScroll = { dx, dy in
-            ScrollRegistry.shared.scroll(deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
+            ScrollRegistry.shared.scroll(deltaX: CGFloat(dx), deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
             appRenderer.setNeedsDisplay()
         }
         app.client.onColorScheme = { dark in
