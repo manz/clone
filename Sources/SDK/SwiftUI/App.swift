@@ -279,7 +279,7 @@ extension App {
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
-                return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
+                return CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() }
             }
 
             // App-side rendering: app renders pixels via headless GPU → shared memory
@@ -415,7 +415,7 @@ extension App {
                     sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetW, height: sheetH)
                 )
-                return CommandFlattener.flatten(layoutNode).map { $0.toIPC() }
+                return CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() }
             }
 
             // Sheet backdrop tapped — dismiss the sheet
@@ -449,7 +449,7 @@ extension App {
                 if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
                     let frame = LayoutFrame(x: 0, y: 0, width: width, height: height)
                     let layoutNode = Layout.layout(panelOverlay, in: frame)
-                    cmds.append(contentsOf: CommandFlattener.flatten(layoutNode).map { $0.toIPC() })
+                    cmds.append(contentsOf: CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() })
                 }
                 return cmds
             }
@@ -709,10 +709,27 @@ extension FlatRenderCommand {
             return .shadow(x: fx, y: fy, w: fw, h: fh,
                           radius: Float(radius), blur: Float(blur), color: color.toIPC(),
                           ox: Float(offsetX), oy: Float(offsetY))
+        case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
+            // Returns image draw command — registerTexture is emitted separately via toIPCCommands()
+            return .image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)
         case .pushClip(let radius):
             return .pushClip(x: fx, y: fy, w: fw, h: fh, radius: Float(radius))
         case .popClip:
             return .popClip
+        }
+    }
+
+    /// Convert to IPC commands — may return multiple (e.g. RegisterTexture + Image).
+    func toIPCCommands() -> [IPCRenderCommand] {
+        switch kind {
+        case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
+            let fx = Float(x), fy = Float(y), fw = Float(width), fh = Float(height)
+            return [
+                .registerTexture(textureId: textureId, width: imgW, height: imgH, rgbaData: rgbaData),
+                .image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)
+            ]
+        default:
+            return [toIPC()]
         }
     }
 }

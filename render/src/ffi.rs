@@ -104,3 +104,25 @@ impl AppRenderer {
         Ok(device.render_to_pixels_transparent(&commands, width, height, scale))
     }
 }
+
+/// Decoded image result.
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct DecodedImage {
+    pub width: u32,
+    pub height: u32,
+    pub rgba_data: Vec<u8>,
+}
+
+/// Decode an image file (JPEG, PNG, GIF, BMP, etc.) to RGBA pixel data.
+#[cfg_attr(feature = "uniffi", uniffi::export)]
+pub fn decode_image(data: Vec<u8>) -> Result<DecodedImage, RenderError> {
+    let img = image::load_from_memory(&data)
+        .map_err(|e| RenderError::RenderFailed { reason: format!("Image decode failed: {e}") })?;
+    let rgba = img.to_rgba8();
+    Ok(DecodedImage {
+        width: rgba.width(),
+        height: rgba.height(),
+        rgba_data: rgba.into_raw(),
+    })
+}

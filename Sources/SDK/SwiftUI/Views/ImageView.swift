@@ -1,28 +1,57 @@
 import Foundation
+import CloneRender
 
 /// A view that displays an image. Matches Apple's SwiftUI `Image` struct.
-/// Currently renders as a colored placeholder rect (no real image loading).
 public struct Image: _PrimitiveView {
     let name: String
     var fontSize: CGFloat?
 
-    /// `Image(systemName:)` — SF Symbol stub.
+    // Raster image data (decoded RGBA)
+    var textureId: UInt64?
+    var imageWidth: UInt32?
+    var imageHeight: UInt32?
+    var rgbaData: [UInt8]?
+
+    /// `Image(systemName:)` — SF Symbol / Phosphor icon.
     public init(systemName: String) {
         self.name = systemName
     }
 
-    /// `Image(_:)` — named image.
+    /// `Image(_:)` — named image (icon lookup).
     public init(_ name: String) {
         self.name = name
     }
 
-    /// `Image(nsImage:)` — creates an image from an NSImage. Stub: uses empty name.
+    /// `Image(nsImage:)` — creates an image from an NSImage (stub — no rendering).
     public init(nsImage: NSImage) {
         self.name = ""
     }
 
+    /// Load a raster image from a file path.
+    public init(contentsOfFile path: String) {
+        self.name = ""
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
+            Self.loadRaster(from: data, into: &self)
+        }
+    }
+
+    private static func loadRaster(from fileData: Data, into image: inout Image) {
+        do {
+            let decoded = try decodeImage(data: fileData)
+            image.textureId = UInt64(fileData.hashValue & 0x7FFFFFFFFFFFFFFF)
+            image.imageWidth = decoded.width
+            image.imageHeight = decoded.height
+            image.rgbaData = [UInt8](decoded.rgbaData)
+        } catch {
+            fputs("[Image] Failed to decode image: \(error)\n", stderr)
+        }
+    }
+
     public var _nodeRepresentation: ViewNode {
-        .image(name: name, width: fontSize, height: fontSize)
+        if let textureId, let imgW = imageWidth, let imgH = imageHeight, let rgba = rgbaData {
+            return .rasterImage(textureId: textureId, imageWidth: imgW, imageHeight: imgH, rgbaData: rgba)
+        }
+        return .image(name: name, width: fontSize, height: fontSize)
     }
 
     /// `.font()` on Image sets the icon size (like SF Symbols).

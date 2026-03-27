@@ -1,6 +1,7 @@
 pub mod blur;
 pub mod compositor;
 pub mod icon;
+pub mod image;
 pub mod rect;
 pub mod shadow;
 pub mod text;
@@ -9,6 +10,7 @@ pub mod wallpaper;
 
 use crate::commands::{RenderCommand, RgbaColor};
 use crate::renderer::icon::IconPipeline;
+use crate::renderer::image::ImagePipeline;
 use crate::renderer::rect::RectPipeline;
 use crate::renderer::shadow::{ShadowInstance, ShadowPipeline};
 use crate::renderer::text::TextRenderer;
@@ -22,6 +24,7 @@ pub struct DesktopRenderer {
     text_renderer: Option<TextRenderer>,
     wallpaper_pipeline: Option<WallpaperPipeline>,
     icon_pipeline: Option<IconPipeline>,
+    image_pipeline: Option<ImagePipeline>,
 }
 
 impl DesktopRenderer {
@@ -33,6 +36,7 @@ impl DesktopRenderer {
             text_renderer: None,
             wallpaper_pipeline: None,
             icon_pipeline: None,
+            image_pipeline: None,
         }
     }
 
@@ -42,6 +46,7 @@ impl DesktopRenderer {
         self.text_renderer = Some(TextRenderer::new(device, queue, self.surface_format));
         self.wallpaper_pipeline = Some(WallpaperPipeline::new(device, self.surface_format));
         self.icon_pipeline = Some(IconPipeline::new(device, self.surface_format));
+        self.image_pipeline = Some(ImagePipeline::new(device, self.surface_format));
     }
 
     /// Load a wallpaper image. Called once at startup.
@@ -308,11 +313,32 @@ impl DesktopRenderer {
                         );
                     }
                 }
-                RenderCommand::Image { .. } => {
-                    // TODO: ImagePipeline for user images — currently a no-op
+                RenderCommand::Image { texture_id, x, y, w, h } => {
+                    flush(device, queue, encoder, view, depth_view,
+                          &self.shadow_pipeline, &mut self.rect_pipeline, &mut self.text_renderer,
+                          &mut solid, &mut rounded, &mut shadows, &mut glyphs,
+                          width, height, scissor);
+                    let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
+                    cmd_index += 1;
+                    if let Some(ip) = &self.image_pipeline {
+                        ip.draw(
+                            queue, encoder, view, depth_view,
+                            width, height,
+                            *texture_id, x * scale, y * scale, w * scale, h * scale,
+                            z, scissor,
+                        );
+                    }
                 }
-                RenderCommand::RegisterTexture { .. } => {}
-                RenderCommand::UnregisterTexture { .. } => {}
+                RenderCommand::RegisterTexture { texture_id, width: tw, height: th, rgba_data } => {
+                    if let Some(ip) = &mut self.image_pipeline {
+                        ip.register(device, queue, *texture_id, *tw, *th, rgba_data);
+                    }
+                }
+                RenderCommand::UnregisterTexture { texture_id } => {
+                    if let Some(ip) = &mut self.image_pipeline {
+                        ip.unregister(*texture_id);
+                    }
+                }
                 _ => {}
             }
         }

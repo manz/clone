@@ -25,7 +25,8 @@ enum PreviewFileType {
 
 func detectFileType(_ path: String) -> PreviewFileType {
     let lower = path.lowercased()
-    if lower.hasSuffix(".png") || lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") { return .image }
+    if lower.hasSuffix(".png") || lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg")
+        || lower.hasSuffix(".gif") || lower.hasSuffix(".bmp") || lower.hasSuffix(".webp") { return .image }
     if lower.hasSuffix(".txt") || lower.hasSuffix(".swift") || lower.hasSuffix(".rs")
         || lower.hasSuffix(".json") || lower.hasSuffix(".md") || lower.hasSuffix(".toml")
         || lower.hasSuffix(".yaml") || lower.hasSuffix(".yml") || lower.hasSuffix(".sh")
@@ -121,9 +122,12 @@ final class PreviewState {
     }
     .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
+    let imageContent: Image? = state.fileType == .image && !state.filePath.isEmpty
+        ? Image(contentsOfFile: state.filePath) : nil
+
     let placeholder = VStack(spacing: 8) {
         Spacer()
-        Text(state.fileType == .image ? "Image preview requires engine texture support" : "No file loaded")
+        Text("No file loaded")
             .font(.system(size: 14))
             .foregroundColor(.secondary)
         Text(state.fileName)
@@ -133,6 +137,7 @@ final class PreviewState {
     }
 
     let showText = state.fileType == .text
+    let showImage = state.fileType == .image && imageContent != nil
     let contentBg: Color = showText ? Color(red: 1.0, green: 1.0, blue: 1.0) : previewBg
 
     return VStack(spacing: 0) {
@@ -150,6 +155,8 @@ final class PreviewState {
             Rectangle().fill(contentBg).frame(width: width, height: contentHeight)
             if showText {
                 textContent
+            } else if showImage, let img = imageContent {
+                img.resizable()
             } else {
                 placeholder
             }
@@ -206,6 +213,11 @@ struct PreviewApp: App {
 
     // Register menus on first frame
     private static var menusRegistered = false
+
+    func onOpenFile(path: String) {
+        state.loadFile(path)
+        client.send(.setTitle(title: "Preview — \(state.fileName)"))
+    }
 
     func onPointerMove(x: CGFloat, y: CGFloat) {
         state.mouseX = x

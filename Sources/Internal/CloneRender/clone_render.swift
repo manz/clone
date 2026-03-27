@@ -804,6 +804,67 @@ public func FfiConverterTypeAppRenderer_lower(_ value: AppRenderer) -> UInt64 {
 
 
 
+/**
+ * Decoded image result.
+ */
+public struct DecodedImage: Equatable, Hashable {
+    public var width: UInt32
+    public var height: UInt32
+    public var rgbaData: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(width: UInt32, height: UInt32, rgbaData: Data) {
+        self.width = width
+        self.height = height
+        self.rgbaData = rgbaData
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DecodedImage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDecodedImage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DecodedImage {
+        return
+            try DecodedImage(
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                rgbaData: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DecodedImage, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterData.write(value.rgbaData, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecodedImage_lift(_ buf: RustBuffer) throws -> DecodedImage {
+    return try FfiConverterTypeDecodedImage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecodedImage_lower(_ value: DecodedImage) -> RustBuffer {
+    return FfiConverterTypeDecodedImage.lower(value)
+}
+
+
 public struct RgbaColor: Equatable, Hashable {
     public var r: Float
     public var g: Float
@@ -1654,6 +1715,16 @@ fileprivate struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer
         return seq
     }
 }
+/**
+ * Decode an image file (JPEG, PNG, GIF, BMP, etc.) to RGBA pixel data.
+ */
+public func decodeImage(data: Data)throws  -> DecodedImage  {
+    return try  FfiConverterTypeDecodedImage_lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
+    uniffi_clone_render_fn_func_decode_image(
+        FfiConverterData.lower(data),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -1669,6 +1740,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_clone_render_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_clone_render_checksum_func_decode_image() != 19939) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
         return InitializationResult.apiChecksumMismatch
