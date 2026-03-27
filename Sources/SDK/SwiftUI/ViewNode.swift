@@ -47,6 +47,8 @@ public indirect enum ViewNode: Equatable, Sendable {
     case scrollView(axis: Axis, children: [ViewNode], key: String)
     case list(children: [ViewNode])
     case image(name: String, width: CGFloat?, height: CGFloat?, tint: Color? = nil)
+    /// Raster image (JPEG, PNG) with decoded RGBA pixel data.
+    case rasterImage(textureId: UInt64, imageWidth: UInt32, imageHeight: UInt32, rgbaData: [UInt8])
     case toggle(isOn: Bool, label: ViewNode)
     case slider(value: CGFloat, range: ClosedRange<CGFloat>, label: ViewNode)
     case picker(selection: String, label: ViewNode, children: [ViewNode])

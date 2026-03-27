@@ -46,6 +46,9 @@ public enum Bridge {
                 )
             case .popClip:
                 return .popClip
+            case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
+                // RegisterTexture handled separately — here just emit the draw command
+                return .image(textureId: textureId, x: cx, y: cy, w: cw, h: ch)
             }
         }
     }

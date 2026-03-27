@@ -15,6 +15,8 @@ public struct FlatRenderCommand: Equatable, Sendable {
         /// Phosphor SVG icon — name is the Phosphor icon name (e.g. "folder", "avocado").
         case icon(name: String, style: PhosphorIconStyle, color: Color)
         case shadow(radius: CGFloat, blur: CGFloat, color: Color, offsetX: CGFloat, offsetY: CGFloat)
+        /// Raster image texture.
+        case rasterImage(textureId: UInt64, imageWidth: UInt32, imageHeight: UInt32, rgbaData: [UInt8])
         case pushClip(radius: CGFloat)
         case popClip
     }
@@ -135,6 +137,13 @@ public enum CommandFlattener {
                 width: iconSize, height: iconSize,
                 kind: .icon(name: resolved.name, style: resolved.style,
                            color: iconColor.withAlpha(opacity))
+            ))
+
+        case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
+            commands.append(FlatRenderCommand(
+                x: frame.x, y: frame.y,
+                width: frame.width, height: frame.height,
+                kind: .rasterImage(textureId: textureId, imageWidth: imgW, imageHeight: imgH, rgbaData: rgbaData)
             ))
 
         case .toggle(let isOn, _):
