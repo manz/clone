@@ -57,20 +57,7 @@ impl WindowSurface {
         if self.width == width && self.height == height {
             return;
         }
-        if width <= self.width && height <= self.height {
-            // Texture is big enough — no realloc needed.
-            // Content stays at old size until app submits a new frame (stretching).
-            return;
-        }
-        // Allocate with 25% headroom to avoid thrashing during drag resize
-        let new_w = (width as f32 * 1.25) as u32;
-        let new_h = (height as f32 * 1.25) as u32;
-        let old_content_w = self.content_width;
-        let old_content_h = self.content_height;
-        *self = Self::new(device, format, new_w, new_h);
-        // Preserve old content size until app catches up
-        self.content_width = old_content_w;
-        self.content_height = old_content_h;
+        *self = Self::new(device, format, width, height);
     }
 }
 
