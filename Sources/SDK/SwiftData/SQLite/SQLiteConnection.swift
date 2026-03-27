@@ -11,8 +11,10 @@ public enum SQLiteError: Error, Equatable {
 }
 
 /// A connection to a SQLite database.
+/// All access is serialized through a recursive lock for thread safety.
 public final class SQLiteConnection {
     private(set) var handle: OpaquePointer?
+    private let lock = NSRecursiveLock()
 
     /// Open a database at `path`. Use ":memory:" for an in-memory database.
     public init(path: String) throws {
@@ -38,6 +40,8 @@ public final class SQLiteConnection {
     /// Execute SQL that doesn't return rows.
     @discardableResult
     public func execute(_ sql: String, parameters: [SQLiteValue] = []) throws -> Int {
+        lock.lock()
+        defer { lock.unlock() }
         let stmt = try SQLiteStatement(db: handle!, sql: sql)
         if !parameters.isEmpty {
             try stmt.bind(parameters)
@@ -48,6 +52,8 @@ public final class SQLiteConnection {
 
     /// Query SQL that returns rows.
     public func query(_ sql: String, parameters: [SQLiteValue] = []) throws -> [[SQLiteValue]] {
+        lock.lock()
+        defer { lock.unlock() }
         let stmt = try SQLiteStatement(db: handle!, sql: sql)
         if !parameters.isEmpty {
             try stmt.bind(parameters)
@@ -57,17 +63,25 @@ public final class SQLiteConnection {
 
     /// Prepare a statement for repeated use.
     public func prepare(_ sql: String) throws -> SQLiteStatement {
-        try SQLiteStatement(db: handle!, sql: sql)
+        lock.lock()
+        defer { lock.unlock() }
+        return try SQLiteStatement(db: handle!, sql: sql)
     }
 
     /// Last insert rowid.
     public var lastInsertRowID: Int64 {
-        sqlite3_last_insert_rowid(handle)
+        lock.lock()
+        defer { lock.unlock() }
+        return sqlite3_last_insert_rowid(handle)
     }
 
     // MARK: - Transaction
 
+    /// Run a block inside a SQLite transaction.
+    /// The body can safely call execute/query (recursive lock).
     public func transaction(_ body: () throws -> Void) throws {
+        lock.lock()
+        defer { lock.unlock() }
         try execute("BEGIN TRANSACTION")
         do {
             try body()
@@ -81,6 +95,8 @@ public final class SQLiteConnection {
     // MARK: - Close
 
     public func close() {
+        lock.lock()
+        defer { lock.unlock() }
         if let h = handle {
             sqlite3_close(h)
             handle = nil
