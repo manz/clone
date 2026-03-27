@@ -86,29 +86,12 @@ fn build_font_db() -> cosmic_text::fontdb::Database {
     db.load_font_data(include_bytes!("../../engine/assets/Inter-Medium.ttf").to_vec());
     db.load_font_data(include_bytes!("../../engine/assets/Inter-SemiBold.ttf").to_vec());
     db.load_font_data(include_bytes!("../../engine/assets/Inter-Bold.ttf").to_vec());
-    // Load system fonts from standard paths
-    for path in &[
-        "/System/Library/Fonts",
-        "/Library/Fonts",
-    ] {
-        let p = std::path::Path::new(path);
-        if p.exists() {
-            db.load_fonts_dir(p);
-        }
-    }
-    // User-local fonts
+    // Clone font directory — only source of runtime fonts beyond bundled Inter.
+    // Users (and `make install`) drop .ttf/.otf files here.
     if let Some(home) = std::env::var_os("HOME") {
-        let home = std::path::PathBuf::from(home);
-        let user_fonts = home.join("Library/Fonts");
-        if user_fonts.exists() {
-            db.load_fonts_dir(&user_fonts);
-        }
-        // Clone-specific font directory — create if missing so users can drop fonts in
-        let clone_fonts = home.join(".clone/Library/Fonts");
+        let clone_fonts = std::path::PathBuf::from(home).join(".clone/Library/Fonts");
         let _ = std::fs::create_dir_all(&clone_fonts);
-        if clone_fonts.exists() {
-            db.load_fonts_dir(&clone_fonts);
-        }
+        db.load_fonts_dir(&clone_fonts);
     }
     db
 }
