@@ -33,6 +33,7 @@ FRAMEWORKS=(
     CloneProtocol
     CloneRender
     QuartzCore
+    CoreText
     AppKit
     UniformTypeIdentifiers
     AVKit
@@ -105,8 +106,8 @@ for MOD in "${FRAMEWORKS[@]}"; do
         done
         FWFLAGS+=(-lclone_audio)
     fi
-    # SwiftUI needs CloneText .o files + Rust text lib
-    if [ "$MOD" = "SwiftUI" ] && [ -d "$BUILD_DIR/CloneText.build" ]; then
+    # CoreText needs CloneText .o files + Rust text lib
+    if [ "$MOD" = "CoreText" ] && [ -d "$BUILD_DIR/CloneText.build" ]; then
         for to in "$BUILD_DIR/CloneText.build"/*.swift.o; do
             [ -f "$to" ] && OBJ_FILES+=("$to")
         done

@@ -141,13 +141,18 @@ let package = Package(
             path: "Sources/SDK/QuartzCore"
         ),
         .target(
+            name: "CoreText",
+            dependencies: ["CloneText"],
+            path: "Sources/SDK/CoreText"
+        ),
+        .target(
             name: "AppKit",
             dependencies: ["QuartzCore"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -342,6 +347,11 @@ let package = Package(
             name: "CloneLaunchServicesTests",
             dependencies: ["CloneLaunchServices", "CloneProtocol"],
             path: "Tests/CloneLaunchServicesTests"
+        ),
+        .testTarget(
+            name: "CoreTextTests",
+            dependencies: ["CoreText"],
+            path: "Tests/CoreTextTests"
         ),
     ]
 )
