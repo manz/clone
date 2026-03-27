@@ -56,8 +56,8 @@ final class AppSideRenderer: NSObject {
         self.width = width
         self.height = height
         needsRender = true
-        // Render immediately at the new size — don't wait for display link
-        tick()
+        // Don't render synchronously — let the display link handle it.
+        // The compositor stretches the old content as fallback until we catch up.
     }
 
     func stop() {
