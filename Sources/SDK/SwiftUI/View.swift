@@ -2,7 +2,7 @@
 // This matches Apple's SwiftUI behavior.
 @_exported import Foundation
 @_exported import AppKit
-@_exported import CloneText
+@_exported import CoreText
 #if canImport(UniformTypeIdentifiers)
 @_exported import UniformTypeIdentifiers
 #endif
