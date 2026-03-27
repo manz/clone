@@ -67,7 +67,7 @@ pub fn create(width: u32, height: u32) -> IOSurfaceRef {
         let height_val = height as i32;
         let bpe_val: i32 = 4;
         let pixel_format_val = PIXEL_FORMAT_BGRA as i32;
-        let bytes_per_row_val = (width * 4) as i32;
+        let bytes_per_row_val = ((width * 4 + 15) & !15) as i32; // align to 16 bytes
 
         let cf_width = CFNumberCreate(K_CF_ALLOCATOR_DEFAULT, K_CF_NUMBER_INT_TYPE, &width_val as *const _ as *const c_void);
         let cf_height = CFNumberCreate(K_CF_ALLOCATOR_DEFAULT, K_CF_NUMBER_INT_TYPE, &height_val as *const _ as *const c_void);
