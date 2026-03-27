@@ -19,19 +19,23 @@ DerivedData/
 .vscode/
 .idea/
 
-# Generated bindings (UniFFI)
-Sources/CEngine/include/cloneFFI.h
-Sources/CEngine/include/clone_engineFFI.h
-Sources/EngineBridge/clone_engine.swift
-Sources/EngineBridge/clone_engineFFI.h
-Sources/EngineBridge/clone_engineFFI.modulemap
-Sources/DesktopKit/Generated/
+# Generated UniFFI bindings — engine
+Sources/FFI/CEngine/include/clone_engineFFI.h
+Sources/Internal/EngineBridge/clone_engine.swift
+Sources/Internal/EngineBridge/clone_engineFFI.h
+Sources/Internal/EngineBridge/clone_render.swift
 
-# Generated audio bindings (UniFFI)
-Sources/CAudio/include/clone_audioFFI.h
-Sources/AudioBridge/clone_audio.swift
-Sources/AudioBridge/clone_audioFFI.h
-Sources/AudioBridge/clone_audioFFI.modulemap
+# Generated UniFFI bindings — render
+Sources/FFI/CRender/include/clone_renderFFI.h
+Sources/Internal/CloneRender/clone_render.swift
+
+# Generated UniFFI bindings — text
+Sources/FFI/CText/include/clone_textFFI.h
+Sources/Internal/CloneText/clone_text.swift
+Sources/Internal/CloneText/clone_textFFI.h
+
+# Generated UniFFI bindings — audio
+Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Claude
 .claude/

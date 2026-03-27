@@ -46,7 +46,9 @@ The compiler searches each `-F` path for `FrameworkName.framework/Modules/Framew
 | Framework | Description |
 |-----------|-------------|
 | `SwiftUI` | UI framework: View structs, ViewBuilder, Layout, App protocol, modifiers |
-| `AppKit` | NSColor, NSAppearance, NSImage, NSWorkspace, NSPasteboard shims |
+| `QuartzCore` | Core Animation: CALayer, CATransaction, CADisplayLink, CAAnimation, CATransform3D |
+| `CoreText` | Text engine: CTFont, CTFontDescriptor, CTLine, CTRun, CTFramesetter, CTFontManager |
+| `AppKit` | NSColor, NSAppearance, NSImage, NSWorkspace, NSPasteboard shims (re-exports QuartzCore) |
 | `SwiftData` | SQLite-backed persistence: PersistentModel, ModelContainer, Query, Foundation.Predicate→SQL converter |
 | `Charts` | Swift Charts: BarMark, LineMark, AreaMark, PointMark, RuleMark, RectangleMark, SectorMark, ChartProxy, selection, scrolling |
 | `AVFoundation` | Audio playback: AVPlayer, AVQueuePlayer, AVPlayerItem, AVAudioSession, CMTime |
@@ -59,22 +61,26 @@ The compiler searches each `-F` path for `FrameworkName.framework/Modules/Framew
 
 | Module | Description |
 |--------|-------------|
-| `CloneClient` | App-side Unix socket client |
+| `CloneClient` | App-side Unix socket client + Mach port transfer |
 | `CloneProtocol` | Shared IPC message types (Codable, 4-byte BE length-prefixed JSON) |
-| `CloneServer` | Compositor-side GCD socket server |
-| `CloneText` | cosmic-text measurement bridge (wraps Rust `clone-text`) |
-| `EngineBridge` | UniFFI bridge: FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
+| `CloneServer` | Compositor-side GCD socket server + Mach port receiver |
+| `CloneRender` | UniFFI bridge: wraps Rust `clone-render` (AppRenderer, HeadlessDevice, decode_image) |
+| `CloneText` | UniFFI bridge: wraps Rust `clone-text` (text sizing, word wrapping, font enumeration) |
+| `SharedSurface` | Double-buffered mmap surface transport (legacy, IOSurface preferred on macOS) |
+| `EngineBridge` | Compositor-side UniFFI bridge: WindowServer, ChromeRenderer, InputRouter |
 | `AudioBridge` | UniFFI bridge: wraps Rust `clone-audio` (CPAL + symphonia) for Swift |
-| `PosixShim` | Cross-platform POSIX wrappers (Darwin/Glibc) |
+| `PosixShim` | Cross-platform POSIX wrappers (Darwin/Glibc), re-exports CPosixShim |
 | `SwiftDataMacros` | Compiler plugin: @Model, #Preview, #Unique macros |
 
 ### FFI (`Sources/FFI/`)
 
 | Module | Description |
 |--------|-------------|
-| `CEngine` | C module map for `clone_engineFFI` (Rust GPU engine) |
+| `CEngine` | C module map for `clone_engineFFI` (Rust compositor engine) |
+| `CRender` | C module map for `clone_renderFFI` (Rust app renderer) |
 | `CText` | C module map for `clone_textFFI` (Rust text measurement) |
 | `CAudio` | C module map for `clone_audioFFI` (Rust audio engine) |
+| `CPosixShim` | C helpers: sendmsg/recvmsg SCM_RIGHTS, Mach port transfer via bootstrap server |
 | `CSQLite` | System library wrapper for SQLite3 |
 
 ### Daemons (`Sources/Daemons/`)
@@ -83,11 +89,24 @@ The compiler searches each `-F` path for `FrameworkName.framework/Modules/Framew
 |--------|-------------|
 | `CloneDaemon` | Now-playing daemon library (used by `cloned` executable) |
 | `CloneKeychain` | Keychain daemon library (used by `keychaind` executable), SQLite-backed |
+| `CloneLaunchServices` | App launching and bundle resolution library (used by `launchservicesd`) |
+| `AvocadoEvents` | Typed inter-process event definitions and pub/sub routing (used by `avocadoeventsd`) |
+
+## Rust Crates
+
+| Crate | Library | Description |
+|-------|---------|-------------|
+| `clone-engine` | `libclone_engine` | Compositor: surface compositor, winit event loop, IOSurface import |
+| `clone-render` | `libclone_render` | Shared renderer: DesktopRenderer, all GPU pipelines, shaders, HeadlessDevice |
+| `clone-text` | `libclone_text` | cosmic-text shaping, word wrapping, cursor positioning, font enumeration |
+| `clone-audio` | `libclone_audio` | CPAL audio output, symphonia decoder |
+| `wgpu-iosurface` | — | IOSurface-backed wgpu textures for zero-copy cross-process GPU sharing (macOS) |
 
 ## Building the SDK
 
 ```bash
 make sdk          # Debug build — assembles frameworks from SPM output
+make install-sdk  # Install frameworks + Rust libs to CLONE_ROOT (~/.clone)
 make sdk-release  # Release build — optimized
 make docker-sdk   # Build for Linux inside Docker container
 ```
