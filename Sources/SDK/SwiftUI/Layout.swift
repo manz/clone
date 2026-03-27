@@ -449,7 +449,7 @@ public enum Layout {
         case .list(let children):
             // Virtual list: only lay out visible rows + small buffer.
             // All rows use uniform height (measured from first row).
-            let scrollKey = "list_\(Int(frame.x))_\(Int(frame.y))"
+            let scrollKey = "list_\(Int(min(frame.x, 1e9)))_\(Int(min(frame.y, 1e9)))"
             let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey).y
             let rowPadding: CGFloat = 12 // 6 top + 6 bottom
 
