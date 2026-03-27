@@ -195,6 +195,19 @@ final class AppConnectionManager {
         return server.commands(for: serverWid)
     }
 
+    /// Returns the IOSurface ID if the app uses app-side rendering (0 = not using).
+    func iosurfaceId(for wmWindowId: UInt64) -> UInt32 {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return 0 }
+        return server.app(for: serverWid)?.iosurfaceId ?? 0
+    }
+
+    /// Returns the shared texture dimensions (physical pixels).
+    func surfaceDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
+        guard let app = server.app(for: serverWid), app.iosurfaceId != 0 else { return nil }
+        return (app.surfaceWidth, app.surfaceHeight)
+    }
+
     func externalWindowId(for wmWindowId: UInt64) -> UInt64? {
         externalWindows.first(where: { $0.value == wmWindowId })?.key
     }
@@ -485,13 +498,42 @@ final class AppConnectionManager {
         server.sendOpenPanelResult(windowId: serverWid, path: path)
     }
 
-    /// Returns overlay surfaces (dock + menubar) for compositing.
+    /// Returns overlay surfaces (dock + menubar + loginWindow) for compositing.
     func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
         for app in server.connectedApps {
             if app.role == .loginWindow && sessionStarted { continue }
             guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
+
+            // Determine surface dimensions — IOSurface apps use their content size,
+            // compositor-rendered overlays use full screen (they render at absolute coords)
+            let surfaceW: Float
+            let surfaceH: Float
+            if app.iosurfaceId != 0 {
+                surfaceW = app.width
+                surfaceH = app.height
+            } else {
+                surfaceW = Float(screenWidth)
+                surfaceH = Float(screenHeight)
+            }
+
+            // IOSurface-backed app: emit surface with iosurfaceId for compositor import
+            if app.iosurfaceId != 0 {
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: surfaceId,
+                        x: 0, y: 0,
+                        width: surfaceW, height: surfaceH,
+                        cornerRadius: 0, opacity: 1
+                    ),
+                    commands: [],
+                    pixelData: nil,
+                    iosurfaceId: app.iosurfaceId
+                ))
+                continue
+            }
+
             let ipcCommands = app.getCommands()
             if !ipcCommands.isEmpty {
                 let engineCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: 0) }
@@ -499,10 +541,12 @@ final class AppConnectionManager {
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
                         x: 0, y: 0,
-                        width: Float(screenWidth), height: Float(screenHeight),
+                        width: surfaceW, height: surfaceH,
                         cornerRadius: 0, opacity: 1
                     ),
-                    commands: engineCommands
+                    commands: engineCommands,
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
             }
         }

@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+@_exported import QuartzCore
 
 // MARK: - Minimal AppKit type stubs for compilation.
 // On real macOS these come from Apple's AppKit. Clone's AppKit module shadows it,
@@ -28,11 +29,8 @@ open class NSView: NSResponder {
     public func removeFromSuperview() {}
     public var bounds: CGRect = _zeroRect
     public var needsDisplay: Bool = false
-    public var layer: NSViewLayer? = nil
+    public var layer: CALayer? = nil
 }
-
-/// Opaque layer type for NSView.layer stub.
-public class NSViewLayer {}
 
 // MARK: - NSWindow
 
@@ -402,22 +400,3 @@ public typealias NSRect = CGRect
 public typealias NSPoint = CGPoint
 public typealias NSSize = CGSize
 
-// MARK: - CATransform3D (QuartzCore stubs)
-
-public struct CATransform3D: Sendable {
-    public var m11: CGFloat = 1, m12: CGFloat = 0, m13: CGFloat = 0, m14: CGFloat = 0
-    public var m21: CGFloat = 0, m22: CGFloat = 1, m23: CGFloat = 0, m24: CGFloat = 0
-    public var m31: CGFloat = 0, m32: CGFloat = 0, m33: CGFloat = 1, m34: CGFloat = 0
-    public var m41: CGFloat = 0, m42: CGFloat = 0, m43: CGFloat = 0, m44: CGFloat = 1
-    public init() {}
-}
-
-nonisolated(unsafe) public let CATransform3DIdentity = CATransform3D()
-
-public func CATransform3DRotate(_ t: CATransform3D, _ angle: CGFloat, _ x: CGFloat, _ y: CGFloat, _ z: CGFloat) -> CATransform3D { t }
-public func CATransform3DTranslate(_ t: CATransform3D, _ tx: CGFloat, _ ty: CGFloat, _ tz: CGFloat) -> CATransform3D { t }
-public func CATransform3DScale(_ t: CATransform3D, _ sx: CGFloat, _ sy: CGFloat, _ sz: CGFloat) -> CATransform3D { t }
-public func CATransform3DConcat(_ a: CATransform3D, _ b: CATransform3D) -> CATransform3D { a }
-public func CATransform3DMakeRotation(_ angle: CGFloat, _ x: CGFloat, _ y: CGFloat, _ z: CGFloat) -> CATransform3D { CATransform3D() }
-public func CATransform3DMakeTranslation(_ tx: CGFloat, _ ty: CGFloat, _ tz: CGFloat) -> CATransform3D { CATransform3D() }
-public func CATransform3DMakeScale(_ sx: CGFloat, _ sy: CGFloat, _ sz: CGFloat) -> CATransform3D { CATransform3D() }

@@ -1,0 +1,30 @@
+[package]
+name = "clone-render"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[features]
+default = []
+uniffi = ["dep:uniffi"]
+
+[dependencies]
+wgpu = "29"
+uniffi = { version = "0.31", features = ["cli"], optional = true }
+bytemuck = { version = "1.4", features = ["derive"] }
+log = "0.4"
+cosmic-text = "0.12"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+rustc-hash = "2"
+resvg = "0.44"
+include_dir = "0.7"
+pollster = "0.4"
+thiserror = "1"
+wgpu-iosurface = { path = "../wgpu-iosurface" }
+
+[[bin]]
+name = "uniffi-bindgen-render"
+path = "uniffi-bindgen.rs"
+required-features = ["uniffi"]

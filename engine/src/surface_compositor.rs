@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
+use wgpu_iosurface::SharedTexture;
 
 /// An offscreen surface for a single window.
 pub struct WindowSurface {
@@ -11,6 +12,10 @@ pub struct WindowSurface {
     pub depth_view: wgpu::TextureView,
     pub width: u32,
     pub height: u32,
+    /// Size of the last rendered content (may lag behind width/height during resize).
+    /// Used for stretching: UV mapping samples (0,0)-(content_width/width, content_height/height).
+    pub content_width: u32,
+    pub content_height: u32,
 }
 
 impl WindowSurface {
@@ -26,7 +31,7 @@ impl WindowSurface {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
         let view = texture.create_view(&Default::default());
@@ -45,7 +50,7 @@ impl WindowSurface {
             view_formats: &[],
         });
         let depth_view = depth_texture.create_view(&Default::default());
-        Self { texture, view, depth_texture, depth_view, width, height }
+        Self { texture, view, depth_texture, depth_view, width, height, content_width: width, content_height: height }
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32) {
@@ -81,6 +86,8 @@ struct CompositeInstance {
 /// Manages per-window offscreen textures and composites them onto the screen.
 pub struct SurfaceCompositor {
     surfaces: HashMap<u64, WindowSurface>,
+    /// Tracks which surface_id → iosurface_id mapping is active, to avoid reimporting.
+    imported_iosurfaces: HashMap<u64, u32>,
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
     uniform_buffer: wgpu::Buffer,
@@ -128,7 +135,7 @@ impl SurfaceCompositor {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("compositor_pl"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &[Some(&bind_group_layout)],
             immediate_size: 0,
         });
 
@@ -203,6 +210,7 @@ impl SurfaceCompositor {
 
         Self {
             surfaces: HashMap::new(),
+            imported_iosurfaces: HashMap::new(),
             pipeline,
             bind_group_layout,
             uniform_buffer,
@@ -225,9 +233,72 @@ impl SurfaceCompositor {
         self.surfaces.get(&surface_id).map(|s| &s.view)
     }
 
+    /// Import an IOSurface by ID as a compositor surface.
+    /// Caches the import — only reimports when the IOSurface ID changes.
+    pub fn import_iosurface(
+        &mut self,
+        device: &wgpu::Device,
+        surface_id: u64,
+        iosurface_id: u32,
+        _width_hint: u32,
+        _height_hint: u32,
+    ) -> bool {
+        // Skip if already imported with the same IOSurface ID
+        if self.imported_iosurfaces.get(&surface_id) == Some(&iosurface_id) {
+            return true;
+        }
+
+        // Get actual dimensions from the IOSurface
+        let raw = wgpu_iosurface::iosurface_lookup(iosurface_id);
+        if raw.is_null() {
+            log::error!("IOSurfaceLookup({iosurface_id}) failed for surface {surface_id}");
+            return false;
+        }
+        let width = unsafe { wgpu_iosurface::iosurface_get_width(raw) } as u32;
+        let height = unsafe { wgpu_iosurface::iosurface_get_height(raw) } as u32;
+        wgpu_iosurface::iosurface_release(raw);
+
+        match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
+            Ok(shared) => {
+                // Create a WindowSurface that wraps the imported IOSurface texture view
+                let view = shared.texture().create_view(&Default::default());
+                let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("imported_depth"),
+                    size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Depth32Float,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                });
+                let depth_view = depth_texture.create_view(&Default::default());
+                // Store as WindowSurface — the texture field won't match (it's IOSurface-backed)
+                // but the view is what composite() uses for sampling.
+                self.surfaces.insert(surface_id, WindowSurface {
+                    texture: shared.into_texture(),
+                    view,
+                    depth_texture,
+                    depth_view,
+                    width,
+                    height,
+                    content_width: width,
+                    content_height: height,
+                });
+                self.imported_iosurfaces.insert(surface_id, iosurface_id);
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to import IOSurface {iosurface_id} for surface {surface_id} ({width}x{height}): {e}");
+                false
+            }
+        }
+    }
+
     /// Remove surfaces not in the active set.
     pub fn gc(&mut self, active_ids: &[u64]) {
         self.surfaces.retain(|id, _| active_ids.contains(id));
+        self.imported_iosurfaces.retain(|id, _| active_ids.contains(id));
     }
 
     /// Dump a surface texture to a PNG file for debugging.
@@ -299,9 +370,46 @@ impl SurfaceCompositor {
         }
     }
 
+    /// Upload pre-rendered BGRA8 pixels directly into a surface's texture.
+    /// Used for app-side rendered windows where the app already produced pixels.
+    pub fn upload_pixels(
+        &self,
+        surface_id: u64,
+        queue: &wgpu::Queue,
+        pixels: &[u8],
+        width: u32,
+        height: u32,
+    ) {
+        let Some(surface) = self.surfaces.get(&surface_id) else { return };
+        if surface.width != width || surface.height != height { return; }
+        // Validate pixel buffer matches expected size (avoids crash during resize race)
+        let expected = (width * height * 4) as usize;
+        if pixels.len() < expected { return; }
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &surface.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            pixels,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(width * 4),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
     /// Render commands into a window's offscreen surface.
     pub fn render_to_surface(
-        &self,
+        &mut self,
         surface_id: u64,
         renderer: &mut DesktopRenderer,
         device: &wgpu::Device,
@@ -310,7 +418,11 @@ impl SurfaceCompositor {
         scale: f32,
         transparent_clear: bool,
     ) {
-        let Some(surface) = self.surfaces.get(&surface_id) else { return };
+        let Some(surface) = self.surfaces.get_mut(&surface_id) else { return };
+        // Update content size — this frame matches the rendered dimensions
+        surface.content_width = surface.width;
+        surface.content_height = surface.height;
+        let surface = self.surfaces.get(&surface_id).unwrap();
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("window_render"),

@@ -10,6 +10,7 @@ let package = Package(
         // Public SDK products — external apps depend on these
         // AppKit is exposed transitively via SwiftUI (not listed here to avoid
         // shadowing macOS's real AppKit in the dependency resolver)
+        .library(name: "QuartzCore", targets: ["QuartzCore"]),
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
         // Stub modules for Apple frameworks Clone doesn't implement
@@ -43,15 +44,42 @@ let package = Package(
             path: "Sources/FFI/CText"
         ),
         .systemLibrary(
+            name: "clone_renderFFI",
+            path: "Sources/FFI/CRender"
+        ),
+        .systemLibrary(
             name: "CSQLite",
             path: "Sources/FFI/CSQLite",
             pkgConfig: "sqlite3"
         ),
 
+        .target(
+            name: "CPosixShim",
+            path: "Sources/FFI/CPosixShim",
+            publicHeadersPath: "include"
+        ),
+
         // ── Internal ────────────────────────────────────────────
         .target(
             name: "PosixShim",
+            dependencies: ["CPosixShim"],
             path: "Sources/Internal/PosixShim"
+        ),
+        .target(
+            name: "SharedSurface",
+            path: "Sources/Internal/SharedSurface"
+        ),
+        .target(
+            name: "CloneRender",
+            dependencies: ["clone_renderFFI"],
+            path: "Sources/Internal/CloneRender",
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-lclone_render",
+                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                ]),
+            ]
         ),
         .target(
             name: "CloneProtocol",
@@ -108,13 +136,18 @@ let package = Package(
 
         // ── SDK ─────────────────────────────────────────────────
         .target(
-            name: "AppKit",
+            name: "QuartzCore",
             dependencies: [],
+            path: "Sources/SDK/QuartzCore"
+        ),
+        .target(
+            name: "AppKit",
+            dependencies: ["QuartzCore"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CloneText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -265,6 +298,16 @@ let package = Package(
         ),
 
         // ── Tests ────────────────────────────────────────────────
+        .testTarget(
+            name: "QuartzCoreTests",
+            dependencies: ["QuartzCore"],
+            path: "Tests/QuartzCoreTests"
+        ),
+        .testTarget(
+            name: "SharedSurfaceTests",
+            dependencies: ["SharedSurface"],
+            path: "Tests/SharedSurfaceTests"
+        ),
         .testTarget(
             name: "SwiftUITests",
             dependencies: ["SwiftUI"],

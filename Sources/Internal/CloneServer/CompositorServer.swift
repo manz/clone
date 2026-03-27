@@ -17,6 +17,12 @@ public final class ConnectedApp {
     public var sheetSize: (width: Float, height: Float)?
     private var sheetCommands: [IPCRenderCommand] = []
 
+    /// IOSurface texture sharing state — non-zero when app uses app-side rendering.
+    public var iosurfaceId: UInt32 = 0
+    public var surfaceWidth: UInt32 = 0
+    public var surfaceHeight: UInt32 = 0
+    public var surfaceDirty: Bool = false
+
     let fd: Int32
     var readBuffer = Data()
     var readSource: DispatchSourceRead?
@@ -117,6 +123,13 @@ public final class CompositorServer {
     private var nextWindowId: UInt64 = 1
     private let socketPath: String
 
+    #if canImport(Darwin)
+    /// Mach receive port for IOSurface transfer from apps.
+    private var machRecvPort: UInt32 = 0
+    /// Bootstrap service name for the Mach port channel.
+    public static let machServiceName = "com.clone.compositor.surfaces"
+    #endif
+
     /// Callback when a new app connects (called on ioQueue).
     public var onAppConnected: ((ConnectedApp) -> Void)?
     /// Callback when an app disconnects.
@@ -174,7 +187,39 @@ public final class CompositorServer {
         }
         source.resume()
         acceptSource = source
+
+        #if canImport(Darwin)
+        // Register Mach port for IOSurface transfer from apps
+        let (ok, port) = posix_mach_register_port(Self.machServiceName)
+        if ok {
+            machRecvPort = port
+            startMachPortReceiver()
+        } else {
+            fputs("[compositor] Warning: failed to register Mach port for IOSurface transfer\n", stderr)
+        }
+        #endif
     }
+
+    #if canImport(Darwin)
+    /// Background thread that receives IOSurface Mach ports from apps.
+    /// When a port arrives, the IOSurface is imported into this process,
+    /// making it visible to IOSurfaceLookup for the Rust render engine.
+    private func startMachPortReceiver() {
+        let recvPort = machRecvPort
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+            while true {
+                let (ok, port) = posix_mach_recv_port(recvPort: recvPort)
+                guard ok, port != 0 else { continue }
+                // Import the IOSurface into this process — makes IOSurfaceLookup work
+                let surfaceId = clone_import_iosurface_port(port)
+                if surfaceId != 0 {
+                    fputs("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n", stderr)
+                }
+            }
+        }
+    }
+
+    #endif
 
     private func acceptNewConnections() {
         while true {
@@ -279,6 +324,20 @@ public final class CompositorServer {
 
         case .avocadoEvent(let targetAppId, let event):
             routeAvocadoEvent(targetAppId: targetAppId, event: event)
+
+        case .surfaceCreated(let iosurfaceId, let width, let height):
+            app.iosurfaceId = iosurfaceId
+            app.surfaceWidth = width
+            app.surfaceHeight = height
+            app.send(.surfaceReady(surfaceId: app.windowId))
+
+        case .surfaceUpdated:
+            app.surfaceDirty = true
+
+        case .surfaceResized(let iosurfaceId, let width, let height):
+            app.iosurfaceId = iosurfaceId
+            app.surfaceWidth = width
+            app.surfaceHeight = height
         }
     }
 

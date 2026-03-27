@@ -1,4 +1,5 @@
 import Foundation
+import QuartzCore
 
 // MARK: - SwiftUI Animation type (for modifier API compatibility)
 
@@ -47,14 +48,6 @@ public struct AnyTransition: Sendable {
 }
 
 // MARK: - Window animation engine
-
-/// Monotonic clock — replacement for QuartzCore's CACurrentMediaTime().
-/// Uses CLOCK_MONOTONIC via clock_gettime, same as the real implementation.
-public func CACurrentMediaTime() -> Double {
-    var ts = timespec()
-    clock_gettime(CLOCK_MONOTONIC, &ts)
-    return Double(ts.tv_sec) + Double(ts.tv_nsec) / 1_000_000_000.0
-}
 
 /// A rect for animation interpolation.
 public struct AnimRect: Equatable, Sendable {

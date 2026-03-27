@@ -1,0 +1,21 @@
+[package]
+name = "wgpu-iosurface"
+version = "0.1.0"
+edition = "2024"
+description = "IOSurface-backed wgpu textures for zero-copy cross-process GPU sharing on macOS"
+
+[dependencies]
+wgpu = "29"
+wgpu-hal = { version = "29", features = ["metal"] }
+wgpu-types = "29"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSDictionary", "NSValue"] }
+objc2-metal = { version = "0.3", features = ["MTLDevice", "MTLTexture", "MTLPixelFormat", "MTLResource", "MTLTypes"] }
+log = "0.4"
+
+[build-dependencies]
+cc = "1"
+
+[dev-dependencies]
+pollster = "0.4"
+libc = "0.2"

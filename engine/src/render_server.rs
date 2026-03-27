@@ -34,7 +34,7 @@ impl RenderServer {
         scale: f32,
         frames: &[SurfaceFrame],
     ) {
-        // Ensure offscreen textures exist for each surface (skip zero-size)
+        // Ensure offscreen textures exist for each surface (skip zero-size and IOSurface-backed)
         let mut active_ids: Vec<u64> = Vec::new();
         for sf in frames {
             let phys_w = (sf.desc.width * scale) as u32;
@@ -42,7 +42,10 @@ impl RenderServer {
             if phys_w == 0 || phys_h == 0 {
                 continue;
             }
-            self.compositor.ensure_surface(device, sf.desc.surface_id, phys_w, phys_h);
+            // Don't create a normal surface for IOSurface-backed windows
+            if sf.iosurface_id == 0 {
+                self.compositor.ensure_surface(device, sf.desc.surface_id, phys_w, phys_h);
+            }
             active_ids.push(sf.desc.surface_id);
         }
         self.compositor.gc(&active_ids);
@@ -50,6 +53,33 @@ impl RenderServer {
         // Render each surface's commands into its offscreen texture (skip zero-size)
         for sf in frames {
             if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
+
+            // IOSurface-backed: import the shared texture (zero-copy)
+            // Pass 0,0 for dimensions — import_iosurface will use the IOSurface's actual size.
+            // The compositor draws the quad at the window geometry and stretches if sizes differ.
+            if sf.iosurface_id != 0 {
+                self.compositor.import_iosurface(
+                    device, sf.desc.surface_id, sf.iosurface_id, 0, 0,
+                );
+                continue;
+            }
+
+            // Legacy: upload pre-rendered pixels directly
+            if let Some(ref pixels) = sf.pixel_data {
+                let phys_w = (sf.desc.width * scale) as u32;
+                let phys_h = (sf.desc.height * scale) as u32;
+                self.compositor.upload_pixels(
+                    sf.desc.surface_id, queue, pixels, phys_w, phys_h,
+                );
+                continue;
+            }
+
+            // No pixel data, no iosurface, no commands — keep existing texture
+            if sf.commands.is_empty() {
+                continue;
+            }
+
+            // Compositor-rendered: render commands into offscreen texture
             let has_transparent_bg = sf.commands.first().map_or(true, |cmd| {
                 match cmd {
                     crate::commands::RenderCommand::Rect { color, .. } |
@@ -57,8 +87,6 @@ impl RenderServer {
                     _ => true,
                 }
             });
-            // Surface textures are already in physical pixels (ensure_surface uses phys dimensions).
-            // Pass scale so the renderer converts logical command coords to physical pixel coords.
             self.compositor.render_to_surface(
                 sf.desc.surface_id,
                 &mut self.renderer,

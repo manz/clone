@@ -85,11 +85,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = sdf_rounded_rect(centered, half_size, r);
     let mask = 1.0 - smoothstep(-0.5, 0.5, dist);
 
-    // Shadow: soft falloff outside the window bounds
-    let shadow_blur = 20.0;
-    let shadow_offset = vec2<f32>(0.0, 6.0);
-    let shadow_dist = sdf_rounded_rect(centered - shadow_offset, half_size, r);
-    let shadow_alpha = (1.0 - smoothstep(0.0, shadow_blur, shadow_dist)) * 0.18 * in.opacity;
+    // Shadow: soft falloff outside the window bounds (only for windowed surfaces with corner radius)
+    var shadow_alpha = 0.0;
+    if in.shadow_expand > 0.0 {
+        let shadow_blur = 20.0;
+        let shadow_offset = vec2<f32>(0.0, 6.0);
+        let shadow_dist = sdf_rounded_rect(centered - shadow_offset, half_size, r);
+        shadow_alpha = (1.0 - smoothstep(0.0, shadow_blur, shadow_dist)) * 0.18 * in.opacity;
+    }
 
     // Sample window texture — clamp UV to valid [0,1] range
     let clamped_uv = clamp(in.uv, vec2<f32>(0.0), vec2<f32>(1.0));

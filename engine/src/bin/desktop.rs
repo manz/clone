@@ -56,6 +56,8 @@ impl DesktopDelegate for DemoDelegate {
                 corner_radius: 0.0, opacity: 1.0,
             },
             commands,
+            pixel_data: None,
+            iosurface_id: 0,
         }]
     }
 

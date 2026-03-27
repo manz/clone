@@ -13,6 +13,7 @@ public final class WindowServer {
     private var mouseY: Double = 0
     private var mouseDown = false
 
+
     /// Surface IDs: 0 = desktop, 1 = dock, 2 = menubar, 100+ = windows
     private let desktopSurfaceId: UInt64 = 0
     private let windowSurfaceBase: UInt64 = 100
@@ -38,14 +39,15 @@ public final class WindowServer {
         // Desktop background (wallpaper rendered by engine)
         frames.append(SurfaceFrame(
             desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
-            commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))]
+            commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
+            pixelData: nil,
+            iosurfaceId: 0
         ))
 
         // Pre-session: only wallpaper + LoginWindow overlay
         if !appManager.sessionStarted {
             frames.append(contentsOf: appManager.overlaySurfaces(
-                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
-            ))
+                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,             ))
             appManager.requestFrames()
             return frames
         }
@@ -77,18 +79,22 @@ public final class WindowServer {
                 showTrafficLightSymbols: showSymbols, title: window.title
             )
 
-            // Insert app content before chrome (chrome is appended last by ChromeRenderer,
-            // but we need content between background and chrome). We insert after the first
-            // command (background rect), before the pushClip that starts chrome overlay.
-            let ipcCommands = appManager.commands(for: window.id)
-            if !ipcCommands.isEmpty {
-                // Find the pushClip index (the chrome overlay start)
-                let chromeStartIdx = windowCommands.firstIndex(where: {
-                    if case .pushClip = $0 { return true }
-                    return false
-                }) ?? 1
-                let contentCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: Float(WindowChrome.titleBarHeight)) }
-                windowCommands.insert(contentsOf: contentCommands, at: chromeStartIdx)
+            // App content: either from shared memory (app-side rendered) or IPC commands
+            // Check if app uses IOSurface-backed rendering
+            let iosurfaceId = appManager.iosurfaceId(for: window.id)
+            let hasIOSurface = iosurfaceId != 0
+
+            if !hasIOSurface {
+                // Compositor-rendered: insert IPC commands into chrome
+                let ipcCommands = appManager.commands(for: window.id)
+                if !ipcCommands.isEmpty {
+                    let chromeStartIdx = windowCommands.firstIndex(where: {
+                        if case .pushClip = $0 { return true }
+                        return false
+                    }) ?? 1
+                    let contentCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: Float(WindowChrome.titleBarHeight)) }
+                    windowCommands.insert(contentsOf: contentCommands, at: chromeStartIdx)
+                }
             }
 
             // Apply animation override
@@ -106,16 +112,54 @@ public final class WindowServer {
                 frameOpacity = animOpacity
             }
 
-            frames.append(SurfaceFrame(
-                desc: SurfaceDesc(
-                    surfaceId: surfaceId,
-                    x: Float(frameX), y: Float(frameY),
-                    width: Float(frameW), height: Float(frameH),
-                    cornerRadius: Float(radius),
-                    opacity: Float(frameOpacity)
-                ),
-                commands: windowCommands
-            ))
+            if hasIOSurface {
+                // App-side rendered: chrome + content as separate surfaces
+                let contentSurfaceId = surfaceId + 50000
+                let titleBarH = Float(WindowChrome.titleBarHeight)
+                let contentH = Float(frameH) - titleBarH
+
+                // Chrome surface first (back)
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: surfaceId,
+                        x: Float(frameX), y: Float(frameY),
+                        width: Float(frameW), height: Float(frameH),
+                        cornerRadius: Float(radius),
+                        opacity: Float(frameOpacity)
+                    ),
+                    commands: windowCommands,
+                    pixelData: nil,
+                    iosurfaceId: 0
+                ))
+
+                // Content surface on top — IOSurface (zero-copy)
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: contentSurfaceId,
+                        x: Float(frameX), y: Float(frameY) + titleBarH,
+                        width: Float(frameW), height: contentH,
+                        cornerRadius: 0,
+                        opacity: Float(frameOpacity)
+                    ),
+                    commands: [],
+                    pixelData: nil,
+                    iosurfaceId: iosurfaceId
+                ))
+            } else {
+                // Compositor-rendered: single surface with chrome + content
+                frames.append(SurfaceFrame(
+                    desc: SurfaceDesc(
+                        surfaceId: surfaceId,
+                        x: Float(frameX), y: Float(frameY),
+                        width: Float(frameW), height: Float(frameH),
+                        cornerRadius: Float(radius),
+                        opacity: Float(frameOpacity)
+                    ),
+                    commands: windowCommands,
+                    pixelData: nil,
+                    iosurfaceId: 0
+                ))
+            }
 
             // Sheet surfaces: backdrop + sheet panel (separate from parent window)
             if let sheetSize = appManager.sheetSize(for: window.id) {
@@ -137,7 +181,9 @@ public final class WindowServer {
                         width: parentW, height: parentH,
                         cornerRadius: 0, opacity: 1
                     ),
-                    commands: backdropCommands
+                    commands: backdropCommands,
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
 
                 // Sheet surface — centered over parent
@@ -155,15 +201,16 @@ public final class WindowServer {
                         width: sheetW, height: sheetH,
                         cornerRadius: 12, opacity: 1
                     ),
-                    commands: sheetEngineCommands
+                    commands: sheetEngineCommands,
+                    pixelData: nil,
+                    iosurfaceId: 0
                 ))
             }
         }
 
         // 3. Overlay surfaces (dock, menubar)
         frames.append(contentsOf: appManager.overlaySurfaces(
-            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase
-        ))
+            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,         ))
 
         // Send state updates to dock and menubar
         let minimizedIds = windowManager.minimizedWindows.map(\.appId)

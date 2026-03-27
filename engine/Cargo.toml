@@ -7,7 +7,9 @@ edition = "2024"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-wgpu = "28"
+clone-render = { path = "../render", features = ["uniffi"] }
+wgpu-iosurface = { path = "../wgpu-iosurface" }
+wgpu = "29"
 winit = "0.30"
 uniffi = { version = "0.31", features = ["cli"] }
 pollster = "0.4"
