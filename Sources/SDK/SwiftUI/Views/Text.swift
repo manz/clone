@@ -7,13 +7,14 @@ public struct Text: _PrimitiveView {
     var fontSize: CGFloat = 14
     var color: Color = .primary
     var fontWeight: FontWeight = .regular
+    var familyName: String? = nil
 
     public init(_ content: String) {
         self.content = content
     }
 
     public var _nodeRepresentation: ViewNode {
-        .text(content, fontSize: fontSize, color: color, weight: fontWeight)
+        .text(content, fontSize: fontSize, color: color, weight: fontWeight, family: familyName)
     }
 
     // MARK: - Text-specific modifiers (return Text for type-safe chaining)
@@ -23,6 +24,7 @@ public struct Text: _PrimitiveView {
         var copy = self
         copy.fontSize = font.size
         copy.fontWeight = font.internalWeight
+        copy.familyName = font.familyName
         return copy
     }
 
@@ -81,6 +83,7 @@ public struct Text: _PrimitiveView {
         result.fontSize = lhs.fontSize
         result.color = lhs.color
         result.fontWeight = lhs.fontWeight
+        result.familyName = lhs.familyName
         return result
     }
 }

@@ -10,14 +10,12 @@ var fbSurface: Color { Color(nsColor: .controlBackgroundColor) }
 var fbSelected: Color { Color.accentColor.opacity(0.3) }
 var fbDivider: Color { Color(nsColor: .separatorColor) }
 var fbCardBg: Color { Color(nsColor: .controlBackgroundColor) }
-var fbCardBorder: Color { Color(nsColor: .separatorColor) }
 #else
 let fbBg = Color(red: 0.96, green: 0.96, blue: 0.97)
 let fbSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
 let fbSelected = Color(red: 0.04, green: 0.52, blue: 1.0, opacity: 0.2)
 let fbDivider = Color(red: 0, green: 0, blue: 0, opacity: 0.08)
 let fbCardBg = Color(red: 1.0, green: 1.0, blue: 1.0)
-let fbCardBorder = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
 #endif
 
 // MARK: - State
@@ -25,7 +23,7 @@ let fbCardBorder = Color(red: 0, green: 0, blue: 0, opacity: 0.1)
 final class FontBookState {
     var families: [String] = []
     var selectedFamily: String? = nil
-    var selectedCategory: String = "All Fonts"
+    var detailFamily: String? = nil
 
     func loadFonts() {
         families = CTFontManagerCopyAvailableFontFamilyNames()
@@ -39,7 +37,6 @@ final class FontBookState {
 
 @MainActor func sidebarView(state: FontBookState, height: CGFloat) -> some View {
     VStack(alignment: .leading, spacing: 0) {
-        // Fonts section
         Text("Fonts")
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
@@ -47,35 +44,24 @@ final class FontBookState {
             .padding(.top, 12)
             .padding(.bottom, 4)
 
-        sidebarRow(label: "All Fonts", icon: "grid", selected: state.selectedCategory == "All Fonts") {
-            state.selectedCategory = "All Fonts"
+        HStack(spacing: 8) {
+            Text("All Fonts")
+                .font(.system(size: 13))
+                .foregroundColor(.primary)
+            Spacer()
         }
-        sidebarRow(label: "My Fonts", icon: "person", selected: state.selectedCategory == "My Fonts") {
-            state.selectedCategory = "My Fonts"
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(fbSelected)
 
         Spacer()
     }
-}
-
-@MainActor func sidebarRow(label: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {
-    HStack(spacing: 8) {
-        Text(label)
-            .font(.system(size: 13))
-            .foregroundColor(.primary)
-        Spacer()
-    }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 6)
-    .background(selected ? fbSelected : Color(red: 0, green: 0, blue: 0, opacity: 0))
-    .onTapGesture { action() }
 }
 
 // MARK: - Font card
 
 @MainActor func fontCard(family: String, selected: Bool, cardSize: CGFloat) -> some View {
     VStack(spacing: 4) {
-        // Preview area
         VStack {
             Spacer()
             Text("Aa")
@@ -89,7 +75,6 @@ final class FontBookState {
                 .fill(selected ? fbSelected : fbCardBg)
         )
 
-        // Family name
         Text(family)
             .font(.system(size: 10))
             .foregroundColor(.primary)
@@ -99,7 +84,6 @@ final class FontBookState {
 
 // MARK: - Font grid
 
-/// Group families into rows for grid display.
 func gridRows(families: [String], columns: Int) -> [[String]] {
     var rows: [[String]] = []
     var row: [String] = []
@@ -123,7 +107,6 @@ func gridRows(families: [String], columns: Int) -> [[String]] {
     let rows = gridRows(families: state.families, columns: columns)
 
     return VStack(alignment: .leading, spacing: 0) {
-        // Header
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("All Fonts")
@@ -140,7 +123,6 @@ func gridRows(families: [String], columns: Int) -> [[String]] {
 
         Rectangle().fill(fbDivider).frame(height: 1)
 
-        // Grid
         ScrollView {
             VStack(alignment: .leading, spacing: spacing) {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
@@ -153,6 +135,7 @@ func gridRows(families: [String], columns: Int) -> [[String]] {
                             )
                             .onTapGesture {
                                 state.selectedFamily = family
+                                state.detailFamily = family
                             }
                         }
                         Spacer()
@@ -164,10 +147,85 @@ func gridRows(families: [String], columns: Int) -> [[String]] {
     }
 }
 
+// MARK: - Detail view (specimen)
+
+let uppercaseLetters = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z"
+let lowercaseLetters = "a b c d e f g h i j k l m n o p q r s t u v w x y z"
+let digits = "1 2 3 4 5 6 7 8 9 0"
+
+@MainActor func fontDetailView(state: FontBookState, family: String, width: CGFloat, height: CGFloat) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+        // Header with back button
+        HStack(spacing: 12) {
+            Text("<")
+                .font(.system(size: 18))
+                .foregroundColor(.blue)
+                .onTapGesture { state.detailFamily = nil }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(family)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.primary)
+                Text("1 style")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+
+        Rectangle().fill(fbDivider).frame(height: 1)
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Preview section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Preview")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+
+                    Text(uppercaseLetters)
+                        .font(.custom(family, size: 32))
+                        .foregroundColor(.primary)
+                    Text(lowercaseLetters)
+                        .font(.custom(family, size: 32))
+                        .foregroundColor(.primary)
+                    Text(digits)
+                        .font(.custom(family, size: 32))
+                        .foregroundColor(.primary)
+                }
+
+                Rectangle().fill(fbDivider).frame(height: 1)
+
+                // Sizes section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Sizes")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+
+                    ForEach([10, 12, 14, 18, 24, 36, 48, 72], id: \.self) { size in
+                        HStack(alignment: .top, spacing: 12) {
+                            Text("\(size)")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .frame(width: 24)
+                            Text("The quick brown fox jumps over the lazy dog")
+                                .font(.custom(family, size: CGFloat(size)))
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+}
+
 // MARK: - Root
 
 @MainActor func fontBookRoot(state: FontBookState, width: CGFloat, height: CGFloat) -> some View {
     let sidebarWidth: CGFloat = 180
+    let contentWidth = width - sidebarWidth - 1
 
     return HStack(spacing: 0) {
         sidebarView(state: state, height: height)
@@ -176,9 +234,17 @@ func gridRows(families: [String], columns: Int) -> [[String]] {
 
         Rectangle().fill(fbDivider).frame(width: 1)
 
-        fontGridView(state: state, width: width - sidebarWidth - 1, height: height)
-            .frame(width: width - sidebarWidth - 1, height: height)
-            .background(fbSurface)
+        ZStack {
+            fontGridView(state: state, width: contentWidth, height: height)
+                .frame(width: contentWidth, height: height)
+                .opacity(state.detailFamily == nil ? 1 : 0)
+
+            if let detail = state.detailFamily {
+                fontDetailView(state: state, family: detail, width: contentWidth, height: height)
+                    .frame(width: contentWidth, height: height)
+            }
+        }
+        .background(fbSurface)
     }
 }
 
