@@ -279,7 +279,10 @@ extension App {
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
-                return CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() }
+                // Prepend any pending texture registrations (one-time upload)
+                var cmds = ImageTextureCache.shared.drainPending()
+                cmds.append(contentsOf: CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() })
+                return cmds
             }
 
             // App-side rendering: app renders pixels via headless GPU → shared memory
@@ -373,12 +376,12 @@ extension App {
                         viewTree,
                         in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                     )
-                    if let hit = layoutNode.hitTestTap(x: x, y: y) {
-                        fputs("[App] tap hit id=\(hit.id) at \(x),\(y)\n", stderr)
-                        let local = CGPoint(x: x - hit.frame.x, y: y - hit.frame.y)
-                        TapRegistry.shared.fire(id: hit.id, at: local)
-                    } else {
-                        fputs("[App] tap miss at \(x),\(y)\n", stderr)
+                    switch layoutNode.hitTestTap(x: x, y: y) {
+                    case .tap(let id, let hitFrame):
+                        let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
+                        TapRegistry.shared.fire(id: id, at: local)
+                    case .absorbed, .none:
+                        break
                     }
                     // Text field focus
                     TextFieldRegistry.shared.handleClick(x: x, y: y)
@@ -433,9 +436,9 @@ extension App {
                     sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
                 )
-                if let hit = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
-                    let local = CGPoint(x: CGFloat(px) - hit.frame.x, y: CGFloat(py) - hit.frame.y)
-                    TapRegistry.shared.fire(id: hit.id, at: local)
+                if case .tap(let id, let hitFrame) = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
+                    let local = CGPoint(x: CGFloat(px) - hitFrame.x, y: CGFloat(py) - hitFrame.y)
+                    TapRegistry.shared.fire(id: id, at: local)
                 }
             }
         } else {
@@ -719,11 +722,19 @@ extension FlatRenderCommand {
         }
     }
 
+    /// Track which texture IDs have already been registered (avoid re-uploading every frame).
+    nonisolated(unsafe) private static var registeredTextures: Set<UInt64> = []
+
     /// Convert to IPC commands — may return multiple (e.g. RegisterTexture + Image).
     func toIPCCommands() -> [IPCRenderCommand] {
         switch kind {
         case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
             let fx = Float(x), fy = Float(y), fw = Float(width), fh = Float(height)
+            if Self.registeredTextures.contains(textureId) {
+                // Already uploaded — just draw
+                return [.image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)]
+            }
+            Self.registeredTextures.insert(textureId)
             return [
                 .registerTexture(textureId: textureId, width: imgW, height: imgH, rgbaData: rgbaData),
                 .image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)

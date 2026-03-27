@@ -73,19 +73,41 @@ extension LayoutNode {
 
     /// Find the deepest onTap node whose frame contains the point.
     /// Returns the tap ID and the onTap node's frame (for local coordinate conversion).
-    public func hitTestTap(x: CGFloat, y: CGFloat) -> (id: UInt64, frame: LayoutFrame)? {
+    public enum HitTestResult {
+        case tap(id: UInt64, frame: LayoutFrame)
+        case absorbed
+    }
+
+    public func hitTestTap(x: CGFloat, y: CGFloat) -> HitTestResult? {
         guard frame.contains(x: x, y: y) else { return nil }
 
         // Check children back-to-front
+        var childAbsorbed = false
         for child in children.reversed() {
             if let hit = child.hitTestTap(x: x, y: y) {
-                return hit
+                switch hit {
+                case .tap:
+                    return hit // definitive tap — propagate immediately
+                case .absorbed:
+                    childAbsorbed = true // something opaque was hit, but no handler yet
+                }
             }
         }
 
-        // If this node itself is an onTap, return its ID and frame
+        // If this node is an onTap, it provides the handler.
+        // This fires even when a child was .absorbed (e.g. opaque background inside a button).
         if case .onTap(let id, _) = node {
-            return (id, frame)
+            return .tap(id: id, frame: frame)
+        }
+
+        // A child was absorbed — propagate upward (prevents leak-through)
+        if childAbsorbed {
+            return .absorbed
+        }
+
+        // This node itself is opaque — absorb
+        if node.isOpaqueHitTarget {
+            return .absorbed
         }
 
         return nil
@@ -227,8 +249,11 @@ public enum Layout {
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .list(let children):
-            // Measure intrinsically (padding added in layout, not measurement)
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+
+        case .lazyList(_, _):
+            // Lazy list fills available space (like ScrollView)
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -254,12 +279,14 @@ public enum Layout {
             )
 
         case .rasterImage(_, let imgW, let imgH, _):
-            // Use image dimensions (in points, assuming 1x).
-            // .frame() or .resizable() can override.
-            return MeasuredSize(
-                width: min(CGFloat(imgW), constraint.maxWidth),
-                height: min(CGFloat(imgH), constraint.maxHeight)
-            )
+            // Aspect-fit: scale image to fit constraint while preserving ratio.
+            let iw = CGFloat(imgW)
+            let ih = CGFloat(imgH)
+            guard iw > 0 && ih > 0 else { return MeasuredSize(width: 0, height: 0) }
+            let scaleX = constraint.maxWidth / iw
+            let scaleY = constraint.maxHeight / ih
+            let s = min(scaleX, scaleY, 1.0) // don't upscale beyond natural size
+            return MeasuredSize(width: iw * s, height: ih * s)
 
         case .toggle(_, let label):
             let labelSize = measure(label, constraint: constraint)
@@ -401,25 +428,87 @@ public enum Layout {
             return clippedContent
 
         case .list(let children):
-            // Row padding + alternating backgrounds (macOS-style: generous spacing)
-            let styledChildren: [ViewNode] = children.enumerated().map { (i, child) in
+            // Virtual list: only lay out visible rows + small buffer.
+            // All rows use uniform height (measured from first row).
+            let scrollKey = "list_\(Int(frame.x))_\(Int(frame.y))"
+            let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
+            let rowPadding: CGFloat = 12 // 6 top + 6 bottom
+
+            // Measure first row to get uniform height
+            let sampleChild = children.first ?? .empty
+            let samplePadded = sampleChild.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+            let sampleSize = measure(samplePadded, constraint: SizeConstraint(maxWidth: frame.width, maxHeight: .greatestFiniteMagnitude))
+            let rowHeight = sampleSize.height
+            let totalCount = children.count
+            let totalContentHeight = rowHeight * CGFloat(totalCount)
+
+            // Visible range with buffer
+            let firstVisible = max(0, Int(offset / rowHeight) - 2)
+            let lastVisible = min(totalCount - 1, Int((offset + frame.height) / rowHeight) + 2)
+
+            // Only style + layout visible rows
+            var visibleLayouts: [LayoutNode] = []
+            for i in firstVisible...max(firstVisible, lastVisible) {
+                let child = children[i]
                 let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                let styled: ViewNode
                 if i % 2 == 1 {
-                    return ViewNode.zstack(children: [
+                    styled = ViewNode.zstack(children: [
                         ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
                         padded,
                     ])
+                } else {
+                    styled = padded
                 }
-                return padded
+                let rowY = frame.y - offset + CGFloat(i) * rowHeight
+                let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
+                visibleLayouts.append(layout(styled, in: rowFrame))
             }
-            // Scrollable: layout with unbounded height, apply scroll offset, clip
-            let scrollKey = "list_\(Int(frame.x))_\(Int(frame.y))"
+
+            ScrollRegistry.shared.registerFrame(frame, contentHeight: totalContentHeight, key: scrollKey)
+            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
+
+        case .lazyList(let key, let count):
+            // Lazy list: pull rows from LazyRowRegistry on demand.
+            let scrollKey = "lazylist_\(key)"
             let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
-            let contentFrame = LayoutFrame(x: frame.x, y: frame.y - offset, width: frame.width, height: .greatestFiniteMagnitude)
-            let contentLayout = layoutVStack(alignment: .leading, spacing: 0, children: styledChildren, in: contentFrame)
-            let contentHeight = contentLayout.children.last.map { $0.frame.y + $0.frame.height - frame.y + offset } ?? 0
-            ScrollRegistry.shared.registerFrame(frame, contentHeight: contentHeight, key: scrollKey)
-            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentLayout])
+            let rowPadding: CGFloat = 12
+
+            // Estimate row height from first row
+            let sampleNode = LazyRowRegistry.shared.row(for: key, at: 0)
+            let samplePadded = sampleNode.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+            let sampleSize = measure(samplePadded, constraint: SizeConstraint(maxWidth: frame.width, maxHeight: .greatestFiniteMagnitude))
+            let rowHeight = max(sampleSize.height, 1)
+            let totalContentHeight = rowHeight * CGFloat(count)
+
+            let firstVisible = max(0, Int(offset / rowHeight) - 2)
+            let lastVisible = min(count - 1, Int((offset + frame.height) / rowHeight) + 2)
+
+            var visibleLayouts: [LayoutNode] = []
+            if count > 0 {
+                for i in firstVisible...max(firstVisible, lastVisible) {
+                    let child = LazyRowRegistry.shared.row(for: key, at: i)
+                    let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                    let styled: ViewNode
+                    if i % 2 == 1 {
+                        styled = ViewNode.zstack(children: [
+                            ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
+                            padded,
+                        ])
+                    } else {
+                        styled = padded
+                    }
+                    let rowY = frame.y - offset + CGFloat(i) * rowHeight
+                    let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
+                    visibleLayouts.append(layout(styled, in: rowFrame))
+                }
+                LazyRowRegistry.shared.evict(key: key, keeping: firstVisible...lastVisible)
+            }
+
+            ScrollRegistry.shared.registerFrame(frame, contentHeight: totalContentHeight, key: scrollKey)
+            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
 
         case .grid(let columns, let spacing, let children):
             return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)

@@ -48,6 +48,11 @@ final class PreviewState {
     var mouseY: CGFloat = 0
     var showingOpenPanel: Bool = false
 
+    /// Cached decoded image — decoded once on load, reused across frames.
+    var cachedImage: Image?
+    var imagePixelWidth: CGFloat = 0
+    var imagePixelHeight: CGFloat = 0
+
     let toolbarHeight: CGFloat = 40
     let lineHeight: CGFloat = 18
 
@@ -58,8 +63,16 @@ final class PreviewState {
 
         if fileType == .text {
             textContent = (try? String(contentsOfFile: path, encoding: .utf8)) ?? "Unable to read file"
+            cachedImage = nil
+        } else if fileType == .image {
+            textContent = ""
+            let img = Image(contentsOfFile: path)
+            cachedImage = img
+            imagePixelWidth = CGFloat(img.imageWidth ?? 0)
+            imagePixelHeight = CGFloat(img.imageHeight ?? 0)
         } else {
             textContent = ""
+            cachedImage = nil
         }
         textLines = textContent.components(separatedBy: "\n")
     }
@@ -122,8 +135,7 @@ final class PreviewState {
     }
     .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
-    let imageContent: Image? = state.fileType == .image && !state.filePath.isEmpty
-        ? Image(contentsOfFile: state.filePath) : nil
+    let imageContent: Image? = state.cachedImage
 
     let placeholder = VStack(spacing: 8) {
         Spacer()
@@ -156,7 +168,12 @@ final class PreviewState {
             if showText {
                 textContent
             } else if showImage, let img = imageContent {
-                img.resizable()
+                ScrollView {
+                    img.frame(
+                        width: state.imagePixelWidth * state.scale,
+                        height: state.imagePixelHeight * state.scale
+                    )
+                }
             } else {
                 placeholder
             }

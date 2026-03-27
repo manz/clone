@@ -8,8 +8,8 @@ public struct Image: _PrimitiveView {
 
     // Raster image data (decoded RGBA)
     var textureId: UInt64?
-    var imageWidth: UInt32?
-    var imageHeight: UInt32?
+    public internal(set) var imageWidth: UInt32?
+    public internal(set) var imageHeight: UInt32?
     var rgbaData: [UInt8]?
 
     /// `Image(systemName:)` — SF Symbol / Phosphor icon.
@@ -48,8 +48,13 @@ public struct Image: _PrimitiveView {
     }
 
     public var _nodeRepresentation: ViewNode {
-        if let textureId, let imgW = imageWidth, let imgH = imageHeight, let rgba = rgbaData {
-            return .rasterImage(textureId: textureId, imageWidth: imgW, imageHeight: imgH, rgbaData: rgba)
+        if let textureId, let imgW = imageWidth, let imgH = imageHeight {
+            // Register texture once (ImagePipeline skips if already registered).
+            // The ViewNode only carries the ID + dimensions — no pixel data per frame.
+            if let rgba = rgbaData, !ImageTextureCache.shared.isRegistered(textureId) {
+                ImageTextureCache.shared.register(textureId: textureId, width: imgW, height: imgH, rgbaData: rgba)
+            }
+            return .rasterImage(textureId: textureId, imageWidth: imgW, imageHeight: imgH, rgbaData: [])
         }
         return .image(name: name, width: fontSize, height: fontSize)
     }

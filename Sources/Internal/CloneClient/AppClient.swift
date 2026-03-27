@@ -240,12 +240,20 @@ public final class AppClient {
                 if n <= 0 { break }
 
                 readBuf.append(contentsOf: buf[0..<n])
+                // Decode ALL messages from this read in one batch
+                var batch: [CompositorMessage] = []
                 while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
                     readBuf = readBuf.subdata(in: consumed..<readBuf.count)
-                    let message = msg
-                    DispatchQueue.main.sync {
+                    batch.append(msg)
+                }
+                if !batch.isEmpty {
+                    // Dispatch the whole batch at once — async so the display link
+                    // can fire between batches instead of being starved by sync dispatches.
+                    DispatchQueue.main.async {
                         MainActor.assumeIsolated {
-                            self.handle(message)
+                            for message in batch {
+                                self.handle(message)
+                            }
                         }
                     }
                 }

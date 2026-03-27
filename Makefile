@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -6,8 +6,8 @@ CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
 SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
 CARGO_OUT = target/$(CONFIG)
 
-# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → apps
-all: bindings render-bindings text-bindings audio-bindings swift sdk apps
+# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → install-sdk → apps → install
+all: bindings render-bindings text-bindings audio-bindings swift sdk install-sdk apps install
 
 # Release shorthand
 all-release:
@@ -100,16 +100,30 @@ apps:
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
 SWIFT_BUILD_DIR = .build/$(CONFIG)
-install:
-	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices $(CLONE_ROOT)/Library/Fonts "$(CLONE_ROOT)/Library/Application Support"
+
+# Install SDK frameworks + Rust libs (needed before make apps)
+install-sdk:
+	@mkdir -p $(CLONE_ROOT)/System/Library/Frameworks $(CLONE_ROOT)/Library/Fonts
 	@cp -n engine/assets/Inter-*.ttf engine/assets/Iosevka-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
-	@echo "Cleaning stale bundles..."
+	@rm -rf $(CLONE_ROOT)/System/Library/Frameworks
+	@ditto .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
+	@cp target/$(CONFIG)/libclone_engine.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_render.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_text.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_audio.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@echo "SDK installed to $(CLONE_ROOT)/System/Library"
+
+# Full install (SDK + apps + system binaries)
+install: install-sdk
+	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
+	@echo "Installing app bundles..."
 	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
-			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "Installed $$(basename $$app)"; \
+			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
 		done; \
 	done
+	@echo "Installing system binaries..."
 	@ditto $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
 	@ditto $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
 	@ditto $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true

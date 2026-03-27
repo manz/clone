@@ -276,8 +276,8 @@ import Foundation
         let cy = cancel.frame.y + cancel.frame.height / 2
         let hit = layoutNode.hitTestTap(x: cx, y: cy)
         #expect(hit != nil, "Hit-test at Cancel center (\(cx), \(cy)) should find a tap — frame: \(cancel.frame)")
-        if let hit = hit {
-            TapRegistry.shared.fire(id: hit.id)
+        if case .tap(let id, _) = hit {
+            TapRegistry.shared.fire(id: id)
             #expect(cancelFired, "Firing tap at Cancel position should trigger cancelFired")
         }
     }
@@ -288,8 +288,8 @@ import Foundation
         let cy = done.frame.y + done.frame.height / 2
         let hit = layoutNode.hitTestTap(x: cx, y: cy)
         #expect(hit != nil, "Hit-test at Done center (\(cx), \(cy)) should find a tap — frame: \(done.frame)")
-        if let hit = hit {
-            TapRegistry.shared.fire(id: hit.id)
+        if case .tap(let id, _) = hit {
+            TapRegistry.shared.fire(id: id)
             #expect(doneFired, "Firing tap at Done position should trigger doneFired")
         }
     }

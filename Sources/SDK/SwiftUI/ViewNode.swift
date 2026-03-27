@@ -46,6 +46,9 @@ public indirect enum ViewNode: Equatable, Sendable {
     // Step 4 additions
     case scrollView(axis: Axis, children: [ViewNode], key: String)
     case list(children: [ViewNode])
+    /// Lazy list: rows are built on-demand from LazyRowRegistry during layout.
+    /// Only visible rows are materialized. Key identifies the registry entry.
+    case lazyList(key: String, count: Int)
     case image(name: String, width: CGFloat?, height: CGFloat?, tint: Color? = nil)
     /// Raster image (JPEG, PNG) with decoded RGBA pixel data.
     case rasterImage(textureId: UInt64, imageWidth: UInt32, imageHeight: UInt32, rgbaData: [UInt8])
@@ -61,6 +64,17 @@ public indirect enum ViewNode: Equatable, Sendable {
     case tagged(tag: SendableHashable, child: ViewNode)
     case toolbarItem(placement: ToolbarItemPlacement, child: ViewNode)
     case lineLimit(limit: Int?, child: ViewNode)
+
+    /// Whether this node is an opaque visual element that should absorb tap events
+    /// (prevent them from leaking through to views behind it).
+    var isOpaqueHitTarget: Bool {
+        switch self {
+        case .rect, .roundedRect, .image, .rasterImage, .toggle, .slider, .picker, .textField:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 /// Axis for ScrollView direction.
