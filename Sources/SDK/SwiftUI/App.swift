@@ -279,7 +279,10 @@ extension App {
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
                 }
-                return CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() }
+                // Prepend any pending texture registrations (one-time upload)
+                var cmds = ImageTextureCache.shared.drainPending()
+                cmds.append(contentsOf: CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() })
+                return cmds
             }
 
             // App-side rendering: app renders pixels via headless GPU → shared memory
@@ -719,11 +722,19 @@ extension FlatRenderCommand {
         }
     }
 
+    /// Track which texture IDs have already been registered (avoid re-uploading every frame).
+    nonisolated(unsafe) private static var registeredTextures: Set<UInt64> = []
+
     /// Convert to IPC commands — may return multiple (e.g. RegisterTexture + Image).
     func toIPCCommands() -> [IPCRenderCommand] {
         switch kind {
         case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
             let fx = Float(x), fy = Float(y), fw = Float(width), fh = Float(height)
+            if Self.registeredTextures.contains(textureId) {
+                // Already uploaded — just draw
+                return [.image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)]
+            }
+            Self.registeredTextures.insert(textureId)
             return [
                 .registerTexture(textureId: textureId, width: imgW, height: imgH, rgbaData: rgbaData),
                 .image(textureId: textureId, x: fx, y: fy, w: fw, h: fh)
