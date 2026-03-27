@@ -115,6 +115,15 @@ install:
 	@ditto $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
 	@ditto $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
 	@ditto $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
+	@echo "Installing SDK frameworks..."
+	@rm -rf $(CLONE_ROOT)/System/Library/Frameworks
+	@ditto .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
+	@echo "Installing Rust libraries..."
+	@mkdir -p $(CLONE_ROOT)/System/Library
+	@cp target/$(CONFIG)/libclone_engine.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_render.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_text.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_audio.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias

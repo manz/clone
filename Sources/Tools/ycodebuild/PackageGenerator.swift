@@ -96,10 +96,12 @@ enum PackageGenerator {
         let excludeSection = excludes.isEmpty ? "" : ",\n        exclude: [\(excludeList)]"
 
         let sdk = sdkPath
-        let fw = "\(sdk)/.build/sdk/System/Library/Frameworks"
+        let cloneRoot = ProcessInfo.processInfo.environment["CLONE_ROOT"]
+            ?? "\(FileManager.default.homeDirectoryForCurrentUser.path)/.clone"
+        let fw = "\(cloneRoot)/System/Library/Frameworks"
         let modules = "\(sdk)/.build/debug/Modules"
         let macroPlugin = "\(sdk)/.build/arm64-apple-macosx/debug/SwiftDataMacros-tool#SwiftDataMacros"
-        let rustLib = "\(sdk)/target/debug"
+        let rustLib = "\(cloneRoot)/System/Library"
 
         let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine", "CRender", "CPosixShim"].flatMap { dir in
             ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
