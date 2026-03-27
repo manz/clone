@@ -4,19 +4,38 @@ import Foundation
 /// Matches Apple's SwiftUI `List` struct.
 public struct List: _PrimitiveView {
     let children: [ViewNode]
+    /// Non-nil when using lazy data-driven mode.
+    let lazyKey: String?
+    let lazyCount: Int
 
     public init(@ViewBuilder content: () -> some View) {
         self.children = _flattenToNodes(content())
+        self.lazyKey = nil
+        self.lazyCount = 0
     }
 
-    /// `List(data) { item in ... }` — data-driven list. Data must be Identifiable.
-    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
-        self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+    /// `List(data) { item in ... }` — data-driven list with lazy row evaluation.
+    public init<Data: RandomAccessCollection>(_ data: Data, @ViewBuilder rowContent: @escaping (Data.Element) -> some View, file: String = #fileID, line: Int = #line) where Data.Element: Identifiable {
+        let items = Array(data)
+        let key = "\(StateGraph.shared.currentScope)/\(file):\(line)"
+        LazyRowRegistry.shared.register(key: key, count: items.count) { index in
+            _resolve(rowContent(items[index]))
+        }
+        self.children = []
+        self.lazyKey = key
+        self.lazyCount = items.count
     }
 
     /// `List(data, id:) { item in ... }` — data-driven list with explicit id keypath.
-    public init<Data: RandomAccessCollection, ID: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, @ViewBuilder rowContent: (Data.Element) -> some View) {
-        self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+    public init<Data: RandomAccessCollection, ID: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, @ViewBuilder rowContent: @escaping (Data.Element) -> some View, file: String = #fileID, line: Int = #line) {
+        let items = Array(data)
+        let key = "\(StateGraph.shared.currentScope)/\(file):\(line)"
+        LazyRowRegistry.shared.register(key: key, count: items.count) { index in
+            _resolve(rowContent(items[index]))
+        }
+        self.children = []
+        self.lazyKey = key
+        self.lazyCount = items.count
     }
 
     /// `List(data, selection:) { item in ... }` — data-driven list with selection binding.
@@ -26,16 +45,19 @@ public struct List: _PrimitiveView {
         } else {
             self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
         }
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     /// `List(data, id:, selection:) { item in ... }` — data-driven list with id and selection.
     public init<Data: RandomAccessCollection, ID: Hashable, SelectionValue: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View) {
         self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     /// `List(data, selection: Binding<Set<V>>) { ... }` — data-driven with multi-selection.
     public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
         self.children = Self.wrapDataWithSetSelection(data, selection: selection, rowContent: rowContent)
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     /// `List(selection:) { ... }` — static list with optional selection binding.
@@ -46,21 +68,27 @@ public struct List: _PrimitiveView {
         } else {
             self.children = nodes
         }
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     /// `List(selection: Set) { ... }` — static list with multi-selection binding.
     public init<SelectionValue: Hashable>(selection: Binding<Set<SelectionValue>>?, @ViewBuilder content: () -> some View) {
         self.children = _flattenToNodes(content())
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     /// `List(selection: $value) { ... }` — non-optional selection binding.
     public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> some View) {
         let nodes = _flattenToNodes(content())
         self.children = Self.wrapWithSelection(nodes, binding: binding(from: selection))
+        self.lazyKey = nil; self.lazyCount = 0
     }
 
     public var _nodeRepresentation: ViewNode {
-        .list(children: children)
+        if let key = lazyKey {
+            return .lazyList(key: key, count: lazyCount)
+        }
+        return .list(children: children)
     }
 
     // MARK: - Selection wiring

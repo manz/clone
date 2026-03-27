@@ -249,8 +249,11 @@ public enum Layout {
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .list(let children):
-            // Measure intrinsically (padding added in layout, not measurement)
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+
+        case .lazyList(_, _):
+            // Lazy list fills available space (like ScrollView)
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -458,6 +461,47 @@ public enum Layout {
                 let rowY = frame.y - offset + CGFloat(i) * rowHeight
                 let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
                 visibleLayouts.append(layout(styled, in: rowFrame))
+            }
+
+            ScrollRegistry.shared.registerFrame(frame, contentHeight: totalContentHeight, key: scrollKey)
+            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
+
+        case .lazyList(let key, let count):
+            // Lazy list: pull rows from LazyRowRegistry on demand.
+            let scrollKey = "lazylist_\(key)"
+            let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
+            let rowPadding: CGFloat = 12
+
+            // Estimate row height from first row
+            let sampleNode = LazyRowRegistry.shared.row(for: key, at: 0)
+            let samplePadded = sampleNode.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+            let sampleSize = measure(samplePadded, constraint: SizeConstraint(maxWidth: frame.width, maxHeight: .greatestFiniteMagnitude))
+            let rowHeight = max(sampleSize.height, 1)
+            let totalContentHeight = rowHeight * CGFloat(count)
+
+            let firstVisible = max(0, Int(offset / rowHeight) - 2)
+            let lastVisible = min(count - 1, Int((offset + frame.height) / rowHeight) + 2)
+
+            var visibleLayouts: [LayoutNode] = []
+            if count > 0 {
+                for i in firstVisible...max(firstVisible, lastVisible) {
+                    let child = LazyRowRegistry.shared.row(for: key, at: i)
+                    let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                    let styled: ViewNode
+                    if i % 2 == 1 {
+                        styled = ViewNode.zstack(children: [
+                            ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
+                            padded,
+                        ])
+                    } else {
+                        styled = padded
+                    }
+                    let rowY = frame.y - offset + CGFloat(i) * rowHeight
+                    let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
+                    visibleLayouts.append(layout(styled, in: rowFrame))
+                }
+                LazyRowRegistry.shared.evict(key: key, keeping: firstVisible...lastVisible)
             }
 
             ScrollRegistry.shared.registerFrame(frame, contentHeight: totalContentHeight, key: scrollKey)
