@@ -54,8 +54,16 @@ final class AppSideRenderer: NSObject {
     }
 
     func resize(width: CGFloat, height: CGFloat) {
+        guard width != self.width || height != self.height else {
+            // Same size — just mark dirty (normal requestFrame)
+            needsRender = true
+            return
+        }
         self.width = width
         self.height = height
+        // New size means new IOSurfaces — clear Mach port tracking
+        sentMachPorts.removeAll()
+        currentIOSurfaceId = 0
         needsRender = true
     }
 

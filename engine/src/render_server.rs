@@ -55,11 +55,11 @@ impl RenderServer {
             if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
 
             // IOSurface-backed: import the shared texture (zero-copy)
+            // Pass 0,0 for dimensions — import_iosurface will use the IOSurface's actual size.
+            // The compositor draws the quad at the window geometry and stretches if sizes differ.
             if sf.iosurface_id != 0 {
-                let phys_w = (sf.desc.width * scale) as u32;
-                let phys_h = (sf.desc.height * scale) as u32;
                 self.compositor.import_iosurface(
-                    device, sf.desc.surface_id, sf.iosurface_id, phys_w, phys_h,
+                    device, sf.desc.surface_id, sf.iosurface_id, 0, 0,
                 );
                 continue;
             }

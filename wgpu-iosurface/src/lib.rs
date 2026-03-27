@@ -34,4 +34,6 @@ pub use iosurface::{
     lookup_from_mach_port as iosurface_lookup_from_mach_port,
     mach_port_to_fd as iosurface_mach_port_to_fd,
     fd_to_mach_port as iosurface_fd_to_mach_port,
+    IOSurfaceGetWidth as iosurface_get_width,
+    IOSurfaceGetHeight as iosurface_get_height,
 };

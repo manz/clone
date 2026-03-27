@@ -12,6 +12,10 @@ pub struct WindowSurface {
     pub depth_view: wgpu::TextureView,
     pub width: u32,
     pub height: u32,
+    /// Size of the last rendered content (may lag behind width/height during resize).
+    /// Used for stretching: UV mapping samples (0,0)-(content_width/width, content_height/height).
+    pub content_width: u32,
+    pub content_height: u32,
 }
 
 impl WindowSurface {
@@ -46,14 +50,27 @@ impl WindowSurface {
             view_formats: &[],
         });
         let depth_view = depth_texture.create_view(&Default::default());
-        Self { texture, view, depth_texture, depth_view, width, height }
+        Self { texture, view, depth_texture, depth_view, width, height, content_width: width, content_height: height }
     }
 
     pub fn resize(&mut self, device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32) {
         if self.width == width && self.height == height {
             return;
         }
-        *self = Self::new(device, format, width, height);
+        if width <= self.width && height <= self.height {
+            // Texture is big enough — no realloc needed.
+            // Content stays at old size until app submits a new frame (stretching).
+            return;
+        }
+        // Allocate with 25% headroom to avoid thrashing during drag resize
+        let new_w = (width as f32 * 1.25) as u32;
+        let new_h = (height as f32 * 1.25) as u32;
+        let old_content_w = self.content_width;
+        let old_content_h = self.content_height;
+        *self = Self::new(device, format, new_w, new_h);
+        // Preserve old content size until app catches up
+        self.content_width = old_content_w;
+        self.content_height = old_content_h;
     }
 }
 
@@ -236,13 +253,23 @@ impl SurfaceCompositor {
         device: &wgpu::Device,
         surface_id: u64,
         iosurface_id: u32,
-        width: u32,
-        height: u32,
+        _width_hint: u32,
+        _height_hint: u32,
     ) -> bool {
         // Skip if already imported with the same IOSurface ID
         if self.imported_iosurfaces.get(&surface_id) == Some(&iosurface_id) {
             return true;
         }
+
+        // Get actual dimensions from the IOSurface
+        let raw = wgpu_iosurface::iosurface_lookup(iosurface_id);
+        if raw.is_null() {
+            log::error!("IOSurfaceLookup({iosurface_id}) failed for surface {surface_id}");
+            return false;
+        }
+        let width = unsafe { wgpu_iosurface::iosurface_get_width(raw) } as u32;
+        let height = unsafe { wgpu_iosurface::iosurface_get_height(raw) } as u32;
+        wgpu_iosurface::iosurface_release(raw);
 
         match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
             Ok(shared) => {
@@ -268,6 +295,8 @@ impl SurfaceCompositor {
                     depth_view,
                     width,
                     height,
+                    content_width: width,
+                    content_height: height,
                 });
                 self.imported_iosurfaces.insert(surface_id, iosurface_id);
                 true
@@ -393,7 +422,7 @@ impl SurfaceCompositor {
 
     /// Render commands into a window's offscreen surface.
     pub fn render_to_surface(
-        &self,
+        &mut self,
         surface_id: u64,
         renderer: &mut DesktopRenderer,
         device: &wgpu::Device,
@@ -402,7 +431,11 @@ impl SurfaceCompositor {
         scale: f32,
         transparent_clear: bool,
     ) {
-        let Some(surface) = self.surfaces.get(&surface_id) else { return };
+        let Some(surface) = self.surfaces.get_mut(&surface_id) else { return };
+        // Update content size — this frame matches the rendered dimensions
+        surface.content_width = surface.width;
+        surface.content_height = surface.height;
+        let surface = self.surfaces.get(&surface_id).unwrap();
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("window_render"),

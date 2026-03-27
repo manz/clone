@@ -289,10 +289,9 @@ extension App {
             appRenderer.transparentBackground = isOverlay
             // Start immediately — windowCreated was already received during connect()
             appRenderer.start(width: CGFloat(app.client.width), height: CGFloat(app.client.height))
-            // Respond to requestFrame by marking dirty (compositor still asks during transition)
-            // Return empty commands — the compositor will use the shared surface pixels instead
+            // Respond to requestFrame — update size if changed (resize), mark dirty
             app.client.onFrameRequest = { w, h in
-                appRenderer.setNeedsDisplay()
+                appRenderer.resize(width: CGFloat(w), height: CGFloat(h))
                 return []
             }
             app.client.onPointerButton = { button, pressed, px, py in
