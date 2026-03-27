@@ -95,13 +95,14 @@ apps:
 	$(call APPBUILD,TextEdit,TextEdit)
 	$(call APPBUILD,Preview,Preview)
 	$(call APPBUILD,LoginWindow,LoginWindow)
+	$(call APPBUILD,FontBook,FontBook)
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
 SWIFT_BUILD_DIR = .build/$(CONFIG)
 install:
 	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices $(CLONE_ROOT)/Library/Fonts "$(CLONE_ROOT)/Library/Application Support"
-	@cp -n engine/assets/Inter-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
+	@cp -n engine/assets/Inter-*.ttf engine/assets/Iosevka-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
 	@echo "Cleaning stale bundles..."
 	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \
