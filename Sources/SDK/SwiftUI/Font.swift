@@ -72,10 +72,15 @@ public struct Font: Equatable, Sendable {
 
     /// Convert to the internal FontWeight used by ViewNode.
     internal var internalWeight: FontWeight {
+        if weight.value >= Weight.black.value { return .black }
+        if weight.value >= Weight.heavy.value { return .heavy }
         if weight.value >= Weight.bold.value { return .bold }
         if weight.value >= Weight.semibold.value { return .semibold }
         if weight.value >= Weight.medium.value { return .medium }
-        return .regular
+        if weight.value >= Weight.regular.value { return .regular }
+        if weight.value >= Weight.light.value { return .light }
+        if weight.value >= Weight.thin.value { return .thin }
+        return .ultraLight
     }
 }
 

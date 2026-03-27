@@ -1,7 +1,7 @@
 import Foundation
 
 /// An opaque font reference matching Apple's CoreText CTFont.
-/// Phase 1: metrics hardcoded to Inter.
+/// Queries Rust for font resolution; metrics hardcoded to Inter ratios.
 public final class CTFont {
     public let familyName: String
     public let size: CGFloat
@@ -17,7 +17,9 @@ public final class CTFont {
     public var lineHeight: CGFloat { ascent + descent + leading }
 
     internal init(name: String, size: CGFloat, weight: FontWeight) {
-        self.familyName = name
+        // Resolve via Rust font database — falls back to "Inter" if not found
+        let info = resolveFont(family: name, weight: weight)
+        self.familyName = info.family
         self.size = size
         self.weight = weight
     }

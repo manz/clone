@@ -1029,10 +1029,15 @@ public func FfiConverterTypeSurfaceFrame_lower(_ value: SurfaceFrame) -> RustBuf
 
 public enum FontWeight: Equatable, Hashable {
     
+    case ultraLight
+    case thin
+    case light
     case regular
     case medium
     case semibold
     case bold
+    case heavy
+    case black
 
 
 
@@ -1054,13 +1059,23 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .regular
+        case 1: return .ultraLight
         
-        case 2: return .medium
+        case 2: return .thin
         
-        case 3: return .semibold
+        case 3: return .light
         
-        case 4: return .bold
+        case 4: return .regular
+        
+        case 5: return .medium
+        
+        case 6: return .semibold
+        
+        case 7: return .bold
+        
+        case 8: return .heavy
+        
+        case 9: return .black
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -1070,20 +1085,40 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         switch value {
         
         
-        case .regular:
+        case .ultraLight:
             writeInt(&buf, Int32(1))
         
         
-        case .medium:
+        case .thin:
             writeInt(&buf, Int32(2))
         
         
-        case .semibold:
+        case .light:
             writeInt(&buf, Int32(3))
         
         
-        case .bold:
+        case .regular:
             writeInt(&buf, Int32(4))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .semibold:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .bold:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .heavy:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .black:
+            writeInt(&buf, Int32(9))
         
         }
     }

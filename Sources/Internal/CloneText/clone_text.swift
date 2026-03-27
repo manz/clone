@@ -451,6 +451,30 @@ fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
@@ -552,6 +576,258 @@ public func FfiConverterTypeCursorPosition_lower(_ value: CursorPosition) -> Rus
 
 
 /**
+ * Font info returned by font matching.
+ */
+public struct FontInfo: Equatable, Hashable {
+    public var family: String
+    public var weight: FontWeight
+    public var available: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(family: String, weight: FontWeight, available: Bool) {
+        self.family = family
+        self.weight = weight
+        self.available = available
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FontInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFontInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FontInfo {
+        return
+            try FontInfo(
+                family: FfiConverterString.read(from: &buf), 
+                weight: FfiConverterTypeFontWeight.read(from: &buf), 
+                available: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FontInfo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.family, into: &buf)
+        FfiConverterTypeFontWeight.write(value.weight, into: &buf)
+        FfiConverterBool.write(value.available, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFontInfo_lift(_ buf: RustBuffer) throws -> FontInfo {
+    return try FfiConverterTypeFontInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFontInfo_lower(_ value: FontInfo) -> RustBuffer {
+    return FfiConverterTypeFontInfo.lower(value)
+}
+
+
+/**
+ * A single glyph's position and string mapping.
+ */
+public struct GlyphInfo: Equatable, Hashable {
+    public var x: Float
+    public var width: Float
+    public var stringIndex: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, width: Float, stringIndex: UInt32) {
+        self.x = x
+        self.width = width
+        self.stringIndex = stringIndex
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GlyphInfo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGlyphInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlyphInfo {
+        return
+            try GlyphInfo(
+                x: FfiConverterFloat.read(from: &buf), 
+                width: FfiConverterFloat.read(from: &buf), 
+                stringIndex: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GlyphInfo, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.stringIndex, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlyphInfo_lift(_ buf: RustBuffer) throws -> GlyphInfo {
+    return try FfiConverterTypeGlyphInfo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGlyphInfo_lower(_ value: GlyphInfo) -> RustBuffer {
+    return FfiConverterTypeGlyphInfo.lower(value)
+}
+
+
+/**
+ * Full multi-line text layout result.
+ */
+public struct TextLayout: Equatable, Hashable {
+    public var lines: [TextLayoutLine]
+    public var width: Float
+    public var height: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(lines: [TextLayoutLine], width: Float, height: Float) {
+        self.lines = lines
+        self.width = width
+        self.height = height
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextLayout: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextLayout: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextLayout {
+        return
+            try TextLayout(
+                lines: FfiConverterSequenceTypeTextLayoutLine.read(from: &buf), 
+                width: FfiConverterFloat.read(from: &buf), 
+                height: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextLayout, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeTextLayoutLine.write(value.lines, into: &buf)
+        FfiConverterFloat.write(value.width, into: &buf)
+        FfiConverterFloat.write(value.height, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayout_lift(_ buf: RustBuffer) throws -> TextLayout {
+    return try FfiConverterTypeTextLayout.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayout_lower(_ value: TextLayout) -> RustBuffer {
+    return FfiConverterTypeTextLayout.lower(value)
+}
+
+
+/**
+ * A single visual line after wrapping.
+ */
+public struct TextLayoutLine: Equatable, Hashable {
+    public var glyphs: [GlyphInfo]
+    public var originY: Float
+    public var lineHeight: Float
+    public var stringRangeStart: UInt32
+    public var stringRangeEnd: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(glyphs: [GlyphInfo], originY: Float, lineHeight: Float, stringRangeStart: UInt32, stringRangeEnd: UInt32) {
+        self.glyphs = glyphs
+        self.originY = originY
+        self.lineHeight = lineHeight
+        self.stringRangeStart = stringRangeStart
+        self.stringRangeEnd = stringRangeEnd
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextLayoutLine: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextLayoutLine: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextLayoutLine {
+        return
+            try TextLayoutLine(
+                glyphs: FfiConverterSequenceTypeGlyphInfo.read(from: &buf), 
+                originY: FfiConverterFloat.read(from: &buf), 
+                lineHeight: FfiConverterFloat.read(from: &buf), 
+                stringRangeStart: FfiConverterUInt32.read(from: &buf), 
+                stringRangeEnd: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextLayoutLine, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeGlyphInfo.write(value.glyphs, into: &buf)
+        FfiConverterFloat.write(value.originY, into: &buf)
+        FfiConverterFloat.write(value.lineHeight, into: &buf)
+        FfiConverterUInt32.write(value.stringRangeStart, into: &buf)
+        FfiConverterUInt32.write(value.stringRangeEnd, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayoutLine_lift(_ buf: RustBuffer) throws -> TextLayoutLine {
+    return try FfiConverterTypeTextLayoutLine.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextLayoutLine_lower(_ value: TextLayoutLine) -> RustBuffer {
+    return FfiConverterTypeTextLayoutLine.lower(value)
+}
+
+
+/**
  * Result of measuring text.
  */
 public struct TextSize: Equatable, Hashable {
@@ -610,15 +886,20 @@ public func FfiConverterTypeTextSize_lower(_ value: TextSize) -> RustBuffer {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * Font weight enum — matches Clone's SwiftUI.FontWeight.
+ * Font weight enum — matches Apple's full Font.Weight range.
  */
 
 public enum FontWeight: Equatable, Hashable {
     
+    case ultraLight
+    case thin
+    case light
     case regular
     case medium
     case semibold
     case bold
+    case heavy
+    case black
 
 
 
@@ -640,13 +921,23 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .regular
+        case 1: return .ultraLight
         
-        case 2: return .medium
+        case 2: return .thin
         
-        case 3: return .semibold
+        case 3: return .light
         
-        case 4: return .bold
+        case 4: return .regular
+        
+        case 5: return .medium
+        
+        case 6: return .semibold
+        
+        case 7: return .bold
+        
+        case 8: return .heavy
+        
+        case 9: return .black
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -656,20 +947,40 @@ public struct FfiConverterTypeFontWeight: FfiConverterRustBuffer {
         switch value {
         
         
-        case .regular:
+        case .ultraLight:
             writeInt(&buf, Int32(1))
         
         
-        case .medium:
+        case .thin:
             writeInt(&buf, Int32(2))
         
         
-        case .semibold:
+        case .light:
             writeInt(&buf, Int32(3))
         
         
-        case .bold:
+        case .regular:
             writeInt(&buf, Int32(4))
+        
+        
+        case .medium:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .semibold:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .bold:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .heavy:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .black:
+            writeInt(&buf, Int32(9))
         
         }
     }
@@ -714,6 +1025,105 @@ fileprivate struct FfiConverterOptionFloat: FfiConverterRustBuffer {
         }
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGlyphInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [GlyphInfo]
+
+    public static func write(_ value: [GlyphInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGlyphInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GlyphInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GlyphInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGlyphInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextLayoutLine: FfiConverterRustBuffer {
+    typealias SwiftType = [TextLayoutLine]
+
+    public static func write(_ value: [TextLayoutLine], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextLayoutLine.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextLayoutLine] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextLayoutLine]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextLayoutLine.read(from: &buf))
+        }
+        return seq
+    }
+}
 /**
  * Clear the measurement cache (e.g. on font change).
  */
@@ -739,8 +1149,30 @@ public func cursorPosition(content: String, charOffset: UInt32, fontSize: Float,
 })
 }
 /**
+ * Layout text into lines with wrapping, returning structured glyph data.
+ */
+public func layoutText(content: String, fontSize: Float, weight: FontWeight, maxWidth: Float) -> TextLayout  {
+    return try!  FfiConverterTypeTextLayout_lift(try! rustCall() {
+    uniffi_clone_text_fn_func_layout_text(
+        FfiConverterString.lower(content),
+        FfiConverterFloat.lower(fontSize),
+        FfiConverterTypeFontWeight_lower(weight),
+        FfiConverterFloat.lower(maxWidth),$0
+    )
+})
+}
+/**
+ * List all available font family names.
+ */
+public func listFontFamilies() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_clone_text_fn_func_list_font_families($0
+    )
+})
+}
+/**
  * Measure text using cosmic-text. Results are cached by (text, fontSize, weight, maxWidth).
- * When max_width is Some, word wrapping is enabled.
+ * When max_width is Some, word wrapping is enabled at word boundaries.
  */
 public func measureText(content: String, fontSize: Float, weight: FontWeight, maxWidth: Float?) -> TextSize  {
     return try!  FfiConverterTypeTextSize_lift(try! rustCall() {
@@ -749,6 +1181,31 @@ public func measureText(content: String, fontSize: Float, weight: FontWeight, ma
         FfiConverterFloat.lower(fontSize),
         FfiConverterTypeFontWeight_lower(weight),
         FfiConverterOptionFloat.lower(maxWidth),$0
+    )
+})
+}
+/**
+ * Measure text with an optional font family name.
+ */
+public func measureTextWithFamily(content: String, fontSize: Float, weight: FontWeight, maxWidth: Float?, family: String?) -> TextSize  {
+    return try!  FfiConverterTypeTextSize_lift(try! rustCall() {
+    uniffi_clone_text_fn_func_measure_text_with_family(
+        FfiConverterString.lower(content),
+        FfiConverterFloat.lower(fontSize),
+        FfiConverterTypeFontWeight_lower(weight),
+        FfiConverterOptionFloat.lower(maxWidth),
+        FfiConverterOptionString.lower(family),$0
+    )
+})
+}
+/**
+ * Resolve a font family name — returns info about whether it's available.
+ */
+public func resolveFont(family: String, weight: FontWeight) -> FontInfo  {
+    return try!  FfiConverterTypeFontInfo_lift(try! rustCall() {
+    uniffi_clone_text_fn_func_resolve_font(
+        FfiConverterString.lower(family),
+        FfiConverterTypeFontWeight_lower(weight),$0
     )
 })
 }
@@ -774,7 +1231,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_text_checksum_func_cursor_position() != 56098) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_text_checksum_func_measure_text() != 11824) {
+    if (uniffi_clone_text_checksum_func_layout_text() != 55857) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_text_checksum_func_list_font_families() != 42264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_text_checksum_func_measure_text() != 22006) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_text_checksum_func_measure_text_with_family() != 20702) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_text_checksum_func_resolve_font() != 63198) {
         return InitializationResult.apiChecksumMismatch
     }
 

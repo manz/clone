@@ -4,6 +4,7 @@ import Foundation
 public final class CTLine {
     internal let text: String
     internal let font: CTFont
+    internal var _runs: [CTRun] = []
 
     private var _cachedWidth: CGFloat?
 
@@ -21,6 +22,9 @@ public final class CTLine {
         _cachedWidth = w
         return w
     }
+
+    /// The glyph runs in this line.
+    public var runs: [CTRun] { _runs }
 }
 
 // MARK: - Free functions (Apple CoreText API)
@@ -47,11 +51,10 @@ public func CTLineGetTypographicBounds(
 /// Find the character index closest to the given position.
 public func CTLineGetStringIndexForPosition(_ line: CTLine, _ position: CGPoint) -> CFIndex {
     guard !line.text.isEmpty else { return 0 }
-    // Walk glyphs to find the character whose x-offset is closest to position.x
     var bestIndex = 0
     var bestDist = CGFloat.greatestFiniteMagnitude
     for i in 0...line.text.count {
-        let pos = cursorPosition(
+        let pos = CloneText.cursorPosition(
             content: line.text,
             charOffset: UInt32(i),
             fontSize: Float(line.font.size),
@@ -75,7 +78,7 @@ public func CTLineGetOffsetForStringIndex(
 ) -> CGFloat {
     guard !line.text.isEmpty else { return 0 }
     let clamped = max(0, min(charIndex, line.text.count))
-    let pos = cursorPosition(
+    let pos = CloneText.cursorPosition(
         content: line.text,
         charOffset: UInt32(clamped),
         fontSize: Float(line.font.size),
@@ -85,4 +88,9 @@ public func CTLineGetOffsetForStringIndex(
     let offset = CGFloat(pos.x)
     secondaryOffset?.pointee = offset
     return offset
+}
+
+/// Get the runs (glyph groups) in this line.
+public func CTLineGetGlyphRuns(_ line: CTLine) -> [CTRun] {
+    line.runs
 }

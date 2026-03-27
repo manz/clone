@@ -45,6 +45,8 @@ bindings: engine
 	sed -i '' 's/import clone_renderFFI/import clone_engineFFI/' Sources/Internal/EngineBridge/clone_render.swift
 	# Remove standalone clone-render FFI module files (not needed as a separate module)
 	rm -f Sources/Internal/EngineBridge/clone_renderFFI.h Sources/Internal/EngineBridge/clone_renderFFI.modulemap
+	# Remove clone-text bindings leaked through engine dylib (already in CloneText target)
+	rm -f Sources/Internal/EngineBridge/clone_text.swift Sources/Internal/EngineBridge/clone_textFFI.h Sources/Internal/EngineBridge/clone_textFFI.modulemap
 
 # Rust text measurement crate
 text:

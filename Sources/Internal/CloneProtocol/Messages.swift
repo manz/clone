@@ -16,7 +16,7 @@ public struct IPCColor: Codable, Equatable, Sendable {
 }
 
 public enum IPCFontWeight: String, Codable, Sendable {
-    case regular, medium, semibold, bold
+    case ultraLight, thin, light, regular, medium, semibold, bold, heavy, black
 }
 
 /// Phosphor icon style variant for IPC.

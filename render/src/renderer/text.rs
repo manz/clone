@@ -78,13 +78,8 @@ impl TextRenderer {
 
 impl TextRenderer {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, surface_format: wgpu::TextureFormat) -> Self {
-        // Use empty font DB — only bundled Inter (static per-weight), no system font fallback
-        let mut db = cosmic_text::fontdb::Database::new();
-        db.load_font_data(include_bytes!("../../assets/Inter-Regular.ttf").to_vec());
-        db.load_font_data(include_bytes!("../../assets/Inter-Medium.ttf").to_vec());
-        db.load_font_data(include_bytes!("../../assets/Inter-SemiBold.ttf").to_vec());
-        db.load_font_data(include_bytes!("../../assets/Inter-Bold.ttf").to_vec());
-        let font_system = FontSystem::new_with_locale_and_db("en-US".to_string(), db);
+        // Shared font database from clone-text (bundled Inter + system fonts)
+        let font_system = clone_text::create_font_system();
         let swash_cache = SwashCache::new();
 
         let atlas_data = vec![0u8; (ATLAS_SIZE * ATLAS_SIZE) as usize];
@@ -275,12 +270,16 @@ impl TextRenderer {
             buffer.set_size(&mut self.font_system, Some(mw), None);
         }
 
-        // Static Inter fonts register with different family names per weight
         let (family, cosmic_weight) = match weight {
+            crate::commands::FontWeight::UltraLight => (Family::Name("Inter"), Weight(100)),
+            crate::commands::FontWeight::Thin => (Family::Name("Inter"), Weight(200)),
+            crate::commands::FontWeight::Light => (Family::Name("Inter"), Weight(300)),
             crate::commands::FontWeight::Regular => (Family::Name("Inter"), Weight::NORMAL),
             crate::commands::FontWeight::Medium => (Family::Name("Inter Medium"), Weight(500)),
             crate::commands::FontWeight::Semibold => (Family::Name("Inter SemiBold"), Weight::SEMIBOLD),
             crate::commands::FontWeight::Bold => (Family::Name("Inter"), Weight::BOLD),
+            crate::commands::FontWeight::Heavy => (Family::Name("Inter"), Weight(800)),
+            crate::commands::FontWeight::Black => (Family::Name("Inter"), Weight(900)),
         };
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
         buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
