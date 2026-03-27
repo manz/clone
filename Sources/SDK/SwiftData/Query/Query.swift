@@ -13,7 +13,7 @@ public final class Query<T: PersistentModel> {
                 predicate: _SQLPredicate<T>? = nil,
                 limit: Int? = nil) {
         self.descriptor = FetchDescriptor(
-            predicate: predicate,
+            sqlPredicate: predicate,
             sortBy: sortDescriptors,
             limit: limit
         )

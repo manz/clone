@@ -66,7 +66,7 @@ final class Bookmark: PersistentModel, PropertySettable {
 
     let pinnedCol = Column<Bookmark, Bool>("pinned")
     let descriptor = FetchDescriptor<Bookmark>(
-        predicate: pinnedCol == true,
+        sqlPredicate: pinnedCol == true,
         sortBy: [SortDescriptor("name")]
     )
     let results = try context.fetch(descriptor)
