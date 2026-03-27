@@ -32,6 +32,16 @@ public final class StateGraph: @unchecked Sendable {
     /// Current scope path (e.g. "album-7/track-42/") for external keying.
     public var currentScope: String { scopePrefix }
 
+    /// When true, async state changed and the frame needs a re-render.
+    /// Checked by the display link alongside needsRender.
+    public var needsAsyncRender: Bool = false
+
+    /// Signal that async state changed (network fetch completed, timer fired, etc.)
+    /// Triggers a re-render on the next display link tick.
+    public func invalidate() {
+        needsAsyncRender = true
+    }
+
     private init() {}
 
     /// Push an identity scope (used by ForEach for each item's id).

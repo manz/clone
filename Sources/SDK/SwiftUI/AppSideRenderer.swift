@@ -67,6 +67,11 @@ final class AppSideRenderer: NSObject {
     }
 
     @objc private func tick() {
+        // Check both explicit dirty flag and async state invalidation
+        if StateGraph.shared.needsAsyncRender {
+            needsRender = true
+            StateGraph.shared.needsAsyncRender = false
+        }
         guard needsRender else { return }
         guard let renderer, let buildFrame else { return }
         guard width > 0 && height > 0 else { return }
