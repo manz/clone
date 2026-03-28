@@ -1,35 +1,39 @@
 import Foundation
 
 /// Tracks closures that should only fire once (onAppear, task).
-/// Uses the closure's code pointer as the identity key.
+/// Keyed by source location + StateGraph scope for stability across
+/// dynamic tree changes (async results, conditional views).
 public final class OnceRegistry: @unchecked Sendable {
     public static let shared = OnceRegistry()
 
-    private var fired: Set<Int> = []
-    private var counter: Int = 0
+    private var fired: Set<String> = []
+    /// Per-location call counter (disambiguates multiple .onAppear at same line).
+    private var callCounts: [String: Int] = [:]
 
     private init() {}
 
-    /// Run a closure only once. Uses an incrementing counter as key —
-    /// the same sequence of runOnce calls each frame produces the same keys,
-    /// so each unique call site fires exactly once.
-    public func runOnce(_ action: () -> Void) {
-        let key = counter
-        counter += 1
+    /// Run a closure only once per unique call site.
+    /// Uses scope + file:line + call index as key — stable across tree structure changes.
+    public func runOnce(_ action: () -> Void, file: String = #fileID, line: Int = #line) {
+        let location = "\(StateGraph.shared.currentScope)\(file):\(line)"
+        let index = callCounts[location, default: 0]
+        callCounts[location] = index + 1
+        let key = "\(location):\(index)"
+
         guard !fired.contains(key) else { return }
         fired.insert(key)
         action()
     }
 
-    /// Reset the counter for the next frame (called at start of each frame).
+    /// Reset the call counter for the next frame.
     /// Does NOT clear `fired` — that persists across frames.
     public func resetCounter() {
-        counter = 0
+        callCounts.removeAll()
     }
 
     /// Full reset (for tests or app restart).
     public func clear() {
         fired.removeAll()
-        counter = 0
+        callCounts.removeAll()
     }
 }

@@ -283,10 +283,10 @@ public extension ViewNode {
     }
 
     /// `.onAppear { }` — executes a closure when the view appears.
-    /// Fires only once using OnceRegistry to prevent re-firing every frame.
-    func onAppear(perform action: (() -> Void)? = nil) -> ViewNode {
+    /// Fires only once per unique call site (keyed by scope + file:line).
+    func onAppear(perform action: (() -> Void)? = nil, file: String = #fileID, line: Int = #line) -> ViewNode {
         if let action = action {
-            OnceRegistry.shared.runOnce(action)
+            OnceRegistry.shared.runOnce(action, file: file, line: line)
         }
         return self
     }
@@ -299,22 +299,22 @@ public extension ViewNode {
     /// `.task { }` — executes an async closure when the view appears.
     /// Fires only once per unique call site. Runs detached to avoid blocking
     /// the main queue when many .task closures fire in the same frame.
-    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
-        OnceRegistry.shared.runOnce {
+    func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
+        OnceRegistry.shared.runOnce({
             Task.detached(priority: priority) {
                 await action()
             }
-        }
+        }, file: file, line: line)
         return self
     }
 
     /// `.task(id:_:)` — executes an async closure when id changes.
-    func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
-        OnceRegistry.shared.runOnce {
+    func task<T: Equatable>(id value: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void, file: String = #fileID, line: Int = #line) -> ViewNode {
+        OnceRegistry.shared.runOnce({
             Task.detached(priority: priority) {
                 await action()
             }
-        }
+        }, file: file, line: line)
         return self
     }
 
