@@ -297,10 +297,13 @@ public extension ViewNode {
     }
 
     /// `.task { }` — executes an async closure when the view appears.
-    /// Fires only once per unique call site.
+    /// Fires only once per unique call site. Runs detached to avoid blocking
+    /// the main queue when many .task closures fire in the same frame.
     func task(priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         OnceRegistry.shared.runOnce {
-            Task(priority: priority) { @MainActor in await action() }
+            Task.detached(priority: priority) {
+                await action()
+            }
         }
         return self
     }
@@ -308,7 +311,9 @@ public extension ViewNode {
     /// `.task(id:_:)` — executes an async closure when id changes.
     func task<T: Equatable>(id: T, priority: TaskPriority = .userInitiated, _ action: @escaping @MainActor @Sendable () async -> Void) -> ViewNode {
         OnceRegistry.shared.runOnce {
-            Task(priority: priority) { @MainActor in await action() }
+            Task.detached(priority: priority) {
+                await action()
+            }
         }
         return self
     }
