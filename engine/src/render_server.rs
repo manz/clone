@@ -129,14 +129,20 @@ impl RenderServer {
         // Composite surfaces back-to-front
         let composite_windows: Vec<CompositeWindow> = frames
             .iter()
-            .map(|sf| CompositeWindow {
-                surface_id: sf.desc.surface_id,
-                x: sf.desc.x * scale,
-                y: sf.desc.y * scale,
-                width: sf.desc.width * scale,
-                height: sf.desc.height * scale,
-                corner_radius: sf.desc.corner_radius * scale,
-                opacity: sf.desc.opacity,
+            .map(|sf| {
+                let phys_w = sf.desc.width * scale;
+                let phys_h = sf.desc.height * scale;
+                CompositeWindow {
+                    surface_id: sf.desc.surface_id,
+                    x: sf.desc.x * scale,
+                    y: sf.desc.y * scale,
+                    width: phys_w,
+                    height: phys_h,
+                    corner_radius: sf.desc.corner_radius * scale,
+                    opacity: sf.desc.opacity,
+                    content_width: phys_w,
+                    content_height: phys_h,
+                }
             })
             .collect();
 

@@ -249,6 +249,7 @@ impl RectPipeline {
                 timestamp_writes: None,
                 occlusion_query_set: None, multiview_mask: None,
             });
+            pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
             if let Some((sx, sy, sw, sh)) = scissor {
                 pass.set_scissor_rect(sx, sy, sw, sh);
             }
@@ -284,6 +285,7 @@ impl RectPipeline {
                 timestamp_writes: None,
                 occlusion_query_set: None, multiview_mask: None,
             });
+            pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
             if let Some((sx, sy, sw, sh)) = scissor {
                 pass.set_scissor_rect(sx, sy, sw, sh);
             }

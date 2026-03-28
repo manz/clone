@@ -177,6 +177,7 @@ impl ShadowPipeline {
             occlusion_query_set: None,
             multiview_mask: None,
         });
+        pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.uniform_bind_group, &[]);
