@@ -326,6 +326,18 @@ public enum Layout {
 
     /// Full layout pass — returns a tree of LayoutNodes with absolute positions.
     public static func layout(_ node: ViewNode, in frame: LayoutFrame) -> LayoutNode {
+        // Check layout cache — reuse previous frame's result if ViewNode + frame are identical
+        if let cached = LayoutCache.shared.lookup(node, frame: frame) {
+            return cached
+        }
+
+        let result = layoutInner(node, in: frame)
+        LayoutCache.shared.store(node, frame: frame, result: result)
+        return result
+    }
+
+    /// Inner layout implementation (called on cache miss).
+    private static func layoutInner(_ node: ViewNode, in frame: LayoutFrame) -> LayoutNode {
         let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
 
         switch node {

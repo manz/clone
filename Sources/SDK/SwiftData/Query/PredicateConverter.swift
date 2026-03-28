@@ -5,11 +5,12 @@ import Foundation
 /// Converts a Foundation.Predicate expression tree into SQL WHERE clause + parameters.
 /// Walks the tree using type-erasing protocols to access generic PredicateExpressions nodes.
 /// Returns nil for expressions it can't convert (caller falls back to in-memory evaluation).
-@available(macOS 14, iOS 17, tvOS 17, watchOS 10, *)
 enum PredicateConverter {
 
     static func convert<T: PersistentModel>(_ predicate: Foundation.Predicate<T>) -> _SQLPredicate<T>? {
-        guard let result = convertExpression(predicate.expression) else { return nil }
+        guard let result = convertExpression(predicate.expression) else {
+            return nil
+        }
         return _SQLPredicate(sql: result.sql, parameters: result.params)
     }
 
@@ -186,9 +187,16 @@ enum PredicateConverter {
     // MARK: - Binary comparison helper
 
     private static func convertBinary(_ lhs: Any, _ rhs: Any, op: String) -> (sql: String, params: [SQLiteValue])? {
-        // Try both orientations: column op value, value op column
         if let lSQL = convertSQL(lhs), let rSQL = convertSQL(rhs) {
-            // If both sides are just a column and a param, keep it simple
+            // NULL comparisons: = NULL → IS NULL, != NULL → IS NOT NULL
+            if rSQL.sql == "NULL" {
+                if op == "=" { return ("\(lSQL.sql) IS NULL", lSQL.params) }
+                if op == "!=" { return ("\(lSQL.sql) IS NOT NULL", lSQL.params) }
+            }
+            if lSQL.sql == "NULL" {
+                if op == "=" { return ("\(rSQL.sql) IS NULL", rSQL.params) }
+                if op == "!=" { return ("\(rSQL.sql) IS NOT NULL", rSQL.params) }
+            }
             return ("\(lSQL.sql) \(op) \(rSQL.sql)", lSQL.params + rSQL.params)
         }
         return nil
@@ -456,6 +464,12 @@ extension PredicateExpressions.SequenceContainsWhere: _PredStringContains {
     var _other: Any { test }
 }
 #endif
+
+@available(macOS 14, iOS 17, tvOS 17, watchOS 10, *)
+extension PredicateExpressions.CollectionContainsCollection: _PredStringContains {
+    var _root: Any { base }
+    var _other: Any { other }
+}
 
 // MARK: - RangeExpressionContains
 

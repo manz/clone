@@ -95,7 +95,7 @@ import Foundation
     let pinCol = Column<Bookmark, Bool>("pinned")
     let nameCol = Column<Bookmark, String>("name")
     let pred = (pinCol == true) && nameCol.hasPrefix("P")
-    let results = try context.fetch(FetchDescriptor(predicate: pred))
+    let results = try context.fetch(FetchDescriptor(sqlPredicate: pred))
     #expect(results.count == 1)
     #expect(results[0].name == "Projects")
 }

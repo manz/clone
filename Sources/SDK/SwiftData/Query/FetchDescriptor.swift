@@ -6,7 +6,13 @@ public struct SortDescriptor<Compared> {
     public let ascending: Bool
 
     public init<Value>(_ keyPath: KeyPath<Compared, Value>, order: SortOrder = .forward) {
-        self.key = "\(keyPath)"
+        // KeyPath stringifies as "\Type.property" — extract just the property name
+        let desc = "\(keyPath)"
+        if let dot = desc.lastIndex(of: ".") {
+            self.key = String(desc[desc.index(after: dot)...])
+        } else {
+            self.key = desc
+        }
         self.ascending = order == .forward
     }
 
@@ -28,11 +34,34 @@ public struct FetchDescriptor<T: PersistentModel> {
     public var fetchLimit: Int?
     public var fetchOffset: Int?
 
-    public init(predicate: _SQLPredicate<T>? = nil,
+    /// Init with no predicate (fetch all).
+    public init(sortBy: [SortDescriptor<T>] = [],
+                limit: Int? = nil,
+                offset: Int? = nil) {
+        self.predicate = nil
+        self.sortDescriptors = sortBy
+        self.fetchLimit = limit
+        self.fetchOffset = offset
+    }
+
+    /// Init with _SQLPredicate (Column-based predicates). Internal use.
+    public init(sqlPredicate: _SQLPredicate<T>?,
                 sortBy: [SortDescriptor<T>] = [],
                 limit: Int? = nil,
                 offset: Int? = nil) {
-        self.predicate = predicate
+        self.predicate = sqlPredicate
+        self.sortDescriptors = sortBy
+        self.fetchLimit = limit
+        self.fetchOffset = offset
+    }
+
+    /// Init with Foundation.Predicate (from #Predicate { ... }).
+    /// This is the primary API — matches Apple's SwiftData.
+    public init(predicate: Foundation.Predicate<T>,
+                sortBy: [SortDescriptor<T>] = [],
+                limit: Int? = nil,
+                offset: Int? = nil) {
+        self.predicate = PredicateConverter.convert(predicate)
         self.sortDescriptors = sortBy
         self.fetchLimit = limit
         self.fetchOffset = offset
