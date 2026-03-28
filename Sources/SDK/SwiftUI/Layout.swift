@@ -339,11 +339,12 @@ public enum Layout {
 
     /// Full layout pass — returns a tree of LayoutNodes with absolute positions.
     public static func layout(_ node: ViewNode, in frame: LayoutFrame) -> LayoutNode {
-        // LayoutCache disabled: cached LayoutNodes can interfere with hit-test
-        // because the hit-test path rebuilds the tree independently and the cache
-        // may return nodes from a different build pass. Re-enable once hit-test
-        // uses the same layout tree as rendering.
-        return layoutInner(node, in: frame)
+        if let cached = LayoutCache.shared.lookup(node, frame: frame) {
+            return cached
+        }
+        let result = layoutInner(node, in: frame)
+        LayoutCache.shared.store(node, frame: frame, result: result)
+        return result
     }
 
     /// Inner layout implementation (called on cache miss).
