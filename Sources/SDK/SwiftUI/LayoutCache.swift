@@ -31,9 +31,14 @@ public final class LayoutCache: @unchecked Sendable {
     }
 
     public func lookup(_ node: ViewNode, frame: LayoutFrame) -> LayoutNode? {
-        // Skip cache for inherently dynamic nodes
+        // Skip cache for nodes whose layout depends on external state
+        // (not encoded in the ViewNode itself)
         switch node {
-        case .geometryReader, .lazyList, .textField:
+        case .geometryReader,   // layout depends on parent frame callback
+             .lazyList,          // pulls rows from LazyRowRegistry
+             .textField,         // cursor/focus state from TextFieldRegistry
+             .scrollView,        // scroll offset from ScrollRegistry
+             .list:              // scroll offset from ScrollRegistry
             missesThisFrame += 1
             return nil
         default:
