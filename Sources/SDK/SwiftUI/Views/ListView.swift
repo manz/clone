@@ -7,11 +7,15 @@ public struct List: _PrimitiveView {
     /// Non-nil when using lazy data-driven mode.
     let lazyKey: String?
     let lazyCount: Int
+    /// Stable scroll key based on source location (not position).
+    let scrollKey: String
 
-    public init(@ViewBuilder content: () -> some View) {
+    public init(@ViewBuilder content: () -> some View, file: String = #fileID, line: Int = #line) {
         self.children = _flattenToNodes(content())
         self.lazyKey = nil
         self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(data) { item in ... }` — data-driven list with lazy row evaluation.
@@ -24,6 +28,8 @@ public struct List: _PrimitiveView {
         self.children = []
         self.lazyKey = key
         self.lazyCount = items.count
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(data, id:) { item in ... }` — data-driven list with explicit id keypath.
@@ -36,32 +42,40 @@ public struct List: _PrimitiveView {
         self.children = []
         self.lazyKey = key
         self.lazyCount = items.count
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(data, selection:) { item in ... }` — data-driven list with selection binding.
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View, file: String = #fileID, line: Int = #line) where Data.Element: Identifiable {
         if let binding = selection {
             self.children = Self.wrapDataWithSelection(data, selection: binding, rowContent: rowContent)
         } else {
             self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
         }
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(data, id:, selection:) { item in ... }` — data-driven list with id and selection.
-    public init<Data: RandomAccessCollection, ID: Hashable, SelectionValue: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View) {
+    public init<Data: RandomAccessCollection, ID: Hashable, SelectionValue: Hashable>(_ data: Data, id: KeyPath<Data.Element, ID>, selection: Binding<SelectionValue?>?, @ViewBuilder rowContent: (Data.Element) -> some View, file: String = #fileID, line: Int = #line) {
         self.children = data.flatMap { _flattenToNodes(rowContent($0)) }
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(data, selection: Binding<Set<V>>) { ... }` — data-driven with multi-selection.
-    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder rowContent: (Data.Element) -> some View) where Data.Element: Identifiable {
+    public init<Data: RandomAccessCollection, SelectionValue: Hashable>(_ data: Data, selection: Binding<Set<SelectionValue>>, @ViewBuilder rowContent: (Data.Element) -> some View, file: String = #fileID, line: Int = #line) where Data.Element: Identifiable {
         self.children = Self.wrapDataWithSetSelection(data, selection: selection, rowContent: rowContent)
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(selection:) { ... }` — static list with optional selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue?>?, @ViewBuilder content: () -> some View) {
+    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue?>?, @ViewBuilder content: () -> some View, file: String = #fileID, line: Int = #line) {
         let nodes = _flattenToNodes(content())
         if let binding = selection {
             self.children = Self.wrapWithSelection(nodes, binding: binding)
@@ -69,26 +83,32 @@ public struct List: _PrimitiveView {
             self.children = nodes
         }
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(selection: Set) { ... }` — static list with multi-selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<Set<SelectionValue>>?, @ViewBuilder content: () -> some View) {
+    public init<SelectionValue: Hashable>(selection: Binding<Set<SelectionValue>>?, @ViewBuilder content: () -> some View, file: String = #fileID, line: Int = #line) {
         self.children = _flattenToNodes(content())
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     /// `List(selection: $value) { ... }` — non-optional selection binding.
-    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> some View) {
+    public init<SelectionValue: Hashable>(selection: Binding<SelectionValue>, @ViewBuilder content: () -> some View, file: String = #fileID, line: Int = #line) {
         let nodes = _flattenToNodes(content())
         self.children = Self.wrapWithSelection(nodes, binding: binding(from: selection))
         self.lazyKey = nil; self.lazyCount = 0
+        let scope = StateGraph.shared.currentScope
+        self.scrollKey = scope.isEmpty ? "list/\(file):\(line)" : "list/\(scope)/\(file):\(line)"
     }
 
     public var _nodeRepresentation: ViewNode {
         if let key = lazyKey {
             return .lazyList(key: key, count: lazyCount)
         }
-        return .list(children: children)
+        return .list(children: children, scrollKey: scrollKey)
     }
 
     // MARK: - Selection wiring

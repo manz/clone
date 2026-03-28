@@ -20,10 +20,10 @@ let fbCardBg = Color(red: 1.0, green: 1.0, blue: 1.0)
 
 // MARK: - State
 
-final class FontBookState {
-    var families: [String] = []
-    var selectedFamily: String? = nil
-    var detailFamily: String? = nil
+final class FontBookState: ObservableObject {
+    @Published var families: [String] = []
+    @Published var selectedFamily: String? = nil
+    @Published var detailFamily: String? = nil
 
     func loadFonts() {
         families = CTFontManagerCopyAvailableFontFamilyNames()
@@ -252,7 +252,7 @@ let digits = "1 2 3 4 5 6 7 8 9 0"
 
 @main
 struct FontBookApp: App {
-    let state = FontBookState()
+    @StateObject private var state = FontBookState()
 
     var body: some Scene {
         WindowGroup("Font Book") {

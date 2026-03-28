@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// Persistent state storage across frame rebuilds.
 ///
@@ -18,6 +19,8 @@ public final class StateGraph: @unchecked Sendable {
 
     public final class Slot {
         public var value: Any
+        /// Holds the Combine subscription for @StateObject → objectWillChange.
+        public var subscription: AnyCancellable?
         public init(_ value: Any) { self.value = value }
     }
 

@@ -45,7 +45,7 @@ public indirect enum ViewNode: Equatable, Sendable {
 
     // Step 4 additions
     case scrollView(axes: Axis.Set, children: [ViewNode], key: String)
-    case list(children: [ViewNode])
+    case list(children: [ViewNode], scrollKey: String)
     /// Lazy list: rows are built on-demand from LazyRowRegistry during layout.
     case lazyList(key: String, count: Int)
     /// Lazy stack: only visible children are laid out + rendered.
