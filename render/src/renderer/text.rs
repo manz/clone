@@ -484,6 +484,7 @@ impl TextRenderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
+        pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
@@ -564,6 +565,7 @@ impl TextRenderer {
             timestamp_writes: None,
             occlusion_query_set: None, multiview_mask: None,
         });
+        pass.set_viewport(0.0, 0.0, width as f32, height as f32, 0.0, 1.0);
         if let Some((sx, sy, sw, sh)) = scissor {
             pass.set_scissor_rect(sx, sy, sw, sh);
         }

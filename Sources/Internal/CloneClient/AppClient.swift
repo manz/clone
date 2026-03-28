@@ -147,6 +147,9 @@ public final class AppClient {
         case .resize(let w, let h):
             width = w
             height = h
+            if let commands = onFrameRequest?(w, h) {
+                send(.frame(commands: commands))
+            }
 
         case .requestFrame(let w, let h):
             width = w

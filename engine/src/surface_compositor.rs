@@ -70,6 +70,10 @@ pub struct CompositeWindow {
     pub height: f32,
     pub corner_radius: f32,
     pub opacity: f32,
+    /// Expected physical content size — may differ from texture size
+    /// when the IOSurface was allocated larger than current content.
+    pub content_width: f32,
+    pub content_height: f32,
 }
 
 /// GPU instance for the compositor shader.
@@ -80,7 +84,11 @@ struct CompositeInstance {
     corner_radius: f32,
     opacity: f32,
     shadow_expand: f32,
-    _pad: f32,
+    /// Max U coordinate for content region (content may be smaller than texture).
+    content_u_max: f32,
+    /// Max V coordinate for content region.
+    content_v_max: f32,
+    _pad: [f32; 3],
 }
 
 /// Manages per-window offscreen textures and composites them onto the screen.
@@ -153,8 +161,9 @@ impl SurfaceCompositor {
                 0 => Float32x4, // rect
                 1 => Float32,   // corner_radius
                 2 => Float32,   // opacity
-                3 => Float32,   // _pad0
-                4 => Float32,   // _pad1
+                3 => Float32,   // shadow_expand
+                4 => Float32,   // content_u_max
+                5 => Float32,   // content_v_max
             ],
         };
 
@@ -480,6 +489,19 @@ impl SurfaceCompositor {
                 ],
             });
 
+            // Compute content UV scale: content may be smaller than texture
+            // (IOSurface textures only grow, never shrink)
+            let content_u_max = if win.content_width > 0.0 && surface.width > 0 {
+                (win.content_width / surface.width as f32).min(1.0)
+            } else {
+                1.0
+            };
+            let content_v_max = if win.content_height > 0.0 && surface.height > 0 {
+                (win.content_height / surface.height as f32).min(1.0)
+            } else {
+                1.0
+            };
+
             // Expand the quad to make room for the shadow
             let shadow_expand: f32 = if win.corner_radius > 0.0 { 30.0 } else { 0.0 };
             let instance = CompositeInstance {
@@ -492,7 +514,9 @@ impl SurfaceCompositor {
                 corner_radius: win.corner_radius,
                 opacity: win.opacity,
                 shadow_expand,
-                _pad: 0.0,
+                content_u_max,
+                content_v_max,
+                _pad: [0.0; 3],
             };
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
 

@@ -11,7 +11,8 @@ struct WindowInstance {
     @location(1) corner_radius: f32,
     @location(2) opacity: f32,
     @location(3) shadow_expand: f32,
-    @location(4) _pad1: f32,
+    @location(4) content_u_max: f32,    // UV range for content region (may be < 1.0 after shrink)
+    @location(5) content_v_max: f32,
 }
 
 struct VertexOutput {
@@ -58,9 +59,10 @@ fn vs_main(
 
     var out: VertexOutput;
     out.position = vec4<f32>(ndc, 0.0, 1.0);
-    // UV for texture sampling: map expanded quad back to original window
-    let tex_uv = (quad * vec2<f32>(instance.rect.z, instance.rect.w) - vec2<f32>(instance.shadow_expand)) / orig_size;
-    out.uv = tex_uv;
+    // UV for texture sampling: map expanded quad back to original window,
+    // then scale to content region (content may not fill the full texture)
+    let base_uv = (quad * vec2<f32>(instance.rect.z, instance.rect.w) - vec2<f32>(instance.shadow_expand)) / orig_size;
+    out.uv = base_uv * vec2<f32>(instance.content_u_max, instance.content_v_max);
     // local_pos relative to original window (not expanded)
     out.local_pos = local - vec2<f32>(instance.shadow_expand);
     out.rect_size = orig_size;
