@@ -199,6 +199,8 @@ extension App {
         if usesDeclarativeRendering {
             // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)
             var _cachedViewTree: ViewNode?
+            // Cache last layout node for tap hit-testing (avoids full rebuild on every click)
+            var _cachedLayoutNode: LayoutNode?
             // Track sheet presence for compositor surface lifecycle
             var _wasSheetActive = false
             // Cache the sheet dismiss action for backdrop taps
@@ -276,6 +278,8 @@ extension App {
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: width, height: height)
                 )
+                // Cache for hit-testing — tap/click uses this instead of rebuilding
+                _cachedLayoutNode = layoutNode
                 if WindowState.shared.titleDidChange(),
                    let newTitle = WindowState.shared.navigationTitle {
                     app.client.send(.setTitle(title: newTitle))
@@ -336,57 +340,21 @@ extension App {
                     if ContextMenuRegistry.shared.isOpen {
                         ContextMenuRegistry.shared.close()
                     }
-                    let cw = CGFloat(app.client.width)
-                    let ch = CGFloat(app.client.height)
-                    // Reset all registries before rebuilding view tree for tap handling
-                    GeometryReaderRegistry.shared.clear()
-                    TapRegistry.shared.resetCounter()
-                    TextFieldRegistry.shared.resetCounter()
-                    HoverRegistry.shared.resetCounter()
-                    OnceRegistry.shared.resetCounter()
-                    OnChangeRegistry.shared.resetCounter()
-                    TagRegistry.shared.resetCounter()
-                    StateGraph.shared.resetCounter()
-                    ScrollRegistry.shared.resetCounter()
-                    WindowState.shared.update(width: cw, height: ch)
-                    var viewTree = windowGroup.buildViewNode()
-                    OnChangeRegistry.shared.flushActions()
-                    // Prepend toolbar (must match render layout for hit testing)
-                    viewTree = prependToolbar(viewTree, role: config.role)
-                    // Sheet overlay (must match render path)
-                    if let sheetOverlay = WindowState.shared.activeSheetOverlay {
-                        if WindowState.shared.compositorSheetActive,
-                           case .zstack(_, let children) = sheetOverlay,
-                           let backdrop = children.first {
-                            viewTree = .zstack(children: [viewTree, backdrop])
-                        } else {
-                            viewTree = .zstack(children: [viewTree, sheetOverlay])
+                    // Use the cached layout from the last render frame for hit-testing.
+                    // No need to rebuild the entire view tree — the render already built
+                    // and laid out the correct tree with current tap handler IDs.
+                    if let layoutNode = _cachedLayoutNode {
+                        switch layoutNode.hitTestTap(x: x, y: y) {
+                        case .tap(let id, let hitFrame):
+                            let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
+                            TapRegistry.shared.fire(id: id, at: local)
+                        case .absorbed, .none:
+                            break
                         }
-                    }
-                    // Context menu overlay
-                    if ContextMenuRegistry.shared.isOpen {
-                        let menuOverlay = buildContextMenuOverlay(
-                            items: ContextMenuRegistry.shared.menuItems,
-                            x: ContextMenuRegistry.shared.position.x,
-                            y: ContextMenuRegistry.shared.position.y,
-                            width: cw, height: ch
-                        )
-                        viewTree = .zstack(children: [viewTree, menuOverlay])
-                    }
-                    let layoutNode = Layout.layout(
-                        viewTree,
-                        in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
-                    )
-                    switch layoutNode.hitTestTap(x: x, y: y) {
-                    case .tap(let id, let hitFrame):
-                        let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
-                        TapRegistry.shared.fire(id: id, at: local)
-                    case .absorbed, .none:
-                        break
                     }
                     // Text field focus
                     TextFieldRegistry.shared.handleClick(x: x, y: y)
-                    // Propagate title changes from tap handlers (e.g. navigation).
+                    // Propagate title changes from tap handlers
                     if WindowState.shared.titleDidChange(),
                        let newTitle = WindowState.shared.navigationTitle {
                         app.client.send(.setTitle(title: newTitle))

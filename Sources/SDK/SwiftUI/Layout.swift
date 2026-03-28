@@ -42,11 +42,17 @@ public struct LayoutNode: Equatable, Sendable {
     public let frame: LayoutFrame
     public let node: ViewNode
     public let children: [LayoutNode]
+    /// True if this subtree contains a dynamic node (geometryReader, scrollView, etc.)
+    /// whose layout depends on external state not encoded in the ViewNode.
+    /// Ancestors of dynamic nodes must NOT be cached.
+    public var containsDynamic: Bool
 
-    public init(frame: LayoutFrame, node: ViewNode, children: [LayoutNode] = []) {
+    public init(frame: LayoutFrame, node: ViewNode, children: [LayoutNode] = [], containsDynamic: Bool = false) {
         self.frame = frame
         self.node = node
         self.children = children
+        // Propagate: if any child is dynamic, the parent is too
+        self.containsDynamic = containsDynamic || children.contains(where: { $0.containsDynamic })
     }
 }
 
@@ -248,12 +254,25 @@ public enum Layout {
             // ScrollView fills the proposed size (content scrolls within)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .list(let children):
+        case .list(let children, _):
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
         case .lazyList(_, _):
-            // Lazy list fills available space (like ScrollView)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
+
+        case .lazyStack(let axis, _, let count, let spacing, let children):
+            // Estimate total size from first child
+            if let first = children.first {
+                let childSize = measure(first, constraint: constraint)
+                if axis == .vertical {
+                    let totalH = childSize.height * CGFloat(count) + spacing * CGFloat(max(0, count - 1))
+                    return MeasuredSize(width: constraint.maxWidth, height: totalH)
+                } else {
+                    let totalW = childSize.width * CGFloat(count) + spacing * CGFloat(max(0, count - 1))
+                    return MeasuredSize(width: totalW, height: constraint.maxHeight)
+                }
+            }
+            return MeasuredSize(width: 0, height: 0)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -326,13 +345,16 @@ public enum Layout {
 
     /// Full layout pass — returns a tree of LayoutNodes with absolute positions.
     public static func layout(_ node: ViewNode, in frame: LayoutFrame) -> LayoutNode {
-        // Check layout cache — reuse previous frame's result if ViewNode + frame are identical
         if let cached = LayoutCache.shared.lookup(node, frame: frame) {
             return cached
         }
-
         let result = layoutInner(node, in: frame)
-        LayoutCache.shared.store(node, frame: frame, result: result)
+        // Don't cache nodes whose subtrees contain dynamic content (geometryReader,
+        // scrollView, etc.) — the ViewNode looks identical across frames but the
+        // resolved content changes based on external state.
+        if !result.containsDynamic {
+            LayoutCache.shared.store(node, frame: frame, result: result)
+        }
         return result
     }
 
@@ -395,7 +417,7 @@ public enum Layout {
             )
             let resolved = GeometryReaderRegistry.shared.resolve(id: id, proxy: proxy)
             let childLayout = layout(resolved, in: frame)
-            return LayoutNode(frame: frame, node: node, children: [childLayout])
+            return LayoutNode(frame: frame, node: node, children: [childLayout], containsDynamic: true)
 
         case .scrollView(let axes, let children, let scrollKey):
             let scrollOffset = ScrollRegistry.shared.offset(scrollKey: scrollKey)
@@ -454,14 +476,13 @@ public enum Layout {
             }
 
             if overlays.count > 1 {
-                return LayoutNode(frame: frame, node: node, children: overlays)
+                return LayoutNode(frame: frame, node: node, children: overlays, containsDynamic: true)
             }
-            return clippedContent
+            return LayoutNode(frame: clippedContent.frame, node: clippedContent.node, children: clippedContent.children, containsDynamic: true)
 
-        case .list(let children):
+        case .list(let children, let scrollKey):
             // Virtual list: only lay out visible rows + small buffer.
             // All rows use uniform height (measured from first row).
-            let scrollKey = "list_\(Int(min(frame.x, 1e9)))_\(Int(min(frame.y, 1e9)))"
             let offset = ScrollRegistry.shared.offset(scrollKey: scrollKey).y
             let rowPadding: CGFloat = 12 // 6 top + 6 bottom
 
@@ -497,8 +518,8 @@ public enum Layout {
             }
 
             ScrollRegistry.shared.registerFrame(frame, contentWidth: frame.width, contentHeight: totalContentHeight, axes: .vertical, key: scrollKey)
-            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
-            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
+            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts, containsDynamic: true)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode], containsDynamic: true)
 
         case .lazyList(let key, let count):
             // Lazy list: pull rows from LazyRowRegistry on demand.
@@ -538,8 +559,44 @@ public enum Layout {
             }
 
             ScrollRegistry.shared.registerFrame(frame, contentWidth: frame.width, contentHeight: totalContentHeight, axes: .vertical, key: scrollKey)
-            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
-            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
+            let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts, containsDynamic: true)
+            return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode], containsDynamic: true)
+
+        case .lazyStack(let axis, _, let count, let spacing, let children):
+            guard !children.isEmpty else {
+                return LayoutNode(frame: frame, node: node)
+            }
+            let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
+            let sampleSize = measure(children[0], constraint: constraint)
+            let itemSize = axis == .vertical ? sampleSize.height : sampleSize.width
+            let step = max(itemSize + spacing, 1)
+
+            let viewportSize = axis == .vertical ? frame.height : frame.width
+            let firstVisible = max(0, Int(0 / step) - 1)
+            let lastVisible = min(count - 1, Int(viewportSize / step) + 1)
+
+            var visibleLayouts: [LayoutNode] = []
+            for i in firstVisible...max(firstVisible, lastVisible) {
+                guard i < children.count else { break }
+                let childFrame: LayoutFrame
+                if axis == .vertical {
+                    childFrame = LayoutFrame(x: frame.x, y: frame.y + CGFloat(i) * step, width: frame.width, height: itemSize)
+                } else {
+                    childFrame = LayoutFrame(x: frame.x + CGFloat(i) * step, y: frame.y, width: itemSize, height: frame.height)
+                }
+                visibleLayouts.append(layoutInner(children[i], in: childFrame))
+            }
+
+            let totalSize = step * CGFloat(count) - spacing
+            let contentFrame = axis == .vertical
+                ? LayoutFrame(x: frame.x, y: frame.y, width: frame.width, height: totalSize)
+                : LayoutFrame(x: frame.x, y: frame.y, width: totalSize, height: frame.height)
+            let stackNode = axis == .vertical
+                ? ViewNode.vstack(alignment: .leading, spacing: spacing, children: [])
+                : ViewNode.hstack(alignment: .center, spacing: spacing, children: [])
+            return LayoutNode(frame: frame, node: node, children: [
+                LayoutNode(frame: contentFrame, node: stackNode, children: visibleLayouts, containsDynamic: true)
+            ], containsDynamic: true)
 
         case .grid(let columns, let spacing, let children):
             return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)
@@ -581,7 +638,7 @@ public enum Layout {
             if registryId > 0 {
                 TextFieldRegistry.shared.setFrame(id: registryId, frame: leafFrame)
             }
-            return LayoutNode(frame: leafFrame, node: node)
+            return LayoutNode(frame: leafFrame, node: node, containsDynamic: true)
 
         default:
             // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker

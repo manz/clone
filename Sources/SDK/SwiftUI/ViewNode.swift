@@ -45,10 +45,12 @@ public indirect enum ViewNode: Equatable, Sendable {
 
     // Step 4 additions
     case scrollView(axes: Axis.Set, children: [ViewNode], key: String)
-    case list(children: [ViewNode])
+    case list(children: [ViewNode], scrollKey: String)
     /// Lazy list: rows are built on-demand from LazyRowRegistry during layout.
-    /// Only visible rows are materialized. Key identifies the registry entry.
     case lazyList(key: String, count: Int)
+    /// Lazy stack: only visible children are laid out + rendered.
+    /// Children are present but layout skips off-screen ones based on scroll offset.
+    case lazyStack(axis: Axis, key: String, count: Int, spacing: CGFloat, children: [ViewNode])
     case image(name: String, width: CGFloat?, height: CGFloat?, tint: Color? = nil)
     /// Raster image (JPEG, PNG) with decoded RGBA pixel data.
     case rasterImage(textureId: UInt64, imageWidth: UInt32, imageHeight: UInt32, rgbaData: [UInt8])

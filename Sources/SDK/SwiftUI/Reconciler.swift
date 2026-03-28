@@ -108,7 +108,7 @@ public enum Reconciler {
         case (.scrollView(_, let oChildren, _), .scrollView(_, let nChildren, _)):
             diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
 
-        case (.list(let oChildren), .list(let nChildren)):
+        case (.list(let oChildren, _), .list(let nChildren, _)):
             diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
 
         case (.grid(_, _, let oChildren), .grid(_, _, let nChildren)):
@@ -185,6 +185,7 @@ public enum Reconciler {
         case (.clipped, .clipped): return true
         case (.rasterImage, .rasterImage): return true
         case (.lazyList, .lazyList): return true
+        case (.lazyStack, .lazyStack): return true
         case (.grid, .grid): return true
         case (.tagged, .tagged): return true
         case (.toolbarItem, .toolbarItem): return true

@@ -70,7 +70,7 @@ import Testing
         Text("Row 1")
         Text("Row 2")
     })
-    if case .list(let children) = node {
+    if case .list(let children, _) = node {
         #expect(children.count >= 1)
     } else {
         Issue.record("Expected list node")

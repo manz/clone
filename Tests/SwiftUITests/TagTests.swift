@@ -30,7 +30,7 @@ import Foundation
     func findTaps(_ n: ViewNode) -> [UInt64] {
         switch n {
         case .onTap(let id, _): return [id]
-        case .list(let children): return children.flatMap { findTaps($0) }
+        case .list(let children, _): return children.flatMap { findTaps($0) }
         case .vstack(_, _, let children): return children.flatMap { findTaps($0) }
         case .scrollView(_, let children, _): return children.flatMap { findTaps($0) }
         case .padding(_, let child): return findTaps(child)

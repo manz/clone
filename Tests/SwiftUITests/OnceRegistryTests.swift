@@ -11,18 +11,20 @@ import Testing
     #expect(count == 1)
 }
 
-@Test @MainActor func onceRegistrySkipsAfterResetCounter() {
+@Test @MainActor func onceRegistrySkipsOnSecondFrame() {
     let registry = OnceRegistry.shared
     registry.clear()
 
     var count = 0
-    registry.runOnce { count += 1 }
+    // Simulate calling from the same call site across frames
+    func callSite() { registry.runOnce { count += 1 } }
+
+    callSite() // frame 1 — fires
     #expect(count == 1)
 
-    // Simulate next frame — counter resets but fired persists
-    registry.resetCounter()
-    registry.runOnce { count += 1 }
-    #expect(count == 1, "Key 0 already in fired set, should not fire again")
+    registry.resetCounter() // frame 2
+    callSite() // same file:line — already fired
+    #expect(count == 1, "Same call site should not fire again")
 }
 
 @Test @MainActor func onceRegistryDifferentCallSitesFireIndependently() {
@@ -31,28 +33,28 @@ import Testing
 
     var a = 0
     var b = 0
-    registry.runOnce { a += 1 } // key 0
-    registry.runOnce { b += 1 } // key 1
+    // Different lines = different keys
+    registry.runOnce { a += 1 }
+    registry.runOnce { b += 1 }
     #expect(a == 1)
     #expect(b == 1)
 }
 
-@Test @MainActor func onceRegistryCounterResetsButFiredPersists() {
+@Test @MainActor func onceRegistryPersistsAcrossFrames() {
     let registry = OnceRegistry.shared
     registry.clear()
 
     var count = 0
-    registry.runOnce { count += 1 } // key 0
-    registry.runOnce { count += 1 } // key 1
-    registry.runOnce { count += 1 } // key 2
+    func site1() { registry.runOnce { count += 1 } }
+    func site2() { registry.runOnce { count += 1 } }
+    func site3() { registry.runOnce { count += 1 } }
+
+    site1(); site2(); site3()
     #expect(count == 3)
 
-    // Next frame — same 3 call sites should all be skipped
     registry.resetCounter()
-    registry.runOnce { count += 1 } // key 0 — already fired
-    registry.runOnce { count += 1 } // key 1 — already fired
-    registry.runOnce { count += 1 } // key 2 — already fired
-    #expect(count == 3, "All 3 keys already in fired set")
+    site1(); site2(); site3()
+    #expect(count == 3, "All 3 sites already fired")
 }
 
 @Test @MainActor func onceRegistryClearAllowsRefiring() {
@@ -60,12 +62,14 @@ import Testing
     registry.clear()
 
     var count = 0
-    registry.runOnce { count += 1 }
+    func site() { registry.runOnce { count += 1 } }
+
+    site()
     #expect(count == 1)
 
     registry.clear()
-    registry.runOnce { count += 1 }
-    #expect(count == 2, "clear() wipes fired set, key 0 fires again")
+    site()
+    #expect(count == 2, "clear() wipes fired set, fires again")
 }
 
 @Test @MainActor func onceRegistryClearResetsFiredSet() {
@@ -73,14 +77,14 @@ import Testing
     registry.clear()
 
     var count = 0
-    registry.runOnce { count += 1 }
-    registry.runOnce { count += 1 }
-    registry.runOnce { count += 1 }
+    func s1() { registry.runOnce { count += 1 } }
+    func s2() { registry.runOnce { count += 1 } }
+    func s3() { registry.runOnce { count += 1 } }
+
+    s1(); s2(); s3()
     #expect(count == 3)
 
     registry.clear()
-    registry.runOnce { count += 1 }
-    registry.runOnce { count += 1 }
-    registry.runOnce { count += 1 }
+    s1(); s2(); s3()
     #expect(count == 6, "All 3 fire again after clear()")
 }

@@ -6,6 +6,7 @@
 
 /// A property wrapper that instantiates and owns an observable object.
 /// Uses StateGraph for persistence — the object is created once and reused across frames.
+/// Subscribes to objectWillChange so @Published mutations trigger re-renders.
 @MainActor @preconcurrency
 @propertyWrapper
 public struct StateObject<ObjectType: ObservableObject> {
@@ -13,6 +14,14 @@ public struct StateObject<ObjectType: ObservableObject> {
 
     public init(wrappedValue: ObjectType, file: String = #fileID, line: Int = #line) {
         self.slot = StateGraph.shared.slot(initialValue: wrappedValue, file: file, line: line)
+        // Subscribe to objectWillChange → StateGraph.invalidate() so @Published
+        // changes trigger a re-render on the next display link tick.
+        let obj = slot.value as! ObjectType
+        if slot.subscription == nil {
+            slot.subscription = obj.objectWillChange.sink { _ in
+                StateGraph.shared.invalidate()
+            }
+        }
     }
 
     public var wrappedValue: ObjectType {

@@ -145,22 +145,32 @@ extension ContentUnavailableView where Actions == EmptyView {
 
 // MARK: - LazyVStack / LazyHStack
 
-/// A lazy vertical stack. On Clone, renders as a regular VStack.
+/// A lazy vertical stack. Layout only measures/positions visible children
+/// based on the parent ScrollView's offset. Children are still built eagerly
+/// (body evaluation happens), but off-screen children skip layout + rendering.
 public struct LazyVStack: _PrimitiveView {
     let content: [ViewNode]
+    let spacing: CGFloat
     public init(alignment: HAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> some View) {
         self.content = _flattenToNodes(content())
+        self.spacing = spacing ?? 0
     }
-    public var _nodeRepresentation: ViewNode { .vstack(alignment: .leading, spacing: 8, children: content) }
+    public var _nodeRepresentation: ViewNode {
+        .lazyStack(axis: .vertical, key: "", count: content.count, spacing: spacing, children: content)
+    }
 }
 
-/// A lazy horizontal stack. On Clone, renders as a regular HStack.
+/// A lazy horizontal stack. Same pattern: layout-level virtualization.
 public struct LazyHStack: _PrimitiveView {
     let content: [ViewNode]
+    let spacing: CGFloat
     public init(alignment: VAlignment = .center, spacing: CGFloat? = nil, pinnedViews: Swift.Set<PinnedScrollableViews> = [], @ViewBuilder content: () -> some View) {
         self.content = _flattenToNodes(content())
+        self.spacing = spacing ?? 0
     }
-    public var _nodeRepresentation: ViewNode { .hstack(alignment: .center, spacing: 8, children: content) }
+    public var _nodeRepresentation: ViewNode {
+        .lazyStack(axis: .horizontal, key: "", count: content.count, spacing: spacing, children: content)
+    }
 }
 
 // MARK: - ScrollViewReader / ScrollViewProxy
