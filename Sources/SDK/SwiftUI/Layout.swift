@@ -252,8 +252,21 @@ public enum Layout {
             return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
 
         case .lazyList(_, _):
-            // Lazy list fills available space (like ScrollView)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
+
+        case .lazyStack(let axis, _, let count, let spacing, let children):
+            // Estimate total size from first child
+            if let first = children.first {
+                let childSize = measure(first, constraint: constraint)
+                if axis == .vertical {
+                    let totalH = childSize.height * CGFloat(count) + spacing * CGFloat(max(0, count - 1))
+                    return MeasuredSize(width: constraint.maxWidth, height: totalH)
+                } else {
+                    let totalW = childSize.width * CGFloat(count) + spacing * CGFloat(max(0, count - 1))
+                    return MeasuredSize(width: totalW, height: constraint.maxHeight)
+                }
+            }
+            return MeasuredSize(width: 0, height: 0)
 
         case .grid(let columns, let spacing, let children):
             let colCount = Self.gridColumnCount(columns, availableWidth: constraint.maxWidth, spacing: spacing)
@@ -540,6 +553,42 @@ public enum Layout {
             ScrollRegistry.shared.registerFrame(frame, contentWidth: frame.width, contentHeight: totalContentHeight, axes: .vertical, key: scrollKey)
             let contentNode = LayoutNode(frame: frame, node: .vstack(alignment: .leading, spacing: 0, children: []), children: visibleLayouts)
             return LayoutNode(frame: frame, node: .clipped(radius: 0, child: node), children: [contentNode])
+
+        case .lazyStack(let axis, _, let count, let spacing, let children):
+            guard !children.isEmpty else {
+                return LayoutNode(frame: frame, node: node)
+            }
+            let constraint = SizeConstraint(maxWidth: frame.width, maxHeight: frame.height)
+            let sampleSize = measure(children[0], constraint: constraint)
+            let itemSize = axis == .vertical ? sampleSize.height : sampleSize.width
+            let step = max(itemSize + spacing, 1)
+
+            let viewportSize = axis == .vertical ? frame.height : frame.width
+            let firstVisible = max(0, Int(0 / step) - 1)
+            let lastVisible = min(count - 1, Int(viewportSize / step) + 1)
+
+            var visibleLayouts: [LayoutNode] = []
+            for i in firstVisible...max(firstVisible, lastVisible) {
+                guard i < children.count else { break }
+                let childFrame: LayoutFrame
+                if axis == .vertical {
+                    childFrame = LayoutFrame(x: frame.x, y: frame.y + CGFloat(i) * step, width: frame.width, height: itemSize)
+                } else {
+                    childFrame = LayoutFrame(x: frame.x + CGFloat(i) * step, y: frame.y, width: itemSize, height: frame.height)
+                }
+                visibleLayouts.append(layoutInner(children[i], in: childFrame))
+            }
+
+            let totalSize = step * CGFloat(count) - spacing
+            let contentFrame = axis == .vertical
+                ? LayoutFrame(x: frame.x, y: frame.y, width: frame.width, height: totalSize)
+                : LayoutFrame(x: frame.x, y: frame.y, width: totalSize, height: frame.height)
+            let stackNode = axis == .vertical
+                ? ViewNode.vstack(alignment: .leading, spacing: spacing, children: [])
+                : ViewNode.hstack(alignment: .center, spacing: spacing, children: [])
+            return LayoutNode(frame: frame, node: node, children: [
+                LayoutNode(frame: contentFrame, node: stackNode, children: visibleLayouts)
+            ])
 
         case .grid(let columns, let spacing, let children):
             return layoutGrid(columns: columns, spacing: spacing, children: children, in: frame)

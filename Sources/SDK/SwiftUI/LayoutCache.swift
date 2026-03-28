@@ -36,6 +36,7 @@ public final class LayoutCache: @unchecked Sendable {
         switch node {
         case .geometryReader,   // layout depends on parent frame callback
              .lazyList,          // pulls rows from LazyRowRegistry
+             .lazyStack,         // virtualized based on viewport
              .textField,         // cursor/focus state from TextFieldRegistry
              .scrollView,        // scroll offset from ScrollRegistry
              .list:              // scroll offset from ScrollRegistry

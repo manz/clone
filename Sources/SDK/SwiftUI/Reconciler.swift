@@ -185,6 +185,7 @@ public enum Reconciler {
         case (.clipped, .clipped): return true
         case (.rasterImage, .rasterImage): return true
         case (.lazyList, .lazyList): return true
+        case (.lazyStack, .lazyStack): return true
         case (.grid, .grid): return true
         case (.tagged, .tagged): return true
         case (.toolbarItem, .toolbarItem): return true
