@@ -216,6 +216,7 @@ extension App {
             }
             // Shared frame-building closure used by both rendering paths
             let buildFrame: (_ width: CGFloat, _ height: CGFloat) -> [IPCRenderCommand] = { width, height in
+                LayoutCache.shared.swapFrames()
                 GeometryReaderRegistry.shared.clear()
                 TapRegistry.shared.resetCounter()
                 TextFieldRegistry.shared.resetCounter()

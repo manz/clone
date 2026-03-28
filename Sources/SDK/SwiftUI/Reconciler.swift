@@ -79,6 +79,50 @@ public enum Reconciler {
             }
             diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
 
+        case (.onHover(let oId, let oChild), .onHover(let nId, let nChild)):
+            if oId != nId {
+                patches.append(.update(path: path, node: new))
+            }
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.shadow(_, _, _, _, _, let oChild), .shadow(_, _, _, _, _, let nChild)):
+            // Compare shadow params via full node equality (handled by top-level == check)
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.clipped(_, let oChild), .clipped(_, let nChild)):
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.tagged(_, let oChild), .tagged(_, let nChild)):
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.toolbarItem(_, let oChild), .toolbarItem(_, let nChild)):
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.lineLimit(_, let oChild), .lineLimit(_, let nChild)):
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+
+        case (.contextMenu(let oChild, let oItems), .contextMenu(let nChild, let nItems)):
+            diffNode(old: oChild, new: nChild, path: path + [0], patches: &patches)
+            diffChildren(old: oItems, new: nItems, path: path + [1], patches: &patches)
+
+        case (.scrollView(_, let oChildren, _), .scrollView(_, let nChildren, _)):
+            diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
+
+        case (.list(let oChildren), .list(let nChildren)):
+            diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
+
+        case (.grid(_, _, let oChildren), .grid(_, _, let nChildren)):
+            diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
+
+        case (.navigationStack(let oChildren), .navigationStack(let nChildren)):
+            diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
+
+        case (.picker(_, _, let oChildren), .picker(_, _, let nChildren)):
+            diffChildren(old: oChildren, new: nChildren, path: path, patches: &patches)
+
+        case (.toggle(_, let oLabel), .toggle(_, let nLabel)):
+            diffNode(old: oLabel, new: nLabel, path: path + [0], patches: &patches)
+
         default:
             // Leaf nodes that are same variant but different values
             patches.append(.update(path: path, node: new))
@@ -139,6 +183,12 @@ public enum Reconciler {
         case (.menu, .menu): return true
         case (.contextMenu, .contextMenu): return true
         case (.clipped, .clipped): return true
+        case (.rasterImage, .rasterImage): return true
+        case (.lazyList, .lazyList): return true
+        case (.grid, .grid): return true
+        case (.tagged, .tagged): return true
+        case (.toolbarItem, .toolbarItem): return true
+        case (.lineLimit, .lineLimit): return true
         default: return false
         }
     }
