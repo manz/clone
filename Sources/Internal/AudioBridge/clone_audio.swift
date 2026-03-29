@@ -425,6 +425,38 @@ private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
+    typealias FfiType = UInt16
+    typealias SwiftType = UInt16
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
     typealias FfiType = Float
     typealias SwiftType = Float
@@ -451,6 +483,30 @@ fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
 
     public static func write(_ value: Double, into buf: inout [UInt8]) {
         writeDouble(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
     }
 }
 
@@ -494,6 +550,223 @@ fileprivate struct FfiConverterString: FfiConverter {
         writeBytes(&buf, value.utf8)
     }
 }
+
+
+
+
+public protocol AudioOutputStreamProtocol: AnyObject, Sendable {
+    
+    func channels()  -> UInt16
+    
+    func isPlaying()  -> Bool
+    
+    func pause() 
+    
+    func play() 
+    
+    func sampleRate()  -> UInt32
+    
+    func setVolume(volume: Float) 
+    
+    func stop() 
+    
+    func volume()  -> Float
+    
+    /**
+     * Push interleaved f32 samples into the ring buffer.
+     * Returns the number of samples actually written (may be less than
+     * input length if the buffer is full — caller should retry).
+     */
+    func write(samples: [Float])  -> UInt32
+    
+}
+open class AudioOutputStream: AudioOutputStreamProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_clone_audio_fn_clone_audiooutputstream(self.handle, $0) }
+    }
+    /**
+     * Create a new PCM output stream.
+     * Audio won't play until `play()` is called.
+     */
+public convenience init(sampleRate: UInt32, channels: UInt16)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeAudioError_lift) {
+    uniffi_clone_audio_fn_constructor_audiooutputstream_new(
+        FfiConverterUInt32.lower(sampleRate),
+        FfiConverterUInt16.lower(channels),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_clone_audio_fn_free_audiooutputstream(handle, $0) }
+    }
+
+    
+
+    
+open func channels() -> UInt16  {
+    return try!  FfiConverterUInt16.lift(try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_channels(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func isPlaying() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_is_playing(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func pause()  {try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_pause(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func play()  {try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_play(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func sampleRate() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_sample_rate(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func setVolume(volume: Float)  {try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_set_volume(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(volume),$0
+    )
+}
+}
+    
+open func stop()  {try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_stop(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+open func volume() -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_volume(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Push interleaved f32 samples into the ring buffer.
+     * Returns the number of samples actually written (may be less than
+     * input length if the buffer is full — caller should retry).
+     */
+open func write(samples: [Float]) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_clone_audio_fn_method_audiooutputstream_write(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceFloat.lower(samples),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAudioOutputStream: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = AudioOutputStream
+
+    public static func lift(_ handle: UInt64) throws -> AudioOutputStream {
+        return AudioOutputStream(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: AudioOutputStream) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AudioOutputStream {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: AudioOutputStream, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAudioOutputStream_lift(_ handle: UInt64) throws -> AudioOutputStream {
+    return try FfiConverterTypeAudioOutputStream.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAudioOutputStream_lower(_ value: AudioOutputStream) -> UInt64 {
+    return FfiConverterTypeAudioOutputStream.lower(value)
+}
+
+
 
 
 
@@ -1177,6 +1450,31 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceFloat: FfiConverterRustBuffer {
+    typealias SwiftType = [Float]
+
+    public static func write(_ value: [Float], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterFloat.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Float] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Float]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterFloat.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -1222,7 +1520,37 @@ private let initializationResult: InitializationResult = {
     if (uniffi_clone_audio_checksum_method_audioplayer_volume() != 16605) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_channels() != 34097) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_is_playing() != 16766) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_pause() != 9935) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_play() != 54519) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_sample_rate() != 7502) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_set_volume() != 32080) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_stop() != 1551) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_volume() != 30141) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_method_audiooutputstream_write() != 17845) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_clone_audio_checksum_constructor_audioplayer_open() != 55669) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_audio_checksum_constructor_audiooutputstream_new() != 28795) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_audio_checksum_method_audioplayerdelegate_on_state_changed() != 41769) {
