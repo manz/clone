@@ -64,6 +64,15 @@ public final class AvocadoEventsClient: @unchecked Sendable {
         sendRequest(.send(targetAppId: targetAppId, event: event))
     }
 
+    /// Check if an app is currently registered (running and connected).
+    /// Synchronous — must NOT be called while listen() is running on another thread.
+    public func isRegistered(appId: String) -> Bool {
+        sendRequest(.isRegistered(appId: appId))
+        guard let response = readOneResponse() else { return false }
+        if case .registered(let value) = response { return value }
+        return false
+    }
+
     /// Blocking read loop — call on a background thread. Dispatches events to `onEvent`.
     public func listen() {
         var buf = [UInt8](repeating: 0, count: 65536)
@@ -75,7 +84,7 @@ public final class AvocadoEventsClient: @unchecked Sendable {
                 readBuffer = readBuffer.subdata(in: consumed..<readBuffer.count)
                 switch msg {
                 case .event(let event): onEvent?(event)
-                case .ok, .error: break // ack from send(), discard
+                case .ok, .error, .registered: break // ack from send()/isRegistered, discard
                 }
             }
         }

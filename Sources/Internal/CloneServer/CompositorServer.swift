@@ -46,6 +46,7 @@ public final class ConnectedApp {
             self?.handleReadable()
         }
         source.setCancelHandler { [fd] in
+            shutdown(fd, SHUT_RDWR)
             posix_close(fd)
         }
         source.resume()
@@ -75,10 +76,29 @@ public final class ConnectedApp {
         lock.unlock()
     }
 
+    /// Serial queue for writes — ensures message bytes never interleave.
+    /// Writes are blocking on this queue's thread, never on the caller's.
+    private let sendQueue = DispatchQueue(label: "clone.app.send")
+
     public func send(_ message: CompositorMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
-        data.withUnsafeBytes { ptr in
-            _ = posix_write(fd, ptr.baseAddress!, data.count)
+        let fd = self.fd
+        sendQueue.async {
+            // The fd is non-blocking (set at accept time for the read source).
+            // We write in a loop, yielding on EAGAIN until the reader drains.
+            data.withUnsafeBytes { ptr in
+                var written = 0
+                while written < data.count {
+                    let n = posix_write(fd, ptr.baseAddress! + written, data.count - written)
+                    if n > 0 {
+                        written += n
+                    } else if errno == EAGAIN || errno == EWOULDBLOCK {
+                        usleep(200)
+                    } else {
+                        break // EPIPE, EBADF, etc.
+                    }
+                }
+            }
         }
     }
 
@@ -232,6 +252,10 @@ public final class CompositorServer {
             }
             guard clientFd >= 0 else { break }
 
+            // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+            var on: Int32 = 1
+            setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+
             let flags = fcntl(clientFd, F_GETFL)
             _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
 
@@ -251,9 +275,11 @@ public final class CompositorServer {
 
     /// Handle a message from an app. Called on the ioQueue.
     /// Callback when dock requests an app launch.
-    public var onLaunchApp: ((String) -> Void)?
-    /// Callback when dock requests restoring a minimized app.
-    public var onRestoreApp: ((String) -> Void)?
+    public var onActivateApp: ((UInt64) -> Void)?
+    /// Callback when dock requests restoring a minimized window.
+    public var onRestoreWindow: ((UInt64) -> Void)?
+    /// Callback when dock requests a window thumbnail.
+    public var onRequestThumbnail: ((UInt64, UInt64, UInt32, UInt32) -> Void)?
     /// Callback when a menubar sends a menu action for the focused app.
     public var onMenuAction: ((String) -> Void)?
     /// Callback when an app requests an open-file dialog.
@@ -287,11 +313,14 @@ public final class CompositorServer {
         case .tapHandled:
             break
 
-        case .launchApp(let appId):
-            onLaunchApp?(appId)
+        case .activate:
+            onActivateApp?(app.windowId)
 
-        case .restoreApp(let appId):
-            onRestoreApp?(appId)
+        case .restoreWindow(let windowId):
+            onRestoreWindow?(windowId)
+
+        case .requestThumbnail(let windowId, let maxWidth, let maxHeight):
+            onRequestThumbnail?(app.windowId, windowId, maxWidth, maxHeight)
 
         case .registerMenus(let menus):
             app.menus = menus

@@ -103,7 +103,7 @@ struct InputRouter {
                         case .close:
                             windowManager.close(id: window.id)
                         case .minimize:
-                            animateMinimize(windowId: window.id, windowManager: windowManager, animationManager: animationManager)
+                            animateMinimize(windowId: window.id, windowManager: windowManager, appManager: appManager, animationManager: animationManager)
                         case .zoom:
                             windowManager.zoom(id: window.id)
                             if let w = windowManager.windows.first(where: { $0.id == window.id }) {
@@ -214,11 +214,17 @@ struct InputRouter {
         }
     }
 
-    private static func animateMinimize(windowId: UInt64, windowManager: WindowManager, animationManager: AnimationManager) {
+    private static func animateMinimize(windowId: UInt64, windowManager: WindowManager, appManager: AppConnectionManager, animationManager: AnimationManager) {
         guard let window = windowManager.windows.first(where: { $0.id == windowId }) else { return }
         let from = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
-        let iconIndex = Dock.iconIndex(for: window.appId) ?? 0
-        let to = Dock.iconRect(index: iconIndex, screenWidth: windowManager.screenWidth, screenHeight: windowManager.screenHeight)
+        let to = Dock.minimizeTargetRect(
+            slotIndex: windowManager.minimizedWindows.count,
+            pinnedCount: Dock.pinnedAppIds.count,
+            unpinnedRunningCount: appManager.unpinnedRunningCount(pinnedAppIds: Dock.pinnedAppIds),
+            minimizedCount: windowManager.minimizedWindows.count + 1,
+            screenWidth: windowManager.screenWidth,
+            screenHeight: windowManager.screenHeight
+        )
         animationManager.startMinimize(windowId: windowId, from: from, to: to)
     }
 }

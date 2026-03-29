@@ -113,6 +113,12 @@ for MOD in "${FRAMEWORKS[@]}"; do
         done
         FWFLAGS+=(-lclone_text)
     fi
+    # PosixShim needs CPosixShim .o files (C implementation of Mach/socket wrappers)
+    if [ "$MOD" = "PosixShim" ] && [ -d "$BUILD_DIR/CPosixShim.build" ]; then
+        for co in "$BUILD_DIR/CPosixShim.build"/*.c.o; do
+            [ -f "$co" ] && OBJ_FILES+=("$co")
+        done
+    fi
     # CloneProtocol needs PosixShim + CPosixShim .o files
     if [ "$MOD" = "CloneProtocol" ] && [ -d "$BUILD_DIR/PosixShim.build" ]; then
         for po in "$BUILD_DIR/PosixShim.build"/*.swift.o; do

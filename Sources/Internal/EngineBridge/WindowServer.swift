@@ -213,8 +213,10 @@ public final class WindowServer {
             screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,         ))
 
         // Send state updates to dock and menubar
-        let minimizedIds = windowManager.minimizedWindows.map(\.appId)
-        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), minimizedAppIds: minimizedIds, focusedWmWindowId: windowManager.focusedWindowId)
+        let minimizedInfos = windowManager.minimizedWindows.map {
+            MinimizedWindowInfo(windowId: $0.id, appId: $0.appId, title: $0.title)
+        }
+        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), minimizedWindows: minimizedInfos, focusedWmWindowId: windowManager.focusedWindowId)
 
         // Request frames for NEXT render cycle (double-buffered).
         // Apps respond asynchronously — we use their previous response for this frame.

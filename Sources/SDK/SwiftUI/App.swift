@@ -83,7 +83,13 @@ public protocol App {
     func onFocusedApp(name: String)
 
     /// Called when compositor reports minimized app IDs (dock).
-    func onMinimizedApps(appIds: [String])
+    func onMinimizedWindows(windows: [MinimizedWindowInfo])
+
+    /// Called when compositor reports running apps (dock).
+    func onRunningApps(apps: [RunningAppInfo])
+
+    /// Called when compositor sends a window thumbnail (dock).
+    func onWindowThumbnail(windowId: UInt64, pngData: Data)
 }
 
 // MARK: - Default Implementations
@@ -112,7 +118,9 @@ extension App {
     public func onOpenPanelResult(path: String?) {}
     public func onAppMenus(appName: String, menus: [AppMenu]) {}
     public func onFocusedApp(name: String) {}
-    public func onMinimizedApps(appIds: [String]) {}
+    public func onMinimizedWindows(windows: [MinimizedWindowInfo]) {}
+    public func onRunningApps(apps: [RunningAppInfo]) {}
+    public func onWindowThumbnail(windowId: UInt64, pngData: Data) {}
 
     /// Default entry point.
     public static func main() {
@@ -147,7 +155,9 @@ extension App {
                         for path in paths { app.onOpenFile(path: path) }
                     case .quit:
                         exit(0)
-                    case .activate, .launchApp:
+                    case .activate:
+                        app.client.send(.activate)
+                    case .launchApp:
                         break
                     }
                 }
@@ -163,12 +173,10 @@ extension App {
         SystemActions.shared.launchApp = LaunchAppAction { appId in
             if let ae = _sharedAEClient {
                 ae.send(to: "com.clone.launchservicesd", event: .launchApp(bundleIdentifier: appId))
-            } else {
-                client.send(.launchApp(appId: appId))
             }
         }
-        SystemActions.shared.restoreApp = RestoreAppAction { appId in
-            client.send(.restoreApp(appId: appId))
+        SystemActions.shared.restoreWindow = RestoreWindowAction { windowId in
+            client.send(.restoreWindow(windowId: windowId))
         }
         SystemActions.shared.sessionReady = SessionReadyAction {
             fputs("[App] sessionReady fired, sending to compositor\n", stderr)
@@ -498,8 +506,14 @@ extension App {
         app.client.onFocusedApp = { name in
             app.onFocusedApp(name: name)
         }
-        app.client.onMinimizedApps = { appIds in
-            app.onMinimizedApps(appIds: appIds)
+        app.client.onMinimizedWindows = { windows in
+            app.onMinimizedWindows(windows: windows)
+        }
+        app.client.onRunningApps = { apps in
+            app.onRunningApps(apps: apps)
+        }
+        app.client.onWindowThumbnail = { windowId, pngData in
+            app.onWindowThumbnail(windowId: windowId, pngData: pngData)
         }
         app.client.onAppMenus = { name, menus in
             app.onAppMenus(appName: name, menus: menus)

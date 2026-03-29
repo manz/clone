@@ -127,8 +127,8 @@ public struct AsyncImage<Content: View>: _PrimitiveView {
 // MARK: - Image helper for creating from decoded RGBA
 
 extension Image {
-    /// Create an Image from pre-decoded RGBA data (internal, used by AsyncImage).
-    static func _fromDecodedRGBA(textureId: UInt64, width: UInt32, height: UInt32, rgbaData: [UInt8]) -> Image {
+    /// Create an Image from pre-decoded RGBA data.
+    public static func _fromDecodedRGBA(textureId: UInt64, width: UInt32, height: UInt32, rgbaData: [UInt8]) -> Image {
         var img = Image("")
         img.textureId = textureId
         img.imageWidth = width
