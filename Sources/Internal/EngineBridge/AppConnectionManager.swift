@@ -46,12 +46,19 @@ final class AppConnectionManager {
     private var externalWindows: [UInt64: UInt64] = [:] // server windowId → wm windowId
     private var childProcesses: [Process] = []
     private var lsClient: LaunchServicesClient?
-    var pendingLaunches: [String] = []
-    var pendingRestores: [String] = []
+    var pendingActivations: [UInt64] = []
+    var pendingRestores: [UInt64] = []
     var pendingMenuActions: [String] = []
     var pendingOpenPanels: [(windowId: UInt64, types: [String])] = []
     var pendingOpenFiles: [String] = []
+    var pendingThumbnailRequests: [(dockWindowId: UInt64, windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)] = []
     private var focusedAppName: String = "Finder"
+    private var lastDockMouseX: Float = 0
+    private var lastDockMouseY: Float = 0
+    private var lastMinimizedWindows: [MinimizedWindowInfo] = []
+    private var lastMenubarAppName: String = ""
+    private var lastMenubarMenus: [AppMenu] = []
+    private var lastRunningApps: [RunningAppInfo] = []
     private(set) var sessionStarted = false
     private var pendingSessionReady = false
     private var pendingColorScheme: Bool? = nil
@@ -76,11 +83,11 @@ final class AppConnectionManager {
             fputs("Failed to start compositor server: \(error)\n", stderr)
         }
 
-        server.onLaunchApp = { [weak self] appId in
-            self?.pendingLaunches.append(appId)
+        server.onActivateApp = { [weak self] windowId in
+            self?.pendingActivations.append(windowId)
         }
-        server.onRestoreApp = { [weak self] appId in
-            self?.pendingRestores.append(appId)
+        server.onRestoreWindow = { [weak self] windowId in
+            self?.pendingRestores.append(windowId)
         }
         server.onMenuAction = { [weak self] itemId in
             self?.pendingMenuActions.append(itemId)
@@ -96,6 +103,10 @@ final class AppConnectionManager {
         }
         server.onOpenFile = { [weak self] path in
             self?.pendingOpenFiles.append(path)
+        }
+        server.onRequestThumbnail = { [weak self] dockWindowId, windowId, maxW, maxH in
+            fputs("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n", stderr)
+            self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
         }
 
         // Launch pre-session daemons and LoginWindow
@@ -241,23 +252,24 @@ final class AppConnectionManager {
             startUserSession()
         }
 
-        for appId in pendingLaunches {
-            if let window = windowManager.windows.first(where: { $0.appId == appId && $0.isVisible && !$0.isMinimized }) {
-                windowManager.focus(id: window.id)
-                updateFocusedAppName(windowManager: windowManager)
-            } else if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
-                animateRestore(windowId: window.id, windowManager: windowManager, animationManager: animationManager)
-            } else if lsClient?.launch(bundleIdentifier: appId) != nil {
-                // launchservicesd found and spawned the app
-            } else if let name = appBinaries[appId] {
-                launchApp(name)
+        // Activate: focus the window belonging to the app that sent .activate
+        for serverWindowId in pendingActivations {
+            if let wmId = wmWindowId(for: serverWindowId) {
+                if let window = windowManager.windows.first(where: { $0.id == wmId }) {
+                    if window.isMinimized {
+                        animateRestore(windowId: wmId, windowManager: windowManager, animationManager: animationManager)
+                    } else {
+                        windowManager.focus(id: wmId)
+                        updateFocusedAppName(windowManager: windowManager)
+                    }
+                }
             }
         }
-        pendingLaunches.removeAll()
+        pendingActivations.removeAll()
 
-        for appId in pendingRestores {
-            if let window = windowManager.minimizedWindows.first(where: { $0.appId == appId }) {
-                animateRestore(windowId: window.id, windowManager: windowManager, animationManager: animationManager)
+        for wmWindowId in pendingRestores {
+            if windowManager.minimizedWindows.contains(where: { $0.id == wmWindowId }) {
+                animateRestore(windowId: wmWindowId, windowManager: windowManager, animationManager: animationManager)
             }
         }
         pendingRestores.removeAll()
@@ -296,6 +308,34 @@ final class AppConnectionManager {
             openFileWithDefaultApp(path)
         }
         pendingOpenFiles.removeAll()
+
+        // Process thumbnail requests — resolve IDs on main thread, capture + send on background
+        for req in pendingThumbnailRequests {
+            let serverWid = externalWindowId(for: req.windowId)
+            let app = serverWid.flatMap { sid in server.connectedApps.first(where: { $0.windowId == sid }) }
+            let dockApp = server.connectedApps.first(where: { $0.windowId == req.dockWindowId })
+            fputs("[Thumbnail] Resolving window=\(req.windowId): serverWid=\(serverWid as Any) app=\(app?.appId as Any) iosurface=\(app?.iosurfaceId as Any) dockApp=\(dockApp?.appId as Any)\n", stderr)
+            guard let serverWid, let app, app.iosurfaceId != 0, let dockApp else {
+                continue
+            }
+            let iosurfaceId = app.iosurfaceId
+            let dockWid = req.dockWindowId
+            let windowId = req.windowId
+            let maxW = req.maxWidth
+            let maxH = req.maxHeight
+            DispatchQueue.global(qos: .utility).async {
+                guard let result = ThumbnailCapture.capture(iosurfaceId: iosurfaceId, maxWidth: maxW, maxHeight: maxH) else {
+                    return
+                }
+                fputs("[Thumbnail] Sending to dock...\n", stderr)
+                fputs("[Thumbnail] PNG \(result.pngData.count) bytes, sending...\n", stderr)
+                dockApp.send(.windowThumbnail(windowId: windowId, pngData: result.pngData))
+                fputs("[Thumbnail] Sent\n", stderr)
+                fputs("[Thumbnail] Sent to dock\n", stderr)
+            }
+        }
+        pendingThumbnailRequests.removeAll()
+
     }
 
     /// Open a file with its default app via launchservicesd.
@@ -432,7 +472,7 @@ final class AppConnectionManager {
         focusedAppName
     }
 
-    func sendSystemState(mouseX: CGFloat, mouseY: CGFloat, minimizedAppIds: [String], focusedWmWindowId: UInt64?) {
+    func sendSystemState(mouseX: CGFloat, mouseY: CGFloat, minimizedWindows: [MinimizedWindowInfo], focusedWmWindowId: UInt64?) {
         // Get focused app's menus, prepend the system app menu with Quit
         var focusedMenus: [AppMenu] = []
         if let wmId = focusedWmWindowId,
@@ -449,11 +489,34 @@ final class AppConnectionManager {
         for app in server.connectedApps {
             switch app.role {
             case .dock:
-                app.send(.minimizedApps(appIds: minimizedAppIds))
-                app.send(.pointerMove(x: Float(mouseX), y: Float(mouseY)))
+                if minimizedWindows != lastMinimizedWindows {
+                    lastMinimizedWindows = minimizedWindows
+                    app.send(.minimizedWindows(windows: minimizedWindows))
+                }
+                let running = server.connectedApps
+                    .filter { $0.role == .window }
+                    .map { RunningAppInfo(appId: $0.appId, title: $0.title) }
+                    .sorted(by: { $0.appId < $1.appId })
+                if running != lastRunningApps {
+                    lastRunningApps = running
+                    app.send(.runningApps(apps: running))
+                }
+                let mx = Float(mouseX)
+                let my = Float(mouseY)
+                if mx != lastDockMouseX || my != lastDockMouseY {
+                    lastDockMouseX = mx
+                    lastDockMouseY = my
+                    app.send(.pointerMove(x: mx, y: my))
+                }
             case .menubar:
-                app.send(.focusedApp(name: focusedAppName))
-                app.send(.appMenus(appName: focusedAppName, menus: focusedMenus))
+                if focusedAppName != lastMenubarAppName {
+                    lastMenubarAppName = focusedAppName
+                    app.send(.focusedApp(name: focusedAppName))
+                }
+                if focusedMenus != lastMenubarMenus {
+                    lastMenubarMenus = focusedMenus
+                    app.send(.appMenus(appName: focusedAppName, menus: focusedMenus))
+                }
             case .window, .loginWindow, .service:
                 break
             }
@@ -563,10 +626,27 @@ final class AppConnectionManager {
         pendingFileDialog = nil
     }
 
+    /// Count of running apps that are NOT in the pinned list (for dock zone layout).
+    func unpinnedRunningCount(pinnedAppIds: [String]) -> Int {
+        let pinnedSet = Set(pinnedAppIds)
+        return server.connectedApps
+            .filter { $0.role == .window && !pinnedSet.contains($0.appId) }
+            .count
+    }
+
     private func animateRestore(windowId: UInt64, windowManager: WindowManager, animationManager: AnimationManager) {
         guard let window = windowManager.windows.first(where: { $0.id == windowId }) else { return }
-        let iconIndex = Dock.iconIndex(for: window.appId) ?? 0
-        let from = Dock.iconRect(index: iconIndex, screenWidth: windowManager.screenWidth, screenHeight: windowManager.screenHeight)
+        // Find this window's index within the minimized list
+        let minimizedWindows = windowManager.minimizedWindows
+        let slotIndex = minimizedWindows.firstIndex(where: { $0.id == windowId }) ?? 0
+        let from = Dock.minimizeTargetRect(
+            slotIndex: slotIndex,
+            pinnedCount: Dock.pinnedAppIds.count,
+            unpinnedRunningCount: unpinnedRunningCount(pinnedAppIds: Dock.pinnedAppIds),
+            minimizedCount: minimizedWindows.count,
+            screenWidth: windowManager.screenWidth,
+            screenHeight: windowManager.screenHeight
+        )
         let to = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
         windowManager.unminimize(id: windowId)
         animationManager.startRestore(windowId: windowId, from: from, to: to)

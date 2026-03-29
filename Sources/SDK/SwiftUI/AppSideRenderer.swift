@@ -50,7 +50,6 @@ final class AppSideRenderer: NSObject {
 
     func resize(width: CGFloat, height: CGFloat) {
         guard width != self.width || height != self.height else {
-            needsRender = true
             return
         }
         self.width = width

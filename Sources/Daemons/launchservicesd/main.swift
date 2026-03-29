@@ -22,16 +22,31 @@ DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
         aeClient.onEvent = { event in
             switch event {
             case .launchApp(let bundleId):
-                fputs("launchservicesd: launch request via AvocadoEvent for \(bundleId)\n", stderr)
-                let lsClient = LaunchServicesClient()
+                fputs("launchservicesd: launch request for \(bundleId)\n", stderr)
+                // Check if the app is already running via a separate AE connection
+                let queryClient = AvocadoEventsClient()
                 do {
-                    try lsClient.connect()
-                    if lsClient.launch(bundleIdentifier: bundleId) == nil {
-                        fputs("launchservicesd: app not found: \(bundleId)\n", stderr)
+                    try queryClient.connect()
+                    if queryClient.isRegistered(appId: bundleId) {
+                        // App is running — send activate instead of spawning
+                        fputs("launchservicesd: \(bundleId) already running, sending activate\n", stderr)
+                        queryClient.send(to: bundleId, event: .activate)
+                    } else {
+                        // App not running — launch via LaunchServices
+                        let lsClient = LaunchServicesClient()
+                        do {
+                            try lsClient.connect()
+                            if lsClient.launch(bundleIdentifier: bundleId) == nil {
+                                fputs("launchservicesd: app not found: \(bundleId)\n", stderr)
+                            }
+                            lsClient.disconnect()
+                        } catch {
+                            fputs("launchservicesd: failed to self-connect: \(error)\n", stderr)
+                        }
                     }
-                    lsClient.disconnect()
+                    queryClient.disconnect()
                 } catch {
-                    fputs("launchservicesd: failed to self-connect: \(error)\n", stderr)
+                    fputs("launchservicesd: failed to query avocadoeventsd: \(error)\n", stderr)
                 }
             default:
                 break

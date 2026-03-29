@@ -145,6 +145,12 @@ public final class AvocadoEventsServer {
                 }
                 client.send(.ok)
             }
+
+        case .isRegistered(let appId):
+            lock.lock()
+            let registered = !(appClients[appId] ?? []).isEmpty
+            lock.unlock()
+            client.send(.registered(registered))
         }
     }
 

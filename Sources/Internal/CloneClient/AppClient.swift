@@ -5,7 +5,7 @@ import CloneProtocol
 /// Client library for apps to connect to the Clone compositor.
 @MainActor
 public final class AppClient {
-    private var socketFd: Int32 = -1
+    var socketFd: Int32 = -1
     private var readBuffer = Data()
     public private(set) var windowId: UInt64 = 0
     #if canImport(Darwin)
@@ -14,7 +14,7 @@ public final class AppClient {
     #endif
     public private(set) var width: Float = 0
     public private(set) var height: Float = 0
-    public private(set) var isConnected = false
+    public internal(set) var isConnected = false
     public private(set) var mouseX: Float = 0
     public private(set) var mouseY: Float = 0
 
@@ -37,7 +37,12 @@ public final class AppClient {
     /// Callback when compositor reports focused app name (for menubar).
     public var onFocusedApp: (@MainActor (String) -> Void)?
     /// Callback when compositor reports minimized app IDs (for dock).
-    public var onMinimizedApps: (@MainActor ([String]) -> Void)?
+    /// Callback when compositor reports minimized windows (for dock).
+    public var onMinimizedWindows: (@MainActor ([MinimizedWindowInfo]) -> Void)?
+    /// Callback when compositor sends a window thumbnail PNG (for dock).
+    public var onWindowThumbnail: (@MainActor (UInt64, Data) -> Void)?
+    /// Callback when compositor reports running apps (for dock).
+    public var onRunningApps: (@MainActor ([RunningAppInfo]) -> Void)?
     /// Callback when compositor sends app menus.
     public var onAppMenus: (@MainActor (String, [AppMenu]) -> Void)?
     /// Callback when a menu item is selected.
@@ -63,6 +68,10 @@ public final class AppClient {
         let path = "/tmp/clone-compositor.sock"
         socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard socketFd >= 0 else { throw NSError(domain: "AppClient", code: 1) }
+
+        // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+        var on: Int32 = 1
+        setsockopt(socketFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -112,10 +121,19 @@ public final class AppClient {
     }
     #endif
 
+    private let sendQueue = DispatchQueue(label: "clone.appclient.send")
+
     public func send(_ message: AppMessage) {
         guard let data = try? WireProtocol.encode(message) else { return }
-        data.withUnsafeBytes { ptr in
-            _ = posix_write(socketFd, ptr.baseAddress!, data.count)
+        sendQueue.async { [fd = self.socketFd] in
+            data.withUnsafeBytes { ptr in
+                var written = 0
+                while written < data.count {
+                    let n = posix_write(fd, ptr.baseAddress! + written, data.count - written)
+                    if n <= 0 { break }
+                    written += n
+                }
+            }
         }
     }
 
@@ -181,8 +199,15 @@ public final class AppClient {
         case .focusedApp(let name):
             onFocusedApp?(name)
 
-        case .minimizedApps(let appIds):
-            onMinimizedApps?(appIds)
+        case .minimizedWindows(let windows):
+            onMinimizedWindows?(windows)
+
+        case .windowThumbnail(let windowId, let pngData):
+            fputs("[AppClient] windowThumbnail decoded: window=\(windowId) \(pngData.count) bytes PNG\n", stderr)
+            onWindowThumbnail?(windowId, pngData)
+
+        case .runningApps(let apps):
+            onRunningApps?(apps)
 
         case .appMenus(let appName, let menus):
             onAppMenus?(appName, menus)
@@ -237,21 +262,41 @@ public final class AppClient {
             fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
 
             var readBuf = Data()
+            var buf = [UInt8](repeating: 0, count: 65536)
             while true {
-                var buf = [UInt8](repeating: 0, count: 65536)
                 let n = posix_read(fd, &buf, buf.count)
                 if n <= 0 { break }
-
                 readBuf.append(contentsOf: buf[0..<n])
-                // Decode ALL messages from this read in one batch
+
+                // Decode all complete messages
                 var batch: [CompositorMessage] = []
                 while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
                     readBuf = readBuf.subdata(in: consumed..<readBuf.count)
                     batch.append(msg)
                 }
+
+                // If there's an incomplete message at the tail, keep reading until it's whole.
+                // This prevents large messages (e.g. thumbnails) from stalling behind tiny
+                // per-frame messages that trickle in one at a time.
+                while readBuf.count >= 4 {
+                    let needed = Int(readBuf.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }) + 4
+                    if readBuf.count >= needed { break }
+                    fputs("[readLoop] partial: have \(readBuf.count)/\(needed), reading more...\n", stderr)
+                    let more = posix_read(fd, &buf, buf.count)
+                    if more <= 0 {
+                        fputs("[readLoop] inner read returned \(more), errno=\(errno)\n", stderr)
+                        break
+                    }
+                    fputs("[readLoop] inner read got \(more) bytes, total \(readBuf.count + more)\n", stderr)
+                    readBuf.append(contentsOf: buf[0..<more])
+                    // Decode any messages that became complete
+                    while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
+                        readBuf = readBuf.subdata(in: consumed..<readBuf.count)
+                        batch.append(msg)
+                    }
+                }
+
                 if !batch.isEmpty {
-                    // Dispatch the whole batch at once — async so the display link
-                    // can fire between batches instead of being starved by sync dispatches.
                     DispatchQueue.main.async {
                         MainActor.assumeIsolated {
                             for message in batch {
@@ -277,6 +322,7 @@ public final class AppClient {
             send(.close)
         }
         if socketFd >= 0 {
+            shutdown(socketFd, SHUT_RDWR)
             posix_close(socketFd)
             socketFd = -1
         }

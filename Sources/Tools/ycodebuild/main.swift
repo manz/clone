@@ -110,6 +110,19 @@ struct YCodeBuild {
         }
         try currentMode.write(to: modeMarker, atomically: true, encoding: .utf8)
 
+        // In prebuilt mode, nuke SPM's build.db — that's the manifest SPM uses to decide
+        // what's up-to-date. It doesn't track external -F framework changes, so without
+        // this SPM skips recompilation even when our SDK dylibs changed.
+        // Removing just build.db forces a full re-evaluation while keeping resolved
+        // packages and downloaded dependencies intact.
+        if prebuilt {
+            let buildDb = parentDir.appendingPathComponent(".build/build.db")
+            let fm = FileManager.default
+            if fm.fileExists(atPath: buildDb.path) {
+                try? fm.removeItem(at: buildDb)
+            }
+        }
+
         print("ycodebuild: building \(target)...")
 
         // Run swift build

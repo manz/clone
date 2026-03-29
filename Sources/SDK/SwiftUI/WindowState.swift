@@ -94,15 +94,15 @@ public struct LaunchAppAction {
 }
 
 /// Action to restore a minimized app by its bundle ID.
-public struct RestoreAppAction {
-    private let handler: (String) -> Void
+public struct RestoreWindowAction {
+    private let handler: (UInt64) -> Void
 
-    public init(_ handler: @escaping (String) -> Void) {
+    public init(_ handler: @escaping (UInt64) -> Void) {
         self.handler = handler
     }
 
-    public func callAsFunction(_ appId: String) {
-        handler(appId)
+    public func callAsFunction(_ windowId: UInt64) {
+        handler(windowId)
     }
 }
 
@@ -137,7 +137,7 @@ public final class SystemActions: @unchecked Sendable {
     public static let shared = SystemActions()
 
     public var launchApp = LaunchAppAction { _ in }
-    public var restoreApp = RestoreAppAction { _ in }
+    public var restoreWindow = RestoreWindowAction { _ in }
     public var sessionReady = SessionReadyAction {}
     public var setColorScheme = SetColorSchemeAction { _ in }
 

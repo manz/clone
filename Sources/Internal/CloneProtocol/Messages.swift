@@ -87,6 +87,27 @@ public struct AppMenuItem: Codable, Sendable, Equatable {
     }
 }
 
+/// Minimal info about a running app, sent to the dock.
+public struct RunningAppInfo: Codable, Sendable, Equatable {
+    public var appId: String
+    public var title: String
+
+    public init(appId: String, title: String) {
+        self.appId = appId; self.title = title
+    }
+}
+
+/// Info about a minimized window, sent to the dock.
+public struct MinimizedWindowInfo: Codable, Sendable, Equatable {
+    public var windowId: UInt64
+    public var appId: String
+    public var title: String
+
+    public init(windowId: UInt64, appId: String, title: String) {
+        self.windowId = windowId; self.appId = appId; self.title = title
+    }
+}
+
 /// A top-level menu (e.g. "File", "Edit") with its dropdown items.
 public struct AppMenu: Codable, Sendable, Equatable {
     public var title: String
@@ -110,10 +131,10 @@ public enum AppMessage: Codable, Sendable {
     case close
     /// App handled a tap at the given coordinates.
     case tapHandled
-    /// Dock requests the compositor to launch an app binary.
-    case launchApp(appId: String)
-    /// Dock requests the compositor to restore a minimized window.
-    case restoreApp(appId: String)
+    /// App requests the compositor to focus its window (bring to front).
+    case activate
+    /// Dock requests the compositor to restore a minimized window by its window ID.
+    case restoreWindow(windowId: UInt64)
     /// App registers its menu bar menus.
     case registerMenus(menus: [AppMenu])
     /// App requests an open-file dialog.
@@ -135,6 +156,8 @@ public enum AppMessage: Codable, Sendable {
     case openFile(path: String)
     /// Route an AvocadoEvent to another app by its bundle identifier.
     case avocadoEvent(targetAppId: String, event: AvocadoEvent)
+    /// Dock requests a thumbnail of a minimized window.
+    case requestThumbnail(windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)
     /// App created an IOSurface-backed GPU texture for app-side rendering.
     case surfaceCreated(iosurfaceId: UInt32, width: UInt32, height: UInt32)
     /// App rendered a new frame into the shared texture.
@@ -160,8 +183,12 @@ public enum CompositorMessage: Codable, Sendable {
     case key(keycode: UInt32, pressed: Bool)
     /// Compositor tells the app which app is focused (for menubar display).
     case focusedApp(name: String)
-    /// Compositor tells the dock which apps have minimized windows.
-    case minimizedApps(appIds: [String])
+    /// Compositor tells the dock which windows are minimized.
+    case minimizedWindows(windows: [MinimizedWindowInfo])
+    /// Compositor tells the dock which apps are currently running (appId + title pairs).
+    case runningApps(apps: [RunningAppInfo])
+    /// Compositor sends a window thumbnail to the dock (PNG-encoded).
+    case windowThumbnail(windowId: UInt64, pngData: Data)
     /// Character typed (translated from keycode).
     case keyChar(character: String)
     /// Scroll wheel event (deltaX, deltaY in points).
@@ -381,6 +408,8 @@ public enum AERequest: Codable, Sendable {
     case register(appId: String)
     /// Send an event to a target app.
     case send(targetAppId: String, event: AvocadoEvent)
+    /// Query whether an app is currently registered (i.e. running and connected).
+    case isRegistered(appId: String)
 }
 
 /// avocadoeventsd → Client
@@ -391,6 +420,8 @@ public enum AEResponse: Codable, Sendable {
     case ok
     /// Error.
     case error(String)
+    /// Response to isRegistered query.
+    case registered(Bool)
 }
 
 /// Registered app bundle info, parsed from Info.plist.
@@ -485,7 +516,13 @@ public enum WireProtocol {
         let totalLength = 4 + Int(length)
         guard buffer.count >= totalLength else { return nil }
         let jsonData = buffer.subdata(in: 4..<totalLength)
-        guard let message = try? JSONDecoder().decode(T.self, from: jsonData) else { return nil }
-        return (message, totalLength)
+        do {
+            let message = try JSONDecoder().decode(T.self, from: jsonData)
+            return (message, totalLength)
+        } catch {
+            // Skip this message to avoid permanently blocking the stream.
+            fputs("[WireProtocol] Failed to decode \(T.self) (\(length) bytes): \(error)\n", stderr)
+            return nil
+        }
     }
 }

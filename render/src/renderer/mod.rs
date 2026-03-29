@@ -320,6 +320,16 @@ impl DesktopRenderer {
                           width, height, scissor);
                     let z = 1.0 - (cmd_index as f32 / total_drawable as f32);
                     cmd_index += 1;
+                    // Submit + replace encoder before each image draw.
+                    // write_buffer is immediate but render passes are deferred — submitting
+                    // ensures the previous uniform/instance data is consumed before the
+                    // next image overwrites the shared buffer.
+                    {
+                        let old = std::mem::replace(encoder, device.create_command_encoder(
+                            &wgpu::CommandEncoderDescriptor { label: Some("pre_image") }
+                        ));
+                        queue.submit([old.finish()]);
+                    }
                     if let Some(ip) = &self.image_pipeline {
                         ip.draw(
                             queue, encoder, view, depth_view,
@@ -327,6 +337,11 @@ impl DesktopRenderer {
                             *texture_id, x * scale, y * scale, w * scale, h * scale,
                             z, scissor,
                         );
+                        // Submit this image draw immediately
+                        let drawn = std::mem::replace(encoder, device.create_command_encoder(
+                            &wgpu::CommandEncoderDescriptor { label: Some("post_image") }
+                        ));
+                        queue.submit([drawn.finish()]);
                     }
                 }
                 RenderCommand::RegisterTexture { texture_id, width: tw, height: th, rgba_data } => {

@@ -353,5 +353,10 @@ let package = Package(
             dependencies: ["CoreText"],
             path: "Tests/CoreTextTests"
         ),
+        .testTarget(
+            name: "CloneClientTests",
+            dependencies: ["CloneClient", "CloneProtocol"],
+            path: "Tests/CloneClientTests"
+        ),
     ]
 )
