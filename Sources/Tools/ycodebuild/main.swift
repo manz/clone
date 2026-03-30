@@ -72,8 +72,8 @@ struct YCodeBuild {
             let linkName = sourceDirURL.lastPathComponent
             let linkURL = parentDir.appendingPathComponent(linkName)
             let fm = FileManager.default
-            // Remove stale symlink
-            if fm.fileExists(atPath: linkURL.path) {
+            // Remove stale symlink (fileExists follows symlinks, so check attributes directly)
+            if (try? fm.attributesOfItem(atPath: linkURL.path)) != nil {
                 try fm.removeItem(at: linkURL)
             }
             try fm.createSymbolicLink(at: linkURL, withDestinationURL: sourceDirURL.standardizedFileURL)
