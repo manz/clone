@@ -384,7 +384,7 @@ public final class CompositorServer {
             app.send(.avocadoEvent(event))
         }
         if targets.isEmpty {
-            fputs("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n", stderr)
+            FileHandle.standardError.write(Data("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n".utf8))
         }
     }
 
