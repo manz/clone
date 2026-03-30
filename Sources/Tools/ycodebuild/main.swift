@@ -193,15 +193,19 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     let fm = FileManager.default
     let appDir = "\(outputDir)/\(target).app"
     let contentsDir = "\(appDir)/Contents"
-    let macosDir = "\(contentsDir)/MacOS"
+    #if os(macOS)
+    let execDir = "\(contentsDir)/MacOS"
+    #else
+    let execDir = "\(contentsDir)/Linux"
+    #endif
     let resourcesDir = "\(contentsDir)/Resources"
 
     // Create directory structure
-    try fm.createDirectory(atPath: macosDir, withIntermediateDirectories: true)
+    try fm.createDirectory(atPath: execDir, withIntermediateDirectories: true)
     try fm.createDirectory(atPath: resourcesDir, withIntermediateDirectories: true)
 
     // Copy binary
-    let destBinary = "\(macosDir)/\(target)"
+    let destBinary = "\(execDir)/\(target)"
     if fm.fileExists(atPath: destBinary) { try fm.removeItem(atPath: destBinary) }
     try fm.copyItem(atPath: binaryPath, toPath: destBinary)
 
@@ -241,6 +245,7 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     }
 
     // Ad-hoc code sign — macOS requires valid signatures for .app bundles
+    #if os(macOS)
     let codesign = Process()
     codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
     codesign.arguments = ["-s", "-", "--force", "--deep", appDir]
@@ -251,6 +256,7 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     if codesign.terminationStatus == 0 {
         print("ycodebuild: signed \(target).app")
     }
+    #endif
 
     return appDir
 }

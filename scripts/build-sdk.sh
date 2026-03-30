@@ -89,14 +89,26 @@ for MOD in "${FRAMEWORKS[@]}"; do
         continue
     fi
 
-    # Collect -framework flags for already-built dependencies
-    FWFLAGS=(-F "$SDK_OUT")
-    for DEP_FW in "$SDK_OUT"/*.framework; do
-        DEP_NAME=$(basename "$DEP_FW" .framework)
-        if [ -f "$DEP_FW/$DEP_NAME" ] && [ "$DEP_NAME" != "$MOD" ]; then
-            FWFLAGS+=(-framework "$DEP_NAME")
-        fi
-    done
+    # Collect linker flags for already-built dependencies
+    FWFLAGS=()
+    if [ "$(uname)" = "Darwin" ]; then
+        FWFLAGS+=(-F "$SDK_OUT")
+        for DEP_FW in "$SDK_OUT"/*.framework; do
+            DEP_NAME=$(basename "$DEP_FW" .framework)
+            if [ -f "$DEP_FW/Versions/A/$DEP_NAME" ] && [ "$DEP_NAME" != "$MOD" ]; then
+                FWFLAGS+=(-framework "$DEP_NAME")
+            fi
+        done
+    else
+        # Linux: link directly against the .so files in framework bundles.
+        # -l:Name matches exact filename (no lib prefix, no .so suffix).
+        for DEP_FW in "$SDK_OUT"/*.framework; do
+            DEP_NAME=$(basename "$DEP_FW" .framework)
+            if [ -f "$DEP_FW/Versions/A/$DEP_NAME" ] && [ "$DEP_NAME" != "$MOD" ]; then
+                FWFLAGS+=("$DEP_FW/Versions/A/$DEP_NAME")
+            fi
+        done
+    fi
 
     # Bundle transitive internal modules that aren't separate frameworks.
     # AVFoundation needs AudioBridge .o files + Rust audio lib
