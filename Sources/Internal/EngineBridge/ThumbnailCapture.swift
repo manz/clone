@@ -1,3 +1,4 @@
+#if canImport(IOSurface)
 import Foundation
 import IOSurface
 import CoreGraphics
@@ -61,3 +62,4 @@ enum ThumbnailCapture {
         return (UInt32(dstW), UInt32(dstH), pngData as Data)
     }
 }
+#endif // canImport(IOSurface)

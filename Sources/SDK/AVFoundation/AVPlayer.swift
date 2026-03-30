@@ -114,7 +114,8 @@ public class AVPlayer: NSObject {
         for observer in timeObservers {
             let block = observer.block
             let queue = observer.queue ?? .main
-            queue.async { block(time) }
+            nonisolated(unsafe) let unsafeBlock = block
+            queue.async { unsafeBlock(time) }
         }
     }
 }

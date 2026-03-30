@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CoreGraphics)
 import CoreGraphics
+#else
+import CloneCoreGraphics
+#endif
 @_exported import QuartzCore
 
 // MARK: - Minimal AppKit type stubs for compilation.
@@ -138,15 +142,10 @@ nonisolated(unsafe) public let NSApp: NSApplication = .shared
 
 // MARK: - NSImage
 
-open class NSImage: NSObject, @unchecked Sendable, NSItemProviderReading, NSItemProviderWriting {
-    public static var readableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
-    public required convenience init(itemProviderData data: Data, typeIdentifier: String) throws { self.init() }
-    public static func object(withItemProviderData data: Data, typeIdentifier: String) throws -> Self { try self.init(itemProviderData: data, typeIdentifier: typeIdentifier) }
-    public static var writableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
-    public func loadData(withTypeIdentifier typeIdentifier: String, forItemProviderCompletionHandler completionHandler: @escaping @Sendable (Data?, Error?) -> Void) -> Progress? { completionHandler(nil, nil); return nil }
-    // NSImage properties and methods
+open class NSImage: NSObject, @unchecked Sendable {
     public var size: CGSize = _zeroSize
     public override init() { super.init() }
+    public required convenience init(itemProviderData data: Data, typeIdentifier: String) throws { self.init() }
     public init?(named: String) {}
     public init(size: CGSize) { self.size = size }
     public init?(data: Data) {}
@@ -162,9 +161,14 @@ open class NSImage: NSObject, @unchecked Sendable, NSItemProviderReading, NSItem
     public enum CompositingOperation: UInt { case sourceOver, copy }
 }
 
-// NSImage drag/drop: on real macOS, NSImage conforms to NSItemProviderReading/Writing.
-// Clone's stub NSImage isn't NSObject-based so can't conform to those ObjC protocols.
-// Apps using `canLoadObject(ofClass: NSImage.self)` will need `#if canImport(CloneClient)` guards.
+#if canImport(Darwin)
+extension NSImage: NSItemProviderReading, NSItemProviderWriting {
+    public static var readableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
+    public static func object(withItemProviderData data: Data, typeIdentifier: String) throws -> Self { try self.init(itemProviderData: data, typeIdentifier: typeIdentifier) }
+    public static var writableTypeIdentifiersForItemProvider: [String] { ["public.image"] }
+    public func loadData(withTypeIdentifier typeIdentifier: String, forItemProviderCompletionHandler completionHandler: @escaping @Sendable (Data?, Error?) -> Void) -> Progress? { completionHandler(nil, nil); return nil }
+}
+#endif
 
 // MARK: - NSImageRep
 

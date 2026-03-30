@@ -46,7 +46,7 @@ public final class ConnectedApp {
             self?.handleReadable()
         }
         source.setCancelHandler { [fd] in
-            shutdown(fd, SHUT_RDWR)
+            shutdown(fd, Int32(SHUT_RDWR))
             posix_close(fd)
         }
         source.resume()
@@ -253,8 +253,13 @@ public final class CompositorServer {
             guard clientFd >= 0 else { break }
 
             // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+            #if canImport(Darwin)
             var on: Int32 = 1
             setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+            #else
+            // Linux: use MSG_NOSIGNAL per-send or signal(SIGPIPE, SIG_IGN)
+            signal(SIGPIPE, SIG_IGN)
+            #endif
 
             let flags = fcntl(clientFd, F_GETFL)
             _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)

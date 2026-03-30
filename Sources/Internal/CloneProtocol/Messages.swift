@@ -521,7 +521,7 @@ public enum WireProtocol {
             return (message, totalLength)
         } catch {
             // Skip this message to avoid permanently blocking the stream.
-            fputs("[WireProtocol] Failed to decode \(T.self) (\(length) bytes): \(error)\n", stderr)
+            FileHandle.standardError.write(Data("[WireProtocol] Failed to decode \(T.self) (\(length) bytes): \(error)\n".utf8))
             return nil
         }
     }

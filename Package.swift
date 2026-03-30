@@ -136,23 +136,28 @@ let package = Package(
 
         // ── SDK ─────────────────────────────────────────────────
         .target(
-            name: "QuartzCore",
+            name: "CloneCoreGraphics",
             dependencies: [],
+            path: "Sources/SDK/CloneCoreGraphics"
+        ),
+        .target(
+            name: "QuartzCore",
+            dependencies: ["CloneCoreGraphics"],
             path: "Sources/SDK/QuartzCore"
         ),
         .target(
             name: "CoreText",
-            dependencies: ["CloneText"],
+            dependencies: ["CloneText", "CloneCoreGraphics"],
             path: "Sources/SDK/CoreText"
         ),
         .target(
             name: "AppKit",
-            dependencies: ["QuartzCore"],
+            dependencies: ["QuartzCore", "CloneCoreGraphics"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface", "CloneCoreGraphics"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),

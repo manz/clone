@@ -39,7 +39,12 @@ final class AppSideRenderer: NSObject {
             return
         }
 
+        #if canImport(ObjectiveC)
         let link = CADisplayLink(target: self, selector: #selector(tick))
+        #else
+        let link = CADisplayLink(target: self, selector: Selector("tick"))
+        link.setCallback { [weak self] in self?.tick() }
+        #endif
         link.add(to: .main, forMode: .default)
         displayLink = link
     }

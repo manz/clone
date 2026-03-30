@@ -1,6 +1,8 @@
 import Foundation
 #if canImport(CoreGraphics)
 import CoreGraphics
+#else
+import CloneCoreGraphics
 #endif
 
 /// Registry for onTap handlers. Maps tap IDs to closures.
@@ -35,7 +37,11 @@ public final class TapRegistry: @unchecked Sendable {
 
     /// Fire a tap handler by ID, optionally with location.
     public func fire(id: UInt64, at point: CGPoint = .zero) {
-        guard let handler = handlers[id] else { return }
+        guard let handler = handlers[id] else {
+            fputs("[TapRegistry] fire id=\(id) — NO HANDLER FOUND (registered: \(handlers.count) handlers)\n", stderr)
+            return
+        }
+        fputs("[TapRegistry] fire id=\(id) — executing handler\n", stderr)
         switch handler {
         case .simple(let action): action()
         case .spatial(let action): action(point)

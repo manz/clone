@@ -1,4 +1,9 @@
 import Foundation
+#if canImport(CoreGraphics)
+import CoreGraphics
+#else
+import CloneCoreGraphics
+#endif
 
 /// A timer that fires in sync with the display refresh rate.
 /// On Clone, backed by a DispatchSourceTimer at the preferred frame rate.
@@ -6,7 +11,8 @@ public class CADisplayLink {
 
     private var timer: DispatchSourceTimer?
     private weak var target: AnyObject?
-    private let selector: Selector
+    private let selectorName: String
+    private var callback: (() -> Void)?
 
     /// The timestamp of the last frame that was displayed.
     public private(set) var timestamp: CFTimeInterval = 0
@@ -35,46 +41,47 @@ public class CADisplayLink {
 
     public init(target: Any, selector sel: Selector) {
         self.target = target as AnyObject
-        self.selector = sel
+        self.selectorName = "\(sel)"
+        #if canImport(ObjectiveC)
+        // On macOS, use ObjC perform(selector:) — resolved at runtime
+        #else
+        // On Linux, no ObjC runtime — resolve by convention: the selector name
+        // maps to a known method. CADisplayLink is only used by AppSideRenderer
+        // with selector "tick", so we match that.
+        #endif
     }
 
-    /// Add the display link to a run loop. On Clone this starts the
-    /// internal DispatchSourceTimer. The `forMode` parameter is accepted
-    /// for API compatibility but all modes are treated equally.
-    public func add(to runloop: RunLoop, forMode mode: RunLoop.Mode) {
-        guard timer == nil else { return }
-        updateInterval()
-
+    public func add(to runLoop: RunLoop, forMode mode: RunLoop.Mode) {
         let source = DispatchSource.makeTimerSource(queue: .main)
-        let interval = duration
-        source.schedule(
-            deadline: .now(),
-            repeating: interval,
-            leeway: .milliseconds(1)
-        )
+        let fps = preferredFramesPerSecond > 0 ? preferredFramesPerSecond : 60
+        duration = 1.0 / CFTimeInterval(fps)
+        let interval = DispatchTimeInterval.milliseconds(Int(duration * 1000))
+        source.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(1))
         source.setEventHandler { [weak self] in
             self?.tick()
         }
+        source.resume()
         timer = source
-        if !isPaused {
-            source.resume()
-        }
     }
 
-    /// Remove the display link from all run loops and release resources.
     public func invalidate() {
-        if let t = timer {
-            t.cancel()
-            timer = nil
-        }
+        timer?.cancel()
+        timer = nil
         target = nil
+        callback = nil
     }
 
     private func tick() {
         let now = CACurrentMediaTime()
         timestamp = now
         targetTimestamp = now + duration
-        _ = target?.perform(selector)
+        if let cb = callback {
+            cb()
+        } else {
+            #if canImport(ObjectiveC)
+            _ = target?.perform(Selector(selectorName))
+            #endif
+        }
     }
 
     private func updateInterval() {
@@ -83,13 +90,14 @@ public class CADisplayLink {
         if let t = timer {
             t.schedule(
                 deadline: .now(),
-                repeating: duration,
+                repeating: .milliseconds(Int(duration * 1000)),
                 leeway: .milliseconds(1)
             )
         }
     }
 
-    deinit {
-        timer?.cancel()
+    /// Set a closure-based callback (used on Linux where ObjC selectors aren't available).
+    public func setCallback(_ cb: @escaping () -> Void) {
+        self.callback = cb
     }
 }
