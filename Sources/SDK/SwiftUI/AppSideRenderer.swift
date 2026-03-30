@@ -70,7 +70,10 @@ final class AppSideRenderer: NSObject {
         renderer = nil
     }
 
-    @objc private func tick() {
+    #if canImport(ObjectiveC)
+    @objc
+    #endif
+    private func tick() {
         // Check both explicit dirty flag and async state invalidation
         if StateGraph.shared.needsAsyncRender {
             needsRender = true

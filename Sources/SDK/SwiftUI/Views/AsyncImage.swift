@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import CloneRender
 
 /// The current phase of an asynchronous image loading operation.

@@ -309,17 +309,16 @@ final class AppConnectionManager {
         }
         pendingOpenFiles.removeAll()
 
-        // Process thumbnail requests — resolve IDs on main thread, capture + send on background
+        // Process thumbnail requests — IOSurface capture is macOS-only
+        #if canImport(IOSurface)
         for req in pendingThumbnailRequests {
             let serverWid = externalWindowId(for: req.windowId)
             let app = serverWid.flatMap { sid in server.connectedApps.first(where: { $0.windowId == sid }) }
             let dockApp = server.connectedApps.first(where: { $0.windowId == req.dockWindowId })
-            logErr("[Thumbnail] Resolving window=\(req.windowId): serverWid=\(serverWid as Any) app=\(app?.appId as Any) iosurface=\(app?.iosurfaceId as Any) dockApp=\(dockApp?.appId as Any)\n")
             guard let serverWid, let app, app.iosurfaceId != 0, let dockApp else {
                 continue
             }
             let iosurfaceId = app.iosurfaceId
-            let dockWid = req.dockWindowId
             let windowId = req.windowId
             let maxW = req.maxWidth
             let maxH = req.maxHeight
@@ -327,13 +326,10 @@ final class AppConnectionManager {
                 guard let result = ThumbnailCapture.capture(iosurfaceId: iosurfaceId, maxWidth: maxW, maxHeight: maxH) else {
                     return
                 }
-                logErr("[Thumbnail] Sending to dock...\n")
-                logErr("[Thumbnail] PNG \(result.pngData.count) bytes, sending...\n")
                 dockApp.send(.windowThumbnail(windowId: windowId, pngData: result.pngData))
-                logErr("[Thumbnail] Sent\n")
-                logErr("[Thumbnail] Sent to dock\n")
             }
         }
+        #endif
         pendingThumbnailRequests.removeAll()
 
     }

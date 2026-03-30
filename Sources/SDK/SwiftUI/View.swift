@@ -768,9 +768,11 @@ public extension View {
         _ModifiedView(node: _resolve(self).navigationSplitViewColumnWidth(min: min, ideal: ideal, max: max))
     }
 
+    #if canImport(Darwin)
     func onDrop(of types: [UTType], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).onDrop(of: types, isTargeted: isTargeted, perform: perform))
     }
+    #endif
 
     func clipShape<S: Shape>(_ shape: S) -> _ModifiedView<Self> {
         _ModifiedView(node: _resolve(self).clipShape(shape))

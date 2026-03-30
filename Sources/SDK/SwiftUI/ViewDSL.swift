@@ -991,7 +991,9 @@ extension ViewNode {
     func navigationSplitViewColumnWidth(min: CGFloat? = nil, ideal: CGFloat, max: CGFloat? = nil) -> ViewNode { self }
 
     /// `.onDrop(of:isTargeted:perform:)` — no-op on Clone.
+    #if canImport(Darwin)
     func onDrop(of types: [UTType], isTargeted: Binding<Bool>?, perform: @escaping ([NSItemProvider]) -> Bool) -> ViewNode { self }
+    #endif
 
     /// `.clipShape(_:)` with Shape constraint — no-op on Clone.
     func clipShape<S: Shape>(_ shape: S) -> ViewNode { self }
