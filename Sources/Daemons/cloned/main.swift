@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneDaemon
 import CloneProtocol
 
@@ -6,9 +7,9 @@ let server = DaemonServer()
 
 do {
     try server.start()
-    fputs("cloned: listening on \(daemonSocketPath)\n", stderr)
+    logErr("cloned: listening on \(daemonSocketPath)\n")
 } catch {
-    fputs("cloned: failed to start — \(error)\n", stderr)
+    logErr("cloned: failed to start — \(error)\n")
     exit(1)
 }
 

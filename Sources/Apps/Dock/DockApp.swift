@@ -340,13 +340,13 @@ struct DockApp: App {
     }
 
     func onMinimizedWindows(windows: [MinimizedWindowInfo]) {
-        fputs("[Dock] onMinimizedWindows: \(windows.count) windows\n", stderr)
+        logErr("[Dock] onMinimizedWindows: \(windows.count) windows\n")
         // Preserve existing thumbnails for windows that are still minimized
         let thumbEntries = state.minimizedWindows.compactMap { w in
             w.thumbnail.map { (w.windowId, $0) }
         }
         let existingThumbnails = Dictionary(uniqueKeysWithValues: thumbEntries)
-        fputs("[Dock] Preserving \(existingThumbnails.count) thumbnails: \(existingThumbnails.keys.sorted())\n", stderr)
+        logErr("[Dock] Preserving \(existingThumbnails.count) thumbnails: \(existingThumbnails.keys.sorted())\n")
         let currentIds = Set(windows.map(\.windowId))
         state.requestedThumbnails = state.requestedThumbnails.intersection(currentIds)
         state.minimizedWindows = windows.map { info in
@@ -357,21 +357,21 @@ struct DockApp: App {
                 thumbnail: existingThumbnails[info.windowId]
             )
         }
-        fputs("[Dock] State updated, requesting thumbnails...\n", stderr)
+        logErr("[Dock] State updated, requesting thumbnails...\n")
         // Request thumbnails for new windows we haven't requested yet
         for info in windows where !state.requestedThumbnails.contains(info.windowId) {
             state.requestedThumbnails.insert(info.windowId)
-            fputs("[Dock] Sending requestThumbnail for window \(info.windowId)\n", stderr)
+            logErr("[Dock] Sending requestThumbnail for window \(info.windowId)\n")
             client.send(.requestThumbnail(windowId: info.windowId, maxWidth: 48, maxHeight: 36))
-            fputs("[Dock] requestThumbnail sent for window \(info.windowId)\n", stderr)
+            logErr("[Dock] requestThumbnail sent for window \(info.windowId)\n")
         }
-        fputs("[Dock] onMinimizedWindows done\n", stderr)
+        logErr("[Dock] onMinimizedWindows done\n")
     }
 
     func onWindowThumbnail(windowId: UInt64, pngData: Data) {
-        fputs("[Dock] onWindowThumbnail: window=\(windowId) \(pngData.count) bytes PNG\n", stderr)
+        logErr("[Dock] onWindowThumbnail: window=\(windowId) \(pngData.count) bytes PNG\n")
         guard let decoded = try? decodeImage(data: pngData) else {
-            fputs("[Dock] Failed to decode PNG\n", stderr)
+            logErr("[Dock] Failed to decode PNG\n")
             return
         }
         let image = Image._fromDecodedRGBA(
@@ -382,7 +382,7 @@ struct DockApp: App {
         )
         if let idx = state.minimizedWindows.firstIndex(where: { $0.windowId == windowId }) {
             state.minimizedWindows[idx].thumbnail = image
-            fputs("[Dock] Thumbnail stored for window \(windowId)\n", stderr)
+            logErr("[Dock] Thumbnail stored for window \(windowId)\n")
         }
     }
 

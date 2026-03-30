@@ -448,11 +448,13 @@ extension PredicateExpressions.SequenceStartsWith: _PredStringHasPrefix {
     var _other: Any { prefix }
 }
 
+#if canImport(Darwin)
 @available(macOS 14, iOS 17, tvOS 17, watchOS 10, *)
 extension PredicateExpressions.StringCaseInsensitiveCompare: _PredStringCaseInsensitiveCompare {
     var _root: Any { root }
     var _other: Any { other }
 }
+#endif
 
 // Note: PredicateExpressions.StringLocalizedStandardContains is #if FOUNDATION_FRAMEWORK only.
 // On Apple platforms it's available; on open-source swift-foundation it's not.

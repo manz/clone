@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import AvocadoEvents
 import CloneProtocol
 
@@ -8,9 +9,9 @@ signal(SIGPIPE, SIG_IGN)
 let server = AvocadoEventsServer()
 do {
     try server.start()
-    fputs("avocadoeventsd: listening on \(avocadoeventsdSocketPath)\n", stderr)
+    logErr("avocadoeventsd: listening on \(avocadoeventsdSocketPath)\n")
 } catch {
-    fputs("avocadoeventsd: failed to start: \(error)\n", stderr)
+    logErr("avocadoeventsd: failed to start: \(error)\n")
     exit(1)
 }
 dispatchMain()

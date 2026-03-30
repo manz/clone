@@ -215,7 +215,7 @@ public final class CompositorServer {
             machRecvPort = port
             startMachPortReceiver()
         } else {
-            fputs("[compositor] Warning: failed to register Mach port for IOSurface transfer\n", stderr)
+            logErr("[compositor] Warning: failed to register Mach port for IOSurface transfer\n")
         }
         #endif
     }
@@ -233,7 +233,7 @@ public final class CompositorServer {
                 // Import the IOSurface into this process — makes IOSurfaceLookup work
                 let surfaceId = clone_import_iosurface_port(port)
                 if surfaceId != 0 {
-                    fputs("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n", stderr)
+                    logErr("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n")
                 }
             }
         }
@@ -384,7 +384,7 @@ public final class CompositorServer {
             app.send(.avocadoEvent(event))
         }
         if targets.isEmpty {
-            FileHandle.standardError.write(Data("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n".utf8))
+            logErr("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n")
         }
     }
 

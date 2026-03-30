@@ -1,4 +1,5 @@
 import Foundation
+@_exported import PosixShim
 
 /// Socket path for the compositor (XDG_RUNTIME_DIR on Linux, /tmp fallback on macOS).
 public let compositorSocketPath: String = {
@@ -521,7 +522,7 @@ public enum WireProtocol {
             return (message, totalLength)
         } catch {
             // Skip this message to avoid permanently blocking the stream.
-            FileHandle.standardError.write(Data("[WireProtocol] Failed to decode \(T.self) (\(length) bytes): \(error)\n".utf8))
+            logErr("[WireProtocol] Failed to decode \(T.self) (\(length) bytes): \(error)\n")
             return nil
         }
     }

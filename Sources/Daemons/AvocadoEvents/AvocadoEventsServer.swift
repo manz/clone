@@ -124,9 +124,9 @@ public final class AvocadoEventsServer {
             client.send(.ok)
             for event in buffered {
                 client.send(.event(event))
-                fputs("[avocadoeventsd] Delivered buffered event to \(appId)\n", stderr)
+                logErr("[avocadoeventsd] Delivered buffered event to \(appId)\n")
             }
-            fputs("[avocadoeventsd] Registered \(appId)\n", stderr)
+            logErr("[avocadoeventsd] Registered \(appId)\n")
 
         case .send(let targetAppId, let event):
             lock.lock()
@@ -136,7 +136,7 @@ public final class AvocadoEventsServer {
                 // Buffer for when the app connects
                 pendingEvents[targetAppId, default: []].append(event)
                 lock.unlock()
-                fputs("[avocadoeventsd] Buffered event for \(targetAppId) (not yet connected)\n", stderr)
+                logErr("[avocadoeventsd] Buffered event for \(targetAppId) (not yet connected)\n")
                 client.send(.ok)
             } else {
                 lock.unlock()

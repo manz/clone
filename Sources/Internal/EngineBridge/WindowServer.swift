@@ -295,7 +295,7 @@ public final class WindowServer {
             fm.currentDirectoryPath + "/engine/assets/wallpaper.jpg",
         ]
         let result = candidates.first(where: { fm.fileExists(atPath: $0) }) ?? ""
-        fputs("Wallpaper path: \(result.isEmpty ? "(none)" : result)\n", stderr)
+        logErr("Wallpaper path: \(result.isEmpty ? "(none)" : result)\n")
         return result
     }
 }

@@ -139,7 +139,7 @@ extension App {
                 role: config.role
             )
         } catch {
-            fputs("Failed to connect to compositor: \(error)\n", stderr)
+            logErr("Failed to connect to compositor: \(error)\n")
             exit(1)
         }
 
@@ -165,7 +165,7 @@ extension App {
             DispatchQueue.global().async { aeClient.listen() }
             _sharedAEClient = aeClient
         } catch {
-            fputs("Note: could not connect to avocadoeventsd: \(error)\n", stderr)
+            logErr("Note: could not connect to avocadoeventsd: \(error)\n")
         }
 
         // Wire up system actions.
@@ -179,7 +179,7 @@ extension App {
             client.send(.restoreWindow(windowId: windowId))
         }
         SystemActions.shared.sessionReady = SessionReadyAction {
-            fputs("[App] sessionReady fired, sending to compositor\n", stderr)
+            logErr("[App] sessionReady fired, sending to compositor\n")
             client.send(.sessionReady)
         }
         SystemActions.shared.setColorScheme = SetColorSchemeAction { dark in
@@ -216,7 +216,7 @@ extension App {
 
             // Declarative path: ViewNode → Layout → Flatten → IPC
             guard let windowGroup = app.body as? (any _WindowGroupProtocol) else {
-                fputs("App.body must contain a WindowGroup\n", stderr)
+                logErr("App.body must contain a WindowGroup\n")
                 exit(1)
             }
             // Register app menus with compositor (collected from .commands {} on Scene)
@@ -317,7 +317,7 @@ extension App {
                 if button == 0 && pressed && handleOpenPanelClick(x: x, y: y, width: CGFloat(app.client.width), height: CGFloat(app.client.height)) {
                     return
                 }
-                fputs("[App] pointerButton button=\(button) pressed=\(pressed) x=\(x) y=\(y)\n", stderr)
+                logErr("[App] pointerButton button=\(button) pressed=\(pressed) x=\(x) y=\(y)\n")
                 app.onPointerButton(button: button, pressed: pressed, x: x, y: y)
                 // Right-click: open context menu
                 if button == 1 && pressed {
@@ -519,9 +519,9 @@ extension App {
             app.onAppMenus(appName: name, menus: menus)
         }
 
-        fputs("\(title) connected to compositor\n", stderr)
+        logErr("\(title) connected to compositor\n")
         app.client.runLoop()
-        fputs("\(title) disconnected\n", stderr)
+        logErr("\(title) disconnected\n")
     }
 }
 

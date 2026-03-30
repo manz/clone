@@ -11,6 +11,14 @@ import Darwin
 import Glibc
 #endif
 
+// MARK: - Logging
+
+/// Write a message to stderr. Thread-safe wrapper that avoids Swift 6 concurrency
+/// warnings about `stderr` being shared mutable state.
+public func logErr(_ message: String) {
+    FileHandle.standardError.write(Data(message.utf8))
+}
+
 // MARK: - Socket I/O
 
 public let posix_connect = connect

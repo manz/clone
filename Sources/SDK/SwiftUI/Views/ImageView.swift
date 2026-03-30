@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneRender
 
 /// A view that displays an image. Matches Apple's SwiftUI `Image` struct.
@@ -43,7 +44,7 @@ public struct Image: _PrimitiveView {
             image.imageHeight = decoded.height
             image.rgbaData = [UInt8](decoded.rgbaData)
         } catch {
-            fputs("[Image] Failed to decode image: \(error)\n", stderr)
+            logErr("[Image] Failed to decode image: \(error)\n")
         }
     }
 

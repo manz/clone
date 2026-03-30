@@ -35,7 +35,7 @@ final class AppSideRenderer: NSObject {
         do {
             renderer = try AppRenderer()
         } catch {
-            fputs("[AppSideRenderer] Failed to create GPU renderer: \(error)\n", stderr)
+            logErr("[AppSideRenderer] Failed to create GPU renderer: \(error)\n")
             return
         }
 
@@ -94,7 +94,7 @@ final class AppSideRenderer: NSObject {
                 transparent: transparentBackground
             )
         } catch {
-            fputs("[AppSideRenderer] Render failed: \(error)\n", stderr)
+            logErr("[AppSideRenderer] Render failed: \(error)\n")
             return
         }
 
