@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
-use wgpu_iosurface::SharedTexture;
+use wgpu_shared_surface::SharedTexture;
 
 /// An offscreen surface for a single window.
 pub struct WindowSurface {
@@ -95,6 +95,7 @@ struct CompositeInstance {
 pub struct SurfaceCompositor {
     surfaces: HashMap<u64, WindowSurface>,
     /// Tracks which surface_id → iosurface_id mapping is active, to avoid reimporting.
+    #[cfg(target_os = "macos")]
     imported_iosurfaces: HashMap<u64, u32>,
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
@@ -219,6 +220,7 @@ impl SurfaceCompositor {
 
         Self {
             surfaces: HashMap::new(),
+            #[cfg(target_os = "macos")]
             imported_iosurfaces: HashMap::new(),
             pipeline,
             bind_group_layout,
@@ -242,71 +244,78 @@ impl SurfaceCompositor {
         self.surfaces.get(&surface_id).map(|s| &s.view)
     }
 
-    /// Import an IOSurface by ID as a compositor surface.
-    /// Caches the import — only reimports when the IOSurface ID changes.
-    pub fn import_iosurface(
+    /// Import a shared surface by its platform ID (IOSurface ID on macOS).
+    /// Caches the import — only reimports when the surface ID changes.
+    pub fn import_shared_surface(
         &mut self,
         device: &wgpu::Device,
         surface_id: u64,
-        iosurface_id: u32,
+        platform_id: u32,
         _width_hint: u32,
         _height_hint: u32,
     ) -> bool {
-        // Skip if already imported with the same IOSurface ID
-        if self.imported_iosurfaces.get(&surface_id) == Some(&iosurface_id) {
-            return true;
-        }
-
-        // Get actual dimensions from the IOSurface
-        let raw = wgpu_iosurface::iosurface_lookup(iosurface_id);
-        if raw.is_null() {
-            log::error!("IOSurfaceLookup({iosurface_id}) failed for surface {surface_id}");
-            return false;
-        }
-        let width = unsafe { wgpu_iosurface::iosurface_get_width(raw) } as u32;
-        let height = unsafe { wgpu_iosurface::iosurface_get_height(raw) } as u32;
-        wgpu_iosurface::iosurface_release(raw);
-
-        match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
-            Ok(shared) => {
-                // Create a WindowSurface that wraps the imported IOSurface texture view
-                let view = shared.texture().create_view(&Default::default());
-                let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some("imported_depth"),
-                    size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
-                    mip_level_count: 1,
-                    sample_count: 1,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Depth32Float,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-                    view_formats: &[],
-                });
-                let depth_view = depth_texture.create_view(&Default::default());
-                // Store as WindowSurface — the texture field won't match (it's IOSurface-backed)
-                // but the view is what composite() uses for sampling.
-                self.surfaces.insert(surface_id, WindowSurface {
-                    texture: shared.into_texture(),
-                    view,
-                    depth_texture,
-                    depth_view,
-                    width,
-                    height,
-                    content_width: width,
-                    content_height: height,
-                });
-                self.imported_iosurfaces.insert(surface_id, iosurface_id);
-                true
+        #[cfg(target_os = "macos")]
+        {
+            // Skip if already imported with the same platform ID
+            if self.imported_iosurfaces.get(&surface_id) == Some(&platform_id) {
+                return true;
             }
-            Err(e) => {
-                log::error!("Failed to import IOSurface {iosurface_id} for surface {surface_id} ({width}x{height}): {e}");
-                false
+
+            // Get actual dimensions from the IOSurface
+            let raw = wgpu_shared_surface::iosurface_lookup(platform_id);
+            if raw.is_null() {
+                log::error!("IOSurfaceLookup({platform_id}) failed for surface {surface_id}");
+                return false;
             }
+            let width = unsafe { wgpu_shared_surface::iosurface_get_width(raw) } as u32;
+            let height = unsafe { wgpu_shared_surface::iosurface_get_height(raw) } as u32;
+            wgpu_shared_surface::iosurface_release(raw);
+
+            match SharedTexture::from_id(device, platform_id, width, height, self.offscreen_format) {
+                Ok(shared) => {
+                    let view = shared.texture().create_view(&Default::default());
+                    let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("imported_depth"),
+                        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Depth32Float,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                        view_formats: &[],
+                    });
+                    let depth_view = depth_texture.create_view(&Default::default());
+                    self.surfaces.insert(surface_id, WindowSurface {
+                        texture: shared.into_texture(),
+                        view,
+                        depth_texture,
+                        depth_view,
+                        width,
+                        height,
+                        content_width: width,
+                        content_height: height,
+                    });
+                    self.imported_iosurfaces.insert(surface_id, platform_id);
+                    true
+                }
+                Err(e) => {
+                    log::error!("Failed to import surface {platform_id} for {surface_id}: {e}");
+                    false
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Linux: no cross-process surface import yet — apps use pixel upload
+            let _ = (device, surface_id, platform_id, _width_hint, _height_hint);
+            false
         }
     }
 
     /// Remove surfaces not in the active set.
     pub fn gc(&mut self, active_ids: &[u64]) {
         self.surfaces.retain(|id, _| active_ids.contains(id));
+        #[cfg(target_os = "macos")]
         self.imported_iosurfaces.retain(|id, _| active_ids.contains(id));
     }
 

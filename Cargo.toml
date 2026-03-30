@@ -1,6 +1,10 @@
 [workspace]
-members = ["engine", "render", "wgpu-iosurface", "audio", "text"]
+members = ["engine", "render", "wgpu-shared-surface", "audio", "text"]
 resolver = "2"
+
+# wgpu-iosurface is macOS-only — not a workspace member.
+# It's pulled in via [target.'cfg(target_os = "macos")'.dependencies]
+# in engine/Cargo.toml and render/Cargo.toml.
 
 [profile.dev.package."*"]
 opt-level = 2

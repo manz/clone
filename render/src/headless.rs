@@ -1,6 +1,6 @@
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
-use wgpu_iosurface::SharedTexture;
+use wgpu_shared_surface::SharedTexture;
 
 /// A headless wgpu rendering context for app-side rendering.
 /// Double-buffered IOSurface textures: app renders to back, compositor reads front.
