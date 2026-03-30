@@ -1,5 +1,17 @@
 import Foundation
 
+/// Resolve a binary from PATH (avoids hardcoding /usr/bin/swift).
+func which(_ name: String) -> String {
+    let pathDirs = ProcessInfo.processInfo.environment["PATH"]?.split(separator: ":") ?? []
+    for dir in pathDirs {
+        let full = "\(dir)/\(name)"
+        if FileManager.default.isExecutableFile(atPath: full) {
+            return full
+        }
+    }
+    return "/usr/bin/\(name)"
+}
+
 struct YCodeBuild {
     let sdkPath: String
     let target: String
@@ -101,7 +113,7 @@ struct YCodeBuild {
         if previousMode != nil && previousMode != currentMode {
             print("ycodebuild: build mode changed (\(previousMode!) → \(currentMode)), cleaning build cache...")
             let cleanProcess = Process()
-            cleanProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            cleanProcess.executableURL = URL(fileURLWithPath: which("swift"))
             cleanProcess.arguments = ["package", "--package-path", parentDir.path, "clean"]
             cleanProcess.standardOutput = FileHandle.nullDevice
             cleanProcess.standardError = FileHandle.nullDevice
@@ -127,7 +139,7 @@ struct YCodeBuild {
 
         // Run swift build
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        process.executableURL = URL(fileURLWithPath: which("swift"))
         process.arguments = ["build", "--package-path", parentDir.path, "--product", target]
         process.currentDirectoryURL = parentDir
 
@@ -142,7 +154,7 @@ struct YCodeBuild {
             print("ycodebuild: build succeeded!")
             // Use swift build --show-bin-path to get the actual binary location
             let binPathProcess = Process()
-            binPathProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            binPathProcess.executableURL = URL(fileURLWithPath: which("swift"))
             binPathProcess.arguments = ["build", "--package-path", parentDir.path, "--show-bin-path"]
             let pipe = Pipe()
             binPathProcess.standardOutput = pipe
@@ -353,7 +365,7 @@ func parseArguments() throws -> YCodeBuild {
 
     let resolvedSDK = sdkPath
         ?? ProcessInfo.processInfo.environment["AQUAX_SDK_PATH"]
-        ?? (NSString(string: "~/Projects/clone").expandingTildeInPath)
+        ?? FileManager.default.currentDirectoryPath
     let resolvedSource = sourceDir ?? "."
     let resolvedTarget = target ?? URL(fileURLWithPath: resolvedSource).lastPathComponent
 

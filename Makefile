@@ -116,7 +116,11 @@ install-sdk:
 	@mkdir -p $(CLONE_ROOT)/System/Library/Frameworks $(CLONE_ROOT)/Library/Fonts
 	@cp -n engine/assets/Inter-*.ttf engine/assets/Iosevka-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
 	@rm -rf $(CLONE_ROOT)/System/Library/Frameworks
+ifeq ($(UNAME),Darwin)
 	@ditto .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
+else
+	@cp -a .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
+endif
 	@cp target/$(CONFIG)/libclone_engine.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
 	@cp target/$(CONFIG)/libclone_render.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
 	@cp target/$(CONFIG)/libclone_text.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
@@ -130,15 +134,15 @@ install: install-sdk
 	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
-			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
+			[ -d "$$app" ] && cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
 		done; \
 	done
 	@echo "Installing system binaries..."
-	@ditto $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias
