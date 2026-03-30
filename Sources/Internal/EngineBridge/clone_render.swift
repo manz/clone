@@ -552,44 +552,43 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 /**
  * UniFFI-exported headless renderer for app-side rendering.
- * Thread-safe wrapper around HeadlessDevice.
+ * Thread-safe wrapper around HeadlessDevice (macOS: IOSurface, Linux: stub).
  */
 public protocol AppRendererProtocol: AnyObject, Sendable {
     
     /**
-     * Get the current IOSurface ID. Returns 0 if no render has happened yet.
+     * Get the current surface ID. Returns 0 if no render has happened yet.
      */
     func iosurfaceId()  -> UInt32
     
     /**
-     * Create a Mach port send right for the current front IOSurface.
+     * Create a Mach port send right for the current front surface.
      */
     func machPort()  -> UInt32
     
     /**
-     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     * Create a Mach port for the surface at the given buffer index (0 or 1).
      */
     func machPortAt(index: UInt32)  -> UInt32
     
     /**
-     * Render commands into an IOSurface-backed texture.
-     * Returns the IOSurface ID for cross-process sharing (zero-copy).
-     * The compositor imports by this ID — no pixel readback needed.
+     * Render commands into a shared texture.
+     * Returns the surface ID for cross-process sharing (IOSurface ID on macOS).
      */
     func render(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float, transparent: Bool) throws  -> UInt32
     
     /**
-     * Render commands to BGRA8 pixel data (legacy — uses readback, slow).
+     * Render commands to BGRA8 pixel data (readback, slow).
      */
     func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
     
     /**
-     * Render commands to BGRA8 pixel data with transparent background (legacy).
+     * Render commands to BGRA8 pixel data with transparent background.
      */
     func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float) throws  -> Data
     
     /**
-     * True if textures were reallocated since the last call (new Mach ports needed).
+     * True if textures were reallocated since the last call.
      * Resets the flag after reading.
      */
     func takeTexturesChanged()  -> Bool
@@ -597,7 +596,7 @@ public protocol AppRendererProtocol: AnyObject, Sendable {
 }
 /**
  * UniFFI-exported headless renderer for app-side rendering.
- * Thread-safe wrapper around HeadlessDevice.
+ * Thread-safe wrapper around HeadlessDevice (macOS: IOSurface, Linux: stub).
  */
 open class AppRenderer: AppRendererProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -663,7 +662,7 @@ public convenience init()throws  {
 
     
     /**
-     * Get the current IOSurface ID. Returns 0 if no render has happened yet.
+     * Get the current surface ID. Returns 0 if no render has happened yet.
      */
 open func iosurfaceId() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
@@ -674,7 +673,7 @@ open func iosurfaceId() -> UInt32  {
 }
     
     /**
-     * Create a Mach port send right for the current front IOSurface.
+     * Create a Mach port send right for the current front surface.
      */
 open func machPort() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
@@ -685,7 +684,7 @@ open func machPort() -> UInt32  {
 }
     
     /**
-     * Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+     * Create a Mach port for the surface at the given buffer index (0 or 1).
      */
 open func machPortAt(index: UInt32) -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
@@ -697,9 +696,8 @@ open func machPortAt(index: UInt32) -> UInt32  {
 }
     
     /**
-     * Render commands into an IOSurface-backed texture.
-     * Returns the IOSurface ID for cross-process sharing (zero-copy).
-     * The compositor imports by this ID — no pixel readback needed.
+     * Render commands into a shared texture.
+     * Returns the surface ID for cross-process sharing (IOSurface ID on macOS).
      */
 open func render(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float, transparent: Bool)throws  -> UInt32  {
     return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
@@ -715,7 +713,7 @@ open func render(commands: [RenderCommand], width: UInt32, height: UInt32, scale
 }
     
     /**
-     * Render commands to BGRA8 pixel data (legacy — uses readback, slow).
+     * Render commands to BGRA8 pixel data (readback, slow).
      */
 open func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
@@ -730,7 +728,7 @@ open func renderToPixels(commands: [RenderCommand], width: UInt32, height: UInt3
 }
     
     /**
-     * Render commands to BGRA8 pixel data with transparent background (legacy).
+     * Render commands to BGRA8 pixel data with transparent background.
      */
 open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, height: UInt32, scale: Float)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
@@ -745,7 +743,7 @@ open func renderToPixelsTransparent(commands: [RenderCommand], width: UInt32, he
 }
     
     /**
-     * True if textures were reallocated since the last call (new Mach ports needed).
+     * True if textures were reallocated since the last call.
      * Resets the flag after reading.
      */
 open func takeTexturesChanged() -> Bool  {
@@ -802,6 +800,67 @@ public func FfiConverterTypeAppRenderer_lower(_ value: AppRenderer) -> UInt64 {
 }
 
 
+
+
+/**
+ * Decoded image result.
+ */
+public struct DecodedImage: Equatable, Hashable {
+    public var width: UInt32
+    public var height: UInt32
+    public var rgbaData: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(width: UInt32, height: UInt32, rgbaData: Data) {
+        self.width = width
+        self.height = height
+        self.rgbaData = rgbaData
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DecodedImage: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDecodedImage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DecodedImage {
+        return
+            try DecodedImage(
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                rgbaData: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DecodedImage, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterData.write(value.rgbaData, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecodedImage_lift(_ buf: RustBuffer) throws -> DecodedImage {
+    return try FfiConverterTypeDecodedImage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDecodedImage_lower(_ value: DecodedImage) -> RustBuffer {
+    return FfiConverterTypeDecodedImage.lower(value)
+}
 
 
 public struct RgbaColor: Equatable, Hashable {
@@ -1654,6 +1713,16 @@ fileprivate struct FfiConverterSequenceTypeRenderCommand: FfiConverterRustBuffer
         return seq
     }
 }
+/**
+ * Decode an image file (JPEG, PNG, GIF, BMP, etc.) to RGBA pixel data.
+ */
+public func decodeImage(data: Data)throws  -> DecodedImage  {
+    return try  FfiConverterTypeDecodedImage_lift(try rustCallWithError(FfiConverterTypeRenderError_lift) {
+    uniffi_clone_render_fn_func_decode_image(
+        FfiConverterData.lower(data),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -1670,25 +1739,28 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 16933) {
+    if (uniffi_clone_render_checksum_func_decode_image() != 19939) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 54178) {
+    if (uniffi_clone_render_checksum_method_apprenderer_iosurface_id() != 22375) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_mach_port_at() != 63353) {
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port() != 25689) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_render() != 11015) {
+    if (uniffi_clone_render_checksum_method_apprenderer_mach_port_at() != 57815) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 34067) {
+    if (uniffi_clone_render_checksum_method_apprenderer_render() != 42202) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 62831) {
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels() != 23673) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_clone_render_checksum_method_apprenderer_take_textures_changed() != 39340) {
+    if (uniffi_clone_render_checksum_method_apprenderer_render_to_pixels_transparent() != 5309) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_clone_render_checksum_method_apprenderer_take_textures_changed() != 34270) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_clone_render_checksum_constructor_apprenderer_new() != 17454) {
