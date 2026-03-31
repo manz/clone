@@ -143,15 +143,10 @@ final class AppConnectionManager {
         if isFullPath && fm.isExecutableFile(atPath: name) {
             path = name
         } else {
-            #if os(macOS)
-            let appBinaryDir = "MacOS"
-            #else
-            let appBinaryDir = "Linux"
-            #endif
             let candidates = [
                 URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
                 "\(cloneSystemPath)/\(name)",
-                "\(cloneApplicationsPath)/\(name).app/Contents/\(appBinaryDir)/\(name)",
+                "\(cloneApplicationsPath)/\(name).app/Contents/\(cloneAppBundleExecDir)/\(name)",
                 ".build/debug/\(name)",
                 "target/debug/\(name)",
             ]

@@ -251,11 +251,7 @@ public final class LaunchServicesServer {
         let bundleName = plist["CFBundleName"] as? String ?? ""
         let displayName = plist["CFBundleDisplayName"] as? String ?? bundleName
         let executableName = plist["CFBundleExecutable"] as? String ?? bundleName
-        #if os(macOS)
-        let executablePath = "\(path)/Contents/MacOS/\(executableName)"
-        #else
-        let executablePath = "\(path)/Contents/Linux/\(executableName)"
-        #endif
+        let executablePath = "\(path)/Contents/\(cloneAppBundleExecDir)/\(executableName)"
         let iconFile = plist["CFBundleIconFile"] as? String
         let version = plist["CFBundleShortVersionString"] as? String
 
