@@ -306,9 +306,53 @@ impl SurfaceCompositor {
         }
         #[cfg(not(target_os = "macos"))]
         {
-            // Linux: no cross-process surface import yet — apps use pixel upload
+            // Linux: DMA-BUF import not done via platform_id — use import_shared_surface_fd
             let _ = (device, surface_id, platform_id, _width_hint, _height_hint);
             false
+        }
+    }
+
+    /// Import a shared surface from a DMA-BUF file descriptor (Linux).
+    /// The fd is dup'd internally — caller keeps ownership.
+    #[cfg(not(target_os = "macos"))]
+    pub fn import_shared_surface_fd(
+        &mut self,
+        device: &wgpu::Device,
+        surface_id: u64,
+        fd: i32,
+        width: u32,
+        height: u32,
+    ) -> bool {
+        match SharedTexture::from_fd(device, fd, width, height, self.offscreen_format) {
+            Ok(shared) => {
+                let view = shared.texture().create_view(&Default::default());
+                let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("imported_depth"),
+                    size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Depth32Float,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[],
+                });
+                let depth_view = depth_texture.create_view(&Default::default());
+                self.surfaces.insert(surface_id, WindowSurface {
+                    texture: shared.into_texture(),
+                    view,
+                    depth_texture,
+                    depth_view,
+                    width,
+                    height,
+                    content_width: width,
+                    content_height: height,
+                });
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to import DMA-BUF fd {fd} for surface {surface_id}: {e}");
+                false
+            }
         }
     }
 

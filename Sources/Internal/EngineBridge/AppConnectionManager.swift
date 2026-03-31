@@ -591,7 +591,7 @@ final class AppConnectionManager {
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: app.iosurfaceId
+                    iosurfaceId: app.iosurfaceId, dmabufFd: -1
                 ))
                 continue
             }
@@ -608,7 +608,7 @@ final class AppConnectionManager {
                     ),
                     commands: engineCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
             }
         }

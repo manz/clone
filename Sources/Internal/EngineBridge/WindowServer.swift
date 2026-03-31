@@ -41,7 +41,7 @@ public final class WindowServer {
             desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
             commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
             pixelData: nil,
-            iosurfaceId: 0
+            iosurfaceId: 0, dmabufFd: -1
         ))
 
         // Pre-session: only wallpaper + LoginWindow overlay
@@ -129,7 +129,7 @@ public final class WindowServer {
                     ),
                     commands: windowCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
 
                 // Content surface on top — IOSurface (zero-copy)
@@ -143,7 +143,7 @@ public final class WindowServer {
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: iosurfaceId
+                    iosurfaceId: iosurfaceId, dmabufFd: -1
                 ))
             } else {
                 // Compositor-rendered: single surface with chrome + content
@@ -157,7 +157,7 @@ public final class WindowServer {
                     ),
                     commands: windowCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
             }
 
@@ -183,7 +183,7 @@ public final class WindowServer {
                     ),
                     commands: backdropCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
 
                 // Sheet surface — centered over parent
@@ -203,7 +203,7 @@ public final class WindowServer {
                     ),
                     commands: sheetEngineCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
             }
         }

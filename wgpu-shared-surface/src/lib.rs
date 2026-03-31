@@ -3,9 +3,9 @@
 //! Cross-platform GPU surface sharing for wgpu.
 //!
 //! - **macOS**: IOSurface + Mach ports — zero-copy cross-process GPU memory sharing
-//! - **Linux**: regular wgpu texture + pixel readback (DMA-BUF zero-copy future)
+//! - **Linux**: DMA-BUF via Vulkan external memory — zero-copy cross-process GPU memory sharing
 //!
-//! Both platforms export the same [`SharedTexture`] type.
+//! Both platforms export the same [`SharedTexture`] type with `export_fd()`/`from_fd()`.
 
 #[cfg(target_os = "macos")]
 mod iosurface;

@@ -21,10 +21,13 @@ pub struct SurfaceFrame {
     pub commands: Vec<RenderCommand>,
     /// Pre-rendered BGRA8 pixel data from app-side rendering (legacy shm path).
     pub pixel_data: Option<Vec<u8>>,
-    /// IOSurface ID for zero-copy GPU texture sharing.
+    /// IOSurface ID for zero-copy GPU texture sharing (macOS).
     /// When non-zero, the compositor imports this IOSurface directly —
     /// no pixel upload or command rendering needed.
     pub iosurface_id: u32,
+    /// DMA-BUF file descriptor for zero-copy GPU texture sharing (Linux).
+    /// When >= 0, the compositor imports this fd as a Vulkan texture.
+    pub dmabuf_fd: i32,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -70,6 +70,19 @@ impl AppRenderer {
         device.shared_texture_at(index as usize).map_or(0, |t| t.mach_port())
     }
 
+    /// Export the current front surface as a DMA-BUF fd (Linux) or IOSurface→fd (macOS).
+    /// Returns -1 on failure. Caller must close the fd after sendmsg.
+    pub fn export_fd(&self) -> i32 {
+        let device = self.inner.lock().unwrap();
+        device.shared_texture().and_then(|t| t.export_fd().ok()).unwrap_or(-1)
+    }
+
+    /// Export the surface at the given buffer index as a fd.
+    pub fn export_fd_at(&self, index: u32) -> i32 {
+        let device = self.inner.lock().unwrap();
+        device.shared_texture_at(index as usize).and_then(|t| t.export_fd().ok()).unwrap_or(-1)
+    }
+
     /// True if textures were reallocated since the last call.
     pub fn take_textures_changed(&self) -> bool {
         let mut device = self.inner.lock().unwrap();
