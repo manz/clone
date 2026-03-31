@@ -25,7 +25,8 @@ pub struct SharedTexture {
 }
 
 impl SharedTexture {
-    /// Create a new DMA-BUF-backed texture (app side).
+    /// Create a new texture, attempting DMA-BUF export for cross-process sharing.
+    /// Falls back to a regular wgpu texture if DMA-BUF is not supported.
     pub fn new(
         device: &wgpu::Device,
         width: u32,
@@ -37,13 +38,43 @@ impl SharedTexture {
             | wgpu::TextureUsages::TEXTURE_BINDING
             | wgpu::TextureUsages::COPY_SRC;
 
-        let (texture, vk_image, vk_memory, fd) =
-            create_exportable_texture(device, width, height, format, usage)?;
-        let view = texture.create_view(&Default::default());
+        // Try DMA-BUF with OPTIMAL tiling first, then LINEAR, then plain texture
+        if let Ok((texture, vk_image, vk_memory, fd)) =
+            create_exportable_texture(device, width, height, format, usage, vk::ImageTiling::OPTIMAL)
+        {
+            let view = texture.create_view(&Default::default());
+            return Ok(Self {
+                texture, view, surface_id, width, height,
+                dmabuf_fd: Some(fd), vk_image, vk_memory,
+            });
+        }
 
+        if let Ok((texture, vk_image, vk_memory, fd)) =
+            create_exportable_texture(device, width, height, format, usage, vk::ImageTiling::LINEAR)
+        {
+            let view = texture.create_view(&Default::default());
+            return Ok(Self {
+                texture, view, surface_id, width, height,
+                dmabuf_fd: Some(fd), vk_image, vk_memory,
+            });
+        }
+
+        // Fallback: regular wgpu texture (no cross-process sharing)
+        log::warn!("DMA-BUF not available, falling back to regular texture");
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("shared_surface_fallback"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&Default::default());
         Ok(Self {
             texture, view, surface_id, width, height,
-            dmabuf_fd: Some(fd), vk_image, vk_memory,
+            dmabuf_fd: None, vk_image: vk::Image::null(), vk_memory: vk::DeviceMemory::null(),
         })
     }
 
@@ -130,6 +161,7 @@ fn create_exportable_texture(
     height: u32,
     format: wgpu::TextureFormat,
     usage: wgpu::TextureUsages,
+    tiling: vk::ImageTiling,
 ) -> Result<(wgpu::Texture, vk::Image, vk::DeviceMemory, OwnedFd), String> {
     unsafe {
         let hal_device = device
@@ -149,14 +181,14 @@ fn create_exportable_texture(
             .mip_levels(1)
             .array_layers(1)
             .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::LINEAR)
+            .tiling(tiling)
             .usage(to_vk_image_usage(usage))
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .push_next(&mut ext_info);
 
         let vk_image = raw_device.create_image(&image_info, None)
-            .map_err(|e| format!("vkCreateImage: {e}"))?;
+            .map_err(|e| format!("vkCreateImage ({tiling:?}): {e}"))?;
 
         let mem_reqs = raw_device.get_image_memory_requirements(vk_image);
 
