@@ -82,7 +82,10 @@ impl HeadlessDevice {
             self.alloc_height = height;
 
             self.textures[0] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
-            self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+            // macOS uses double-buffering (compositor reads front while app renders back).
+            // Linux uses single-buffering — DMA-BUF fd stays stable across frames.
+            #[cfg(target_os = "macos")]
+            { self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?); }
             self.front = 0;
             self.textures_changed = true;
 
@@ -142,8 +145,14 @@ impl HeadlessDevice {
         let phys_h = ((height as f32) * scale) as u32;
         self.ensure_size(phys_w, phys_h)?;
 
-        let back = self.back_index();
-        let view = self.textures[back].as_ref().unwrap().view();
+        // macOS: double-buffered (render to back, swap to front)
+        // Linux: single-buffered (render directly to texture 0, GPU sync before return)
+        #[cfg(target_os = "macos")]
+        let render_idx = self.back_index();
+        #[cfg(not(target_os = "macos"))]
+        let render_idx = 0;
+
+        let view = self.textures[render_idx].as_ref().unwrap().view();
         let depth_view = self.depth_view.as_ref().unwrap();
 
         let mut encoder = self
@@ -165,11 +174,19 @@ impl HeadlessDevice {
         }
 
         self.queue.submit([encoder.finish()]);
-        // No GPU wait — double-buffering ensures the compositor reads the
-        // previous front (already complete) while we render into the back.
 
-        // Swap: back becomes the new front
-        self.front = back;
+        #[cfg(target_os = "macos")]
+        {
+            // No GPU wait — double-buffering ensures the compositor reads the
+            // previous front (already complete) while we render into the back.
+            // Swap: back becomes the new front
+            self.front = render_idx;
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Single-buffered: wait for GPU to finish before returning
+            self.device.poll(wgpu::PollType::wait_indefinitely()).ok();
+        }
 
         Ok(self.textures[self.front].as_ref().unwrap().iosurface_id())
     }

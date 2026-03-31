@@ -71,6 +71,8 @@ impl RenderServer {
                 self.compositor.import_shared_surface_fd(
                     device, sf.desc.surface_id, sf.dmabuf_fd, phys_w, phys_h,
                 );
+                // Note: import_dmabuf_texture() dup()s the fd internally.
+                // The compositor (Swift side) owns and will close this fd.
                 continue;
             }
 

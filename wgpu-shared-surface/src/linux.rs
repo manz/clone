@@ -197,9 +197,7 @@ fn create_exportable_texture(
             .handle_types(vk::ExternalMemoryHandleTypeFlags::DMA_BUF_EXT);
 
         let mem_type_index = find_memory_type(&hal_device, mem_reqs.memory_type_bits,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_VISIBLE)
-            .or_else(|| find_memory_type(&hal_device, mem_reqs.memory_type_bits,
-                vk::MemoryPropertyFlags::DEVICE_LOCAL))
+            vk::MemoryPropertyFlags::DEVICE_LOCAL)
             .ok_or("No suitable memory type for DMA-BUF export")?;
 
         let alloc_info = vk::MemoryAllocateInfo::default()
@@ -284,7 +282,7 @@ fn import_dmabuf_texture(
             .mip_levels(1)
             .array_layers(1)
             .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::LINEAR)
+            .tiling(vk::ImageTiling::OPTIMAL)
             .usage(to_vk_image_usage(usage))
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .initial_layout(vk::ImageLayout::UNDEFINED)

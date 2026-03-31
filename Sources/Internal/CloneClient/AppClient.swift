@@ -146,13 +146,19 @@ public final class AppClient {
     }
 
     /// Send a message with an attached file descriptor via SCM_RIGHTS (Linux DMA-BUF).
+    /// The fd is closed after sending — caller must NOT close it.
     public func sendWithFd(_ message: AppMessage, fd attachedFd: Int32) {
-        guard let data = try? WireProtocol.encode(message) else { return }
+        guard let data = try? WireProtocol.encode(message) else {
+            posix_close(attachedFd)
+            return
+        }
         sendQueue.async { [sockFd = self.socketFd] in
             data.withUnsafeBytes { ptr in
                 guard let base = ptr.baseAddress else { return }
                 _ = posix_sendmsg_fd(sockFd, base, data.count, attachedFd)
             }
+            // Close after sendmsg — kernel has dup'd it for the receiver
+            posix_close(attachedFd)
         }
     }
 

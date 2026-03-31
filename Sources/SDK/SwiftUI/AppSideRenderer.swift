@@ -127,20 +127,17 @@ final class AppSideRenderer: NSObject {
         if currentIOSurfaceId == 0 {
             if fd >= 0 {
                 client.sendWithFd(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
-                posix_close(fd)
             } else {
                 client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
             }
         } else if iosurfaceId != currentIOSurfaceId {
             if fd >= 0 {
                 client.sendWithFd(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
-                posix_close(fd)
             } else {
                 client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
             }
         } else if fd >= 0 {
-            // Same surface ID but new frame — send fd with surfaceUpdated
-            client.sendWithFd(.surfaceUpdated, fd: fd)
+            // Same surface ID but new frame — just signal update, close the dup'd fd
             posix_close(fd)
         }
         #endif

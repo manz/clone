@@ -593,6 +593,10 @@ final class AppConnectionManager {
 
             // GPU-shared surface: IOSurface on macOS, DMA-BUF fd on Linux
             if app.iosurfaceId != 0 || app.dmabufFd >= 0 {
+                let fd = app.dmabufFd
+                // Consume the fd — engine will dup() it during import.
+                // Only pass it once; subsequent frames reuse the imported texture.
+                if fd >= 0 { app.dmabufFd = -1 }
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -603,7 +607,7 @@ final class AppConnectionManager {
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: app.iosurfaceId, dmabufFd: app.dmabufFd
+                    iosurfaceId: app.iosurfaceId, dmabufFd: fd
                 ))
                 continue
             }
