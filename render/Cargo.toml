@@ -16,7 +16,7 @@ wgpu = "29"
 uniffi = { version = "0.31", features = ["cli"], optional = true }
 bytemuck = { version = "1.4", features = ["derive"] }
 log = "0.4"
-cosmic-text = "0.12"
+cosmic-text = "0.18"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rustc-hash = "2"
 resvg = "0.44"

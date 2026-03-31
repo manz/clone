@@ -8,7 +8,7 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 uniffi = { version = "0.31", features = ["cli"] }
-cosmic-text = "0.12"
+cosmic-text = "0.18"
 rustc-hash = "2"
 
 [[bin]]

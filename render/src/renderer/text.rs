@@ -287,7 +287,7 @@ impl TextRenderer {
             None => default_family,
         };
         let attrs = Attrs::new().family(family).weight(cosmic_weight);
-        buffer.set_text(&mut self.font_system, content, attrs, Shaping::Advanced);
+        buffer.set_text(&mut self.font_system, content, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut self.font_system, false);
 
         let mut instances = Vec::new();
