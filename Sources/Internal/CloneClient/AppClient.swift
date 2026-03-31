@@ -145,6 +145,17 @@ public final class AppClient {
         }
     }
 
+    /// Send a message with an attached file descriptor via SCM_RIGHTS (Linux DMA-BUF).
+    public func sendWithFd(_ message: AppMessage, fd attachedFd: Int32) {
+        guard let data = try? WireProtocol.encode(message) else { return }
+        sendQueue.async { [sockFd = self.socketFd] in
+            data.withUnsafeBytes { ptr in
+                guard let base = ptr.baseAddress else { return }
+                _ = posix_sendmsg_fd(sockFd, base, data.count, attachedFd)
+            }
+        }
+    }
+
     /// Poll for incoming messages from the compositor. Non-blocking.
     public func poll() {
         // Set non-blocking for read

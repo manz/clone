@@ -101,10 +101,11 @@ final class AppSideRenderer: NSObject {
             return
         }
 
-        // If textures were reallocated (first frame or resize), send BOTH Mach ports
-        // BEFORE sending the JSON metadata. The compositor's Mach receiver thread
-        // imports the IOSurfaces, making IOSurfaceLookup work when the engine tries.
+        let physW = UInt32(width * scale)
+        let physH = UInt32(height * scale)
+
         #if canImport(Darwin)
+        // macOS: send Mach ports when textures are reallocated
         if renderer.takeTexturesChanged() {
             for i: UInt32 in 0..<2 {
                 let port = renderer.machPortAt(index: i)
@@ -112,20 +113,37 @@ final class AppSideRenderer: NSObject {
                     client.sendIOSurfaceMachPort(port)
                 }
             }
-            // Give the compositor's Mach receiver thread time to import.
-            // mach_msg is fast but the receiver runs on a background thread.
-            usleep(1000) // 1ms
+            usleep(1000) // 1ms for compositor's Mach receiver thread
         }
-        #endif
 
-        // Notify compositor of the current front surface
-        let physW = UInt32(width * scale)
-        let physH = UInt32(height * scale)
         if currentIOSurfaceId == 0 {
             client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
         } else if iosurfaceId != currentIOSurfaceId {
             client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
         }
+        #else
+        // Linux: send DMA-BUF fd via SCM_RIGHTS alongside the surface message
+        let fd = renderer.exportFd()
+        if currentIOSurfaceId == 0 {
+            if fd >= 0 {
+                client.sendWithFd(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
+                posix_close(fd)
+            } else {
+                client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
+            }
+        } else if iosurfaceId != currentIOSurfaceId {
+            if fd >= 0 {
+                client.sendWithFd(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
+                posix_close(fd)
+            } else {
+                client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
+            }
+        } else if fd >= 0 {
+            // Same surface ID but new frame — send fd with surfaceUpdated
+            client.sendWithFd(.surfaceUpdated, fd: fd)
+            posix_close(fd)
+        }
+        #endif
         currentIOSurfaceId = iosurfaceId
 
         client.send(.surfaceUpdated)

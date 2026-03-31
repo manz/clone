@@ -22,6 +22,8 @@ public final class ConnectedApp {
     public var surfaceWidth: UInt32 = 0
     public var surfaceHeight: UInt32 = 0
     public var surfaceDirty: Bool = false
+    /// DMA-BUF fd received from app (Linux). -1 = none.
+    public var dmabufFd: Int32 = -1
 
     let fd: Int32
     var readBuffer = Data()
@@ -55,13 +57,26 @@ public final class ConnectedApp {
 
     private func handleReadable() {
         var buf = [UInt8](repeating: 0, count: 65536)
+        #if canImport(Darwin)
         let bytesRead = posix_read(fd, &buf, buf.count)
+        let receivedFd: Int32 = -1
+        #else
+        // Linux: receive data + optional DMA-BUF fd via SCM_RIGHTS
+        let (bytesRead32, receivedFd) = posix_recvmsg_fd(fd, &buf, buf.count)
+        let bytesRead = Int(bytesRead32)
+        #endif
         guard bytesRead > 0 else {
             // Disconnected
             readSource?.cancel()
             readSource = nil
             server?.handleDisconnect(windowId: windowId)
             return
+        }
+
+        // Store any received fd for surface import
+        if receivedFd >= 0 {
+            if dmabufFd >= 0 { posix_close(dmabufFd) }
+            dmabufFd = receivedFd
         }
 
         lock.lock()
