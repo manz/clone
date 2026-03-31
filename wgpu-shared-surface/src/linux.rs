@@ -333,7 +333,9 @@ fn find_memory_type(
     type_bits: u32,
     required: vk::MemoryPropertyFlags,
 ) -> Option<u32> {
-    let props = hal_device.shared_instance().raw_physical_device_memory_properties();
+    let instance = hal_device.shared_instance().raw_instance();
+    let phys_device = hal_device.raw_physical_device();
+    let props = unsafe { instance.get_physical_device_memory_properties(phys_device) };
     for i in 0..props.memory_type_count {
         if type_bits & (1 << i) != 0 {
             if props.memory_types[i as usize].property_flags.contains(required) {
