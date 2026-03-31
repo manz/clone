@@ -164,9 +164,9 @@ fn create_exportable_texture(
         let mut export_info = vk::ExportMemoryAllocateInfo::default()
             .handle_types(vk::ExternalMemoryHandleTypeFlags::DMA_BUF_EXT);
 
-        let mem_type_index = find_memory_type(hal_device, mem_reqs.memory_type_bits,
+        let mem_type_index = find_memory_type(&hal_device, mem_reqs.memory_type_bits,
             vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_VISIBLE)
-            .or_else(|| find_memory_type(hal_device, mem_reqs.memory_type_bits,
+            .or_else(|| find_memory_type(&hal_device, mem_reqs.memory_type_bits,
                 vk::MemoryPropertyFlags::DEVICE_LOCAL))
             .ok_or("No suitable memory type for DMA-BUF export")?;
 
@@ -262,7 +262,7 @@ fn import_dmabuf_texture(
             .handle_type(vk::ExternalMemoryHandleTypeFlags::DMA_BUF_EXT)
             .fd(import_fd);
 
-        let mem_type_index = find_memory_type(hal_device, mem_reqs.memory_type_bits,
+        let mem_type_index = find_memory_type(&hal_device, mem_reqs.memory_type_bits,
             vk::MemoryPropertyFlags::DEVICE_LOCAL)
             .ok_or("No suitable memory type for DMA-BUF import")?;
 
@@ -352,7 +352,7 @@ unsafe fn hal_texture_from_raw(
     format: wgpu::TextureFormat,
     width: u32,
     height: u32,
-    dim: wgpu::TextureDimension,
+    _dim: wgpu::TextureDimension,
     usage: wgpu::TextureUsages,
 ) -> wgpu_hal::vulkan::Texture {
     // wgpu_hal::vulkan::Device::texture_from_raw is the public API for this
@@ -387,11 +387,13 @@ unsafe fn hal_texture_from_raw(
     };
 
     let mut result = std::mem::MaybeUninit::<wgpu_hal::vulkan::Texture>::uninit();
-    std::ptr::copy_nonoverlapping(
-        &layout as *const HalTextureLayout as *const u8,
-        result.as_mut_ptr() as *mut u8,
-        hal_size,
-    );
-    std::mem::forget(layout);
-    result.assume_init()
+    unsafe {
+        std::ptr::copy_nonoverlapping(
+            &layout as *const HalTextureLayout as *const u8,
+            result.as_mut_ptr() as *mut u8,
+            hal_size,
+        );
+        std::mem::forget(layout);
+        result.assume_init()
+    }
 }

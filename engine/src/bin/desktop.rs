@@ -54,6 +54,8 @@ impl DesktopDelegate for DemoDelegate {
                 x: 0.0, y: 0.0,
                 width: width as f32, height: height as f32,
                 corner_radius: 0.0, opacity: 1.0,
+                genie_progress: 0.0, genie_target_x: 0.0,
+                genie_target_y: 0.0, genie_target_w: 0.0,
             },
             commands,
             pixel_data: None,
