@@ -587,7 +587,8 @@ final class AppConnectionManager {
                         surfaceId: surfaceId,
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1
+                        cornerRadius: 0, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: [],
                     pixelData: nil,
@@ -604,7 +605,8 @@ final class AppConnectionManager {
                         surfaceId: surfaceId,
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1
+                        cornerRadius: 0, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: engineCommands,
                     pixelData: nil,

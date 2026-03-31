@@ -152,6 +152,10 @@ impl RenderServer {
                     opacity: sf.desc.opacity,
                     content_width: phys_w,
                     content_height: phys_h,
+                    genie_progress: sf.desc.genie_progress,
+                    genie_target_x: sf.desc.genie_target_x * scale,
+                    genie_target_y: sf.desc.genie_target_y * scale,
+                    genie_target_w: sf.desc.genie_target_w * scale,
                 }
             })
             .collect();

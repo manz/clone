@@ -11,6 +11,14 @@ pub struct SurfaceDesc {
     pub height: f32,
     pub corner_radius: f32,
     pub opacity: f32,
+    /// Genie minimize animation progress (0.0 = normal, 0→1 = minimizing).
+    pub genie_progress: f32,
+    /// Dock icon center X in logical pixels.
+    pub genie_target_x: f32,
+    /// Dock icon top Y in logical pixels.
+    pub genie_target_y: f32,
+    /// Dock icon width in logical pixels.
+    pub genie_target_w: f32,
 }
 
 /// A surface's render commands bundled with its layout.

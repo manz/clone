@@ -38,7 +38,7 @@ public final class WindowServer {
 
         // Desktop background (wallpaper rendered by engine)
         frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1),
+            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0),
             commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
             pixelData: nil,
             iosurfaceId: 0, dmabufFd: -1
@@ -97,19 +97,23 @@ public final class WindowServer {
                 }
             }
 
-            // Apply animation override
-            var frameX = window.x
-            var frameY = window.y
-            var frameW = window.width
-            var frameH = window.height
+            // Apply animation override — genie effect or static
+            let frameX = window.x
+            let frameY = window.y
+            let frameW = window.width
+            let frameH = window.height
             var frameOpacity: CGFloat = 1.0
+            var genieProgress: Float = 0
+            var genieTargetX: Float = 0
+            var genieTargetY: Float = 0
+            var genieTargetW: Float = 0
 
-            if let (animRect, animOpacity) = animationManager.animatedRect(for: window.id) {
-                frameX = animRect.x
-                frameY = animRect.y
-                frameW = animRect.w
-                frameH = animRect.h
-                frameOpacity = animOpacity
+            if let (gp, tx, ty, tw) = animationManager.genieParams(for: window.id) {
+                genieProgress = Float(gp)
+                genieTargetX = Float(tx)
+                genieTargetY = Float(ty)
+                genieTargetW = Float(tw)
+                frameOpacity = CGFloat(1.0 - genieProgress * 0.3)
             }
 
             if hasIOSurface {
@@ -125,7 +129,11 @@ public final class WindowServer {
                         x: Float(frameX), y: Float(frameY),
                         width: Float(frameW), height: Float(frameH),
                         cornerRadius: Float(radius),
-                        opacity: Float(frameOpacity)
+                        opacity: Float(frameOpacity),
+                        genieProgress: genieProgress,
+                        genieTargetX: genieTargetX,
+                        genieTargetY: genieTargetY,
+                        genieTargetW: genieTargetW
                     ),
                     commands: windowCommands,
                     pixelData: nil,
@@ -139,7 +147,11 @@ public final class WindowServer {
                         x: Float(frameX), y: Float(frameY) + titleBarH,
                         width: Float(frameW), height: contentH,
                         cornerRadius: 0,
-                        opacity: Float(frameOpacity)
+                        opacity: Float(frameOpacity),
+                        genieProgress: genieProgress,
+                        genieTargetX: genieTargetX,
+                        genieTargetY: genieTargetY,
+                        genieTargetW: genieTargetW
                     ),
                     commands: [],
                     pixelData: nil,
@@ -153,7 +165,11 @@ public final class WindowServer {
                         x: Float(frameX), y: Float(frameY),
                         width: Float(frameW), height: Float(frameH),
                         cornerRadius: Float(radius),
-                        opacity: Float(frameOpacity)
+                        opacity: Float(frameOpacity),
+                        genieProgress: genieProgress,
+                        genieTargetX: genieTargetX,
+                        genieTargetY: genieTargetY,
+                        genieTargetW: genieTargetW
                     ),
                     commands: windowCommands,
                     pixelData: nil,
@@ -179,7 +195,8 @@ public final class WindowServer {
                         surfaceId: backdropId,
                         x: parentX, y: parentY,
                         width: parentW, height: parentH,
-                        cornerRadius: 0, opacity: 1
+                        cornerRadius: 0, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: backdropCommands,
                     pixelData: nil,
@@ -199,7 +216,8 @@ public final class WindowServer {
                         surfaceId: sheetId,
                         x: sheetX, y: sheetY,
                         width: sheetW, height: sheetH,
-                        cornerRadius: 12, opacity: 1
+                        cornerRadius: 12, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: sheetEngineCommands,
                     pixelData: nil,

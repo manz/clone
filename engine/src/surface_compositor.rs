@@ -74,6 +74,14 @@ pub struct CompositeWindow {
     /// when the IOSurface was allocated larger than current content.
     pub content_width: f32,
     pub content_height: f32,
+    /// Genie minimize animation progress (0 = normal, 0→1 = animating).
+    pub genie_progress: f32,
+    /// Dock icon center X in physical pixels.
+    pub genie_target_x: f32,
+    /// Dock icon top Y in physical pixels.
+    pub genie_target_y: f32,
+    /// Dock icon width in physical pixels.
+    pub genie_target_w: f32,
 }
 
 /// GPU instance for the compositor shader.
@@ -88,8 +96,17 @@ struct CompositeInstance {
     content_u_max: f32,
     /// Max V coordinate for content region.
     content_v_max: f32,
+    genie_progress: f32,
+    genie_target_x: f32,
+    genie_target_y: f32,
+    genie_target_w: f32,
     _pad: [f32; 3],
 }
+
+/// Number of rows in the genie mesh grid.
+const GENIE_ROWS: u32 = 32;
+/// Total vertices for genie mesh: 1 column × GENIE_ROWS rows × 6 verts per cell.
+const GENIE_VERTS: u32 = GENIE_ROWS * 6;
 
 /// Manages per-window offscreen textures and composites them onto the screen.
 pub struct SurfaceCompositor {
@@ -98,6 +115,7 @@ pub struct SurfaceCompositor {
     #[cfg(target_os = "macos")]
     imported_iosurfaces: HashMap<u64, u32>,
     pipeline: wgpu::RenderPipeline,
+    genie_pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
     uniform_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
@@ -165,37 +183,53 @@ impl SurfaceCompositor {
                 3 => Float32,   // shadow_expand
                 4 => Float32,   // content_u_max
                 5 => Float32,   // content_v_max
+                6 => Float32,   // genie_progress
+                7 => Float32,   // genie_target_x
+                8 => Float32,   // genie_target_y
+                9 => Float32,   // genie_target_w
             ],
         };
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("compositor_pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                compilation_options: Default::default(),
-                buffers: &[instance_layout],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: screen_format,
-                    blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
+        let make_pipeline = |label: &str, module: &wgpu::ShaderModule| -> wgpu::RenderPipeline {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module,
+                    entry_point: Some("vs_main"),
+                    compilation_options: Default::default(),
+                    buffers: &[instance_layout.clone()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module,
+                    entry_point: Some("fs_main"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: screen_format,
+                        blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+
+        let pipeline = make_pipeline("compositor_pipeline", &shader);
+
+        let genie_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("genie_window"),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!("shaders/genie_window.wgsl").into(),
+            ),
         });
+        let genie_pipeline = make_pipeline("genie_pipeline", &genie_shader);
 
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("compositor_uniforms"),
@@ -223,6 +257,7 @@ impl SurfaceCompositor {
             #[cfg(target_os = "macos")]
             imported_iosurfaces: HashMap::new(),
             pipeline,
+            genie_pipeline,
             bind_group_layout,
             uniform_buffer,
             instance_buffer,
@@ -557,6 +592,7 @@ impl SurfaceCompositor {
 
             // Expand the quad to make room for the shadow
             let shadow_expand: f32 = if win.corner_radius > 0.0 { 30.0 } else { 0.0 };
+            let is_genie = win.genie_progress > 0.0;
             let instance = CompositeInstance {
                 rect: [
                     win.x - shadow_expand,
@@ -569,6 +605,10 @@ impl SurfaceCompositor {
                 shadow_expand,
                 content_u_max,
                 content_v_max,
+                genie_progress: win.genie_progress,
+                genie_target_x: win.genie_target_x,
+                genie_target_y: win.genie_target_y,
+                genie_target_w: win.genie_target_w,
                 _pad: [0.0; 3],
             };
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
@@ -595,10 +635,14 @@ impl SurfaceCompositor {
                     multiview_mask: None,
                 });
 
-                pass.set_pipeline(&self.pipeline);
+                if is_genie {
+                    pass.set_pipeline(&self.genie_pipeline);
+                } else {
+                    pass.set_pipeline(&self.pipeline);
+                }
                 pass.set_bind_group(0, &bind_group, &[]);
                 pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-                pass.draw(0..6, 0..1);
+                pass.draw(0..if is_genie { GENIE_VERTS } else { 6 }, 0..1);
             }
 
             queue.submit([encoder.finish()]);

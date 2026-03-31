@@ -99,6 +99,17 @@ public struct WindowAnimation {
         return isMinimizing ? 1.0 - t * 0.3 : 0.7 + t * 0.3
     }
 
+    /// Genie animation parameters for the GPU shader.
+    /// Returns (genieProgress, targetCenterX, targetTopY, targetWidth).
+    /// The target is always the dock icon rect, regardless of direction.
+    public func genieParams(at time: CFTimeInterval) -> (CGFloat, CGFloat, CGFloat, CGFloat) {
+        let t = progress(at: time)
+        let p = isMinimizing ? t : (1.0 - t)
+        // Minimize: to = dock rect. Restore: from = dock rect.
+        let dock = isMinimizing ? to : from
+        return (p, dock.x + dock.w / 2, dock.y, dock.w)
+    }
+
     public func isComplete(at time: CFTimeInterval) -> Bool {
         time >= startTime + duration
     }
@@ -132,6 +143,15 @@ public final class AnimationManager {
         let now = CACurrentMediaTime()
         if anim.isComplete(at: now) { return nil }
         return (anim.rect(at: now), anim.opacity(at: now))
+    }
+
+    /// Get genie animation parameters for the GPU shader.
+    /// Returns (genieProgress, targetCenterX, targetTopY, targetWidth) or nil.
+    public func genieParams(for windowId: UInt64) -> (CGFloat, CGFloat, CGFloat, CGFloat)? {
+        guard let anim = animations[windowId] else { return nil }
+        let now = CACurrentMediaTime()
+        if anim.isComplete(at: now) { return nil }
+        return anim.genieParams(at: now)
     }
 
     /// Clean up completed animations. Returns completed windowIds and whether they were minimizing.
