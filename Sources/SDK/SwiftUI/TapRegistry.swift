@@ -1,10 +1,6 @@
 import Foundation
 import PosixShim
-#if canImport(CoreGraphics)
 import CoreGraphics
-#else
-import CloneCoreGraphics
-#endif
 
 /// Registry for onTap handlers. Maps tap IDs to closures.
 public final class TapRegistry: @unchecked Sendable {

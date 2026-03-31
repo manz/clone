@@ -1,7 +1,5 @@
 import Foundation
-#if !canImport(CoreGraphics)
-import CloneCoreGraphics
-#endif
+import CoreGraphics
 
 // MARK: - CAMediaTimingFunctionName
 

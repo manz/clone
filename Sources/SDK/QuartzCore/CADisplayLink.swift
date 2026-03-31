@@ -1,9 +1,5 @@
 import Foundation
-#if canImport(CoreGraphics)
 import CoreGraphics
-#else
-import CloneCoreGraphics
-#endif
 
 /// A timer that fires in sync with the display refresh rate.
 /// On Clone, backed by a DispatchSourceTimer at the preferred frame rate.

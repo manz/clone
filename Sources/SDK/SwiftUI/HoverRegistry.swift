@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// Phase of a continuous hover interaction — matches Apple's `HoverPhase`.
 public enum HoverPhase: Equatable {

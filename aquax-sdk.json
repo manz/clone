@@ -19,7 +19,7 @@
     "Foundation", "Darwin", "Dispatch", "os", "Swift",
     "Testing", "XCTest",
     "Security", "Network", "CryptoKit",
-    "CoreGraphics", "QuartzCore", "OSLog",
+    "QuartzCore", "OSLog",
     "ObjectiveC", "CoreFoundation",
     "Combine",
     "CoreData",

@@ -1,7 +1,5 @@
 import Foundation
-#if !canImport(CoreGraphics)
-import CloneCoreGraphics
-#endif
+import CoreGraphics
 
 /// Controls implicit animation grouping. Batches layer property changes
 /// into transactions that can be committed with or without animation.

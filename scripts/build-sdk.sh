@@ -32,6 +32,7 @@ FRAMEWORKS=(
     SharedSurface
     CloneProtocol
     CloneRender
+    CoreGraphics
     QuartzCore
     CoreText
     AppKit

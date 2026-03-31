@@ -149,28 +149,28 @@ let package = Package(
 
         // ── SDK ─────────────────────────────────────────────────
         .target(
-            name: "CloneCoreGraphics",
+            name: "CoreGraphics",
             dependencies: [],
-            path: "Sources/SDK/CloneCoreGraphics"
+            path: "Sources/SDK/CoreGraphics"
         ),
         .target(
             name: "QuartzCore",
-            dependencies: ["CloneCoreGraphics"],
+            dependencies: ["CoreGraphics"],
             path: "Sources/SDK/QuartzCore"
         ),
         .target(
             name: "CoreText",
-            dependencies: ["CloneText", "CloneCoreGraphics"],
+            dependencies: ["CloneText", "CoreGraphics"],
             path: "Sources/SDK/CoreText"
         ),
         .target(
             name: "AppKit",
-            dependencies: ["QuartzCore", "CloneCoreGraphics"],
+            dependencies: ["QuartzCore", "CoreGraphics"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "PosixShim", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface", "CloneCoreGraphics"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "PosixShim", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface", "CoreGraphics"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),

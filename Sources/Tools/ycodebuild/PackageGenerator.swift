@@ -121,7 +121,7 @@ enum PackageGenerator {
         #endif
 
         let sdkModules = [
-            "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
+            "CoreGraphics", "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
             "CloneClient", "CloneRender", "SharedSurface", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
         ]
 

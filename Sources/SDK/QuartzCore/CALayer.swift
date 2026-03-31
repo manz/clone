@@ -1,9 +1,5 @@
 import Foundation
-#if canImport(CoreGraphics)
 import CoreGraphics
-#else
-import CloneCoreGraphics
-#endif
 
 // MARK: - CALayerContentsGravity
 
