@@ -65,7 +65,7 @@ public final class AppClient {
     public init() {}
 
     public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
-        let path = "/tmp/clone-compositor.sock"
+        let path = compositorSocketPath
         #if canImport(Darwin)
         socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
         #else
@@ -91,7 +91,7 @@ public final class AppClient {
         let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Foundation.connect(socketFd, sockPtr, addrLen)
+                posix_connect(socketFd, sockPtr, addrLen)
             }
         }
         guard result == 0 else { throw NSError(domain: "AppClient", code: 2) }
