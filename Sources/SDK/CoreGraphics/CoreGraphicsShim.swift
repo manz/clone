@@ -209,16 +209,9 @@ enum PNGEncoder {
             }
         }
 
-        // Deflate using zlib (Foundation provides it on both platforms via NSData)
-        guard let compressed = try? (raw as NSData).compressed(using: .zlib) as Data else { return nil }
-
-        // zlib wrapper: CMF + FLG header, then deflate data, then Adler-32
-        var zlib = Data()
-        zlib.append(0x78); zlib.append(0x01) // zlib header (deflate, no dict)
-        zlib.append(compressed)
-        let adler = adler32(raw)
-        zlib.appendBE(adler)
-        out.appendPNGChunk(type: [73, 68, 65, 84], data: zlib)
+        // Deflate using zlib compress2 (available on both platforms)
+        guard let zlibData = zlibCompress(raw) else { return nil }
+        out.appendPNGChunk(type: [73, 68, 65, 84], data: zlibData)
 
         // IEND
         out.appendPNGChunk(type: [73, 69, 78, 68], data: Data())
@@ -235,6 +228,27 @@ enum PNGEncoder {
         }
         return (b << 16) | a
     }
+}
+
+// zlib compress2 — linked on both platforms (libz is always available).
+@_silgen_name("compress2")
+private func _compress2(
+    _ dest: UnsafeMutablePointer<UInt8>,
+    _ destLen: UnsafeMutablePointer<UInt>,
+    _ source: UnsafePointer<UInt8>,
+    _ sourceLen: UInt,
+    _ level: Int32
+) -> Int32
+
+/// Compress data using zlib. Returns full zlib stream (header + deflate + adler32).
+private func zlibCompress(_ input: Data) -> Data? {
+    var destLen = UInt(input.count + input.count / 100 + 13)
+    var dest = [UInt8](repeating: 0, count: Int(destLen))
+    let result = input.withUnsafeBytes { srcPtr -> Int32 in
+        _compress2(&dest, &destLen, srcPtr.baseAddress!.assumingMemoryBound(to: UInt8.self), UInt(input.count), 6)
+    }
+    guard result == 0 /* Z_OK */ else { return nil }
+    return Data(dest[0..<Int(destLen)])
 }
 
 private extension Data {

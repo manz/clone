@@ -151,7 +151,8 @@ let package = Package(
         .target(
             name: "CoreGraphics",
             dependencies: [],
-            path: "Sources/SDK/CoreGraphics"
+            path: "Sources/SDK/CoreGraphics",
+            linkerSettings: [.linkedLibrary("z")]
         ),
         .target(
             name: "QuartzCore",
