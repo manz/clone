@@ -64,9 +64,52 @@ public struct CGAffineTransform: Sendable {
 
 // MARK: - Graphics types (both platforms — Clone doesn't use Apple's CG drawing)
 
-/// Drawing context stub — Clone renders via wgpu, not CoreGraphics paths.
+/// Bitmap drawing context — allocates a pixel buffer for thumbnail capture and similar ops.
 open class CGContext: @unchecked Sendable {
-    public init() {}
+    public let width: Int
+    public let height: Int
+    public let bytesPerRow: Int
+    public let bitsPerComponent: Int
+    public let bitmapInfo: UInt32
+    private let buffer: UnsafeMutableRawPointer
+    private let ownsBuffer: Bool
+
+    /// Convenience for code that just needs a placeholder context.
+    public convenience init() { self.init(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(), bitmapInfo: 0)! }
+
+    /// Bitmap context. Pass `data: nil` to let the context allocate its own buffer.
+    public init?(data: UnsafeMutableRawPointer?, width: Int, height: Int,
+                 bitsPerComponent: Int, bytesPerRow: Int, space: CGColorSpace, bitmapInfo: UInt32) {
+        guard width > 0, height > 0, bytesPerRow > 0 else { return nil }
+        self.width = width
+        self.height = height
+        self.bitsPerComponent = bitsPerComponent
+        self.bytesPerRow = bytesPerRow
+        self.bitmapInfo = bitmapInfo
+        if let data {
+            self.buffer = data
+            self.ownsBuffer = false
+        } else {
+            let size = bytesPerRow * height
+            let buf = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: 16)
+            buf.initializeMemory(as: UInt8.self, repeating: 0, count: size)
+            self.buffer = buf
+            self.ownsBuffer = true
+        }
+    }
+
+    deinit { if ownsBuffer { buffer.deallocate() } }
+
+    /// Raw pointer to the pixel buffer.
+    public var data: UnsafeMutableRawPointer? { buffer }
+
+    /// Create a CGImage snapshot of the current bitmap contents.
+    public func makeImage() -> CGImage? {
+        let size = bytesPerRow * height
+        let copy = Data(bytes: buffer, count: size)
+        return CGImage(width: width, height: height, bitsPerComponent: bitsPerComponent,
+                       bytesPerRow: bytesPerRow, bitmapInfo: bitmapInfo, pixelData: copy)
+    }
 }
 
 /// Color reference.
@@ -104,14 +147,122 @@ open class CGFont: @unchecked Sendable {
     public init() {}
 }
 
-/// Image stub.
+/// Bitmap image with optional pixel data. Supports PNG encoding for thumbnail capture.
 open class CGImage: @unchecked Sendable {
     public let width: Int
     public let height: Int
+    public let bitsPerComponent: Int
+    public let bytesPerRow: Int
+    public let bitmapInfo: UInt32
+    public let pixelData: Data?
 
     public init(width: Int, height: Int) {
         self.width = width; self.height = height
+        self.bitsPerComponent = 8; self.bytesPerRow = width * 4
+        self.bitmapInfo = 0; self.pixelData = nil
     }
+
+    public init(width: Int, height: Int, bitsPerComponent: Int,
+                bytesPerRow: Int, bitmapInfo: UInt32, pixelData: Data) {
+        self.width = width; self.height = height
+        self.bitsPerComponent = bitsPerComponent; self.bytesPerRow = bytesPerRow
+        self.bitmapInfo = bitmapInfo; self.pixelData = pixelData
+    }
+
+    /// Encode this image as PNG. Returns nil if no pixel data.
+    public func pngData() -> Data? {
+        guard let pixels = pixelData, width > 0, height > 0 else { return nil }
+        return PNGEncoder.encode(rgba: pixels, width: width, height: height, bytesPerRow: bytesPerRow)
+    }
+}
+
+// MARK: - Minimal PNG encoder (replaces ImageIO dependency)
+
+enum PNGEncoder {
+    static func encode(rgba pixelData: Data, width: Int, height: Int, bytesPerRow: Int) -> Data? {
+        var out = Data()
+
+        // PNG signature
+        out.append(contentsOf: [137, 80, 78, 71, 13, 10, 26, 10])
+
+        // IHDR
+        var ihdr = Data()
+        ihdr.appendBE(UInt32(width))
+        ihdr.appendBE(UInt32(height))
+        ihdr.append(8)     // bit depth
+        ihdr.append(6)     // color type: RGBA
+        ihdr.append(0)     // compression
+        ihdr.append(0)     // filter
+        ihdr.append(0)     // interlace
+        out.appendPNGChunk(type: [73, 72, 68, 82], data: ihdr)
+
+        // IDAT — filtered rows (filter byte 0 = None per row), then deflate
+        var raw = Data(capacity: (width * 4 + 1) * height)
+        for y in 0..<height {
+            raw.append(0) // filter: None
+            let rowStart = y * bytesPerRow
+            let rowEnd = rowStart + width * 4
+            if rowEnd <= pixelData.count {
+                raw.append(pixelData[rowStart..<rowEnd])
+            } else {
+                raw.append(contentsOf: [UInt8](repeating: 0, count: width * 4))
+            }
+        }
+
+        // Deflate using zlib (Foundation provides it on both platforms via NSData)
+        guard let compressed = try? (raw as NSData).compressed(using: .zlib) as Data else { return nil }
+
+        // zlib wrapper: CMF + FLG header, then deflate data, then Adler-32
+        var zlib = Data()
+        zlib.append(0x78); zlib.append(0x01) // zlib header (deflate, no dict)
+        zlib.append(compressed)
+        let adler = adler32(raw)
+        zlib.appendBE(adler)
+        out.appendPNGChunk(type: [73, 68, 65, 84], data: zlib)
+
+        // IEND
+        out.appendPNGChunk(type: [73, 69, 78, 68], data: Data())
+
+        return out
+    }
+
+    private static func adler32(_ data: Data) -> UInt32 {
+        var a: UInt32 = 1
+        var b: UInt32 = 0
+        for byte in data {
+            a = (a &+ UInt32(byte)) % 65521
+            b = (b &+ a) % 65521
+        }
+        return (b << 16) | a
+    }
+}
+
+private extension Data {
+    mutating func appendBE(_ value: UInt32) {
+        var v = value.bigEndian
+        append(UnsafeBufferPointer(start: &v, count: 1))
+    }
+
+    mutating func appendPNGChunk(type: [UInt8], data: Data) {
+        appendBE(UInt32(data.count))
+        append(contentsOf: type)
+        append(data)
+        // CRC over type + data
+        var crcInput = Data(type)
+        crcInput.append(data)
+        appendBE(crc32(crcInput))
+    }
+}
+
+private func crc32(_ data: Data) -> UInt32 {
+    var crc: UInt32 = 0xFFFFFFFF
+    for byte in data {
+        crc ^= UInt32(byte)
+        for _ in 0..<8 {
+            crc = (crc >> 1) ^ (crc & 1 == 1 ? 0xEDB88320 : 0)
+        }
+    }
+    return crc ^ 0xFFFFFFFF
 }
 
 /// Alpha info enum.
