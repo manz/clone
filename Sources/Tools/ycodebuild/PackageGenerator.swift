@@ -161,7 +161,7 @@ enum PackageGenerator {
                             \(linkerFwSearch)
                             \(fwLinkFlags),
                             "-L", "\(rustLib)",
-                            "-lclone_render",
+                            "-lclone_render", "-lclone_text", "-lclone_audio",
                             \(linkerRpath)
                         ]),
                     ]
