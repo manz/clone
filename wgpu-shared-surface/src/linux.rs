@@ -193,9 +193,22 @@ fn create_exportable_texture(
 
         let owned_fd = OwnedFd::from_raw_fd(raw_fd);
 
-        // Wrap as wgpu texture via HAL
-        let hal_texture = hal_texture_from_raw(vk_image, format, width, height,
-            wgpu::TextureDimension::D2, usage);
+        // Wrap as wgpu texture via the public HAL API
+        let hal_desc = wgpu_hal::TextureDescriptor {
+            label: Some("dmabuf_texture"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: to_hal_usage(usage),
+            memory_flags: wgpu_hal::MemoryFlags::empty(),
+            view_formats: vec![],
+        };
+        let hal_texture = hal_device.texture_from_raw(
+            vk_image, &hal_desc, None,
+            wgpu_hal::vulkan::TextureMemory::External,
+        );
         let wgpu_desc = wgpu::TextureDescriptor {
             label: Some("dmabuf_texture"),
             size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
@@ -281,8 +294,21 @@ fn import_dmabuf_texture(
         raw_device.bind_image_memory(vk_image, vk_memory, 0)
             .map_err(|e| format!("vkBindImageMemory (import): {e}"))?;
 
-        let hal_texture = hal_texture_from_raw(vk_image, format, width, height,
-            wgpu::TextureDimension::D2, usage);
+        let hal_desc = wgpu_hal::TextureDescriptor {
+            label: Some("dmabuf_import"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: to_hal_usage(usage),
+            memory_flags: wgpu_hal::MemoryFlags::empty(),
+            view_formats: vec![],
+        };
+        let hal_texture = hal_device.texture_from_raw(
+            vk_image, &hal_desc, None,
+            wgpu_hal::vulkan::TextureMemory::External,
+        );
         let wgpu_desc = wgpu::TextureDescriptor {
             label: Some("dmabuf_import"),
             size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
@@ -300,6 +326,23 @@ fn import_dmabuf_texture(
 }
 
 // -- Helpers --
+
+fn to_hal_usage(usage: wgpu::TextureUsages) -> wgpu_types::TextureUses {
+    let mut flags = wgpu_types::TextureUses::empty();
+    if usage.contains(wgpu::TextureUsages::RENDER_ATTACHMENT) {
+        flags |= wgpu_types::TextureUses::COLOR_TARGET;
+    }
+    if usage.contains(wgpu::TextureUsages::TEXTURE_BINDING) {
+        flags |= wgpu_types::TextureUses::RESOURCE;
+    }
+    if usage.contains(wgpu::TextureUsages::COPY_SRC) {
+        flags |= wgpu_types::TextureUses::COPY_SRC;
+    }
+    if usage.contains(wgpu::TextureUsages::COPY_DST) {
+        flags |= wgpu_types::TextureUses::COPY_DST;
+    }
+    flags
+}
 
 fn to_vk_format(format: wgpu::TextureFormat) -> vk::Format {
     match format {
@@ -344,56 +387,4 @@ fn find_memory_type(
         }
     }
     None
-}
-
-/// Wrap a raw VkImage as a wgpu_hal::vulkan::Texture.
-unsafe fn hal_texture_from_raw(
-    raw: vk::Image,
-    format: wgpu::TextureFormat,
-    width: u32,
-    height: u32,
-    _dim: wgpu::TextureDimension,
-    usage: wgpu::TextureUsages,
-) -> wgpu_hal::vulkan::Texture {
-    // wgpu_hal::vulkan::Device::texture_from_raw is the public API for this
-    // but we need to construct it manually since we don't have &Device here.
-    // Use the same transmute approach as the macOS backend.
-    #[repr(C)]
-    struct HalTextureLayout {
-        raw: vk::Image,
-        drop_guard: Option<()>, // DropGuard is Option<crate::DropGuard>
-        block: Option<()>,      // gpu_alloc::MemoryBlock
-        usage: vk::ImageUsageFlags,
-        format: vk::Format,
-        raw_flags: vk::ImageCreateFlags,
-        copy_size: wgpu_hal::CopyExtent,
-        view_formats: Vec<wgpu::TextureFormat>,
-    }
-
-    let our_size = std::mem::size_of::<HalTextureLayout>();
-    let hal_size = std::mem::size_of::<wgpu_hal::vulkan::Texture>();
-    assert_eq!(our_size, hal_size,
-        "HalTextureLayout size {our_size} != wgpu_hal::vulkan::Texture size {hal_size}");
-
-    let layout = HalTextureLayout {
-        raw,
-        drop_guard: None, // We manage VkImage lifetime ourselves
-        block: None,       // We manage VkDeviceMemory ourselves
-        usage: to_vk_image_usage(usage),
-        format: to_vk_format(format),
-        raw_flags: vk::ImageCreateFlags::empty(),
-        copy_size: wgpu_hal::CopyExtent { width, height, depth: 1 },
-        view_formats: vec![],
-    };
-
-    let mut result = std::mem::MaybeUninit::<wgpu_hal::vulkan::Texture>::uninit();
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            &layout as *const HalTextureLayout as *const u8,
-            result.as_mut_ptr() as *mut u8,
-            hal_size,
-        );
-        std::mem::forget(layout);
-        result.assume_init()
-    }
 }
