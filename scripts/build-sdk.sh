@@ -154,6 +154,10 @@ for MOD in "${FRAMEWORKS[@]}"; do
     if [ "$MOD" = "CloneRender" ]; then
         FWFLAGS+=(-lclone_render)
     fi
+    # CoreGraphics uses zlib compress2 for PNG encoding
+    if [ "$MOD" = "CoreGraphics" ]; then
+        FWFLAGS+=(-lz)
+    fi
 
     swiftc \
         -emit-library \
