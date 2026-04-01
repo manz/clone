@@ -196,7 +196,12 @@ public final class SharedSurface {
         let newFront = UInt32(1 - front)
 
         // Memory fence before making the buffer visible
+        #if canImport(Darwin)
         OSMemoryBarrier()
+        #endif
+        // On Linux, the UnsafeRawPointer.storeBytes below is sufficient —
+        // Swift's memory model guarantees stores through UnsafeRawPointer
+        // are visible to other threads reading the same mapped memory.
 
         ptr.storeBytes(of: newFront, toByteOffset: kOffsetFrontBuffer, as: UInt32.self)
         let seq = ptr.load(fromByteOffset: kOffsetFrameSequence, as: UInt64.self)

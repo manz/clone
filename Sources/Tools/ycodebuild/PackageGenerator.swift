@@ -107,12 +107,34 @@ enum PackageGenerator {
             ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
         }.joined(separator: ", ")
 
-        let fwLinkFlags = [
-            "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
+        #if os(macOS)
+        let linkerFwSearch = "\"-F\", \"\(fw)\","
+        let linkerRpath = """
+                            "-Xlinker", "-rpath", "-Xlinker", "\(fw)",
+                            "-Xlinker", "-rpath", "-Xlinker", "\(rustLib)",
+        """
+        #else
+        let linkerFwSearch = ""
+        let linkerRpath = """
+                            "-Xlinker", "-rpath", "-Xlinker", "\(rustLib)",
+        """
+        #endif
+
+        let sdkModules = [
+            "CoreGraphics", "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
             "CloneClient", "CloneRender", "SharedSurface", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
-        ].flatMap { name in
+        ]
+
+        #if os(macOS)
+        let fwLinkFlags = sdkModules.flatMap { name in
             ["\"-framework\"", "\"\(name)\""]
         }.joined(separator: ", ")
+        #else
+        // Linux: link directly against .so files inside framework bundles
+        let fwLinkFlags = sdkModules.map { name in
+            "\"\(fw)/\(name).framework/Versions/A/\(name)\""
+        }.joined(separator: ", ")
+        #endif
 
         let packageSwift = """
         // swift-tools-version: 6.0
@@ -136,12 +158,11 @@ enum PackageGenerator {
                     ],
                     linkerSettings: [
                         .unsafeFlags([
-                            "-F", "\(fw)",
+                            \(linkerFwSearch)
                             \(fwLinkFlags),
                             "-L", "\(rustLib)",
-                            "-lclone_render",
-                            "-Xlinker", "-rpath", "-Xlinker", "\(fw)",
-                            "-Xlinker", "-rpath", "-Xlinker", "\(rustLib)",
+                            "-lclone_render", "-lclone_text", "-lclone_audio", "-lz",
+                            \(linkerRpath)
                         ]),
                     ]
                 ),

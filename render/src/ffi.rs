@@ -37,9 +37,8 @@ impl AppRenderer {
         })
     }
 
-    /// Render commands into an IOSurface-backed texture.
-    /// Returns the IOSurface ID for cross-process sharing (zero-copy).
-    /// The compositor imports by this ID — no pixel readback needed.
+    /// Render commands into a shared texture.
+    /// Returns the surface ID for cross-process sharing.
     pub fn render(
         &self,
         commands: Vec<RenderCommand>,
@@ -54,25 +53,37 @@ impl AppRenderer {
             .map_err(|e| RenderError::RenderFailed { reason: e })
     }
 
-    /// Get the current IOSurface ID. Returns 0 if no render has happened yet.
+    /// Get the current surface ID.
     pub fn iosurface_id(&self) -> u32 {
         self.inner.lock().unwrap().iosurface_id()
     }
 
-    /// Create a Mach port send right for the current front IOSurface.
+    /// Create a Mach port send right for the current front surface (macOS only, returns 0 on Linux).
     pub fn mach_port(&self) -> u32 {
         let device = self.inner.lock().unwrap();
         device.shared_texture().map_or(0, |t| t.mach_port())
     }
 
-    /// Create a Mach port for the IOSurface at the given buffer index (0 or 1).
+    /// Create a Mach port for the surface at the given buffer index (macOS only, returns 0 on Linux).
     pub fn mach_port_at(&self, index: u32) -> u32 {
         let device = self.inner.lock().unwrap();
         device.shared_texture_at(index as usize).map_or(0, |t| t.mach_port())
     }
 
-    /// True if textures were reallocated since the last call (new Mach ports needed).
-    /// Resets the flag after reading.
+    /// Export the current front surface as a DMA-BUF fd (Linux) or IOSurface→fd (macOS).
+    /// Returns -1 on failure. Caller must close the fd after sendmsg.
+    pub fn export_fd(&self) -> i32 {
+        let device = self.inner.lock().unwrap();
+        device.shared_texture().and_then(|t| t.export_fd().ok()).unwrap_or(-1)
+    }
+
+    /// Export the surface at the given buffer index as a fd.
+    pub fn export_fd_at(&self, index: u32) -> i32 {
+        let device = self.inner.lock().unwrap();
+        device.shared_texture_at(index as usize).and_then(|t| t.export_fd().ok()).unwrap_or(-1)
+    }
+
+    /// True if textures were reallocated since the last call.
     pub fn take_textures_changed(&self) -> bool {
         let mut device = self.inner.lock().unwrap();
         let changed = device.textures_changed;
@@ -80,7 +91,7 @@ impl AppRenderer {
         changed
     }
 
-    /// Render commands to BGRA8 pixel data (legacy — uses readback, slow).
+    /// Render commands to BGRA8 pixel data (readback, slow).
     pub fn render_to_pixels(
         &self,
         commands: Vec<RenderCommand>,
@@ -92,7 +103,7 @@ impl AppRenderer {
         Ok(device.render_to_pixels(&commands, width, height, scale))
     }
 
-    /// Render commands to BGRA8 pixel data with transparent background (legacy).
+    /// Render commands to BGRA8 pixel data with transparent background.
     pub fn render_to_pixels_transparent(
         &self,
         commands: Vec<RenderCommand>,

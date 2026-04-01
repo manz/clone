@@ -985,6 +985,11 @@ RustBuffer uniffi_clone_render_fn_method_apprenderer_render_to_pixels_transparen
 int8_t uniffi_clone_render_fn_method_apprenderer_take_textures_changed(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_FUNC_DECODE_IMAGE
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_FN_FUNC_DECODE_IMAGE
+RustBuffer uniffi_clone_render_fn_func_decode_image(RustBuffer data, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUSTBUFFER_ALLOC
 #define UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUSTBUFFER_ALLOC
 RustBuffer ffi_clone_render_rustbuffer_alloc(uint64_t size, RustCallStatus *_Nonnull out_status
@@ -1243,6 +1248,12 @@ void ffi_clone_render_rust_future_free_void(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FFI_CLONE_RENDER_RUST_FUTURE_COMPLETE_VOID
 void ffi_clone_render_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_FUNC_DECODE_IMAGE
+#define UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_FUNC_DECODE_IMAGE
+uint16_t uniffi_clone_render_checksum_func_decode_image(void
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CLONE_RENDER_CHECKSUM_METHOD_APPRENDERER_IOSURFACE_ID

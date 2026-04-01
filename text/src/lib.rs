@@ -194,7 +194,7 @@ pub fn measure_text_with_family(
         }
 
         let attrs = make_attrs(&weight, family.as_deref());
-        buffer.set_text(&mut state.font_system, &content, attrs, Shaping::Advanced);
+        buffer.set_text(&mut state.font_system, &content, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut state.font_system, false);
 
         let mut total_width: f32 = 0.0;
@@ -242,7 +242,7 @@ pub fn layout_text(
         buffer.set_size(&mut state.font_system, Some(max_width), None);
 
         let attrs = make_attrs(&weight, None);
-        buffer.set_text(&mut state.font_system, &content, attrs, Shaping::Advanced);
+        buffer.set_text(&mut state.font_system, &content, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut state.font_system, false);
 
         let mut lines = Vec::new();
@@ -337,7 +337,7 @@ pub fn cursor_position(
         }
 
         let attrs = make_attrs(&weight, None);
-        buffer.set_text(&mut state.font_system, &content, attrs, Shaping::Advanced);
+        buffer.set_text(&mut state.font_system, &content, &attrs, Shaping::Advanced, None);
         buffer.shape_until_scroll(&mut state.font_system, false);
 
         let mut line_top = 0.0_f32;

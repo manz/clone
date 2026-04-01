@@ -22,6 +22,8 @@ public final class ConnectedApp {
     public var surfaceWidth: UInt32 = 0
     public var surfaceHeight: UInt32 = 0
     public var surfaceDirty: Bool = false
+    /// DMA-BUF fd received from app (Linux). -1 = none.
+    public var dmabufFd: Int32 = -1
 
     let fd: Int32
     var readBuffer = Data()
@@ -46,7 +48,7 @@ public final class ConnectedApp {
             self?.handleReadable()
         }
         source.setCancelHandler { [fd] in
-            shutdown(fd, SHUT_RDWR)
+            shutdown(fd, Int32(SHUT_RDWR))
             posix_close(fd)
         }
         source.resume()
@@ -55,13 +57,26 @@ public final class ConnectedApp {
 
     private func handleReadable() {
         var buf = [UInt8](repeating: 0, count: 65536)
+        #if canImport(Darwin)
         let bytesRead = posix_read(fd, &buf, buf.count)
+        let receivedFd: Int32 = -1
+        #else
+        // Linux: receive data + optional DMA-BUF fd via SCM_RIGHTS
+        let (bytesRead32, receivedFd) = posix_recvmsg_fd(fd, &buf, buf.count)
+        let bytesRead = Int(bytesRead32)
+        #endif
         guard bytesRead > 0 else {
             // Disconnected
             readSource?.cancel()
             readSource = nil
             server?.handleDisconnect(windowId: windowId)
             return
+        }
+
+        // Store any received fd for surface import
+        if receivedFd >= 0 {
+            if dmabufFd >= 0 { posix_close(dmabufFd) }
+            dmabufFd = receivedFd
         }
 
         lock.lock()
@@ -215,7 +230,7 @@ public final class CompositorServer {
             machRecvPort = port
             startMachPortReceiver()
         } else {
-            fputs("[compositor] Warning: failed to register Mach port for IOSurface transfer\n", stderr)
+            logErr("[compositor] Warning: failed to register Mach port for IOSurface transfer\n")
         }
         #endif
     }
@@ -233,7 +248,7 @@ public final class CompositorServer {
                 // Import the IOSurface into this process — makes IOSurfaceLookup work
                 let surfaceId = clone_import_iosurface_port(port)
                 if surfaceId != 0 {
-                    fputs("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n", stderr)
+                    logErr("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n")
                 }
             }
         }
@@ -253,8 +268,13 @@ public final class CompositorServer {
             guard clientFd >= 0 else { break }
 
             // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+            #if canImport(Darwin)
             var on: Int32 = 1
             setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+            #else
+            // Linux: use MSG_NOSIGNAL per-send or signal(SIGPIPE, SIG_IGN)
+            signal(SIGPIPE, SIG_IGN)
+            #endif
 
             let flags = fcntl(clientFd, F_GETFL)
             _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
@@ -379,7 +399,7 @@ public final class CompositorServer {
             app.send(.avocadoEvent(event))
         }
         if targets.isEmpty {
-            fputs("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n", stderr)
+            logErr("[compositor] AvocadoEvent: no connected app with id \(targetAppId)\n")
         }
     }
 

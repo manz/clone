@@ -6,6 +6,16 @@ CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
 SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
 CARGO_OUT = target/$(CONFIG)
 
+# Platform detection
+UNAME := $(shell uname)
+ifeq ($(UNAME),Darwin)
+  LIB_EXT = dylib
+  SED_INPLACE = sed -i ''
+else
+  LIB_EXT = so
+  SED_INPLACE = sed -i
+endif
+
 # Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → install-sdk → apps → install
 all: bindings render-bindings text-bindings audio-bindings swift sdk install-sdk apps install
 
@@ -24,7 +34,7 @@ render:
 # Generate UniFFI Swift bindings for clone-render (app-side FFI)
 render-bindings: render
 	cargo run -p clone-render --features uniffi $(CARGO_FLAGS) --bin uniffi-bindgen-render generate \
-		--library $(CARGO_OUT)/libclone_render.dylib \
+		--library $(CARGO_OUT)/libclone_render.$(LIB_EXT) \
 		--language swift \
 		--out-dir /tmp/clone-render-bindings
 	cp /tmp/clone-render-bindings/clone_renderFFI.h Sources/FFI/CRender/include/clone_renderFFI.h
@@ -33,7 +43,7 @@ render-bindings: render
 # Generate UniFFI Swift bindings (engine + clone-render types)
 bindings: engine
 	cargo run -p clone-engine $(CARGO_FLAGS) --bin uniffi-bindgen generate \
-		--library $(CARGO_OUT)/libclone_engine.dylib \
+		--library $(CARGO_OUT)/libclone_engine.$(LIB_EXT) \
 		--language swift \
 		--out-dir Sources/Internal/EngineBridge
 	# Merge clone-render FFI header into engine FFI header (symbols live in the same dylib)
@@ -41,8 +51,8 @@ bindings: engine
 	cp Sources/Internal/EngineBridge/clone_engineFFI.h Sources/FFI/CEngine/include/clone_engineFFI.h
 	# clone_render.swift imports clone_renderFFI, but all symbols are in clone_engineFFI.
 	# Rewrite the import so it finds the C symbols from the merged header.
-	sed -i '' 's/canImport(clone_renderFFI)/canImport(clone_engineFFI)/' Sources/Internal/EngineBridge/clone_render.swift
-	sed -i '' 's/import clone_renderFFI/import clone_engineFFI/' Sources/Internal/EngineBridge/clone_render.swift
+	$(SED_INPLACE) 's/canImport(clone_renderFFI)/canImport(clone_engineFFI)/' Sources/Internal/EngineBridge/clone_render.swift
+	$(SED_INPLACE) 's/import clone_renderFFI/import clone_engineFFI/' Sources/Internal/EngineBridge/clone_render.swift
 	# Remove standalone clone-render FFI module files (not needed as a separate module)
 	rm -f Sources/Internal/EngineBridge/clone_renderFFI.h Sources/Internal/EngineBridge/clone_renderFFI.modulemap
 	# Remove clone-text bindings leaked through engine dylib (already in CloneText target)
@@ -55,7 +65,7 @@ text:
 # Generate UniFFI Swift bindings (text)
 text-bindings: text
 	cargo run -p clone-text $(CARGO_FLAGS) --bin uniffi-bindgen-text generate \
-		--library $(CARGO_OUT)/libclone_text.dylib \
+		--library $(CARGO_OUT)/libclone_text.$(LIB_EXT) \
 		--language swift \
 		--out-dir Sources/Internal/CloneText
 	cp Sources/Internal/CloneText/clone_textFFI.h Sources/FFI/CText/include/clone_textFFI.h
@@ -67,7 +77,7 @@ audio:
 # Generate UniFFI Swift bindings (audio)
 audio-bindings: audio
 	cargo run -p clone-audio $(CARGO_FLAGS) --bin uniffi-bindgen generate \
-		--library $(CARGO_OUT)/libclone_audio.dylib \
+		--library $(CARGO_OUT)/libclone_audio.$(LIB_EXT) \
 		--language swift \
 		--out-dir Sources/Internal/AudioBridge
 	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
@@ -106,11 +116,15 @@ install-sdk:
 	@mkdir -p $(CLONE_ROOT)/System/Library/Frameworks $(CLONE_ROOT)/Library/Fonts
 	@cp -n engine/assets/Inter-*.ttf engine/assets/Iosevka-*.ttf $(CLONE_ROOT)/Library/Fonts/ 2>/dev/null || true
 	@rm -rf $(CLONE_ROOT)/System/Library/Frameworks
+ifeq ($(UNAME),Darwin)
 	@ditto .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
-	@cp target/$(CONFIG)/libclone_engine.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
-	@cp target/$(CONFIG)/libclone_render.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
-	@cp target/$(CONFIG)/libclone_text.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
-	@cp target/$(CONFIG)/libclone_audio.dylib $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+else
+	@cp -a .build/sdk/System/Library/Frameworks $(CLONE_ROOT)/System/Library/Frameworks
+endif
+	@cp target/$(CONFIG)/libclone_engine.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_render.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_text.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
+	@cp target/$(CONFIG)/libclone_audio.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
 	@echo "SDK installed to $(CLONE_ROOT)/System/Library"
 
 # Full install (SDK + apps + system binaries)
@@ -120,15 +134,15 @@ install: install-sdk
 	@rm -rf $(CLONE_ROOT)/Applications/*.app
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
-			[ -d "$$app" ] && ditto "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
+			[ -d "$$app" ] && cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
 		done; \
 	done
 	@echo "Installing system binaries..."
-	@ditto $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
-	@ditto $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias

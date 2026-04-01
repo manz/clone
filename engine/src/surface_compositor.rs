@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::commands::RenderCommand;
 use crate::renderer::DesktopRenderer;
-use wgpu_iosurface::SharedTexture;
+use wgpu_shared_surface::SharedTexture;
 
 /// An offscreen surface for a single window.
 pub struct WindowSurface {
@@ -74,6 +74,14 @@ pub struct CompositeWindow {
     /// when the IOSurface was allocated larger than current content.
     pub content_width: f32,
     pub content_height: f32,
+    /// Genie minimize animation progress (0 = normal, 0→1 = animating).
+    pub genie_progress: f32,
+    /// Dock icon center X in physical pixels.
+    pub genie_target_x: f32,
+    /// Dock icon top Y in physical pixels.
+    pub genie_target_y: f32,
+    /// Dock icon width in physical pixels.
+    pub genie_target_w: f32,
 }
 
 /// GPU instance for the compositor shader.
@@ -88,15 +96,26 @@ struct CompositeInstance {
     content_u_max: f32,
     /// Max V coordinate for content region.
     content_v_max: f32,
+    genie_progress: f32,
+    genie_target_x: f32,
+    genie_target_y: f32,
+    genie_target_w: f32,
     _pad: [f32; 3],
 }
+
+/// Number of rows in the genie mesh grid.
+const GENIE_ROWS: u32 = 32;
+/// Total vertices for genie mesh: 1 column × GENIE_ROWS rows × 6 verts per cell.
+const GENIE_VERTS: u32 = GENIE_ROWS * 6;
 
 /// Manages per-window offscreen textures and composites them onto the screen.
 pub struct SurfaceCompositor {
     surfaces: HashMap<u64, WindowSurface>,
     /// Tracks which surface_id → iosurface_id mapping is active, to avoid reimporting.
+    #[cfg(target_os = "macos")]
     imported_iosurfaces: HashMap<u64, u32>,
     pipeline: wgpu::RenderPipeline,
+    genie_pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
     uniform_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
@@ -164,37 +183,53 @@ impl SurfaceCompositor {
                 3 => Float32,   // shadow_expand
                 4 => Float32,   // content_u_max
                 5 => Float32,   // content_v_max
+                6 => Float32,   // genie_progress
+                7 => Float32,   // genie_target_x
+                8 => Float32,   // genie_target_y
+                9 => Float32,   // genie_target_w
             ],
         };
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("compositor_pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                compilation_options: Default::default(),
-                buffers: &[instance_layout],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: screen_format,
-                    blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                ..Default::default()
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
+        let make_pipeline = |label: &str, module: &wgpu::ShaderModule| -> wgpu::RenderPipeline {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module,
+                    entry_point: Some("vs_main"),
+                    compilation_options: Default::default(),
+                    buffers: &[instance_layout.clone()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module,
+                    entry_point: Some("fs_main"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: screen_format,
+                        blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    ..Default::default()
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+
+        let pipeline = make_pipeline("compositor_pipeline", &shader);
+
+        let genie_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("genie_window"),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!("shaders/genie_window.wgsl").into(),
+            ),
         });
+        let genie_pipeline = make_pipeline("genie_pipeline", &genie_shader);
 
         let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("compositor_uniforms"),
@@ -219,8 +254,10 @@ impl SurfaceCompositor {
 
         Self {
             surfaces: HashMap::new(),
+            #[cfg(target_os = "macos")]
             imported_iosurfaces: HashMap::new(),
             pipeline,
+            genie_pipeline,
             bind_group_layout,
             uniform_buffer,
             instance_buffer,
@@ -242,34 +279,87 @@ impl SurfaceCompositor {
         self.surfaces.get(&surface_id).map(|s| &s.view)
     }
 
-    /// Import an IOSurface by ID as a compositor surface.
-    /// Caches the import — only reimports when the IOSurface ID changes.
-    pub fn import_iosurface(
+    /// Import a shared surface by its platform ID (IOSurface ID on macOS).
+    /// Caches the import — only reimports when the surface ID changes.
+    pub fn import_shared_surface(
         &mut self,
         device: &wgpu::Device,
         surface_id: u64,
-        iosurface_id: u32,
+        platform_id: u32,
         _width_hint: u32,
         _height_hint: u32,
     ) -> bool {
-        // Skip if already imported with the same IOSurface ID
-        if self.imported_iosurfaces.get(&surface_id) == Some(&iosurface_id) {
-            return true;
-        }
+        #[cfg(target_os = "macos")]
+        {
+            // Skip if already imported with the same platform ID
+            if self.imported_iosurfaces.get(&surface_id) == Some(&platform_id) {
+                return true;
+            }
 
-        // Get actual dimensions from the IOSurface
-        let raw = wgpu_iosurface::iosurface_lookup(iosurface_id);
-        if raw.is_null() {
-            log::error!("IOSurfaceLookup({iosurface_id}) failed for surface {surface_id}");
-            return false;
-        }
-        let width = unsafe { wgpu_iosurface::iosurface_get_width(raw) } as u32;
-        let height = unsafe { wgpu_iosurface::iosurface_get_height(raw) } as u32;
-        wgpu_iosurface::iosurface_release(raw);
+            // Get actual dimensions from the IOSurface
+            let raw = wgpu_shared_surface::iosurface_lookup(platform_id);
+            if raw.is_null() {
+                log::error!("IOSurfaceLookup({platform_id}) failed for surface {surface_id}");
+                return false;
+            }
+            let width = unsafe { wgpu_shared_surface::iosurface_get_width(raw) } as u32;
+            let height = unsafe { wgpu_shared_surface::iosurface_get_height(raw) } as u32;
+            wgpu_shared_surface::iosurface_release(raw);
 
-        match SharedTexture::from_id(device, iosurface_id, width, height, self.offscreen_format) {
+            match SharedTexture::from_id(device, platform_id, width, height, self.offscreen_format) {
+                Ok(shared) => {
+                    let view = shared.texture().create_view(&Default::default());
+                    let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+                        label: Some("imported_depth"),
+                        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Depth32Float,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                        view_formats: &[],
+                    });
+                    let depth_view = depth_texture.create_view(&Default::default());
+                    self.surfaces.insert(surface_id, WindowSurface {
+                        texture: shared.into_texture(),
+                        view,
+                        depth_texture,
+                        depth_view,
+                        width,
+                        height,
+                        content_width: width,
+                        content_height: height,
+                    });
+                    self.imported_iosurfaces.insert(surface_id, platform_id);
+                    true
+                }
+                Err(e) => {
+                    log::error!("Failed to import surface {platform_id} for {surface_id}: {e}");
+                    false
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // Linux: DMA-BUF import not done via platform_id — use import_shared_surface_fd
+            let _ = (device, surface_id, platform_id, _width_hint, _height_hint);
+            false
+        }
+    }
+
+    /// Import a shared surface from a DMA-BUF file descriptor (Linux).
+    /// The fd is dup'd internally — caller keeps ownership.
+    #[cfg(not(target_os = "macos"))]
+    pub fn import_shared_surface_fd(
+        &mut self,
+        device: &wgpu::Device,
+        surface_id: u64,
+        fd: i32,
+        width: u32,
+        height: u32,
+    ) -> bool {
+        match SharedTexture::from_fd(device, fd, width, height, self.offscreen_format) {
             Ok(shared) => {
-                // Create a WindowSurface that wraps the imported IOSurface texture view
                 let view = shared.texture().create_view(&Default::default());
                 let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("imported_depth"),
@@ -282,8 +372,6 @@ impl SurfaceCompositor {
                     view_formats: &[],
                 });
                 let depth_view = depth_texture.create_view(&Default::default());
-                // Store as WindowSurface — the texture field won't match (it's IOSurface-backed)
-                // but the view is what composite() uses for sampling.
                 self.surfaces.insert(surface_id, WindowSurface {
                     texture: shared.into_texture(),
                     view,
@@ -294,11 +382,10 @@ impl SurfaceCompositor {
                     content_width: width,
                     content_height: height,
                 });
-                self.imported_iosurfaces.insert(surface_id, iosurface_id);
                 true
             }
             Err(e) => {
-                log::error!("Failed to import IOSurface {iosurface_id} for surface {surface_id} ({width}x{height}): {e}");
+                log::error!("Failed to import DMA-BUF fd {fd} for surface {surface_id}: {e}");
                 false
             }
         }
@@ -307,6 +394,7 @@ impl SurfaceCompositor {
     /// Remove surfaces not in the active set.
     pub fn gc(&mut self, active_ids: &[u64]) {
         self.surfaces.retain(|id, _| active_ids.contains(id));
+        #[cfg(target_os = "macos")]
         self.imported_iosurfaces.retain(|id, _| active_ids.contains(id));
     }
 
@@ -504,6 +592,7 @@ impl SurfaceCompositor {
 
             // Expand the quad to make room for the shadow
             let shadow_expand: f32 = if win.corner_radius > 0.0 { 30.0 } else { 0.0 };
+            let is_genie = win.genie_progress > 0.0;
             let instance = CompositeInstance {
                 rect: [
                     win.x - shadow_expand,
@@ -516,6 +605,10 @@ impl SurfaceCompositor {
                 shadow_expand,
                 content_u_max,
                 content_v_max,
+                genie_progress: win.genie_progress,
+                genie_target_x: win.genie_target_x,
+                genie_target_y: win.genie_target_y,
+                genie_target_w: win.genie_target_w,
                 _pad: [0.0; 3],
             };
             queue.write_buffer(&self.instance_buffer, 0, bytemuck::bytes_of(&instance));
@@ -542,10 +635,14 @@ impl SurfaceCompositor {
                     multiview_mask: None,
                 });
 
-                pass.set_pipeline(&self.pipeline);
+                if is_genie {
+                    pass.set_pipeline(&self.genie_pipeline);
+                } else {
+                    pass.set_pipeline(&self.pipeline);
+                }
                 pass.set_bind_group(0, &bind_group, &[]);
                 pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-                pass.draw(0..6, 0..1);
+                pass.draw(0..if is_genie { GENIE_VERTS } else { 6 }, 0..1);
             }
 
             queue.submit([encoder.finish()]);

@@ -91,7 +91,7 @@ public struct ModelMacro: MemberMacro, ExtensionMacro {
 
     private static func inferPropertyType(binding: PatternBindingSyntax) -> String {
         guard let typeAnnotation = binding.typeAnnotation?.type else { return "string" }
-        let typeText = typeAnnotation.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let typeText = typeAnnotation.description.filter { !$0.isWhitespace && !$0.isNewline }
 
         // Strip Optional wrapper
         var inner = typeText

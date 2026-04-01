@@ -7,12 +7,12 @@ edition = "2024"
 crate-type = ["lib", "cdylib"]
 
 [dependencies]
-cpal = "0.15"
+cpal = "0.17"
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4"] }
 uniffi = { version = "0.31", features = ["cli"] }
 ringbuf = "0.4"
 log = "0.4"
-thiserror = "1"
+thiserror = "2"
 parking_lot = "0.12"
 
 [dev-dependencies]

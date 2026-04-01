@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneLaunchServices
 import CloneProtocol
 import AvocadoEvents
@@ -6,10 +7,10 @@ import AvocadoEvents
 let server = LaunchServicesServer()
 do {
     try server.start()
-    fputs("launchservicesd: listening on \(launchservicesdSocketPath)\n", stderr)
-    fputs("launchservicesd: scanning \(cloneApplicationsPath)\n", stderr)
+    logErr("launchservicesd: listening on \(launchservicesdSocketPath)\n")
+    logErr("launchservicesd: scanning \(cloneApplicationsPath)\n")
 } catch {
-    fputs("launchservicesd: failed to start: \(error)\n", stderr)
+    logErr("launchservicesd: failed to start: \(error)\n")
     exit(1)
 }
 
@@ -22,14 +23,14 @@ DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
         aeClient.onEvent = { event in
             switch event {
             case .launchApp(let bundleId):
-                fputs("launchservicesd: launch request for \(bundleId)\n", stderr)
+                logErr("launchservicesd: launch request for \(bundleId)\n")
                 // Check if the app is already running via a separate AE connection
                 let queryClient = AvocadoEventsClient()
                 do {
                     try queryClient.connect()
                     if queryClient.isRegistered(appId: bundleId) {
                         // App is running — send activate instead of spawning
-                        fputs("launchservicesd: \(bundleId) already running, sending activate\n", stderr)
+                        logErr("launchservicesd: \(bundleId) already running, sending activate\n")
                         queryClient.send(to: bundleId, event: .activate)
                     } else {
                         // App not running — launch via LaunchServices
@@ -37,25 +38,25 @@ DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
                         do {
                             try lsClient.connect()
                             if lsClient.launch(bundleIdentifier: bundleId) == nil {
-                                fputs("launchservicesd: app not found: \(bundleId)\n", stderr)
+                                logErr("launchservicesd: app not found: \(bundleId)\n")
                             }
                             lsClient.disconnect()
                         } catch {
-                            fputs("launchservicesd: failed to self-connect: \(error)\n", stderr)
+                            logErr("launchservicesd: failed to self-connect: \(error)\n")
                         }
                     }
                     queryClient.disconnect()
                 } catch {
-                    fputs("launchservicesd: failed to query avocadoeventsd: \(error)\n", stderr)
+                    logErr("launchservicesd: failed to query avocadoeventsd: \(error)\n")
                 }
             default:
                 break
             }
         }
         DispatchQueue.global().async { aeClient.listen() }
-        fputs("launchservicesd: connected to avocadoeventsd\n", stderr)
+        logErr("launchservicesd: connected to avocadoeventsd\n")
     } catch {
-        fputs("launchservicesd: could not connect to avocadoeventsd: \(error)\n", stderr)
+        logErr("launchservicesd: could not connect to avocadoeventsd: \(error)\n")
     }
 }
 

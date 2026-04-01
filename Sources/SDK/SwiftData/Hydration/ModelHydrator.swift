@@ -75,11 +75,13 @@ public struct ModelHydrator {
         // Swift doesn't have native KVC for non-NSObject types.
         // We use ObjC runtime when the object is an NSObject subclass,
         // otherwise use a protocol-based approach.
+        #if canImport(ObjectiveC)
         if let nsobj = object as? NSObject {
             let converted = fromSQLiteValue(value, type: type)
             nsobj.setValue(converted as? NSObject, forKey: name)
             return
         }
+        #endif
 
         // For pure Swift classes, we need the model to conform to a setter protocol.
         if let settable = object as? PropertySettable {

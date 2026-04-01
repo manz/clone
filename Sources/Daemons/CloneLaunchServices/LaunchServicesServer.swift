@@ -211,9 +211,9 @@ public final class LaunchServicesServer {
         process.standardError = FileHandle.standardError
         do {
             try process.run()
-            fputs("[launchservicesd] Launched \(reg.displayName) (pid \(process.processIdentifier)) from \(reg.executablePath)\n", stderr)
+            logErr("[launchservicesd] Launched \(reg.displayName) (pid \(process.processIdentifier)) from \(reg.executablePath)\n")
         } catch {
-            fputs("[launchservicesd] Failed to launch \(reg.displayName): \(error)\n", stderr)
+            logErr("[launchservicesd] Failed to launch \(reg.displayName): \(error)\n")
         }
     }
 
@@ -251,7 +251,7 @@ public final class LaunchServicesServer {
         let bundleName = plist["CFBundleName"] as? String ?? ""
         let displayName = plist["CFBundleDisplayName"] as? String ?? bundleName
         let executableName = plist["CFBundleExecutable"] as? String ?? bundleName
-        let executablePath = "\(path)/Contents/MacOS/\(executableName)"
+        let executablePath = "\(path)/Contents/\(cloneAppBundleExecDir)/\(executableName)"
         let iconFile = plist["CFBundleIconFile"] as? String
         let version = plist["CFBundleShortVersionString"] as? String
 
@@ -289,7 +289,7 @@ public final class LaunchServicesServer {
                 }
             }
         }
-        fputs("launchservicesd: registered \(reg.bundleIdentifier) (\(reg.displayName))\n", stderr)
+        logErr("launchservicesd: registered \(reg.bundleIdentifier) (\(reg.displayName))\n")
     }
 
     public func stop() {

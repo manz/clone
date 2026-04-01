@@ -16,14 +16,15 @@ wgpu = "29"
 uniffi = { version = "0.31", features = ["cli"], optional = true }
 bytemuck = { version = "1.4", features = ["derive"] }
 log = "0.4"
-cosmic-text = "0.12"
+cosmic-text = "0.18"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rustc-hash = "2"
-resvg = "0.44"
+resvg = "0.47"
 include_dir = "0.7"
 pollster = "0.4"
-thiserror = "1"
-wgpu-iosurface = { path = "../wgpu-iosurface" }
+thiserror = "2"
+
+wgpu-shared-surface = { path = "../wgpu-shared-surface" }
 
 [[bin]]
 name = "uniffi-bindgen-render"

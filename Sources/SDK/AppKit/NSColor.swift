@@ -1,4 +1,5 @@
-import CoreFoundation
+import Foundation
+import CoreGraphics
 
 /// AppKit NSColor shim for Linux. Provides the same semantic color API as macOS.
 /// On real macOS, apps import AppKit and get the real NSColor. On Clone/Linux,

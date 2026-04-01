@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneProtocol
 import CloneLaunchServices
 import AvocadoEvents
@@ -14,8 +15,8 @@ import AvocadoEvents
 let args = Array(CommandLine.arguments.dropFirst())
 
 guard !args.isEmpty else {
-    fputs("Usage: open [-a application] file ...\n", stderr)
-    fputs("       open <app.app>\n", stderr)
+    logErr("Usage: open [-a application] file ...\n")
+    logErr("       open <app.app>\n")
     exit(1)
 }
 
@@ -26,7 +27,7 @@ while i < args.count {
     if args[i] == "-a" {
         i += 1
         guard i < args.count else {
-            fputs("open: -a requires an argument\n", stderr)
+            logErr("open: -a requires an argument\n")
             exit(1)
         }
         appName = args[i]
@@ -41,7 +42,7 @@ let lsClient = LaunchServicesClient()
 do {
     try lsClient.connect()
 } catch {
-    fputs("open: cannot connect to launchservicesd: \(error)\n", stderr)
+    logErr("open: cannot connect to launchservicesd: \(error)\n")
     exit(1)
 }
 
@@ -53,7 +54,7 @@ if let name = appName, files.isEmpty {
     if let match = allApps.first(where: { $0.displayName.caseInsensitiveCompare(name) == .orderedSame || $0.bundleName.caseInsensitiveCompare(name) == .orderedSame }) {
         if lsClient.launch(bundleIdentifier: match.bundleIdentifier) != nil { exit(0) }
     }
-    fputs("open: no application named \"\(name)\"\n", stderr)
+    logErr("open: no application named \"\(name)\"\n")
     exit(1)
 }
 
@@ -66,29 +67,29 @@ for file in files {
     // .app bundle — launch directly via launchservicesd
     if path.hasSuffix(".app") {
         guard FileManager.default.fileExists(atPath: path) else {
-            fputs("open: \(file): No such file or directory\n", stderr)
+            logErr("open: \(file): No such file or directory\n")
             continue
         }
         if lsClient.launchBundle(path: path) != nil {
-            fputs("open: launching \(file)\n", stderr)
+            logErr("open: launching \(file)\n")
         } else {
-            fputs("open: failed to launch \(file)\n", stderr)
+            logErr("open: failed to launch \(file)\n")
         }
         continue
     }
 
     // Regular file — resolve + launch via launchservicesd
     guard FileManager.default.fileExists(atPath: path) else {
-        fputs("open: \(file): No such file or directory\n", stderr)
+        logErr("open: \(file): No such file or directory\n")
         continue
     }
 
     guard let reg = lsClient.openFile(path: path, withApp: appName) else {
-        fputs("open: no application to open \(file)\n", stderr)
+        logErr("open: no application to open \(file)\n")
         continue
     }
 
-    fputs("open: opening \(file) with \(reg.displayName)\n", stderr)
+    logErr("open: opening \(file) with \(reg.displayName)\n")
     filesToRoute.append((path: path, appId: reg.bundleIdentifier))
 }
 
@@ -98,7 +99,7 @@ if !filesToRoute.isEmpty {
     do {
         try aeClient.connect()
     } catch {
-        fputs("open: cannot connect to avocadoeventsd: \(error)\n", stderr)
+        logErr("open: cannot connect to avocadoeventsd: \(error)\n")
         exit(1)
     }
 

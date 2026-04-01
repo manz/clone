@@ -2,6 +2,19 @@
 import PackageDescription
 import CompilerPluginSupport
 
+// Compute the cargo target directory relative to the package root.
+// Works on both macOS (/Users/.../clone) and Linux (/mnt/clone).
+import Foundation
+let packageDir = String(#filePath.prefix(while: { $0 != "/" ? false : true }) + #filePath.drop(while: { $0 == "/" }).prefix(while: { $0 != "/" }))
+// Actually just use the directory of Package.swift itself
+let cargoTargetDir: String = {
+    let path = #filePath
+    if let lastSlash = path.lastIndex(of: "/") {
+        return String(path[path.startIndex..<lastSlash]) + "/target/debug"
+    }
+    return "./target/debug"
+}()
+
 let package = Package(
     name: "Clone",
     defaultLocalization: "en",
@@ -75,9 +88,9 @@ let package = Package(
             path: "Sources/Internal/CloneRender",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-L", cargoTargetDir,
                     "-lclone_render",
-                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", cargoTargetDir,
                 ]),
             ]
         ),
@@ -102,9 +115,9 @@ let package = Package(
             path: "Sources/Internal/AudioBridge",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-L", cargoTargetDir,
                     "-lclone_audio",
-                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", cargoTargetDir,
                 ]),
             ]
         ),
@@ -114,9 +127,9 @@ let package = Package(
             path: "Sources/Internal/CloneText",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-L", cargoTargetDir,
                     "-lclone_text",
-                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", cargoTargetDir,
                 ]),
             ]
         ),
@@ -136,23 +149,29 @@ let package = Package(
 
         // ── SDK ─────────────────────────────────────────────────
         .target(
-            name: "QuartzCore",
+            name: "CoreGraphics",
             dependencies: [],
+            path: "Sources/SDK/CoreGraphics",
+            linkerSettings: [.linkedLibrary("z")]
+        ),
+        .target(
+            name: "QuartzCore",
+            dependencies: ["CoreGraphics"],
             path: "Sources/SDK/QuartzCore"
         ),
         .target(
             name: "CoreText",
-            dependencies: ["CloneText"],
+            dependencies: ["CloneText", "CoreGraphics"],
             path: "Sources/SDK/CoreText"
         ),
         .target(
             name: "AppKit",
-            dependencies: ["QuartzCore"],
+            dependencies: ["QuartzCore", "CoreGraphics"],
             path: "Sources/SDK/AppKit"
         ),
         .target(
             name: "SwiftUI",
-            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface"],
+            dependencies: ["AppKit", "CloneClient", "CloneProtocol", "PosixShim", "SwiftDataMacros", "CoreText", "UniformTypeIdentifiers", "AvocadoEvents", "CloneLaunchServices", "CloneRender", "SharedSurface", "CoreGraphics"],
             path: "Sources/SDK/SwiftUI",
             exclude: ["Generated"]
         ),
@@ -197,9 +216,9 @@ let package = Package(
             path: "Sources/Apps/Compositor",
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", "/Users/manz/Projects/clone/target/debug",
+                    "-L", cargoTargetDir,
                     "-lclone_engine",
-                    "-Xlinker", "-rpath", "-Xlinker", "/Users/manz/Projects/clone/target/debug",
+                    "-Xlinker", "-rpath", "-Xlinker", cargoTargetDir,
                 ]),
             ]
         ),

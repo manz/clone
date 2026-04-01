@@ -9,7 +9,6 @@ crate-type = ["lib", "cdylib"]
 [dependencies]
 clone-render = { path = "../render", features = ["uniffi"] }
 clone-text = { path = "../text" }
-wgpu-iosurface = { path = "../wgpu-iosurface" }
 wgpu = "29"
 winit = "0.30"
 uniffi = { version = "0.31", features = ["cli"] }
@@ -17,12 +16,14 @@ pollster = "0.4"
 bytemuck = { version = "1.4", features = ["derive"] }
 log = "0.4"
 env_logger = "0.11"
-thiserror = "1"
-cosmic-text = "0.12"
+thiserror = "2"
+cosmic-text = "0.18"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 rustc-hash = "2"
-resvg = "0.44"
+resvg = "0.47"
 include_dir = "0.7"
+
+wgpu-shared-surface = { path = "../wgpu-shared-surface" }
 
 [dev-dependencies]
 pollster = "0.4"

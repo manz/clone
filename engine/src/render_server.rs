@@ -54,12 +54,22 @@ impl RenderServer {
         for sf in frames {
             if sf.desc.width <= 0.0 || sf.desc.height <= 0.0 { continue; }
 
-            // IOSurface-backed: import the shared texture (zero-copy)
-            // Pass 0,0 for dimensions — import_iosurface will use the IOSurface's actual size.
-            // The compositor draws the quad at the window geometry and stretches if sizes differ.
+            // Zero-copy GPU texture sharing:
+            // macOS: import IOSurface by global ID
+            // Linux: import DMA-BUF by file descriptor
+            #[cfg(target_os = "macos")]
             if sf.iosurface_id != 0 {
-                self.compositor.import_iosurface(
+                self.compositor.import_shared_surface(
                     device, sf.desc.surface_id, sf.iosurface_id, 0, 0,
+                );
+                continue;
+            }
+            #[cfg(not(target_os = "macos"))]
+            if sf.dmabuf_fd >= 0 {
+                let phys_w = (sf.desc.width * scale) as u32;
+                let phys_h = (sf.desc.height * scale) as u32;
+                self.compositor.import_shared_surface_fd(
+                    device, sf.desc.surface_id, sf.dmabuf_fd, phys_w, phys_h,
                 );
                 continue;
             }
@@ -142,6 +152,10 @@ impl RenderServer {
                     opacity: sf.desc.opacity,
                     content_width: phys_w,
                     content_height: phys_h,
+                    genie_progress: sf.desc.genie_progress,
+                    genie_target_x: sf.desc.genie_target_x * scale,
+                    genie_target_y: sf.desc.genie_target_y * scale,
+                    genie_target_w: sf.desc.genie_target_w * scale,
                 }
             })
             .collect();

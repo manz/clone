@@ -1,5 +1,17 @@
 import Foundation
 
+/// Resolve a binary from PATH (avoids hardcoding /usr/bin/swift).
+func which(_ name: String) -> String {
+    let pathDirs = ProcessInfo.processInfo.environment["PATH"]?.split(separator: ":") ?? []
+    for dir in pathDirs {
+        let full = "\(dir)/\(name)"
+        if FileManager.default.isExecutableFile(atPath: full) {
+            return full
+        }
+    }
+    return "/usr/bin/\(name)"
+}
+
 struct YCodeBuild {
     let sdkPath: String
     let target: String
@@ -60,8 +72,8 @@ struct YCodeBuild {
             let linkName = sourceDirURL.lastPathComponent
             let linkURL = parentDir.appendingPathComponent(linkName)
             let fm = FileManager.default
-            // Remove stale symlink
-            if fm.fileExists(atPath: linkURL.path) {
+            // Remove stale symlink (fileExists follows symlinks, so check attributes directly)
+            if (try? fm.attributesOfItem(atPath: linkURL.path)) != nil {
                 try fm.removeItem(at: linkURL)
             }
             try fm.createSymbolicLink(at: linkURL, withDestinationURL: sourceDirURL.standardizedFileURL)
@@ -101,7 +113,7 @@ struct YCodeBuild {
         if previousMode != nil && previousMode != currentMode {
             print("ycodebuild: build mode changed (\(previousMode!) → \(currentMode)), cleaning build cache...")
             let cleanProcess = Process()
-            cleanProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            cleanProcess.executableURL = URL(fileURLWithPath: which("swift"))
             cleanProcess.arguments = ["package", "--package-path", parentDir.path, "clean"]
             cleanProcess.standardOutput = FileHandle.nullDevice
             cleanProcess.standardError = FileHandle.nullDevice
@@ -127,7 +139,7 @@ struct YCodeBuild {
 
         // Run swift build
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        process.executableURL = URL(fileURLWithPath: which("swift"))
         process.arguments = ["build", "--package-path", parentDir.path, "--product", target]
         process.currentDirectoryURL = parentDir
 
@@ -142,7 +154,7 @@ struct YCodeBuild {
             print("ycodebuild: build succeeded!")
             // Use swift build --show-bin-path to get the actual binary location
             let binPathProcess = Process()
-            binPathProcess.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+            binPathProcess.executableURL = URL(fileURLWithPath: which("swift"))
             binPathProcess.arguments = ["build", "--package-path", parentDir.path, "--show-bin-path"]
             let pipe = Pipe()
             binPathProcess.standardOutput = pipe
@@ -181,15 +193,19 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     let fm = FileManager.default
     let appDir = "\(outputDir)/\(target).app"
     let contentsDir = "\(appDir)/Contents"
-    let macosDir = "\(contentsDir)/MacOS"
+    #if os(macOS)
+    let execDir = "\(contentsDir)/MacOS"
+    #else
+    let execDir = "\(contentsDir)/Linux"
+    #endif
     let resourcesDir = "\(contentsDir)/Resources"
 
     // Create directory structure
-    try fm.createDirectory(atPath: macosDir, withIntermediateDirectories: true)
+    try fm.createDirectory(atPath: execDir, withIntermediateDirectories: true)
     try fm.createDirectory(atPath: resourcesDir, withIntermediateDirectories: true)
 
     // Copy binary
-    let destBinary = "\(macosDir)/\(target)"
+    let destBinary = "\(execDir)/\(target)"
     if fm.fileExists(atPath: destBinary) { try fm.removeItem(atPath: destBinary) }
     try fm.copyItem(atPath: binaryPath, toPath: destBinary)
 
@@ -229,6 +245,7 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     }
 
     // Ad-hoc code sign — macOS requires valid signatures for .app bundles
+    #if os(macOS)
     let codesign = Process()
     codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
     codesign.arguments = ["-s", "-", "--force", "--deep", appDir]
@@ -239,6 +256,7 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
     if codesign.terminationStatus == 0 {
         print("ycodebuild: signed \(target).app")
     }
+    #endif
 
     return appDir
 }
@@ -353,7 +371,7 @@ func parseArguments() throws -> YCodeBuild {
 
     let resolvedSDK = sdkPath
         ?? ProcessInfo.processInfo.environment["AQUAX_SDK_PATH"]
-        ?? (NSString(string: "~/Projects/clone").expandingTildeInPath)
+        ?? FileManager.default.currentDirectoryPath
     let resolvedSource = sourceDir ?? "."
     let resolvedTarget = target ?? URL(fileURLWithPath: resolvedSource).lastPathComponent
 

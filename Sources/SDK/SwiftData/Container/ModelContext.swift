@@ -1,7 +1,9 @@
 import Foundation
 
 /// Tracks inserts, deletes, and fetches against a ModelContainer.
+#if canImport(ObjectiveC)
 @objc(Clone_ModelContext)
+#endif
 public final class ModelContext: NSObject {
     public let container: ModelContainer
     private let hydrator = ModelHydrator()

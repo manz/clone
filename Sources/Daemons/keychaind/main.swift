@@ -1,4 +1,5 @@
 import Foundation
+import PosixShim
 import CloneKeychain
 import CloneProtocol
 
@@ -6,9 +7,9 @@ let server = KeychainServer()
 
 do {
     try server.start()
-    fputs("keychaind: listening on \(keychainSocketPath)\n", stderr)
+    logErr("keychaind: listening on \(keychainSocketPath)\n")
 } catch {
-    fputs("keychaind: failed to start — \(error)\n", stderr)
+    logErr("keychaind: failed to start — \(error)\n")
     exit(1)
 }
 

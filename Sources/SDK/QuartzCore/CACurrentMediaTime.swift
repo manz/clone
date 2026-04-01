@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 /// Monotonic clock — matches QuartzCore's CACurrentMediaTime().
 /// Uses CLOCK_MONOTONIC via clock_gettime, same as the real implementation.

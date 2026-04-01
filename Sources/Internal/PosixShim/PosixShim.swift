@@ -11,6 +11,24 @@ import Darwin
 import Glibc
 #endif
 
+// MARK: - Logging
+
+/// Write a message to stderr. Thread-safe wrapper that avoids Swift 6 concurrency
+/// warnings about `stderr` being shared mutable state.
+public func logErr(_ message: String) {
+    FileHandle.standardError.write(Data(message.utf8))
+}
+
+// MARK: - App bundle platform directory
+
+/// The platform-specific subdirectory inside Contents/ for app bundle executables.
+/// `Contents/MacOS` on macOS, `Contents/Linux` on Linux.
+#if canImport(Darwin)
+public let cloneAppBundleExecDir = "MacOS"
+#else
+public let cloneAppBundleExecDir = "Linux"
+#endif
+
 // MARK: - Socket I/O
 
 public let posix_connect = connect

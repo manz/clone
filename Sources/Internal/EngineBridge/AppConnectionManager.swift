@@ -78,9 +78,9 @@ final class AppConnectionManager {
     func start() {
         do {
             try server.start()
-            fputs("Compositor server listening on \(compositorSocketPath)\n", stderr)
+            logErr("Compositor server listening on \(compositorSocketPath)\n")
         } catch {
-            fputs("Failed to start compositor server: \(error)\n", stderr)
+            logErr("Failed to start compositor server: \(error)\n")
         }
 
         server.onActivateApp = { [weak self] windowId in
@@ -105,7 +105,7 @@ final class AppConnectionManager {
             self?.pendingOpenFiles.append(path)
         }
         server.onRequestThumbnail = { [weak self] dockWindowId, windowId, maxW, maxH in
-            fputs("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n", stderr)
+            logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
             self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
         }
 
@@ -120,9 +120,9 @@ final class AppConnectionManager {
             do {
                 try client.connect()
                 DispatchQueue.main.async { self?.lsClient = client }
-                fputs("Connected to launchservicesd\n", stderr)
+                logErr("Connected to launchservicesd\n")
             } catch {
-                fputs("Could not connect to launchservicesd: \(error)\n", stderr)
+                logErr("Could not connect to launchservicesd: \(error)\n")
             }
         }
         launchApp("LoginWindow")
@@ -146,12 +146,12 @@ final class AppConnectionManager {
             let candidates = [
                 URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
                 "\(cloneSystemPath)/\(name)",
-                "\(cloneApplicationsPath)/\(name).app/Contents/MacOS/\(name)",
+                "\(cloneApplicationsPath)/\(name).app/Contents/\(cloneAppBundleExecDir)/\(name)",
                 ".build/debug/\(name)",
                 "target/debug/\(name)",
             ]
             guard let found = candidates.first(where: { fm.isExecutableFile(atPath: $0) }) else {
-                fputs("Could not find \(name) binary\n", stderr)
+                logErr("Could not find \(name) binary\n")
                 return
             }
             path = found
@@ -163,9 +163,9 @@ final class AppConnectionManager {
         do {
             try process.run()
             childProcesses.append(process)
-            fputs("Launched \(name) (pid \(process.processIdentifier))\n", stderr)
+            logErr("Launched \(name) (pid \(process.processIdentifier))\n")
         } catch {
-            fputs("Failed to launch \(name): \(error)\n", stderr)
+            logErr("Failed to launch \(name): \(error)\n")
         }
     }
 
@@ -278,7 +278,7 @@ final class AppConnectionManager {
         if let focusedId = windowManager.focusedWindowId {
             for itemId in pendingMenuActions {
                 if itemId == "quit.desktop" {
-                    fputs("Quit CloneDesktop requested\n", stderr)
+                    logErr("Quit CloneDesktop requested\n")
                     exit(0)
                 } else if itemId == "app.quit" {
                     terminateFocusedApp(windowManager: windowManager)
@@ -309,17 +309,16 @@ final class AppConnectionManager {
         }
         pendingOpenFiles.removeAll()
 
-        // Process thumbnail requests — resolve IDs on main thread, capture + send on background
+        // Process thumbnail requests — IOSurface capture is macOS-only
+        #if canImport(IOSurface)
         for req in pendingThumbnailRequests {
             let serverWid = externalWindowId(for: req.windowId)
             let app = serverWid.flatMap { sid in server.connectedApps.first(where: { $0.windowId == sid }) }
             let dockApp = server.connectedApps.first(where: { $0.windowId == req.dockWindowId })
-            fputs("[Thumbnail] Resolving window=\(req.windowId): serverWid=\(serverWid as Any) app=\(app?.appId as Any) iosurface=\(app?.iosurfaceId as Any) dockApp=\(dockApp?.appId as Any)\n", stderr)
             guard let serverWid, let app, app.iosurfaceId != 0, let dockApp else {
                 continue
             }
             let iosurfaceId = app.iosurfaceId
-            let dockWid = req.dockWindowId
             let windowId = req.windowId
             let maxW = req.maxWidth
             let maxH = req.maxHeight
@@ -327,13 +326,10 @@ final class AppConnectionManager {
                 guard let result = ThumbnailCapture.capture(iosurfaceId: iosurfaceId, maxWidth: maxW, maxHeight: maxH) else {
                     return
                 }
-                fputs("[Thumbnail] Sending to dock...\n", stderr)
-                fputs("[Thumbnail] PNG \(result.pngData.count) bytes, sending...\n", stderr)
                 dockApp.send(.windowThumbnail(windowId: windowId, pngData: result.pngData))
-                fputs("[Thumbnail] Sent\n", stderr)
-                fputs("[Thumbnail] Sent to dock\n", stderr)
             }
         }
+        #endif
         pendingThumbnailRequests.removeAll()
 
     }
@@ -342,11 +338,11 @@ final class AppConnectionManager {
     func openFileWithDefaultApp(_ path: String) {
         let ext = (path as NSString).pathExtension.lowercased()
         guard !ext.isEmpty else {
-            fputs("openFile: no extension for \(path)\n", stderr)
+            logErr("openFile: no extension for \(path)\n")
             return
         }
         guard let reg = lsClient?.defaultApp(forExtension: ext) else {
-            fputs("openFile: no app registered for .\(ext)\n", stderr)
+            logErr("openFile: no app registered for .\(ext)\n")
             return
         }
         // Launch the app if not already running
@@ -584,18 +580,19 @@ final class AppConnectionManager {
                 surfaceH = Float(screenHeight)
             }
 
-            // IOSurface-backed app: emit surface with iosurfaceId for compositor import
-            if app.iosurfaceId != 0 {
+            // GPU-shared surface: IOSurface on macOS, DMA-BUF fd on Linux
+            if app.iosurfaceId != 0 || app.dmabufFd >= 0 {
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1
+                        cornerRadius: 0, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: app.iosurfaceId
+                    iosurfaceId: app.iosurfaceId, dmabufFd: app.dmabufFd
                 ))
                 continue
             }
@@ -608,11 +605,12 @@ final class AppConnectionManager {
                         surfaceId: surfaceId,
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1
+                        cornerRadius: 0, opacity: 1,
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
                     ),
                     commands: engineCommands,
                     pixelData: nil,
-                    iosurfaceId: 0
+                    iosurfaceId: 0, dmabufFd: -1
                 ))
             }
         }

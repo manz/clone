@@ -65,13 +65,21 @@ public final class AppClient {
     public init() {}
 
     public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
-        let path = "/tmp/clone-compositor.sock"
+        let path = compositorSocketPath
+        #if canImport(Darwin)
         socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
+        #else
+        socketFd = socket(AF_UNIX, Int32(SOCK_STREAM.rawValue), 0)
+        #endif
         guard socketFd >= 0 else { throw NSError(domain: "AppClient", code: 1) }
 
         // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+        #if canImport(Darwin)
         var on: Int32 = 1
         setsockopt(socketFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        #else
+        signal(SIGPIPE, SIG_IGN)
+        #endif
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -83,7 +91,7 @@ public final class AppClient {
         let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
         let result = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sockPtr in
-                Foundation.connect(socketFd, sockPtr, addrLen)
+                posix_connect(socketFd, sockPtr, addrLen)
             }
         }
         guard result == 0 else { throw NSError(domain: "AppClient", code: 2) }
@@ -133,6 +141,17 @@ public final class AppClient {
                     if n <= 0 { break }
                     written += n
                 }
+            }
+        }
+    }
+
+    /// Send a message with an attached file descriptor via SCM_RIGHTS (Linux DMA-BUF).
+    public func sendWithFd(_ message: AppMessage, fd attachedFd: Int32) {
+        guard let data = try? WireProtocol.encode(message) else { return }
+        sendQueue.async { [sockFd = self.socketFd] in
+            data.withUnsafeBytes { ptr in
+                guard let base = ptr.baseAddress else { return }
+                _ = posix_sendmsg_fd(sockFd, base, data.count, attachedFd)
             }
         }
     }
@@ -203,7 +222,6 @@ public final class AppClient {
             onMinimizedWindows?(windows)
 
         case .windowThumbnail(let windowId, let pngData):
-            fputs("[AppClient] windowThumbnail decoded: window=\(windowId) \(pngData.count) bytes PNG\n", stderr)
             onWindowThumbnail?(windowId, pngData)
 
         case .runningApps(let apps):
@@ -281,13 +299,8 @@ public final class AppClient {
                 while readBuf.count >= 4 {
                     let needed = Int(readBuf.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }) + 4
                     if readBuf.count >= needed { break }
-                    fputs("[readLoop] partial: have \(readBuf.count)/\(needed), reading more...\n", stderr)
                     let more = posix_read(fd, &buf, buf.count)
-                    if more <= 0 {
-                        fputs("[readLoop] inner read returned \(more), errno=\(errno)\n", stderr)
-                        break
-                    }
-                    fputs("[readLoop] inner read got \(more) bytes, total \(readBuf.count + more)\n", stderr)
+                    if more <= 0 { break }
                     readBuf.append(contentsOf: buf[0..<more])
                     // Decode any messages that became complete
                     while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
@@ -322,7 +335,7 @@ public final class AppClient {
             send(.close)
         }
         if socketFd >= 0 {
-            shutdown(socketFd, SHUT_RDWR)
+            shutdown(socketFd, Int32(SHUT_RDWR))
             posix_close(socketFd)
             socketFd = -1
         }
