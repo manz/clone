@@ -37,6 +37,7 @@ render-bindings: render
 		--library $(CARGO_OUT)/libclone_render.$(LIB_EXT) \
 		--language swift \
 		--out-dir /tmp/clone-render-bindings
+	mkdir -p Sources/FFI/CRender/include Sources/Internal/CloneRender
 	cp /tmp/clone-render-bindings/clone_renderFFI.h Sources/FFI/CRender/include/clone_renderFFI.h
 	cp /tmp/clone-render-bindings/clone_render.swift Sources/Internal/CloneRender/clone_render.swift
 
@@ -48,6 +49,7 @@ bindings: engine
 		--out-dir Sources/Internal/EngineBridge
 	# Merge clone-render FFI header into engine FFI header (symbols live in the same dylib)
 	cat Sources/Internal/EngineBridge/clone_renderFFI.h >> Sources/Internal/EngineBridge/clone_engineFFI.h
+	mkdir -p Sources/FFI/CEngine/include
 	cp Sources/Internal/EngineBridge/clone_engineFFI.h Sources/FFI/CEngine/include/clone_engineFFI.h
 	# clone_render.swift imports clone_renderFFI, but all symbols are in clone_engineFFI.
 	# Rewrite the import so it finds the C symbols from the merged header.
@@ -68,6 +70,7 @@ text-bindings: text
 		--library $(CARGO_OUT)/libclone_text.$(LIB_EXT) \
 		--language swift \
 		--out-dir Sources/Internal/CloneText
+	mkdir -p Sources/FFI/CText/include
 	cp Sources/Internal/CloneText/clone_textFFI.h Sources/FFI/CText/include/clone_textFFI.h
 
 # Rust audio engine
@@ -80,6 +83,7 @@ audio-bindings: audio
 		--library $(CARGO_OUT)/libclone_audio.$(LIB_EXT) \
 		--language swift \
 		--out-dir Sources/Internal/AudioBridge
+	mkdir -p Sources/FFI/CAudio/include
 	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Swift package — compositor + daemons only (not apps)
