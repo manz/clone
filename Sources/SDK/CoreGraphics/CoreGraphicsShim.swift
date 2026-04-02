@@ -7,8 +7,10 @@
 // Foundation provides CGFloat, CGPoint, CGSize, CGRect on both platforms.
 // CF types and Selector only exist on Linux (macOS gets them from system libs).
 // Graphics stubs (CGColor, CGContext, CGPath, etc.) are provided on both.
-
-import Foundation
+//
+// @_exported so that `import CoreGraphics` re-exports CGFloat/CGPoint/CGRect/CGSize,
+// matching Apple SDK behaviour where those types come with CoreGraphics.
+@_exported import Foundation
 
 // MARK: - Core Foundation types (Linux only — macOS gets these from CoreFoundation)
 
@@ -410,7 +412,11 @@ extension CGPoint: @retroactive Equatable {
     }
 }
 
-extension CGSize {
+extension CGSize: @retroactive Equatable {
+    public static func == (lhs: CGSize, rhs: CGSize) -> Bool {
+        lhs.width == rhs.width && lhs.height == rhs.height
+    }
+
     public static let zero = CGSize()
 
     @inlinable
@@ -424,7 +430,11 @@ extension CGSize {
     }
 }
 
-extension CGRect {
+extension CGRect: @retroactive Equatable {
+    public static func == (lhs: CGRect, rhs: CGRect) -> Bool {
+        lhs.origin == rhs.origin && lhs.size == rhs.size
+    }
+
     public static let zero = CGRect()
 }
 
