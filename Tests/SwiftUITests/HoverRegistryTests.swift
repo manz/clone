@@ -17,7 +17,7 @@ import Testing
     let id1 = registry.registerContinuous { p in phase = p }
 
     // Pointer moves over the hover zone
-    registry.update(hitIds: [id1], position: CGPoint(x: 100, y: 100))
+    registry.update(positions: [id1: CGPoint(x: 100, y: 100)])
     #expect(phase == .active(CGPoint(x: 100, y: 100)))
 
     // --- Frame 2: resetCounter (NOT clear) before rebuilding ---
@@ -30,7 +30,7 @@ import Testing
     // Pointer moves again — activeIds already has id1 which == id2,
     // so this is "still hovered", not "newly hovered then old left"
     phase = nil
-    registry.update(hitIds: [id2], position: CGPoint(x: 110, y: 100))
+    registry.update(positions: [id2: CGPoint(x: 110, y: 100)])
     #expect(phase == .active(CGPoint(x: 110, y: 100)),
             "Handler must fire .active after frame rebuild, not .ended")
 }
@@ -46,7 +46,7 @@ import Testing
     // --- Frame 1 ---
     registry.clear()
     let id1 = registry.registerContinuous { p in phases.append(p) }
-    registry.update(hitIds: [id1], position: CGPoint(x: 100, y: 100))
+    registry.update(positions: [id1: CGPoint(x: 100, y: 100)])
     #expect(phases.count == 1)
 
     // --- Frame 2: register WITHOUT resetting counter (the broken behavior) ---
@@ -55,7 +55,7 @@ import Testing
 
     // Pointer moves — new layout has id2, but activeIds still has id1
     phases.removeAll()
-    registry.update(hitIds: [id2], position: CGPoint(x: 110, y: 100))
+    registry.update(positions: [id2: CGPoint(x: 110, y: 100)])
 
     // The old handler (id1) gets .ended because it left activeIds
     let hasEnded = phases.contains(.ended)

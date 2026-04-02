@@ -138,17 +138,17 @@ extension LayoutNode {
         return nil
     }
 
-    /// Collect all onHover IDs whose frame contains the point.
-    public func hitTestHover(x: CGFloat, y: CGFloat) -> Set<UInt64> {
-        guard frame.contains(x: x, y: y) else { return [] }
-        var ids = Set<UInt64>()
+    /// Collect all onHover IDs whose frame contains the point, mapped to view-local position.
+    public func hitTestHover(x: CGFloat, y: CGFloat) -> [UInt64: CGPoint] {
+        guard frame.contains(x: x, y: y) else { return [:] }
+        var result = [UInt64: CGPoint]()
         if case .onHover(let id, _) = node {
-            ids.insert(id)
+            result[id] = CGPoint(x: x - frame.x, y: y - frame.y)
         }
         for child in children {
-            ids.formUnion(child.hitTestHover(x: x, y: y))
+            result.merge(child.hitTestHover(x: x, y: y)) { current, _ in current }
         }
-        return ids
+        return result
     }
 }
 

@@ -35,15 +35,16 @@ public final class HoverRegistry: @unchecked Sendable {
         return id
     }
 
-    /// Update hover state with pointer position. Calls all relevant handlers.
-    public func update(hitIds: Set<UInt64>, position: CGPoint) {
+    /// Update hover state with view-local positions per hit ID. Calls all relevant handlers.
+    public func update(positions: [UInt64: CGPoint]) {
+        let hitIds = Set(positions.keys)
         // Newly hovered
         for id in hitIds where !activeIds.contains(id) {
             boolHandlers[id]?(true)
         }
-        // Still hovered — send position to continuous handlers
-        for id in hitIds {
-            phaseHandlers[id]?(.active(position))
+        // Still hovered — deliver view-local position to continuous handlers
+        for (id, pt) in positions {
+            phaseHandlers[id]?(.active(pt))
         }
         // No longer hovered
         for id in activeIds where !hitIds.contains(id) {

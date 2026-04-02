@@ -381,8 +381,8 @@ extension App {
                     viewTree,
                     in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
                 )
-                let hitIds = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
-                HoverRegistry.shared.update(hitIds: hitIds, position: CGPoint(x: CGFloat(px), y: CGFloat(py)))
+                let hitPositions = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
+                HoverRegistry.shared.update(positions: hitPositions)
                 appRenderer.setNeedsDisplay()
             }
             // Sheet frame request — compositor asks for sheet render commands
