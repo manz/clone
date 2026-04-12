@@ -171,8 +171,11 @@ extension App {
         // Wire up system actions.
         let client = app.client
         SystemActions.shared.launchApp = LaunchAppAction { appId in
+            logErr("[LaunchApp] request for \(appId), aeClient=\(_sharedAEClient != nil)\n")
             if let ae = _sharedAEClient {
                 ae.send(to: "com.clone.launchservicesd", event: .launchApp(bundleIdentifier: appId))
+            } else {
+                logErr("[LaunchApp] FAILED — no avocadoeventsd connection\n")
             }
         }
         SystemActions.shared.restoreWindow = RestoreWindowAction { windowId in
@@ -373,16 +376,11 @@ extension App {
             app.client.onPointerMove = { px, py in
                 updateOpenPanelMouse(x: CGFloat(px), y: CGFloat(py))
                 app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
-                let cw = CGFloat(app.client.width)
-                let ch = CGFloat(app.client.height)
-                // Use cached view tree from last frame — don't rebuild on hover
-                guard let viewTree = _cachedViewTree else { return }
-                let layoutNode = Layout.layout(
-                    viewTree,
-                    in: LayoutFrame(x: 0, y: 0, width: cw, height: ch)
-                )
-                let hitIds = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
-                HoverRegistry.shared.update(hitIds: hitIds, position: CGPoint(x: CGFloat(px), y: CGFloat(py)))
+                // Use cached layout from last render frame — same as tap hit-testing.
+                // Avoids a full Layout.layout() + text measurement per pointer move.
+                guard let layoutNode = _cachedLayoutNode else { return }
+                let hitPositions = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
+                HoverRegistry.shared.update(positions: hitPositions)
                 appRenderer.setNeedsDisplay()
             }
             // Sheet frame request — compositor asks for sheet render commands

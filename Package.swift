@@ -324,7 +324,7 @@ let package = Package(
         // ── Tests ────────────────────────────────────────────────
         .testTarget(
             name: "QuartzCoreTests",
-            dependencies: ["QuartzCore"],
+            dependencies: ["QuartzCore", "CoreGraphics"],
             path: "Tests/QuartzCoreTests"
         ),
         .testTarget(

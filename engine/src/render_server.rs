@@ -142,6 +142,8 @@ impl RenderServer {
             .map(|sf| {
                 let phys_w = sf.desc.width * scale;
                 let phys_h = sf.desc.height * scale;
+                // Chrome surfaces (no IOSurface/DMA-BUF) get shadows; content surfaces don't.
+                let is_shared = sf.iosurface_id != 0 || sf.dmabuf_fd >= 0;
                 CompositeWindow {
                     surface_id: sf.desc.surface_id,
                     x: sf.desc.x * scale,
@@ -150,6 +152,7 @@ impl RenderServer {
                     height: phys_h,
                     corner_radius: sf.desc.corner_radius * scale,
                     opacity: sf.desc.opacity,
+                    shadow: !is_shared,
                     content_width: phys_w,
                     content_height: phys_h,
                     genie_progress: sf.desc.genie_progress,

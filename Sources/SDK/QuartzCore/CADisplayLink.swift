@@ -67,7 +67,15 @@ public class CADisplayLink {
         callback = nil
     }
 
+    /// True while the tick handler is executing — prevents re-entrant/piled-up fires.
+    private var inTick = false
+
     private func tick() {
+        // Skip this fire if the previous tick is still running or if we're
+        // behind schedule.  Apple's CADisplayLink drops frames rather than
+        // queuing them, preventing main-queue starvation.
+        guard !inTick else { return }
+        inTick = true
         let now = CACurrentMediaTime()
         timestamp = now
         targetTimestamp = now + duration
@@ -78,6 +86,7 @@ public class CADisplayLink {
             _ = target?.perform(Selector(selectorName))
             #endif
         }
+        inTick = false
     }
 
     private func updateInterval() {

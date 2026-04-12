@@ -193,9 +193,11 @@ extension PhosphorIconStyle {
 /// Thin UniFFI shim — delegates all work to WindowServer.
 @MainActor
 public final class DesktopDelegateAdapter: @preconcurrency DesktopDelegate {
-    private let windowServer = WindowServer()
+    private let windowServer: WindowServer
 
-    public init() {}
+    public init(noApps: Bool = false) {
+        windowServer = WindowServer(noApps: noApps)
+    }
 
     public func onFrame(surfaceId: UInt64, width: UInt32, height: UInt32) -> [RenderCommand] {
         return []
@@ -232,6 +234,7 @@ public final class DesktopDelegateAdapter: @preconcurrency DesktopDelegate {
 
 /// Launch the desktop. Call from main.swift.
 @MainActor public func launchDesktop() throws {
-    let delegate = DesktopDelegateAdapter()
+    let noApps = CommandLine.arguments.contains("--no-apps")
+    let delegate = DesktopDelegateAdapter(noApps: noApps)
     try runDesktop(delegate: delegate)
 }

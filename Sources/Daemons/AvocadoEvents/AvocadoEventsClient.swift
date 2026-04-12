@@ -68,7 +68,11 @@ public final class AvocadoEventsClient: @unchecked Sendable {
     /// Synchronous — must NOT be called while listen() is running on another thread.
     public func isRegistered(appId: String) -> Bool {
         sendRequest(.isRegistered(appId: appId))
-        guard let response = readOneResponse() else { return false }
+        guard let response = readOneResponse() else {
+            logErr("[AEClient] isRegistered(\(appId)): no response\n")
+            return false
+        }
+        logErr("[AEClient] isRegistered(\(appId)): response=\(response)\n")
         if case .registered(let value) = response { return value }
         return false
     }

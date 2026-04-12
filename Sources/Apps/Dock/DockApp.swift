@@ -73,13 +73,12 @@ final class DockState: ObservableObject {
 
 // MARK: - Magnification
 
-func magnifiedSize(index: Int, mouseX: CGFloat, totalCount: Int, startX: CGFloat) -> CGFloat {
-    let iconCenterX = startX + CGFloat(index) * (baseIconSize + iconPadding) + baseIconSize / 2
-    let distance = abs(mouseX - iconCenterX)
+/// Magnified icon size for a slot whose base center X is at `baseX`.
+func magnifiedSize(baseX: CGFloat, mouseX: CGFloat) -> CGFloat {
+    let distance = abs(mouseX - baseX)
     if distance > influenceRadius { return baseIconSize }
     let t = 1.0 - (distance / influenceRadius)
-    let scale = 1.0 + (maxScale - 1.0) * (1.0 - cos(t * .pi)) / 2.0
-    return baseIconSize * scale
+    return baseIconSize * (1.0 + (maxScale - 1.0) * (1.0 - cos(t * .pi)) / 2.0)
 }
 
 // MARK: - Dock Icon
@@ -207,6 +206,28 @@ struct DockSeparator: View {
     }
 }
 
+
+/// Compute base center X for every icon slot in hover coordinate space [0, maxMagnifiedWidth].
+/// Extracted from DockView.body to avoid for-loop / ViewBuilder conflict.
+func dockIconCenters(
+    pinnedCount: Int, unpinnedCount: Int, minimizedCount: Int,
+    hasSeparator1: Bool, hasSeparator2: Bool, hasSeparatorBeforeTrash: Bool,
+    sepSlotWidth: CGFloat, leftEdge: CGFloat
+) -> [CGFloat] {
+    let step = baseIconSize + iconPadding
+    let sepStep = sepSlotWidth + iconPadding
+    var centers: [CGFloat] = []
+    var cursor = leftEdge + baseIconSize / 2
+    for _ in 0..<pinnedCount    { centers.append(cursor); cursor += step }
+    if hasSeparator1            { cursor += sepStep }
+    for _ in 0..<unpinnedCount  { centers.append(cursor); cursor += step }
+    if hasSeparator2            { cursor += sepStep }
+    for _ in 0..<minimizedCount { centers.append(cursor); cursor += step }
+    if hasSeparatorBeforeTrash  { cursor += sepStep }
+    centers.append(cursor)  // trash
+    return centers
+}
+
 // MARK: - Dock View
 
 struct DockView: View {
@@ -215,36 +236,56 @@ struct DockView: View {
     let height: CGFloat
 
     var body: some View {
-        // Collect all items across zones for magnification
-        let allItems = pinnedItems + state.unpinnedRunningItems
-        let totalCount = allItems.count
-        let totalBaseWidth = CGFloat(totalCount) * baseIconSize + CGFloat(max(totalCount - 1, 0)) * iconPadding
-        let startX = (width - totalBaseWidth) / 2
-
-        let sizes: [CGFloat] = (0..<totalCount).map { i in
-            state.dockHovered ? magnifiedSize(index: i, mouseX: state.mouseX, totalCount: totalCount, startX: startX) : baseIconSize
-        }
-
-        // Zone sizes
         let pinnedCount = pinnedItems.count
         let unpinnedCount = state.unpinnedRunningItems.count
         let minimizedCount = state.minimizedWindows.count
+        let totalIconCount = pinnedCount + unpinnedCount + minimizedCount + 1 // +1 for trash
+
         let hasSeparator1 = unpinnedCount > 0 || minimizedCount > 0
         let hasSeparator2 = unpinnedCount > 0 && minimizedCount > 0
+        let hasSeparatorBeforeTrash = unpinnedCount > 0 || minimizedCount > 0
+        let sepCount = (hasSeparator1 ? 1 : 0) + (hasSeparator2 ? 1 : 0) + (hasSeparatorBeforeTrash ? 1 : 0)
 
-        // Total dock width
-        let iconWidth = sizes.reduce(0, +) + CGFloat(max(totalCount - 1, 0)) * iconPadding
-        let minimizedWidth = minimizedCount > 0 ? CGFloat(minimizedCount) * (baseIconSize + iconPadding) : 0
-        let trashWidth = baseIconSize + iconPadding
-        let separatorSpace = (hasSeparator1 ? separatorWidth + separatorPadding * 2 : 0)
-            + (hasSeparator2 ? separatorWidth + separatorPadding * 2 : 0)
-            + (minimizedCount > 0 ? separatorWidth + separatorPadding * 2 : 0) // before trash
-        let totalWidth = iconWidth + minimizedWidth + trashWidth + separatorSpace + iconPadding * 2
-        let bgHeight = dockHeight + iconPadding * 2
+        // A DockSeparator view has intrinsic width = separatorWidth + separatorPadding * 2 = 14.
+        // In the HStack (spacing = iconPadding), it adds (sepSlotWidth + iconPadding) over a
+        // plain inter-icon gap, because the separator itself is a separate HStack child.
+        let sepSlotWidth = separatorWidth + separatorPadding * 2  // 14
 
-        let maxItemCount = totalCount + minimizedCount + 1 // +1 for trash
-        let maxMagnifiedWidth = CGFloat(maxItemCount) * baseIconSize * maxScale + CGFloat(max(maxItemCount - 1, 0)) * iconPadding + iconPadding * 2 + separatorSpace
+        // Maximum possible dock width (all icons at maxScale) — stable hit-test zone.
+        let maxMagnifiedWidth = CGFloat(totalIconCount) * baseIconSize * maxScale
+            + CGFloat(totalIconCount - 1) * iconPadding
+            + CGFloat(sepCount) * (sepSlotWidth + iconPadding)
+            + iconPadding * 2
         let maxMagnifiedHeight = baseIconSize * maxScale + 34 + iconPadding * 2
+
+        // HStack base width at rest — used to center icon positions in hover coordinate space.
+        let hstackBaseWidth = CGFloat(totalIconCount) * baseIconSize
+            + CGFloat(totalIconCount - 1) * iconPadding
+            + CGFloat(sepCount) * (sepSlotWidth + iconPadding)
+
+        // Compute base center X for every icon slot.
+        // Hover delivers view-local coordinates [0, maxMagnifiedWidth] — matches Apple's SwiftUI.
+        let leftEdge = (maxMagnifiedWidth - hstackBaseWidth) / 2
+        let iconCenters = dockIconCenters(
+            pinnedCount: pinnedCount, unpinnedCount: unpinnedCount, minimizedCount: minimizedCount,
+            hasSeparator1: hasSeparator1, hasSeparator2: hasSeparator2,
+            hasSeparatorBeforeTrash: hasSeparatorBeforeTrash,
+            sepSlotWidth: sepSlotWidth, leftEdge: leftEdge
+        )
+
+        // Magnified size for each icon slot.
+        let sizes: [CGFloat] = iconCenters.map { cx in
+            state.dockHovered ? magnifiedSize(baseX: cx, mouseX: state.mouseX) : baseIconSize
+        }
+
+        let trashSize = sizes[totalIconCount - 1]
+
+        // Pill width responds to the current (magnified) sizes of all icons.
+        let totalWidth = sizes.reduce(0, +)
+            + CGFloat(totalIconCount - 1) * iconPadding
+            + CGFloat(sepCount) * (sepSlotWidth + iconPadding)
+            + iconPadding * 2
+        let bgHeight = dockHeight + iconPadding * 2
 
         VStack(spacing: 0) {
             Spacer()
@@ -276,42 +317,42 @@ struct DockView: View {
                             showRunningDot: state.runningAppIds.contains(item.appId)
                         )
                     }
-                    // Separator between pinned and unpinned running
                     if hasSeparator1 {
                         DockSeparator(height: dockHeight * 0.5)
                     }
-                    // Zone 2: Running but unpinned apps
+                    // Zone 2: Unpinned running apps
                     ForEach(Array(state.unpinnedRunningItems.enumerated()), id: \.offset) { i, item in
                         DockIconView(
                             state: state, item: item, size: sizes[pinnedCount + i],
                             showRunningDot: true
                         )
                     }
-                    // Separator before minimized
                     if hasSeparator2 {
                         DockSeparator(height: dockHeight * 0.5)
                     }
                     // Zone 3: Minimized windows
-                    ForEach(Array(state.minimizedWindows.enumerated()), id: \.offset) { _, window in
+                    ForEach(Array(state.minimizedWindows.enumerated()), id: \.offset) { i, window in
                         MinimizedThumbnailView(
-                            state: state, window: window, size: baseIconSize
+                            state: state, window: window,
+                            size: sizes[pinnedCount + unpinnedCount + i]
                         )
                     }
-                    // Separator before trash
-                    if minimizedCount > 0 || unpinnedCount > 0 {
+                    if hasSeparatorBeforeTrash {
                         DockSeparator(height: dockHeight * 0.5)
                     }
                     // Zone 4: Trash
                     VStack(spacing: 4) {
+                        // Reserve label zone for consistent vertical alignment with other icons
+                        Color.clear.frame(width: 1, height: 26)
                         ZStack {
-                            RoundedRectangle(cornerRadius: baseIconSize * 0.22)
+                            RoundedRectangle(cornerRadius: trashSize * 0.22)
                                 .fill(Color(red: 0.4, green: 0.4, blue: 0.42, opacity: 1.0))
-                                .frame(width: baseIconSize, height: baseIconSize)
+                                .frame(width: trashSize, height: trashSize)
                             Image(systemName: "trash.fill")
-                                .font(.system(size: baseIconSize * 0.5))
+                                .font(.system(size: trashSize * 0.5))
                                 .foregroundColor(.white)
                         }
-                        .frame(width: baseIconSize, height: baseIconSize)
+                        .frame(width: trashSize, height: trashSize)
                     }
                 }
                 .padding(.bottom, iconPadding)

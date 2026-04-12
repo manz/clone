@@ -62,6 +62,9 @@ final class AppConnectionManager {
     private(set) var sessionStarted = false
     private var pendingSessionReady = false
     private var pendingColorScheme: Bool? = nil
+    /// When true, the compositor starts but doesn't launch any apps or daemons.
+    /// Apps can still connect externally (e.g. for profiling).
+    var noApps = false
 
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
@@ -107,6 +110,14 @@ final class AppConnectionManager {
         server.onRequestThumbnail = { [weak self] dockWindowId, windowId, maxW, maxH in
             logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
             self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
+        }
+
+        guard !noApps else {
+            // --no-apps: skip all launches, start session immediately so
+            // externally launched apps can connect and render.
+            sessionStarted = true
+            logErr("--no-apps: compositor ready, no apps launched\n")
+            return
         }
 
         // Launch pre-session daemons and LoginWindow

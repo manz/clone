@@ -148,8 +148,11 @@ public final class AvocadoEventsServer {
 
         case .isRegistered(let appId):
             lock.lock()
-            let registered = !(appClients[appId] ?? []).isEmpty
+            let fds = appClients[appId] ?? []
+            let registered = !fds.isEmpty
+            let allKeys = Array(appClients.keys).sorted()
             lock.unlock()
+            logErr("[avocadoeventsd] isRegistered(\(appId)) → \(registered), fds=\(fds), all=\(allKeys)\n")
             client.send(.registered(registered))
         }
     }

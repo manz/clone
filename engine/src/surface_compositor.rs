@@ -70,6 +70,9 @@ pub struct CompositeWindow {
     pub height: f32,
     pub corner_radius: f32,
     pub opacity: f32,
+    /// Whether this surface should render a drop shadow.
+    /// Chrome surfaces get shadow; content surfaces (IOSurface) don't.
+    pub shadow: bool,
     /// Expected physical content size — may differ from texture size
     /// when the IOSurface was allocated larger than current content.
     pub content_width: f32,
@@ -591,7 +594,7 @@ impl SurfaceCompositor {
             };
 
             // Expand the quad to make room for the shadow
-            let shadow_expand: f32 = if win.corner_radius > 0.0 { 30.0 } else { 0.0 };
+            let shadow_expand: f32 = if win.shadow && win.corner_radius > 0.0 { 30.0 } else { 0.0 };
             let is_genie = win.genie_progress > 0.0;
             let instance = CompositeInstance {
                 rect: [
