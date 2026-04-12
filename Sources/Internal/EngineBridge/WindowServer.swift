@@ -158,7 +158,7 @@ public final class WindowServer {
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: iosurfaceId, dmabufFd: -1
+                    iosurfaceId: iosurfaceId, dmabufFd: appManager.dmabufFd(for: window.id)
                 ))
             } else {
                 // Compositor-rendered: single surface with chrome + content

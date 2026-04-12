@@ -66,8 +66,12 @@ impl RenderServer {
             }
             #[cfg(not(target_os = "macos"))]
             if sf.dmabuf_fd >= 0 {
-                let phys_w = (sf.desc.width * scale) as u32;
-                let phys_h = (sf.desc.height * scale) as u32;
+                // Import at the app's actual render scale (2x), not the compositor's
+                // display scale. The compositor UV mapping (content_u_max/v_max)
+                // handles the scale difference during compositing.
+                let app_scale = 2.0f32;
+                let phys_w = (sf.desc.width * app_scale) as u32;
+                let phys_h = (sf.desc.height * app_scale) as u32;
                 self.compositor.import_shared_surface_fd(
                     device, sf.desc.surface_id, sf.dmabuf_fd, phys_w, phys_h,
                 );

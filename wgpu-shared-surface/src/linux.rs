@@ -87,7 +87,10 @@ impl SharedTexture {
         format: wgpu::TextureFormat,
     ) -> Result<Self, String> {
         let surface_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC;
+        // Must match export usage flags to ensure compatible memory layout with OPTIMAL tiling
+        let usage = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_SRC;
 
         let (texture, vk_image, vk_memory) =
             import_dmabuf_texture(device, fd, width, height, format, usage)?;

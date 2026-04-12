@@ -223,6 +223,16 @@ final class AppConnectionManager {
         return server.app(for: serverWid)?.iosurfaceId ?? 0
     }
 
+    /// Returns and consumes the DMA-BUF fd for a window-role app (Linux).
+    /// Returns -1 if no fd is available.
+    func dmabufFd(for wmWindowId: UInt64) -> Int32 {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return -1 }
+        guard let app = server.app(for: serverWid) else { return -1 }
+        let fd = app.dmabufFd
+        if fd >= 0 { app.dmabufFd = -1 }
+        return fd
+    }
+
     /// Returns the shared texture dimensions (physical pixels).
     func surfaceDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }
