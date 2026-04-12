@@ -369,7 +369,7 @@ struct MenuBarApp: App {
 
     var body: some Scene {
         WindowGroup("MenuBar") {
-            menuBarView(state: state, width: 1280, height: 400)
+            menuBarView(state: state, width: WindowState.shared.width > 0 ? WindowState.shared.width : 1280, height: WindowState.shared.height > 0 ? WindowState.shared.height : 400)
         }
     }
 

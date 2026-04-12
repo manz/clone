@@ -371,7 +371,7 @@ struct DockApp: App {
 
     var body: some Scene {
         WindowGroup("Dock") {
-            DockView(state: state, width: 1280, height: 800)
+            DockView(state: state, width: WindowState.shared.width > 0 ? WindowState.shared.width : 1280, height: WindowState.shared.height > 0 ? WindowState.shared.height : 800)
         }
     }
 

@@ -584,22 +584,22 @@ final class AppConnectionManager {
     /// Returns overlay surfaces (dock + menubar + loginWindow) for compositing.
     func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
         var frames: [SurfaceFrame] = []
+        let screenW = Float(screenWidth)
+        let screenH = Float(screenHeight)
         for app in server.connectedApps {
             if app.role == .loginWindow && sessionStarted { continue }
             guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
             let surfaceId = windowSurfaceBase + app.windowId + 10000
 
-            // Determine surface dimensions — IOSurface apps use their content size,
-            // compositor-rendered overlays use full screen (they render at absolute coords)
-            let surfaceW: Float
-            let surfaceH: Float
-            if app.iosurfaceId != 0 {
-                surfaceW = app.width
-                surfaceH = app.height
-            } else {
-                surfaceW = Float(screenWidth)
-                surfaceH = Float(screenHeight)
+            // Resize overlay apps to match actual screen dimensions
+            if app.width != screenW || app.height != screenH {
+                app.width = screenW
+                app.height = screenH
+                app.send(.resize(width: screenW, height: screenH))
             }
+
+            let surfaceW: Float = screenW
+            let surfaceH: Float = screenH
 
             // GPU-shared surface: IOSurface on macOS, DMA-BUF fd on Linux
             if app.iosurfaceId != 0 || app.dmabufFd >= 0 {

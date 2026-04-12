@@ -97,7 +97,7 @@ struct LoginWindowApp: App {
 
     var body: some Scene {
         WindowGroup("LoginWindow") {
-            loginView(state: state, width: 1280, height: 800)
+            loginView(state: state, width: WindowState.shared.width > 0 ? WindowState.shared.width : 1280, height: WindowState.shared.height > 0 ? WindowState.shared.height : 800)
         }
     }
 
