@@ -640,6 +640,12 @@ public enum Layout {
             }
             return LayoutNode(frame: leafFrame, node: node, containsDynamic: true)
 
+        case .rasterImage:
+            // Raster images fill the proposed frame — the GPU stretches the texture.
+            // Don't shrink-wrap to measured (aspect-fit) size; the parent's .frame()
+            // or ZStack centering already sized us correctly.
+            return LayoutNode(frame: frame, node: node)
+
         default:
             // Leaf nodes: text, rect, roundedRect, blur, spacer, empty, image, slider, picker
             let size = measure(node, constraint: constraint)

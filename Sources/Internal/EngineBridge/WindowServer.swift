@@ -18,7 +18,8 @@ public final class WindowServer {
     private let desktopSurfaceId: UInt64 = 0
     private let windowSurfaceBase: UInt64 = 100
 
-    init() {
+    init(noApps: Bool = false) {
+        appManager.noApps = noApps
         appManager.start()
         windowManager.onWindowClosed = { [appManager] wmWindowId in
             appManager.closeWindow(wmWindowId: wmWindowId)
@@ -141,12 +142,14 @@ public final class WindowServer {
                 ))
 
                 // Content surface on top — IOSurface (zero-copy)
+                // Use the same corner radius so the SDF mask clips the bottom corners.
+                // The title bar covers the top corners, so the visible effect is bottom-only rounding.
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: contentSurfaceId,
                         x: Float(frameX), y: Float(frameY) + titleBarH,
                         width: Float(frameW), height: contentH,
-                        cornerRadius: 0,
+                        cornerRadius: Float(radius),
                         opacity: Float(frameOpacity),
                         genieProgress: genieProgress,
                         genieTargetX: genieTargetX,

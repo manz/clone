@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-Clone (codename **Aquax**) is a macOS desktop environment targeting Linux — a from-scratch compositor, window manager, and UI framework. Swift handles UI logic (layout, DSL, window chrome, app lifecycle) and Rust handles GPU rendering (wgpu/Metal). Apps run as separate processes communicating with the compositor over Unix domain sockets.
+Clone (codename **Aquax**) is a macOS desktop environment targeting Linux — a from-scratch compositor, window manager, and UI framework. Swift handles UI logic (layout, DSL, window chrome, app lifecycle) and Rust handles GPU rendering (wgpu/Metal/Vulkan). Apps run as separate processes communicating with the compositor over Unix domain sockets. Runs on both macOS and Linux — no Apple system frameworks used (Clone shadows CoreGraphics, QuartzCore, AppKit, SwiftUI, etc.).
 
 **The SDK surface must be 100% the same interface as Apple's counterparts.** App code must compile against both Clone's SwiftUI/AppKit and Apple's real SwiftUI/AppKit with only `#if canImport(CloneClient)` guards for Clone-specific lifecycle.
 
@@ -59,22 +59,28 @@ The app binary connects to the compositor over `/tmp/clone-compositor.sock`.
 ### Two-language split
 
 - **Rust engine** (`engine/src/`): wgpu GPU rendering, surface compositor, winit event loop
+- **Rust clone-render** (`render/`): app-side headless wgpu renderer (HeadlessDevice, GPU pipelines)
+- **Rust wgpu-shared-surface** (`wgpu-shared-surface/`): cross-process GPU surface sharing (IOSurface on macOS, DMA-BUF on Linux)
 - **Swift** (`Sources/`): UI framework (SwiftUI-like DSL), layout engine, window manager, IPC
 
-**UniFFI 0.28** bridges Rust↔Swift. The `DesktopDelegate` callback trait (Rust) is implemented in Swift (`SwiftDesktopDelegate`). Rust calls Swift to get render commands each frame; Swift calls Rust to start the engine.
+**UniFFI 0.31** bridges Rust↔Swift. The `DesktopDelegate` callback trait (Rust) is implemented in Swift (`SwiftDesktopDelegate`). Rust calls Swift to get render commands each frame; Swift calls Rust to start the engine. Apps also use clone-render via UniFFI for app-side GPU rendering.
 
 ### Source layout
 
 ```
 Sources/
   SDK/          SwiftUI, AppKit, SwiftData, Charts, MediaPlayer, AVKit,
-                AVFoundation, UniformTypeIdentifiers, KeychainServices
+                AVFoundation, UniformTypeIdentifiers, KeychainServices,
+                CoreGraphics, QuartzCore, CoreText
   Internal/     CloneProtocol, CloneClient, CloneServer, CloneText,
-                PosixShim, EngineBridge, AudioBridge, SwiftDataMacros
-  FFI/          CText, CAudio, CEngine, CSQLite
+                PosixShim, EngineBridge, SharedSurface, SwiftDataMacros
+  FFI/          CText, CAudio, CEngine, CRender, CSQLite, CPosixShim,
+                CAppleCoreGraphics
   Apps/         Compositor, Finder, Settings, Dock, MenuBar,
-                Password, TextEdit, Preview, LoginWindow
-  Daemons/      cloned, CloneDaemon, keychaind, CloneKeychain
+                Password, TextEdit, Preview, LoginWindow, FontBook
+  Daemons/      cloned, CloneDaemon, keychaind, CloneKeychain,
+                launchservicesd, CloneLaunchServices,
+                avocadoeventsd, AvocadoEvents
   Tools/        ycodebuild
 ```
 
@@ -82,27 +88,36 @@ Sources/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Apps (Finder, Settings, Dock, MenuBar, ...)            │
+│  Apps (Finder, Settings, Dock, MenuBar, FontBook, ...)  │
 │  import SwiftUI  ← same API as Apple's                  │
 ├─────────────────────────────────────────────────────────┤
 │  SDK/SwiftUI             │  SDK/AppKit (NSColor shim)   │
 │  View structs (Text,     │  NSColor, NSAppearance       │
 │  VStack, Button, etc.)   │  Semantic system colors      │
-│  ViewBuilder, ForEach,    │                              │
+│  ViewBuilder, ForEach,   │                              │
 │  @main App protocol      │                              │
+├─────────────────────────────────────────────────────────┤
+│  SDK/CoreGraphics        │  SDK/QuartzCore (CALayer,    │
+│  CGContext, CGImage,      │  CAAnimation, CAShapeLayer)  │
+│  CGColor, PNG encoder    │  CoreText (CTFont bridge)    │
 ├─────────────────────────────────────────────────────────┤
 │  SDK/SwiftData           │  Internal/CloneClient        │
 │  SQLite persistence      │  Internal/CloneProtocol      │
 ├─────────────────────────────────────────────────────────┤
 │  Internal/EngineBridge (UniFFI) — CGFloat→Float         │
+│  Internal/SharedSurface (IOSurface / DMA-BUF)           │
 ├─────────────────────────────────────────────────────────┤
-│  FFI/CEngine, CText, CAudio, CSQLite                    │
+│  FFI/CEngine, CRender, CText, CAudio, CSQLite          │
 ├─────────────────────────────────────────────────────────┤
 │  Rust engine: wgpu renderer, surface compositor, winit  │
+│  clone-render: app-side headless GPU rendering          │
+│  wgpu-shared-surface: IOSurface (macOS) / DMA-BUF (Linux) │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Rendering pipeline
+
+Apps render to their own GPU surfaces (IOSurface on macOS, DMA-BUF on Linux) and share them with the compositor for compositing.
 
 ```
 @main App.body → WindowGroup { views }
@@ -110,15 +125,14 @@ Sources/
 → ViewBuilder collects via buildExpression → _resolve() each View to ViewNode
 → ViewNode tree → Layout.measure/layout → LayoutNode tree
 → CommandFlattener.flatten → FlatRenderCommand[] (CGFloat)
-→ toIPC() converts CGFloat→Float → IPCRenderCommand over socket
-→ Bridge.toEngineCommands → RenderCommand[] (Float/f32)
-→ Rust batches by type (rects, shadows, text) → instanced wgpu draws
-→ Each window renders to offscreen texture → SurfaceCompositor blends onto screen
+→ App-side CloneRender (HeadlessDevice) → wgpu draws to shared surface
+→ Compositor receives surface handle (IOSurface/DMA-BUF fd) over IPC
+→ SurfaceCompositor blends all window surfaces onto screen
 ```
 
 ### IPC protocol (CloneProtocol)
 
-Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two message types:
+Length-prefixed JSON over Unix socket (`$XDG_RUNTIME_DIR/clone-compositor.sock`, falls back to `/tmp`). Two message types:
 - `AppMessage` (app → compositor): register, frame, setTitle, close, launchApp, restoreApp
 - `CompositorMessage` (compositor → app): windowCreated, requestFrame, resize, pointer/key events
 
@@ -127,14 +141,21 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 | Module | Path | Purpose |
 |--------|------|---------|
 | SwiftUI | `Sources/SDK/SwiftUI/` | View structs, ViewNode IR, Layout, Font, Color, App protocol |
-| AppKit | `Sources/SDK/AppKit/` | NSColor, NSAppearance shims for Linux |
+| AppKit | `Sources/SDK/AppKit/` | NSColor, NSAppearance, NSWindow, NSView shims |
+| CoreGraphics | `Sources/SDK/CoreGraphics/` | CGContext (bitmap), CGImage (PNG encoder), CGColor — shadows Apple's |
+| QuartzCore | `Sources/SDK/QuartzCore/` | CALayer, CAAnimation, CAShapeLayer, CATransaction — shadows Apple's |
+| CoreText | `Sources/SDK/CoreText/` | CTFont, CTLine, CTFramesetter — bridges to cosmic-text via CloneText |
 | SwiftData | `Sources/SDK/SwiftData/` | SQLite-backed persistence (PersistentModel, ModelContainer) |
 | CloneProtocol | `Sources/Internal/CloneProtocol/` | IPC message types (Codable, uses Float wire format) |
 | CloneClient | `Sources/Internal/CloneClient/` | App-side Unix socket client |
 | CloneServer | `Sources/Internal/CloneServer/` | Compositor-side GCD socket server |
 | EngineBridge | `Sources/Internal/EngineBridge/` | FlatRenderCommand↔RenderCommand, CGFloat↔Float boundary |
+| SharedSurface | `Sources/Internal/SharedSurface/` | IOSurface (macOS) / DMA-BUF (Linux) cross-process GPU surface sharing |
 | CloneText | `Sources/Internal/CloneText/` | cosmic-text measurement bridge |
+| CloneLaunchServices | `Sources/Daemons/CloneLaunchServices/` | App registration, default handlers, launch-by-bundle-id |
 | engine | `engine/src/` | Rust wgpu renderer, surface compositor, winit event loop |
+| clone-render | `render/` | App-side headless wgpu renderer (HeadlessDevice) |
+| wgpu-shared-surface | `wgpu-shared-surface/` | Rust IOSurface/DMA-BUF texture import/export for wgpu |
 
 ### App targets (separate processes)
 
@@ -191,8 +212,10 @@ Length-prefixed JSON over Unix socket (`/tmp/clone-compositor.sock`). Two messag
 - **HStack layout**: Children are measured with remaining width (not full width) to prevent overflow. Mirrors VStack's remaining-height approach.
 - **ScrollView**: Fills proposed size, lays out content with unbounded constraint in scroll axis, wraps in `.clipped` node. Actual scroll offset not yet implemented.
 - **Hit testing**: `hitTestTap()` walks ancestors to find `.onTap` — the old `hitTest()` returned deepest leaf which was never `.onTap`.
-- **Rust edition 2024**, wgpu 28, UniFFI 0.28 proc-macro, cosmic-text 0.12.
+- **Rust edition 2024**, wgpu 29, UniFFI 0.31 proc-macro, cosmic-text 0.18.
 - `[profile.dev.package."*"] opt-level = 2` — dependencies compiled with optimizations in debug.
+- **App-side rendering**: Apps render to their own HeadlessDevice (wgpu) and share surfaces via IOSurface (macOS) or DMA-BUF (Linux). The compositor imports these surfaces — it doesn't draw app content itself.
+- **CoreGraphics shadows Apple's**: `import CoreGraphics` resolves to Clone's module on both platforms. CGContext has a real bitmap buffer, CGImage has PNG encoding. CGPath/CGFont/CGColorSpace are empty shells (Clone uses wgpu, not CG drawing).
 
 ## Roadmap
 
