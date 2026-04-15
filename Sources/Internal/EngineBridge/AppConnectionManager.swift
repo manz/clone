@@ -66,6 +66,15 @@ final class AppConnectionManager {
     /// Apps can still connect externally (e.g. for profiling).
     var noApps = false
 
+    /// Terminate all child processes. Called when the compositor exits.
+    func terminateAll() {
+        logErr("[compositor] Terminating \(childProcesses.count) child processes\n")
+        for process in childProcesses where process.isRunning {
+            process.terminate()
+        }
+        childProcesses.removeAll()
+    }
+
     /// Map appId to binary name for launching.
     private let appBinaries: [String: String] = [
         "com.clone.finder": "Finder",
@@ -78,7 +87,48 @@ final class AppConnectionManager {
         "com.clone.loginwindow": "LoginWindow",
     ]
 
+    /// PIDs of all child processes spawned by the compositor.
+    /// Stored separately from `childProcesses` so the atexit handler can access them
+    /// without MainActor isolation.
+    private static var childPids: [pid_t] = []
+    private static let pidLock = NSLock()
+
+    private static func trackPid(_ pid: pid_t) {
+        pidLock.lock()
+        childPids.append(pid)
+        pidLock.unlock()
+    }
+
+    /// Kill all child processes. Called via atexit() on compositor exit.
+    private static func killAllChildren() {
+        pidLock.lock()
+        let pids = childPids
+        childPids.removeAll()
+        pidLock.unlock()
+        for pid in pids {
+            kill(pid, SIGTERM)
+        }
+        if !pids.isEmpty {
+            logErr("[compositor] Sent SIGTERM to \(pids.count) child processes\n")
+        }
+    }
+
     func start() {
+        // Register cleanup handler — kills all spawned daemons and apps on exit.
+        atexit { AppConnectionManager.killAllChildren() }
+        // Catch SIGINT (Ctrl+C) and SIGTERM — atexit doesn't run on signals.
+        signal(SIGINT) { _ in
+            AppConnectionManager.killAllChildren()
+            // Re-raise with default handler so the shell sees the correct exit status.
+            signal(SIGINT, SIG_DFL)
+            raise(SIGINT)
+        }
+        signal(SIGTERM) { _ in
+            AppConnectionManager.killAllChildren()
+            signal(SIGTERM, SIG_DFL)
+            raise(SIGTERM)
+        }
+
         do {
             try server.start()
             logErr("Compositor server listening on \(compositorSocketPath)\n")
@@ -174,6 +224,7 @@ final class AppConnectionManager {
         do {
             try process.run()
             childProcesses.append(process)
+            AppConnectionManager.trackPid(process.processIdentifier)
             logErr("Launched \(name) (pid \(process.processIdentifier))\n")
         } catch {
             logErr("Failed to launch \(name): \(error)\n")

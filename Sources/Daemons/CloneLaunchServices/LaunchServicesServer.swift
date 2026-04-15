@@ -66,6 +66,8 @@ public final class LaunchServicesServer {
     private var apps: [String: AppRegistration] = [:]
     /// Extension → default bundle identifier.
     private var extensionMap: [String: String] = [:]
+    /// Running app processes, keyed by bundle identifier.
+    private var runningProcesses: [String: Process] = [:]
 
     public init(socketPath: String = launchservicesdSocketPath, scanDirectories: [String]? = nil) {
         self.socketPath = socketPath
@@ -204,16 +206,24 @@ public final class LaunchServicesServer {
         }
     }
 
-    /// Spawn an app process from its registration.
-    private func launchProcess(reg: AppRegistration) {
+    /// Spawn an app process if not already running. Returns true if a new process was launched.
+    @discardableResult
+    private func launchProcess(reg: AppRegistration) -> Bool {
+        // Check if already running
+        if let existing = runningProcesses[reg.bundleIdentifier], existing.isRunning {
+            return false
+        }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: reg.executablePath)
         process.standardError = FileHandle.standardError
         do {
             try process.run()
+            runningProcesses[reg.bundleIdentifier] = process
             logErr("[launchservicesd] Launched \(reg.displayName) (pid \(process.processIdentifier)) from \(reg.executablePath)\n")
+            return true
         } catch {
             logErr("[launchservicesd] Failed to launch \(reg.displayName): \(error)\n")
+            return false
         }
     }
 
@@ -298,6 +308,11 @@ public final class LaunchServicesServer {
         lock.lock()
         for (_, client) in clients { client.stop() }
         clients.removeAll()
+        // Terminate all apps we launched
+        for (_, process) in runningProcesses where process.isRunning {
+            process.terminate()
+        }
+        runningProcesses.removeAll()
         lock.unlock()
         if serverSocket >= 0 {
             posix_close(serverSocket)
