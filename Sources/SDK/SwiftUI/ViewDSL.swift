@@ -174,14 +174,13 @@ public extension ViewNode {
 
     /// `.onTapGesture(count:coordinateSpace:perform:)` — with location in local coordinates.
     func onTapGesture(count: Int = 1, coordinateSpace: CoordinateSpace = .local, perform handler: @escaping (CGPoint) -> Void) -> ViewNode {
-        let id = TapRegistry.shared.registerSpatial(handler)
+        let id = TapRegistry.shared.registerSpatial(handler, count: count)
         return .onTap(id: id, child: self)
     }
 
     /// `.onTapGesture(count:perform:)` — matches Apple's SwiftUI.
-    /// On Clone, count > 1 is treated as single tap (no multi-tap detection yet).
     func onTapGesture(count: Int = 1, perform handler: @escaping () -> Void) -> ViewNode {
-        let id = TapRegistry.shared.register(handler)
+        let id = TapRegistry.shared.register(handler, count: count)
         return .onTap(id: id, child: self)
     }
 

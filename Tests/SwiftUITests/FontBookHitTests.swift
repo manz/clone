@@ -41,6 +41,8 @@ import Combine
         #expect(id == tapId, "Should hit the tap handler, got id \(id) expected \(tapId)")
         TapRegistry.shared.fire(id: id)
         #expect(tapped, "Tap handler should have fired")
+    case .taps:
+        Issue.record("Hit test returned .taps — unexpected multi-handler hit")
     case .absorbed:
         Issue.record("Hit test returned .absorbed — opaque child blocked the parent .onTap")
     case nil:
@@ -80,6 +82,8 @@ import Combine
     case .tap(let id, _):
         TapRegistry.shared.fire(id: id)
         #expect(tapped, "Tap should fire through ScrollView")
+    case .taps:
+        Issue.record("Hit test .taps — unexpected multi-handler hit")
     case .absorbed:
         Issue.record("Hit test .absorbed inside ScrollView — onTap not found")
     case nil:
@@ -347,6 +351,8 @@ import Combine
     case .tap(let id, _):
         TapRegistry.shared.fire(id: id)
         #expect(tapped)
+    case .taps:
+        Issue.record(".taps — unexpected multi-handler hit")
     case .absorbed:
         Issue.record(".absorbed should upgrade to .tap because parent is .onTap")
     case nil:

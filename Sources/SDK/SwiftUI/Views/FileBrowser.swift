@@ -224,9 +224,9 @@ public struct FileListView: View {
                         .onTapGesture {
                             state.selectedEntryId = entry.id
                             onSelect?(entry)
-                            if entry.isDirectory {
-                                onOpen?(entry)
-                            }
+                        }
+                        .onTapGesture(count: 2) {
+                            onOpen?(entry)
                         }
                 }
             }

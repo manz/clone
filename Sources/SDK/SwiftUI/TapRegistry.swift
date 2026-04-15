@@ -12,24 +12,33 @@ public final class TapRegistry: @unchecked Sendable {
     }
 
     private var handlers: [UInt64: TapHandler] = [:]
+    /// Required click count per handler (default 1 = single click).
+    private var requiredCounts: [UInt64: Int] = [:]
     private var nextId: UInt64 = 1
 
     private init() {}
 
     /// Register a tap handler and return its ID.
-    public func register(_ handler: @escaping () -> Void) -> UInt64 {
+    public func register(_ handler: @escaping () -> Void, count: Int = 1) -> UInt64 {
         let id = nextId
         nextId += 1
         handlers[id] = .simple(handler)
+        requiredCounts[id] = count
         return id
     }
 
     /// Register a spatial tap handler (receives tap location in local coordinates).
-    public func registerSpatial(_ handler: @escaping (CGPoint) -> Void) -> UInt64 {
+    public func registerSpatial(_ handler: @escaping (CGPoint) -> Void, count: Int = 1) -> UInt64 {
         let id = nextId
         nextId += 1
         handlers[id] = .spatial(handler)
+        requiredCounts[id] = count
         return id
+    }
+
+    /// Required click count for the given handler (1 = single, 2 = double).
+    public func requiredCount(for id: UInt64) -> Int {
+        requiredCounts[id] ?? 1
     }
 
     /// Fire a tap handler by ID, optionally with location.

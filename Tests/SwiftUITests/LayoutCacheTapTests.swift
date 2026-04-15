@@ -62,6 +62,8 @@ struct LayoutCacheTapTests {
             #expect(id == tapId2, "Tap ID should match current frame's registration")
             TapRegistry.shared.fire(id: id)
             #expect(tapped, "Handler should fire")
+        case .taps:
+            Issue.record("Frame 2: .taps — unexpected multi-handler hit")
         case .absorbed:
             Issue.record("Frame 2: .absorbed — onTap not found through cached layout")
         case nil:
@@ -173,6 +175,8 @@ struct LayoutCacheTapTests {
         case .tap(let id, _):
             TapRegistry.shared.fire(id: id)
             #expect(tapped, "Tap should fire inside ScrollView")
+        case .taps:
+            Issue.record(".taps — unexpected multi-handler hit")
         case .absorbed:
             Issue.record(".absorbed inside ScrollView")
         case nil:

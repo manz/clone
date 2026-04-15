@@ -8,6 +8,9 @@ import CloneLaunchServices
 /// Shared AvocadoEvents client for the app's lifetime. Set by App.main().
 nonisolated(unsafe) var _sharedAEClient: AvocadoEventsClient?
 
+/// Shared app renderer reference so early callbacks (AvocadoEvents) can trigger redraw.
+@MainActor var _sharedAppRenderer: AppSideRenderer?
+
 // MARK: - Window Configuration
 
 /// Configuration for the app window.
@@ -144,15 +147,28 @@ extension App {
         }
 
         // Connect to avocadoeventsd — shared connection for the app's lifetime.
+        // Retry a few times because the daemon may still be binding its socket
+        // when early apps (Dock, MenuBar) launch.
         let aeClient = AvocadoEventsClient()
-        do {
-            try aeClient.connect()
+        var aeConnected = false
+        for attempt in 1...5 {
+            do {
+                try aeClient.connect()
+                aeConnected = true
+                break
+            } catch {
+                logErr("avocadoeventsd connect attempt \(attempt)/5 failed: \(error)\n")
+                if attempt < 5 { Thread.sleep(forTimeInterval: 0.2) }
+            }
+        }
+        if aeConnected {
             aeClient.register(appId: appId)
             aeClient.onEvent = { @Sendable event in
                 DispatchQueue.main.async {
                     switch event {
                     case .openDocuments(let paths):
                         for path in paths { app.onOpenFile(path: path) }
+                        _sharedAppRenderer?.setNeedsDisplay()
                     case .quit:
                         exit(0)
                     case .activate:
@@ -164,8 +180,8 @@ extension App {
             }
             DispatchQueue.global().async { aeClient.listen() }
             _sharedAEClient = aeClient
-        } catch {
-            logErr("Note: could not connect to avocadoeventsd: \(error)\n")
+        } else {
+            logErr("Warning: could not connect to avocadoeventsd after 5 attempts\n")
         }
 
         // Wire up system actions.
@@ -197,8 +213,15 @@ extension App {
                     return
                 }
                 lsClient.disconnect()
-                if let ae = _sharedAEClient {
+                // Use a fresh AE connection — the shared client's listen() loop
+                // on a blocking fd can interfere with concurrent writes.
+                let ae = AvocadoEventsClient()
+                do {
+                    try ae.connect()
                     ae.send(to: reg.bundleIdentifier, event: .openDocuments(paths: [path]))
+                    ae.disconnect()
+                } catch {
+                    logErr("[openFile] failed to connect to avocadoeventsd: \(error)\n")
                 }
             }
             return true
@@ -206,6 +229,7 @@ extension App {
 
         // App-side renderer — used by all declarative apps
         let appRenderer = AppSideRenderer(client: app.client)
+        _sharedAppRenderer = appRenderer
 
         if usesDeclarativeRendering {
             // Cache last view tree for hover hit-testing (avoids full rebuild on pointer move)
@@ -216,6 +240,12 @@ extension App {
             var _wasSheetActive = false
             // Cache the sheet dismiss action for backdrop taps
             var _sheetDismissAction: (() -> Void)?
+            // Double-click detection state
+            var _lastClickTime: CFAbsoluteTime = 0
+            var _lastClickPos: (CGFloat, CGFloat) = (0, 0)
+            var _clickCount: Int = 0
+            let _doubleClickInterval: CFAbsoluteTime = 0.4
+            let _doubleClickRadius: CGFloat = 4
 
             // Declarative path: ViewNode → Layout → Flatten → IPC
             guard let windowGroup = app.body as? (any _WindowGroupProtocol) else {
@@ -351,16 +381,51 @@ extension App {
                     if ContextMenuRegistry.shared.isOpen {
                         ContextMenuRegistry.shared.close()
                     }
+                    // Double-click detection: increment click count if within
+                    // time and distance threshold, otherwise reset to 1.
+                    let now = CFAbsoluteTimeGetCurrent()
+                    let dx = x - _lastClickPos.0
+                    let dy = y - _lastClickPos.1
+                    let dist = (dx * dx + dy * dy).squareRoot()
+                    if now - _lastClickTime < _doubleClickInterval && dist < _doubleClickRadius {
+                        _clickCount += 1
+                    } else {
+                        _clickCount = 1
+                    }
+                    _lastClickTime = now
+                    _lastClickPos = (x, y)
+
                     // Use the cached layout from the last render frame for hit-testing.
                     // No need to rebuild the entire view tree — the render already built
                     // and laid out the correct tree with current tap handler IDs.
                     if let layoutNode = _cachedLayoutNode {
+                        // Collect all tap handlers that match this hit point.
+                        var candidates: [(id: UInt64, frame: LayoutFrame)] = []
                         switch layoutNode.hitTestTap(x: x, y: y) {
                         case .tap(let id, let hitFrame):
-                            let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
-                            TapRegistry.shared.fire(id: id, at: local)
+                            candidates = [(id: id, frame: hitFrame)]
+                        case .taps(let hits):
+                            candidates = hits
                         case .absorbed, .none:
                             break
+                        }
+                        // Pick the handler whose required count best matches the click count.
+                        // Prefer the highest required count that the click count satisfies.
+                        var bestId: UInt64?
+                        var bestFrame: LayoutFrame?
+                        var bestRequired = 0
+                        for (id, frame) in candidates {
+                            let req = TapRegistry.shared.requiredCount(for: id)
+                            if _clickCount >= req && req > bestRequired {
+                                bestId = id
+                                bestFrame = frame
+                                bestRequired = req
+                            }
+                        }
+                        if let id = bestId, let hitFrame = bestFrame {
+                            let local = CGPoint(x: x - hitFrame.x, y: y - hitFrame.y)
+                            TapRegistry.shared.fire(id: id, at: local)
+                            if bestRequired > 1 { _clickCount = 0 }
                         }
                     }
                     // Text field focus
@@ -411,9 +476,13 @@ extension App {
                     sheetContent,
                     in: LayoutFrame(x: 0, y: 0, width: sheetSize.width, height: sheetSize.height)
                 )
-                if case .tap(let id, let hitFrame) = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py)) {
+                let sheetHit = layoutNode.hitTestTap(x: CGFloat(px), y: CGFloat(py))
+                if case .tap(let id, let hitFrame) = sheetHit {
                     let local = CGPoint(x: CGFloat(px) - hitFrame.x, y: CGFloat(py) - hitFrame.y)
                     TapRegistry.shared.fire(id: id, at: local)
+                } else if case .taps(let hits) = sheetHit, let first = hits.first {
+                    let local = CGPoint(x: CGFloat(px) - first.frame.x, y: CGFloat(py) - first.frame.y)
+                    TapRegistry.shared.fire(id: first.id, at: local)
                 }
             }
         } else {
@@ -484,12 +553,14 @@ extension App {
         }
         app.client.onOpenFile = { path in
             app.onOpenFile(path: path)
+            appRenderer.setNeedsDisplay()
         }
         // Compositor-routed AvocadoEvents (legacy fallback)
         app.client.onAvocadoEvent = { event in
             switch event {
             case .openDocuments(let paths):
                 for path in paths { app.onOpenFile(path: path) }
+                appRenderer.setNeedsDisplay()
             case .quit:
                 exit(0)
             case .activate:

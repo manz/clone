@@ -81,6 +81,8 @@ extension LayoutNode {
     /// Returns the tap ID and the onTap node's frame (for local coordinate conversion).
     public enum HitTestResult {
         case tap(id: UInt64, frame: LayoutFrame)
+        /// Multiple tap handlers in the ancestor chain (inner to outer).
+        case taps([(id: UInt64, frame: LayoutFrame)])
         case absorbed
     }
 
@@ -89,21 +91,31 @@ extension LayoutNode {
 
         // Check children back-to-front
         var childAbsorbed = false
+        var childTaps: [(id: UInt64, frame: LayoutFrame)] = []
         for child in children.reversed() {
             if let hit = child.hitTestTap(x: x, y: y) {
                 switch hit {
-                case .tap:
-                    return hit // definitive tap — propagate immediately
+                case .tap(let id, let frame):
+                    childTaps = [(id: id, frame: frame)]
+                case .taps(let hits):
+                    childTaps = hits
                 case .absorbed:
                     childAbsorbed = true // something opaque was hit, but no handler yet
                 }
+                if !childTaps.isEmpty { break }
             }
         }
 
-        // If this node is an onTap, it provides the handler.
+        // If this node is an onTap, append to the chain.
         // This fires even when a child was .absorbed (e.g. opaque background inside a button).
         if case .onTap(let id, _) = node {
-            return .tap(id: id, frame: frame)
+            childTaps.append((id: id, frame: frame))
+        }
+
+        if childTaps.count == 1 {
+            return .tap(id: childTaps[0].id, frame: childTaps[0].frame)
+        } else if childTaps.count > 1 {
+            return .taps(childTaps)
         }
 
         // A child was absorbed — propagate upward (prevents leak-through)
