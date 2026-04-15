@@ -22,6 +22,8 @@ struct App {
     window: Option<Arc<Window>>,
     gpu: Option<GpuState>,
     dump_next_frame: bool,
+    /// Current modifier key state, tracked via ModifiersChanged events.
+    modifiers: winit::keyboard::ModifiersState,
 }
 
 impl App {
@@ -31,6 +33,7 @@ impl App {
             window: None,
             gpu: None,
             dump_next_frame: false,
+            modifiers: winit::keyboard::ModifiersState::empty(),
         }
     }
 
@@ -267,6 +270,9 @@ impl ApplicationHandler for App {
                     w.request_redraw();
                 }
             }
+            WindowEvent::ModifiersChanged(mods) => {
+                self.modifiers = mods.state();
+            }
             WindowEvent::KeyboardInput { event, .. } => {
                 if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
                     let pressed = event.state == winit::event::ElementState::Pressed;
@@ -274,7 +280,8 @@ impl ApplicationHandler for App {
                         self.dump_next_frame = true;
                         log::info!("Will dump next frame to /tmp/clone-frame-dump.txt");
                     }
-                    self.delegate.on_key(0, code as u32, pressed);
+                    let modifiers = modifiers_to_ns_flags(self.modifiers);
+                    self.delegate.on_key(0, code as u32, modifiers, pressed);
                 }
                 // Forward character input (text typed events)
                 if event.state == winit::event::ElementState::Pressed {
@@ -292,6 +299,24 @@ impl ApplicationHandler for App {
             _ => {}
         }
     }
+}
+
+/// Convert winit ModifiersState to Apple NSEvent.ModifierFlags bitmask.
+fn modifiers_to_ns_flags(state: winit::keyboard::ModifiersState) -> u32 {
+    let mut flags: u32 = 0;
+    if state.shift_key() {
+        flags |= 1 << 17; // NSEvent.ModifierFlags.shift
+    }
+    if state.control_key() {
+        flags |= 1 << 18; // NSEvent.ModifierFlags.control
+    }
+    if state.alt_key() {
+        flags |= 1 << 19; // NSEvent.ModifierFlags.option
+    }
+    if state.super_key() {
+        flags |= 1 << 20; // NSEvent.ModifierFlags.command
+    }
+    flags
 }
 
 /// Run the event loop. Blocks the current thread.

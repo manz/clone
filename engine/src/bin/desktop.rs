@@ -66,7 +66,7 @@ impl DesktopDelegate for DemoDelegate {
 
     fn on_pointer_move(&self, _surface_id: u64, _x: f64, _y: f64) {}
     fn on_pointer_button(&self, _surface_id: u64, _button: u32, _pressed: bool) {}
-    fn on_key(&self, _surface_id: u64, _keycode: u32, _pressed: bool) {}
+    fn on_key(&self, _surface_id: u64, _keycode: u32, _modifiers: u32, _pressed: bool) {}
     fn on_key_char(&self, _surface_id: u64, _character: String) {}
     fn on_scroll(&self, _surface_id: u64, _delta_x: f64, _delta_y: f64) {}
     fn wallpaper_path(&self) -> String { String::new() }

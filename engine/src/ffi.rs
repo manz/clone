@@ -29,7 +29,7 @@ pub trait DesktopDelegate: Send + Sync {
     fn on_composite_frame(&self, width: u32, height: u32) -> Vec<SurfaceFrame>;
     fn on_pointer_move(&self, surface_id: u64, x: f64, y: f64);
     fn on_pointer_button(&self, surface_id: u64, button: u32, pressed: bool);
-    fn on_key(&self, surface_id: u64, keycode: u32, pressed: bool);
+    fn on_key(&self, surface_id: u64, keycode: u32, modifiers: u32, pressed: bool);
     /// Forward typed character input (e.g. from winit event.text).
     fn on_key_char(&self, surface_id: u64, character: String);
     /// Forward scroll wheel events.
