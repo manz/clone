@@ -216,7 +216,7 @@ public final class DesktopDelegateAdapter: @preconcurrency DesktopDelegate {
     }
 
     public func onKey(surfaceId: UInt64, keycode: UInt32, modifiers: UInt32, pressed: Bool) {
-        windowServer.handleKey(keycode: keycode, pressed: pressed)
+        windowServer.handleKey(keycode: keycode, modifiers: modifiers, pressed: pressed)
     }
 
     public func onKeyChar(surfaceId: UInt64, character: String) {

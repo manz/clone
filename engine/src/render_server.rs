@@ -153,8 +153,10 @@ impl RenderServer {
                     corner_radius: sf.desc.corner_radius * scale,
                     opacity: sf.desc.opacity,
                     shadow: !is_shared,
-                    content_width: phys_w,
-                    content_height: phys_h,
+                    // Use explicit content size if provided (exposé scaling),
+                    // otherwise content matches display size.
+                    content_width: if sf.desc.content_width > 0.0 { sf.desc.content_width * scale } else { phys_w },
+                    content_height: if sf.desc.content_height > 0.0 { sf.desc.content_height * scale } else { phys_h },
                     genie_progress: sf.desc.genie_progress,
                     genie_target_x: sf.desc.genie_target_x * scale,
                     genie_target_y: sf.desc.genie_target_y * scale,

@@ -650,7 +650,8 @@ final class AppConnectionManager {
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
                         cornerRadius: 0, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
+                        contentWidth: 0, contentHeight: 0
                     ),
                     commands: [],
                     pixelData: nil,
@@ -668,7 +669,8 @@ final class AppConnectionManager {
                         x: 0, y: 0,
                         width: surfaceW, height: surfaceH,
                         cornerRadius: 0, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
+                        contentWidth: 0, contentHeight: 0
                     ),
                     commands: engineCommands,
                     pixelData: nil,

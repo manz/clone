@@ -39,7 +39,7 @@ public final class WindowServer {
 
         // Desktop background (wallpaper rendered by engine)
         frames.append(SurfaceFrame(
-            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0),
+            desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
             commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
             pixelData: nil,
             iosurfaceId: 0, dmabufFd: -1
@@ -57,6 +57,7 @@ public final class WindowServer {
         appManager.syncResizingDimensions(windowManager: windowManager)
 
         // Tick animations — complete minimize by actually hiding the window
+        animationManager.tickExpose()
         for (windowId, wasMinimizing) in animationManager.tick() {
             if wasMinimizing {
                 windowManager.minimize(id: windowId)
@@ -73,9 +74,27 @@ public final class WindowServer {
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
             let radius: CGFloat = window.isMaximized ? 0 : WindowChrome.cornerRadius
 
-            // Build chrome + content in local coordinates
+            // Apply exposé visual transform — scale without resizing the app
+            var frameX = window.x
+            var frameY = window.y
+            var frameW = window.width
+            var frameH = window.height
+            // Content size for UV mapping — when scaling visually, keep original size
+            // so the GPU scales the texture instead of cropping it.
+            var srcW: Float = 0
+            var srcH: Float = 0
+            if let exposeRect = windowManager.exposeRect(for: window.id, animationManager: animationManager) {
+                srcW = Float(window.width)
+                srcH = Float(window.height)
+                frameX = exposeRect.x
+                frameY = exposeRect.y
+                frameW = exposeRect.w
+                frameH = exposeRect.h
+            }
+
+            // Build chrome at display size (scaled during exposé)
             var windowCommands = ChromeRenderer.renderWindow(
-                width: Float(window.width), height: Float(window.height), radius: Float(radius),
+                width: Float(frameW), height: Float(frameH), radius: Float(radius),
                 isFocused: isFocused, isMaximized: window.isMaximized,
                 showTrafficLightSymbols: showSymbols, title: window.title
             )
@@ -99,28 +118,28 @@ public final class WindowServer {
             }
 
             // Apply animation override — genie effect or static
-            let frameX = window.x
-            let frameY = window.y
-            let frameW = window.width
-            let frameH = window.height
             var frameOpacity: CGFloat = 1.0
             var genieProgress: Float = 0
             var genieTargetX: Float = 0
             var genieTargetY: Float = 0
             var genieTargetW: Float = 0
 
-            if let (gp, tx, ty, tw) = animationManager.genieParams(for: window.id) {
-                genieProgress = Float(gp)
-                genieTargetX = Float(tx)
-                genieTargetY = Float(ty)
-                genieTargetW = Float(tw)
-                frameOpacity = CGFloat(1.0 - genieProgress * 0.3)
+            if !windowManager.isExposeActive {
+                if let (gp, tx, ty, tw) = animationManager.genieParams(for: window.id) {
+                    genieProgress = Float(gp)
+                    genieTargetX = Float(tx)
+                    genieTargetY = Float(ty)
+                    genieTargetW = Float(tw)
+                    frameOpacity = CGFloat(1.0 - genieProgress * 0.3)
+                }
             }
 
             if hasIOSurface {
                 // App-side rendered: chrome + content as separate surfaces
                 let contentSurfaceId = surfaceId + 50000
-                let titleBarH = Float(WindowChrome.titleBarHeight)
+                // Scale title bar proportionally during exposé
+                let scale = srcW > 0 ? Float(frameW) / srcW : 1.0
+                let titleBarH = Float(WindowChrome.titleBarHeight) * scale
                 let contentH = Float(frameH) - titleBarH
 
                 // Chrome surface first (back)
@@ -134,7 +153,8 @@ public final class WindowServer {
                         genieProgress: genieProgress,
                         genieTargetX: genieTargetX,
                         genieTargetY: genieTargetY,
-                        genieTargetW: genieTargetW
+                        genieTargetW: genieTargetW,
+                        contentWidth: srcW, contentHeight: srcH
                     ),
                     commands: windowCommands,
                     pixelData: nil,
@@ -144,6 +164,7 @@ public final class WindowServer {
                 // Content surface on top — IOSurface (zero-copy)
                 // Use the same corner radius so the SDF mask clips the bottom corners.
                 // The title bar covers the top corners, so the visible effect is bottom-only rounding.
+                let srcContentH = srcH > 0 ? srcH - Float(WindowChrome.titleBarHeight) : Float(0)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: contentSurfaceId,
@@ -154,7 +175,8 @@ public final class WindowServer {
                         genieProgress: genieProgress,
                         genieTargetX: genieTargetX,
                         genieTargetY: genieTargetY,
-                        genieTargetW: genieTargetW
+                        genieTargetW: genieTargetW,
+                        contentWidth: srcW, contentHeight: srcContentH
                     ),
                     commands: [],
                     pixelData: nil,
@@ -172,7 +194,8 @@ public final class WindowServer {
                         genieProgress: genieProgress,
                         genieTargetX: genieTargetX,
                         genieTargetY: genieTargetY,
-                        genieTargetW: genieTargetW
+                        genieTargetW: genieTargetW,
+                        contentWidth: srcW, contentHeight: srcH
                     ),
                     commands: windowCommands,
                     pixelData: nil,
@@ -199,7 +222,8 @@ public final class WindowServer {
                         x: parentX, y: parentY,
                         width: parentW, height: parentH,
                         cornerRadius: 0, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
+                        contentWidth: 0, contentHeight: 0
                     ),
                     commands: backdropCommands,
                     pixelData: nil,
@@ -220,7 +244,8 @@ public final class WindowServer {
                         x: sheetX, y: sheetY,
                         width: sheetW, height: sheetH,
                         cornerRadius: 12, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0
+                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
+                        contentWidth: 0, contentHeight: 0
                     ),
                     commands: sheetEngineCommands,
                     pixelData: nil,
@@ -266,11 +291,12 @@ public final class WindowServer {
         )
     }
 
-    func handleKey(keycode: UInt32, pressed: Bool) {
+    func handleKey(keycode: UInt32, modifiers: UInt32, pressed: Bool) {
         InputRouter.routeKey(
-            keycode: keycode, pressed: pressed,
+            keycode: keycode, modifiers: modifiers, pressed: pressed,
             windowManager: windowManager,
-            appManager: appManager
+            appManager: appManager,
+            animationManager: animationManager
         )
     }
 

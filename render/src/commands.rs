@@ -19,6 +19,10 @@ pub struct SurfaceDesc {
     pub genie_target_y: f32,
     /// Dock icon width in logical pixels.
     pub genie_target_w: f32,
+    /// Source content size for UV mapping (0 = same as width/height).
+    /// When set, the texture is scaled to fit the dest rect instead of cropped.
+    pub content_width: f32,
+    pub content_height: f32,
 }
 
 /// A surface's render commands bundled with its layout.

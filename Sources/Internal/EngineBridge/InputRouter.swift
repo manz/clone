@@ -1,5 +1,21 @@
 import SwiftUI
 
+// MARK: - Winit keycode constants (KeyCode enum discriminants)
+
+enum KeyCode {
+    static let keyW: UInt32 = 53
+    static let f3: UInt32 = 161
+    static let f12: UInt32 = 170
+}
+
+/// NSEvent.ModifierFlags bitmask values (matched by engine/src/window.rs).
+struct ModifierFlags {
+    static let shift: UInt32   = 1 << 17
+    static let control: UInt32 = 1 << 18
+    static let option: UInt32  = 1 << 19
+    static let command: UInt32 = 1 << 20
+}
+
 /// Routes pointer and keyboard input to the appropriate window/app.
 @MainActor
 struct InputRouter {
@@ -170,9 +186,10 @@ struct InputRouter {
     }
 
     static func routeKey(
-        keycode: UInt32, pressed: Bool,
+        keycode: UInt32, modifiers: UInt32, pressed: Bool,
         windowManager: WindowManager,
-        appManager: AppConnectionManager
+        appManager: AppConnectionManager,
+        animationManager: AnimationManager
     ) {
         if !appManager.sessionStarted {
             appManager.sendToLoginWindow(key: keycode, pressed: pressed)
@@ -181,21 +198,19 @@ struct InputRouter {
 
         guard pressed else { return }
 
+        // Compositor-level shortcuts — intercepted before forwarding to apps
+        switch keycode {
+        case KeyCode.f3:
+            windowManager.toggleExpose(animationManager: animationManager)
+            return
+        default:
+            break
+        }
+
         // Forward to focused external app
         if let focusedId = windowManager.focusedWindowId {
             appManager.sendKey(wmWindowId: focusedId, keycode: keycode, pressed: pressed)
             return
-        }
-
-        // Compositor key bindings (only when no external app focused)
-        switch keycode {
-        case 53: // 'w' — close focused window
-            if let id = windowManager.focusedWindowId {
-                windowManager.close(id: id)
-                appManager.updateFocusedAppName(windowManager: windowManager)
-            }
-        default:
-            break
         }
     }
 

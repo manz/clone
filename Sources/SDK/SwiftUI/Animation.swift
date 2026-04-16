@@ -118,6 +118,8 @@ public struct WindowAnimation {
 /// Manages active window animations.
 public final class AnimationManager {
     public private(set) var animations: [UInt64: WindowAnimation] = [:]
+    /// Separate dict for exposé animations (no genie effect).
+    public private(set) var exposeAnimations: [UInt64: WindowAnimation] = [:]
 
     public init() {}
 
@@ -135,6 +137,32 @@ public final class AnimationManager {
             startTime: CACurrentMediaTime(), duration: 0.35,
             isMinimizing: false
         )
+    }
+
+    public func startExpose(windowId: UInt64, from: AnimRect, to: AnimRect) {
+        exposeAnimations[windowId] = WindowAnimation(
+            windowId: windowId, from: from, to: to,
+            startTime: CACurrentMediaTime(), duration: 0.3,
+            isMinimizing: false
+        )
+    }
+
+    /// Get animated expose rect, or nil if not animating.
+    public func exposeAnimatedRect(for windowId: UInt64) -> AnimRect? {
+        guard let anim = exposeAnimations[windowId] else { return nil }
+        let now = CACurrentMediaTime()
+        if anim.isComplete(at: now) { return nil }
+        return anim.rect(at: now)
+    }
+
+    /// Clean up completed expose animations.
+    public func tickExpose() {
+        let now = CACurrentMediaTime()
+        exposeAnimations = exposeAnimations.filter { !$0.value.isComplete(at: now) }
+    }
+
+    public var hasActiveExposeAnimations: Bool {
+        !exposeAnimations.isEmpty
     }
 
     /// Get the current animated rect for a window, or nil if not animating.

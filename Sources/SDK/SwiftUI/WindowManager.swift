@@ -115,6 +115,13 @@ public final class WindowManager {
     /// Called when a window is closed — gives the compositor a chance to notify the app.
     public var onWindowClosed: ((UInt64) -> Void)?
 
+    // MARK: - Exposé state
+
+    /// When true, all windows are visually scaled into a grid overview.
+    public private(set) var isExposeActive: Bool = false
+    /// Target visual rects for each window during exposé (compositor draws at these rects).
+    public var exposeTargetFrames: [UInt64: AnimRect] = [:]
+
     public init() {}
 
     // MARK: - Lifecycle
@@ -384,6 +391,88 @@ public final class WindowManager {
     /// Minimized windows (for dock display).
     public var minimizedWindows: [ManagedWindow] {
         windows.filter(\.isMinimized)
+    }
+
+    // MARK: - Exposé
+
+    /// Toggle exposé mode — visually scale windows into a grid, or restore them.
+    /// Actual window frames are never modified — the compositor uses `exposeRect(for:)` to draw.
+    public func toggleExpose(animationManager: AnimationManager) {
+        if isExposeActive {
+            exitExpose(animationManager: animationManager)
+        } else {
+            enterExpose(animationManager: animationManager)
+        }
+    }
+
+    private func enterExpose(animationManager: AnimationManager) {
+        let visible = windows.filter { $0.isVisible && !$0.isMinimized }
+        guard !visible.isEmpty else { return }
+        isExposeActive = true
+
+        // Grid layout with padding
+        let padding: CGFloat = 20
+        let menuBarHeight: CGFloat = 25
+        let dockHeight: CGFloat = 70
+        let availableW = screenWidth - padding * 2
+        let availableH = screenHeight - menuBarHeight - dockHeight - padding * 2
+
+        let count = visible.count
+        let cols = Int(ceil(sqrt(Double(count))))
+        let rows = Int(ceil(Double(count) / Double(cols)))
+
+        let cellW = availableW / CGFloat(cols)
+        let cellH = availableH / CGFloat(rows)
+
+        for (i, window) in visible.enumerated() {
+            let col = i % cols
+            let row = i / cols
+
+            // Scale window to fit cell while preserving aspect ratio
+            let scale = min(
+                (cellW - padding) / window.width,
+                (cellH - padding) / window.height,
+                1.0
+            )
+            let scaledW = window.width * scale
+            let scaledH = window.height * scale
+
+            // Center in cell
+            let cellX = padding + CGFloat(col) * cellW
+            let cellY = menuBarHeight + padding + CGFloat(row) * cellH
+            let targetX = cellX + (cellW - scaledW) / 2
+            let targetY = cellY + (cellH - scaledH) / 2
+
+            let target = AnimRect(x: targetX, y: targetY, w: scaledW, h: scaledH)
+            exposeTargetFrames[window.id] = target
+
+            // Animate from current position to target
+            let from = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
+            animationManager.startExpose(windowId: window.id, from: from, to: target)
+        }
+    }
+
+    private func exitExpose(animationManager: AnimationManager) {
+        isExposeActive = false
+        // Animate from expose position back to real window position
+        for window in windows {
+            guard let target = exposeTargetFrames[window.id] else { continue }
+            let realFrame = AnimRect(x: window.x, y: window.y, w: window.width, h: window.height)
+            animationManager.startExpose(windowId: window.id, from: target, to: realFrame)
+        }
+        exposeTargetFrames.removeAll()
+    }
+
+    /// Get the visual rect for a window during exposé (animated or final).
+    /// Returns nil if the window is not in exposé and not animating.
+    public func exposeRect(for windowId: UInt64, animationManager: AnimationManager) -> AnimRect? {
+        if let rect = animationManager.exposeAnimatedRect(for: windowId) {
+            return rect
+        }
+        if isExposeActive, let target = exposeTargetFrames[windowId] {
+            return target
+        }
+        return nil
     }
 
     // MARK: - Rendering
