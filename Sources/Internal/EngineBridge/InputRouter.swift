@@ -40,22 +40,29 @@ struct InputRouter {
             return
         }
 
-        // Update traffic light hover state
+        // Update traffic light hover state and notify the app
+        let prevHover = windowManager.hoveringTrafficLights
         if let window = windowManager.windowAt(x: x, y: y) {
             windowManager.hoveredWindowId = window.id
             windowManager.hoveringTrafficLights = windowManager.isOverTrafficLights(
                 windowId: window.id, x: x, y: y
             )
+            if windowManager.hoveringTrafficLights != prevHover {
+                appManager.sendTrafficLightHover(wmWindowId: window.id, isHovered: windowManager.hoveringTrafficLights)
+            }
         } else {
             windowManager.hoveredWindowId = nil
             windowManager.hoveringTrafficLights = false
+            if prevHover, let focusedId = windowManager.focusedWindowId {
+                appManager.sendTrafficLightHover(wmWindowId: focusedId, isHovered: false)
+            }
         }
 
         // Forward to focused external app
         if let focusedId = windowManager.focusedWindowId,
            let window = windowManager.windows.first(where: { $0.id == focusedId }) {
             let localX = x - window.x
-            let localY = y - window.y - WindowChrome.titleBarHeight
+            let localY = y - window.y
             appManager.sendPointerMove(wmWindowId: focusedId, localX: Float(localX), localY: Float(localY))
         }
     }
@@ -141,7 +148,7 @@ struct InputRouter {
                         }
                     } else {
                         let localX = x - window.x
-                        let localY = y - window.y - WindowChrome.titleBarHeight
+                        let localY = y - window.y
                         appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
                     }
 
@@ -174,7 +181,7 @@ struct InputRouter {
                     windowManager.focus(id: window.id)
                     appManager.updateFocusedAppName(windowManager: windowManager)
                     let localX = x - window.x
-                    let localY = y - window.y - WindowChrome.titleBarHeight
+                    let localY = y - window.y
                     appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
                 }
             } else {

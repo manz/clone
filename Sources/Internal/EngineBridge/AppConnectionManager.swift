@@ -244,7 +244,7 @@ final class AppConnectionManager {
                 x: 150 + CGFloat.random(in: 0...200),
                 y: 50 + CGFloat.random(in: 0...150),
                 width: CGFloat(app.width),
-                height: CGFloat(app.height) + WindowChrome.titleBarHeight
+                height: CGFloat(app.height)
             )
             externalWindows[app.windowId] = wmId
             updateFocusedAppName(windowManager: windowManager)
@@ -291,18 +291,15 @@ final class AppConnectionManager {
 
     func notifyResize(wmWindowId: UInt64, window: ManagedWindow) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
-        let contentWidth = window.width
-        let contentHeight = window.height - WindowChrome.titleBarHeight
-        server.sendResize(windowId: serverWid, width: Float(contentWidth), height: Float(contentHeight))
+        // Send full window dimensions — the app subtracts titleBarHeight internally
+        server.sendResize(windowId: serverWid, width: Float(window.width), height: Float(window.height))
     }
 
     func syncResizingDimensions(windowManager: WindowManager) {
         guard let wmId = windowManager.resizingWindowId,
               let serverWid = externalWindowId(for: wmId),
               let window = windowManager.windows.first(where: { $0.id == wmId }) else { return }
-        let contentWidth = window.width
-        let contentHeight = window.height - WindowChrome.titleBarHeight
-        server.updateAppDimensions(windowId: serverWid, width: Float(contentWidth), height: Float(contentHeight))
+        server.updateAppDimensions(windowId: serverWid, width: Float(window.width), height: Float(window.height))
         // Send requestFrame directly to the resizing app so it knows the new size,
         // even if it uses IOSurface rendering (skipped by bulk requestFrames).
         server.sendRequestFrame(windowId: serverWid)
@@ -502,17 +499,36 @@ final class AppConnectionManager {
         server.sendScroll(windowId: serverWid, deltaX: deltaX, deltaY: deltaY)
     }
 
+    func sendTrafficLightHover(wmWindowId: UInt64, isHovered: Bool) {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return }
+        server.send(windowId: serverWid, message: .trafficLightHover(isHovered: isHovered))
+    }
+
+    private var lastFocusedServerWid: UInt64?
+
     func updateFocusedAppName(windowManager: WindowManager) {
         if let id = windowManager.focusedWindowId,
            let window = windowManager.windows.first(where: { $0.id == id }) {
             if let serverWid = externalWindowId(for: id),
                let app = server.app(for: serverWid) {
                 focusedAppName = displayName(from: app.appId)
+                // Notify focus changes
+                if serverWid != lastFocusedServerWid {
+                    if let prev = lastFocusedServerWid {
+                        server.send(windowId: prev, message: .focusChanged(isFocused: false))
+                    }
+                    server.send(windowId: serverWid, message: .focusChanged(isFocused: true))
+                    lastFocusedServerWid = serverWid
+                }
             } else {
                 focusedAppName = window.title
             }
         } else {
             focusedAppName = "Finder"
+            if let prev = lastFocusedServerWid {
+                server.send(windowId: prev, message: .focusChanged(isFocused: false))
+                lastFocusedServerWid = nil
+            }
         }
     }
 

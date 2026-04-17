@@ -439,6 +439,14 @@ public final class CompositorServer {
         }
     }
 
+    /// Send an arbitrary compositor message to an app by window ID.
+    public func send(windowId: UInt64, message: CompositorMessage) {
+        lock.lock()
+        let app = apps[windowId]
+        lock.unlock()
+        app?.send(message)
+    }
+
     public func sendResize(windowId: UInt64, width: Float, height: Float) {
         lock.lock()
         let app = apps[windowId]

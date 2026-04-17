@@ -220,6 +220,10 @@ public enum CompositorMessage: Codable, Sendable {
     case surfaceReady(surfaceId: UInt64)
     /// Compositor requests the app to resize its shared surface.
     case requestResize(width: Float, height: Float)
+    /// Compositor tells the app whether its window is focused (for chrome appearance).
+    case focusChanged(isFocused: Bool)
+    /// Compositor tells the app whether the pointer is over its traffic lights.
+    case trafficLightHover(isHovered: Bool)
 }
 
 // MARK: - Daemon (now-playing service)

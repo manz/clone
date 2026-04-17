@@ -51,6 +51,10 @@ public final class AppClient {
     public var onOpenPanelResult: (@MainActor (String?) -> Void)?
     /// Callback when window is closed by compositor.
     public var onWindowClosed: (@MainActor () -> Void)?
+    /// Callback when window focus changes.
+    public var onFocusChanged: (@MainActor (Bool) -> Void)?
+    /// Callback when traffic light hover state changes.
+    public var onTrafficLightHover: (@MainActor (Bool) -> Void)?
     /// Callback when compositor requests sheet content at the given size.
     public var onSheetFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
     /// Callback when user clicks the sheet backdrop.
@@ -264,6 +268,12 @@ public final class AppClient {
 
         case .requestResize:
             break // handled by app-side rendering (Phase 5)
+
+        case .focusChanged(let focused):
+            onFocusChanged?(focused)
+
+        case .trafficLightHover(let hovered):
+            onTrafficLightHover?(hovered)
         }
     }
 

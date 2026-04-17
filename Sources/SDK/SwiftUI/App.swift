@@ -133,12 +133,16 @@ extension App {
         let title = config.title.isEmpty ? appId : config.title
         let usesDeclarativeRendering = app.render(width: 0, height: 0) == nil
 
+        // Register with full window dimensions (including title bar for .window role)
+        let registerHeight = config.role == .window
+            ? config.height + WindowChrome.titleBarHeight
+            : config.height
         do {
             try app.client.connect(
                 appId: appId,
                 title: title,
                 width: Float(config.width),
-                height: Float(config.height),
+                height: Float(registerHeight),
                 role: config.role
             )
         } catch {
@@ -257,7 +261,8 @@ extension App {
             if !appMenus.isEmpty {
                 app.client.send(.registerMenus(menus: appMenus))
             }
-            // Shared frame-building closure used by both rendering paths
+            // Shared frame-building closure used by both rendering paths.
+            // width/height are the FULL window dimensions (including title bar for .window role).
             let buildFrame: (_ width: CGFloat, _ height: CGFloat) -> [IPCRenderCommand] = { width, height in
                 LayoutCache.shared.swapFrames()
                 GeometryReaderRegistry.shared.clear()
@@ -269,7 +274,9 @@ extension App {
                 TagRegistry.shared.resetCounter()
                 StateGraph.shared.resetCounter()
                 ScrollRegistry.shared.resetCounter()
-                WindowState.shared.update(width: width, height: height)
+                // App code sees content dimensions (excluding title bar)
+                let contentHeight = config.role == .window ? height - WindowChrome.titleBarHeight : height
+                WindowState.shared.update(width: width, height: contentHeight)
                 // Default opaque background like real SwiftUI windows
                 var viewTree = windowGroup.buildViewNode()
                     .background(config.role == .window ? WindowChrome.surface : .clear)
@@ -277,6 +284,16 @@ extension App {
                 OnChangeRegistry.shared.flushActions()
                 // Prepend toolbar items
                 viewTree = prependToolbar(viewTree, role: config.role)
+                // Prepend title bar chrome for window-role apps
+                if config.role == .window {
+                    let titleBar = buildTitleBarNode(
+                        title: WindowState.shared.navigationTitle ?? config.title,
+                        isFocused: WindowState.shared.isFocused,
+                        isTrafficLightHovered: WindowState.shared.isTrafficLightHovered,
+                        width: width
+                    )
+                    viewTree = .vstack(alignment: .leading, spacing: 0, children: [titleBar, viewTree])
+                }
                 // Sheet compositor surface lifecycle
                 let sheetActive = WindowState.shared.activeSheetContent != nil
                 if sheetActive && !_wasSheetActive {
@@ -543,6 +560,14 @@ extension App {
             WindowState.shared.colorScheme = dark ? .dark : .light
             AppearanceManager.shared.current = dark ? .dark : .light
         }
+        app.client.onFocusChanged = { focused in
+            WindowState.shared.isFocused = focused
+            appRenderer.setNeedsDisplay()
+        }
+        app.client.onTrafficLightHover = { hovered in
+            WindowState.shared.isTrafficLightHovered = hovered
+            appRenderer.setNeedsDisplay()
+        }
         app.client.onMenuAction = { itemId in
             // Fire declarative .commands action if registered
             if let action = MenuRegistry.shared.actions[itemId] {
@@ -657,6 +682,60 @@ extension App {
         positioned,
     ])
 }
+
+/// Build a single traffic light dot (circle with optional icon overlay).
+@MainActor func trafficLightDot(color: Color, size: CGFloat, iconName: String?, iconColor: Color) -> ViewNode {
+    let dot = Circle().fill(color).frame(width: size, height: size)
+    guard let iconName else { return _resolve(dot) }
+    let icon = Image(systemName: iconName)
+        .font(.system(size: size * 0.55, weight: .bold))
+        .foregroundColor(iconColor)
+    return _resolve(ZStack { dot; icon })
+}
+
+/// Build the title bar chrome as a ViewNode using the public SwiftUI API.
+@MainActor func buildTitleBarNode(
+    title: String, isFocused: Bool, isTrafficLightHovered: Bool, width: CGFloat
+) -> ViewNode {
+    let tbH = WindowChrome.titleBarHeight
+    let tbColor: Color = isFocused ? WindowChrome.titleBar : WindowChrome.titleBarUnfocused
+    let btnSize = WindowChrome.buttonSize
+
+    let closeColor: Color = isFocused ? .red : .gray
+    let minColor: Color = isFocused ? .yellow : .gray
+    let zoomColor: Color = isFocused ? .green : .gray
+    let symColor = Color(red: 0, green: 0, blue: 0, opacity: 0.5)
+
+    let closeDot = trafficLightDot(color: closeColor, size: btnSize,
+        iconName: isTrafficLightHovered ? "x" : nil, iconColor: symColor)
+    let minDot = trafficLightDot(color: minColor, size: btnSize,
+        iconName: isTrafficLightHovered ? "minus" : nil, iconColor: symColor)
+    let zoomDot = trafficLightDot(color: zoomColor, size: btnSize,
+        iconName: isTrafficLightHovered ? "arrows-out" : nil, iconColor: symColor)
+
+    let dots = ViewNode.hstack(alignment: .center, spacing: WindowChrome.buttonSpacing,
+        children: [closeDot, minDot, zoomDot])
+        .padding(EdgeInsets(top: 0, leading: WindowChrome.buttonInsetX, bottom: 0, trailing: 0))
+
+    let titleColor: Color = isFocused ? .primary : .secondary
+    let titleView = _resolve(
+        HStack {
+            Spacer()
+            Text(title).font(.system(size: 13)).foregroundColor(titleColor)
+            Spacer()
+        }
+    )
+
+    let bar = ViewNode.zstack(children: [
+        ViewNode.hstack(alignment: .center, spacing: 0, children: [dots, .spacer(minLength: 0)]),
+        titleView,
+    ])
+
+    return _resolve(
+        bar.frame(width: width, height: tbH).background(tbColor)
+    )
+}
+
 
 /// Prepend toolbar items to the view tree if any were collected.
 @MainActor func prependToolbar(_ viewTree: ViewNode, role: SurfaceRole) -> ViewNode {

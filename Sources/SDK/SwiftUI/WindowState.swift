@@ -21,6 +21,11 @@ public final class WindowState: @unchecked Sendable {
 
     /// Current color scheme for this window. Set by compositor via IPC.
     public var colorScheme: ColorScheme = .light
+
+    /// Whether this window is focused. Set by compositor via .focusChanged IPC.
+    public var isFocused: Bool = true
+    /// Whether the pointer is hovering over the traffic light buttons. Set by compositor.
+    public var isTrafficLightHovered: Bool = false
     /// Source keys already seen this frame — prevents duplicates from multi-path evaluation.
     public internal(set) var toolbarSourceKeys: Set<String> = []
 

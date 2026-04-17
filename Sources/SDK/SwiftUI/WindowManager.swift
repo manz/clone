@@ -56,10 +56,10 @@ public struct ManagedWindow: Equatable, Sendable {
 /// Window chrome constants.
 public enum WindowChrome {
     public static let titleBarHeight: CGFloat = 38
-    public static let buttonSize: CGFloat = 12
+    public static let buttonSize: CGFloat = 14
     public static let buttonSpacing: CGFloat = 8
-    public static let buttonInsetX: CGFloat = 14
-    public static let buttonInsetY: CGFloat = 13
+    public static let buttonInsetX: CGFloat = 13
+    public static let buttonInsetY: CGFloat = 12
     public static let cornerRadius: CGFloat = 12
     public static let menuBarHeight: CGFloat = 24
     public static let resizeHandleSize: CGFloat = 6

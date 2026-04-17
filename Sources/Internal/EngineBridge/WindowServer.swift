@@ -135,14 +135,7 @@ public final class WindowServer {
             }
 
             if hasIOSurface {
-                // App-side rendered: chrome + content as separate surfaces
-                let contentSurfaceId = surfaceId + 50000
-                // Scale title bar proportionally during exposé
-                let scale = srcW > 0 ? Float(frameW) / srcW : 1.0
-                let titleBarH = Float(WindowChrome.titleBarHeight) * scale
-                let contentH = Float(frameH) - titleBarH
-
-                // Chrome surface first (back)
+                // App renders chrome + content into a single IOSurface
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -155,28 +148,6 @@ public final class WindowServer {
                         genieTargetY: genieTargetY,
                         genieTargetW: genieTargetW,
                         contentWidth: srcW, contentHeight: srcH
-                    ),
-                    commands: windowCommands,
-                    pixelData: nil,
-                    iosurfaceId: 0, dmabufFd: -1
-                ))
-
-                // Content surface on top — IOSurface (zero-copy)
-                // Use the same corner radius so the SDF mask clips the bottom corners.
-                // The title bar covers the top corners, so the visible effect is bottom-only rounding.
-                let srcContentH = srcH > 0 ? srcH - Float(WindowChrome.titleBarHeight) : Float(0)
-                frames.append(SurfaceFrame(
-                    desc: SurfaceDesc(
-                        surfaceId: contentSurfaceId,
-                        x: Float(frameX), y: Float(frameY) + titleBarH,
-                        width: Float(frameW), height: contentH,
-                        cornerRadius: Float(radius),
-                        opacity: Float(frameOpacity),
-                        genieProgress: genieProgress,
-                        genieTargetX: genieTargetX,
-                        genieTargetY: genieTargetY,
-                        genieTargetW: genieTargetW,
-                        contentWidth: srcW, contentHeight: srcContentH
                     ),
                     commands: [],
                     pixelData: nil,

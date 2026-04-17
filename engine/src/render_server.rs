@@ -142,8 +142,8 @@ impl RenderServer {
             .map(|sf| {
                 let phys_w = sf.desc.width * scale;
                 let phys_h = sf.desc.height * scale;
-                // Chrome surfaces (no IOSurface/DMA-BUF) get shadows; content surfaces don't.
-                let is_shared = sf.iosurface_id != 0 || sf.dmabuf_fd >= 0;
+                // Surfaces with corner radius get shadows (windows).
+                // Overlays (dock, menubar, fullscreen) have radius 0 and no shadow.
                 CompositeWindow {
                     surface_id: sf.desc.surface_id,
                     x: sf.desc.x * scale,
@@ -152,7 +152,7 @@ impl RenderServer {
                     height: phys_h,
                     corner_radius: sf.desc.corner_radius * scale,
                     opacity: sf.desc.opacity,
-                    shadow: !is_shared,
+                    shadow: sf.desc.corner_radius > 0.0,
                     // Use explicit content size if provided (exposé scaling),
                     // otherwise content matches display size.
                     content_width: if sf.desc.content_width > 0.0 { sf.desc.content_width * scale } else { phys_w },
