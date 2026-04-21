@@ -98,9 +98,10 @@ public final class WindowServer {
             // Overlays (dock, menubar, loginWindow) — simple surface, no chrome/expose/genie
             if window.isOverlay {
                 let iosurfaceId = appManager.iosurfaceId(for: window.id)
-                // Overlays render at full screen for absolute positioning
-                let ow = Float(windowManager.screenWidth)
-                let oh = Float(windowManager.screenHeight)
+                // Use the app's registered dimensions for the surface
+                let dims = appManager.appDimensions(for: window.id)
+                let ow = dims?.width ?? Float(window.width)
+                let oh = dims?.height ?? Float(window.height)
                 if iosurfaceId != 0 {
                     frames.append(SurfaceFrame(
                         desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: ow, height: oh, cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),

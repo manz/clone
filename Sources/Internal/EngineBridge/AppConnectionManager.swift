@@ -188,9 +188,13 @@ final class AppConnectionManager {
     }
 
     /// Start the user session — launched after LoginWindow signals sessionReady.
-    private func startUserSession() {
+    private func startUserSession(windowManager: WindowManager) {
         guard !sessionStarted else { return }
         sessionStarted = true
+        // Hide loginWindow
+        if let idx = windowManager.windows.firstIndex(where: { $0.role == .loginWindow }) {
+            windowManager.windows[idx].isVisible = false
+        }
         launchApp("Dock")
         launchApp("MenuBar")
         launchApp("Finder")
@@ -328,7 +332,7 @@ final class AppConnectionManager {
     func processLaunchQueue(windowManager: WindowManager, animationManager: AnimationManager) {
         if pendingSessionReady {
             pendingSessionReady = false
-            startUserSession()
+            startUserSession(windowManager: windowManager)
         }
 
         // Activate: focus the window belonging to the app that sent .activate
@@ -471,6 +475,13 @@ final class AppConnectionManager {
     func sendPointerButton(wmWindowId: UInt64, button: UInt32, pressed: Bool, x: Float, y: Float) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
         server.sendPointerButton(windowId: serverWid, button: button, pressed: pressed, x: x, y: y)
+    }
+
+    /// Get the registered dimensions (width/height) for an app by its WM window ID.
+    func appDimensions(for wmWindowId: UInt64) -> (width: Float, height: Float)? {
+        guard let serverWid = externalWindowId(for: wmWindowId),
+              let app = server.app(for: serverWid) else { return nil }
+        return (width: app.width, height: app.height)
     }
 
     func sendKey(wmWindowId: UInt64, keycode: UInt32, pressed: Bool) {
