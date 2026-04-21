@@ -213,7 +213,7 @@ let package = Package(
         .executableTarget(
             name: "CloneDesktop",
             dependencies: ["SwiftUI", "EngineBridge", "CloneServer"],
-            path: "Sources/Apps/Compositor",
+            path: "Sources/Apps/System/Compositor",
             linkerSettings: [
                 .unsafeFlags([
                     "-L", cargoTargetDir,
@@ -225,7 +225,7 @@ let package = Package(
         .executableTarget(
             name: "Finder",
             dependencies: ["SwiftUI"],
-            path: "Sources/Apps/Finder",
+            path: "Sources/Apps/System/Finder",
             exclude: ["Info.plist"],
             resources: [.process("Resources")]
         ),
@@ -237,12 +237,12 @@ let package = Package(
         .executableTarget(
             name: "Dock",
             dependencies: ["SwiftUI"],
-            path: "Sources/Apps/Dock"
+            path: "Sources/Apps/System/Dock"
         ),
         .executableTarget(
             name: "MenuBar",
             dependencies: ["SwiftUI", "CloneProtocol", "CloneClient", "PosixShim"],
-            path: "Sources/Apps/MenuBar"
+            path: "Sources/Apps/System/MenuBar"
         ),
         .executableTarget(
             name: "Password",
@@ -264,7 +264,7 @@ let package = Package(
         .executableTarget(
             name: "LoginWindow",
             dependencies: ["SwiftUI"],
-            path: "Sources/Apps/LoginWindow"
+            path: "Sources/Apps/System/LoginWindow"
         ),
 
         // ── Daemons ──────────────────────────────────────────────

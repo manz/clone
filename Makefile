@@ -101,14 +101,14 @@ sdk:
 # App processes — built against prebuilt SDK frameworks
 APPBUILD = swift run ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
-	$(call APPBUILD,Finder,Finder)
+	$(call APPBUILD,Finder,System/Finder)
+	$(call APPBUILD,Dock,System/Dock)
+	$(call APPBUILD,MenuBar,System/MenuBar)
+	$(call APPBUILD,LoginWindow,System/LoginWindow)
 	$(call APPBUILD,Settings,Settings)
-	$(call APPBUILD,Dock,Dock)
-	$(call APPBUILD,MenuBar,MenuBar)
 	$(call APPBUILD,Password,Password)
 	$(call APPBUILD,TextEdit,TextEdit)
 	$(call APPBUILD,Preview,Preview)
-	$(call APPBUILD,LoginWindow,LoginWindow)
 	$(call APPBUILD,FontBook,FontBook)
 
 # Install to $CLONE_ROOT (~/.clone by default)
