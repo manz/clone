@@ -150,6 +150,7 @@ install: install-sdk
 			fi; \
 		done; \
 	done
+	@cp -f Sources/Apps/System/SystemVersion.plist $(CLONE_ROOT)/System/Library/CoreServices/SystemVersion.plist
 	@echo "Installing system binaries..."
 	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/Library/CoreServices/cloned 2>/dev/null || true
