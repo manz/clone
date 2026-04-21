@@ -191,9 +191,10 @@ final class AppConnectionManager {
     private func startUserSession(windowManager: WindowManager) {
         guard !sessionStarted else { return }
         sessionStarted = true
-        // Hide loginWindow
+        // Close loginWindow's window but keep the process alive — like macOS,
+        // loginwindow owns the session and respawns its UI on lock screen.
         if let idx = windowManager.windows.firstIndex(where: { $0.role == .loginWindow }) {
-            windowManager.windows[idx].isVisible = false
+            windowManager.windows.remove(at: idx)
         }
         launchApp("Dock")
         launchApp("MenuBar")
