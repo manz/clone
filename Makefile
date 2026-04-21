@@ -142,11 +142,12 @@ install: install-sdk
 		done; \
 	done
 	@echo "Installing system binaries..."
-	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/CloneDesktop 2>/dev/null || true
-	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/cloned 2>/dev/null || true
-	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/keychaind 2>/dev/null || true
-	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/launchservicesd 2>/dev/null || true
-	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/avocadoeventsd 2>/dev/null || true
+	@mkdir -p $(CLONE_ROOT)/System/Library/CoreServices
+	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/Library/CoreServices/cloned 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/Library/CoreServices/keychaind 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/Library/CoreServices/launchservicesd 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/Library/CoreServices/avocadoeventsd 2>/dev/null || true
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias

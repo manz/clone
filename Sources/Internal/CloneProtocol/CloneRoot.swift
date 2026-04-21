@@ -12,8 +12,8 @@ public let cloneRoot: String = {
 /// Installed .app bundles.
 public let cloneApplicationsPath: String = "\(cloneRoot)/Applications"
 
-/// System binaries (compositor + daemons).
-public let cloneSystemPath: String = "\(cloneRoot)/System"
+/// System binaries (compositor + daemons) — mirrors macOS /System/Library/CoreServices.
+public let cloneSystemPath: String = "\(cloneRoot)/System/Library/CoreServices"
 
 /// Library root for all scoped data (preferences, caches, app support).
 public let cloneLibraryPath: String = "\(cloneRoot)/Library"
