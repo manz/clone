@@ -301,7 +301,7 @@ public enum Layout {
             let totalHeight = CGFloat(rowCount) * rowHeight + CGFloat(max(0, rowCount - 1)) * spacing
             return MeasuredSize(width: constraint.maxWidth, height: totalHeight)
 
-        case .image(_, let width, let height, _):
+        case .image(_, let width, let height, _, _):
             // SF Symbols default to ~17pt (body font size) when no explicit size
             let defaultSize: CGFloat = 17
             return MeasuredSize(

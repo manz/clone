@@ -30,6 +30,17 @@ public struct FlatRenderCommand: Equatable, Sendable {
 
 public enum CommandFlattener {
 
+    /// Map FontWeight to Phosphor icon style. Returns nil for regular (use resolved default).
+    private static func phosphorStyle(for weight: FontWeight) -> PhosphorIconStyle? {
+        switch weight {
+        case .ultraLight, .thin: return .thin
+        case .light:             return .light
+        case .regular:           return nil  // use the resolved default
+        case .medium, .semibold: return .regular
+        case .bold, .heavy, .black: return .bold
+        }
+    }
+
     /// Walk a LayoutNode tree and emit flat render commands.
     public static func flatten(_ layoutNode: LayoutNode) -> [FlatRenderCommand] {
         var commands: [FlatRenderCommand] = []
@@ -125,9 +136,11 @@ public enum CommandFlattener {
             ))
             return
 
-        case .image(let name, _, _, let tint):
+        case .image(let name, _, _, let tint, let weight):
             // Resolve SF Symbols name to Phosphor icon name + style
             let resolved = PhosphorIcons.resolve(name: name)
+            // Font weight overrides the resolved style (like Apple's SF Symbols)
+            let style = Self.phosphorStyle(for: weight) ?? resolved.style
             let iconColor = tint ?? Color.primary
             let iconSize = min(frame.width, frame.height)
             let iconX = frame.x + (frame.width - iconSize) / 2
@@ -135,7 +148,7 @@ public enum CommandFlattener {
             commands.append(FlatRenderCommand(
                 x: iconX, y: iconY,
                 width: iconSize, height: iconSize,
-                kind: .icon(name: resolved.name, style: resolved.style,
+                kind: .icon(name: resolved.name, style: style,
                            color: iconColor.withAlpha(opacity))
             ))
 

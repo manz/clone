@@ -688,7 +688,7 @@ extension App {
     let dot = Circle().fill(color).frame(width: size, height: size)
     guard let iconName else { return _resolve(dot) }
     let icon = Image(systemName: iconName)
-        .font(.system(size: size * 0.55, weight: .bold))
+        .font(.system(size: size * 0.6, weight: .bold))
         .foregroundColor(iconColor)
     return _resolve(ZStack { dot; icon })
 }

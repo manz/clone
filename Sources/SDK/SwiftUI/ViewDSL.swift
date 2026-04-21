@@ -77,8 +77,8 @@ public extension ViewNode {
         switch self {
         case .text(let content, let fontSize, _, let weight, let family):
             return .text(content, fontSize: fontSize, color: color, weight: weight, family: family)
-        case .image(let name, let width, let height, _):
-            return .image(name: name, width: width, height: height, tint: color)
+        case .image(let name, let width, let height, _, let weight):
+            return .image(name: name, width: width, height: height, tint: color, weight: weight)
         default:
             return self
         }

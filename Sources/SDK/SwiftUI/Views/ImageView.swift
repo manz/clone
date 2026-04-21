@@ -6,6 +6,7 @@ import CloneRender
 public struct Image: _PrimitiveView {
     let name: String
     var fontSize: CGFloat?
+    var iconWeight: CloneText.FontWeight = .regular
 
     // Raster image data (decoded RGBA)
     var textureId: UInt64?
@@ -57,13 +58,14 @@ public struct Image: _PrimitiveView {
             }
             return .rasterImage(textureId: textureId, imageWidth: imgW, imageHeight: imgH, rgbaData: [])
         }
-        return .image(name: name, width: fontSize, height: fontSize)
+        return .image(name: name, width: fontSize, height: fontSize, weight: iconWeight)
     }
 
-    /// `.font()` on Image sets the icon size (like SF Symbols).
+    /// `.font()` on Image sets the icon size and weight (like SF Symbols).
     public func font(_ font: Font) -> Image {
         var copy = self
         copy.fontSize = font.size
+        copy.iconWeight = font.internalWeight
         return copy
     }
 
