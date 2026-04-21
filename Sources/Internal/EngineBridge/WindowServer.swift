@@ -24,6 +24,10 @@ public final class WindowServer {
         windowManager.onWindowClosed = { [appManager] wmWindowId in
             appManager.closeWindow(wmWindowId: wmWindowId)
         }
+        windowManager.onFocusChanged = { [weak self] in
+            guard let self else { return }
+            appManager.updateFocusedAppName(windowManager: windowManager)
+        }
     }
 
     func compositeFrame(width: CGFloat, height: CGFloat) -> [SurfaceFrame] {
@@ -233,7 +237,8 @@ public final class WindowServer {
         let minimizedInfos = windowManager.minimizedWindows.map {
             MinimizedWindowInfo(windowId: $0.id, appId: $0.appId, title: $0.title)
         }
-        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), minimizedWindows: minimizedInfos, focusedWmWindowId: windowManager.focusedWindowId)
+        let mouseOverWindow = windowManager.windowAt(x: CGFloat(mouseX), y: CGFloat(mouseY)) != nil
+        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), mouseOverWindow: mouseOverWindow, minimizedWindows: minimizedInfos, focusedWmWindowId: windowManager.focusedWindowId)
 
         // Request frames for NEXT render cycle (double-buffered).
         // Apps respond asynchronously — we use their previous response for this frame.

@@ -86,7 +86,11 @@ public enum TrafficLightButton {
 @MainActor
 public final class WindowManager {
     public var windows: [ManagedWindow] = []
-    public private(set) var focusedWindowId: UInt64? = nil
+    public private(set) var focusedWindowId: UInt64? = nil {
+        didSet {
+            if focusedWindowId != oldValue { onFocusChanged?() }
+        }
+    }
     private var nextWindowId: UInt64 = 1
 
     /// Screen dimensions — set by the compositor each frame.
@@ -189,11 +193,14 @@ public final class WindowManager {
         }
     }
 
+    /// Called when the focused window changes. Set by the compositor to update menubar etc.
+    public var onFocusChanged: (() -> Void)?
+
     public func focus(id: UInt64) {
         guard let idx = windows.firstIndex(where: { $0.id == id }) else { return }
         let window = windows.remove(at: idx)
         windows.append(window)
-        focusedWindowId = id
+        focusedWindowId = id  // didSet fires onFocusChanged if value changed
     }
 
     // MARK: - Hit testing

@@ -599,18 +599,23 @@ extension App {
         }
         app.client.onFocusedApp = { name in
             app.onFocusedApp(name: name)
+            appRenderer.setNeedsDisplay()
+        }
+        app.client.onAppMenus = { appName, menus in
+            app.onAppMenus(appName: appName, menus: menus)
+            appRenderer.setNeedsDisplay()
         }
         app.client.onMinimizedWindows = { windows in
             app.onMinimizedWindows(windows: windows)
+            appRenderer.setNeedsDisplay()
         }
         app.client.onRunningApps = { apps in
             app.onRunningApps(apps: apps)
+            appRenderer.setNeedsDisplay()
         }
         app.client.onWindowThumbnail = { windowId, pngData in
             app.onWindowThumbnail(windowId: windowId, pngData: pngData)
-        }
-        app.client.onAppMenus = { name, menus in
-            app.onAppMenus(appName: name, menus: menus)
+            appRenderer.setNeedsDisplay()
         }
 
         logErr("\(title) connected to compositor\n")
