@@ -71,7 +71,7 @@ public final class LaunchServicesServer {
 
     public init(socketPath: String = launchservicesdSocketPath, scanDirectories: [String]? = nil) {
         self.socketPath = socketPath
-        self.initialScanDirs = scanDirectories ?? [cloneApplicationsPath]
+        self.initialScanDirs = scanDirectories ?? [cloneApplicationsPath, cloneSystemPath]
     }
 
     public func start() throws {

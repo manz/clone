@@ -131,18 +131,26 @@ endif
 	@cp target/$(CONFIG)/libclone_audio.$(LIB_EXT) $(CLONE_ROOT)/System/Library/ 2>/dev/null || true
 	@echo "SDK installed to $(CLONE_ROOT)/System/Library"
 
+# System apps live in System/Library/CoreServices (like macOS)
+SYSTEM_APPS = Finder Dock MenuBar LoginWindow
+
 # Full install (SDK + apps + system binaries)
 install: install-sdk
-	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
+	@mkdir -p $(CLONE_ROOT)/Applications $(CLONE_ROOT)/System/Library/CoreServices $(CLONE_ROOT)/Library/Preferences $(CLONE_ROOT)/Library/Caches $(CLONE_ROOT)/Library/LaunchServices "$(CLONE_ROOT)/Library/Application Support"
 	@echo "Installing app bundles..."
-	@rm -rf $(CLONE_ROOT)/Applications/*.app
+	@rm -rf $(CLONE_ROOT)/Applications/*.app $(CLONE_ROOT)/System/Library/CoreServices/*.app
 	@for d in .build/apps/*/; do \
 		for app in "$$d"*.app; do \
-			[ -d "$$app" ] && cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app)"; \
+			[ -d "$$app" ] || continue; \
+			name=$$(basename "$$app" .app); \
+			if echo " $(SYSTEM_APPS) " | grep -q " $$name "; then \
+				cp -a "$$app" "$(CLONE_ROOT)/System/Library/CoreServices/$$(basename $$app)" && echo "  $$(basename $$app) → CoreServices"; \
+			else \
+				cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app) → Applications"; \
+			fi; \
 		done; \
 	done
 	@echo "Installing system binaries..."
-	@mkdir -p $(CLONE_ROOT)/System/Library/CoreServices
 	@cp -f $(SWIFT_BUILD_DIR)/CloneDesktop $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/cloned $(CLONE_ROOT)/System/Library/CoreServices/cloned 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/Library/CoreServices/keychaind 2>/dev/null || true

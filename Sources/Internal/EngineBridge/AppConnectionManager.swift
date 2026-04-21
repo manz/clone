@@ -207,6 +207,7 @@ final class AppConnectionManager {
             let candidates = [
                 URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().appendingPathComponent(name).path,
                 "\(cloneSystemPath)/\(name)",
+                "\(cloneSystemPath)/\(name).app/Contents/\(cloneAppBundleExecDir)/\(name)",
                 "\(cloneApplicationsPath)/\(name).app/Contents/\(cloneAppBundleExecDir)/\(name)",
                 ".build/debug/\(name)",
                 "target/debug/\(name)",
