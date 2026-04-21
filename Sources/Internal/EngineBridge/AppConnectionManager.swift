@@ -547,7 +547,7 @@ final class AppConnectionManager {
         focusedAppName
     }
 
-    func sendSystemState(mouseX: CGFloat, mouseY: CGFloat, mouseOverWindow: Bool, minimizedWindows: [MinimizedWindowInfo], focusedWmWindowId: UInt64?) {
+    func sendSystemState(mouseX: CGFloat, mouseY: CGFloat, minimizedWindows: [MinimizedWindowInfo], focusedWmWindowId: UInt64?) {
         // Get focused app's menus, prepend the system app menu with Quit
         var focusedMenus: [AppMenu] = []
         if let wmId = focusedWmWindowId,
@@ -576,11 +576,11 @@ final class AppConnectionManager {
                     lastRunningApps = running
                     app.send(.runningApps(apps: running))
                 }
-                // Only send pointer position to dock when mouse is NOT over a window.
-                // This prevents the dock from magnifying when interacting with windows.
+                // Always send pointer position — the dock's onContinuousHover
+                // handles its own hit testing and needs moves to detect mouse-out.
                 let mx = Float(mouseX)
                 let my = Float(mouseY)
-                if !mouseOverWindow && (mx != lastDockMouseX || my != lastDockMouseY) {
+                if mx != lastDockMouseX || my != lastDockMouseY {
                     lastDockMouseX = mx
                     lastDockMouseY = my
                     app.send(.pointerMove(x: mx, y: my))

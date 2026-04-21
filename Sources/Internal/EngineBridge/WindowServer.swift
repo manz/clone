@@ -237,8 +237,7 @@ public final class WindowServer {
         let minimizedInfos = windowManager.minimizedWindows.map {
             MinimizedWindowInfo(windowId: $0.id, appId: $0.appId, title: $0.title)
         }
-        let mouseOverWindow = windowManager.windowAt(x: CGFloat(mouseX), y: CGFloat(mouseY)) != nil
-        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), mouseOverWindow: mouseOverWindow, minimizedWindows: minimizedInfos, focusedWmWindowId: windowManager.focusedWindowId)
+        appManager.sendSystemState(mouseX: CGFloat(mouseX), mouseY: CGFloat(mouseY), minimizedWindows: minimizedInfos, focusedWmWindowId: windowManager.focusedWindowId)
 
         // Request frames for NEXT render cycle (double-buffered).
         // Apps respond asynchronously — we use their previous response for this frame.
