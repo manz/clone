@@ -59,10 +59,14 @@ struct InputRouter {
             }
         }
 
-        // Forward pointer move in local coordinates — same path for all roles
-        let localX = x - window.x
-        let localY = y - window.y
-        appManager.sendPointerMove(wmWindowId: window.id, localX: Float(localX), localY: Float(localY))
+        // Overlays render fullscreen — send screen coords. Windows get local coords.
+        let sendX: CGFloat, sendY: CGFloat
+        if window.isOverlay {
+            sendX = x; sendY = y
+        } else {
+            sendX = x - window.x; sendY = y - window.y
+        }
+        appManager.sendPointerMove(wmWindowId: window.id, localX: Float(sendX), localY: Float(sendY))
     }
 
     static func routePointerButton(
@@ -144,10 +148,8 @@ struct InputRouter {
 
                         windowManager.focus(id: window.id)
                     } else {
-                        // Overlay (dock, menubar, loginWindow) — forward click in local coords
-                        let localX = x - window.x
-                        let localY = y - window.y
-                        appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
+                        // Overlay (dock, menubar, loginWindow) — send screen coords (fullscreen surface)
+                        appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(x), y: Float(y))
                     }
                 }
             } else {
@@ -170,11 +172,12 @@ struct InputRouter {
             // Non-left buttons
             if pressed {
                 if let window = windowManager.windowAt(x: x, y: y) {
-                    windowManager.focus(id: window.id)
-                    appManager.updateFocusedAppName(windowManager: windowManager)
-                    let localX = x - window.x
-                    let localY = y - window.y
-                    appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
+                    if window.role == .window {
+                        windowManager.focus(id: window.id)
+                    }
+                    let sx = window.isOverlay ? x : x - window.x
+                    let sy = window.isOverlay ? y : y - window.y
+                    appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(sx), y: Float(sy))
                 }
             } else {
                 if let focusedId = windowManager.focusedWindowId {
