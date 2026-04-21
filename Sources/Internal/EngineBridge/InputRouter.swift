@@ -24,12 +24,6 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
-        // Pre-session: all input goes to LoginWindow
-        if !appManager.sessionStarted {
-            appManager.sendToLoginWindow(pointerMove: Float(x), y: Float(y))
-            return
-        }
-
         if windowManager.isResizing {
             windowManager.updateResize(mouseX: x, mouseY: y)
             return
@@ -40,31 +34,35 @@ struct InputRouter {
             return
         }
 
-        // Update traffic light hover state and notify the app
-        let prevHover = windowManager.hoveringTrafficLights
-        if let window = windowManager.windowAt(x: x, y: y) {
-            windowManager.hoveredWindowId = window.id
+        // Hit test all surfaces (windows + overlays) — unified path
+        guard let window = windowManager.windowAt(x: x, y: y) else {
+            windowManager.hoveredWindowId = nil
+            if windowManager.hoveringTrafficLights {
+                windowManager.hoveringTrafficLights = false
+                if let focusedId = windowManager.focusedWindowId {
+                    appManager.sendTrafficLightHover(wmWindowId: focusedId, isHovered: false)
+                }
+            }
+            return
+        }
+
+        windowManager.hoveredWindowId = window.id
+
+        // Traffic light hover (windows only)
+        if window.role == .window {
+            let prevHover = windowManager.hoveringTrafficLights
             windowManager.hoveringTrafficLights = windowManager.isOverTrafficLights(
                 windowId: window.id, x: x, y: y
             )
             if windowManager.hoveringTrafficLights != prevHover {
                 appManager.sendTrafficLightHover(wmWindowId: window.id, isHovered: windowManager.hoveringTrafficLights)
             }
-        } else {
-            windowManager.hoveredWindowId = nil
-            windowManager.hoveringTrafficLights = false
-            if prevHover, let focusedId = windowManager.focusedWindowId {
-                appManager.sendTrafficLightHover(wmWindowId: focusedId, isHovered: false)
-            }
         }
 
-        // Forward to focused external app
-        if let focusedId = windowManager.focusedWindowId,
-           let window = windowManager.windows.first(where: { $0.id == focusedId }) {
-            let localX = x - window.x
-            let localY = y - window.y
-            appManager.sendPointerMove(wmWindowId: focusedId, localX: Float(localX), localY: Float(localY))
-        }
+        // Forward pointer move in local coordinates — same path for all roles
+        let localX = x - window.x
+        let localY = y - window.y
+        appManager.sendPointerMove(wmWindowId: window.id, localX: Float(localX), localY: Float(localY))
     }
 
     static func routePointerButton(
@@ -74,17 +72,12 @@ struct InputRouter {
         appManager: AppConnectionManager,
         animationManager: AnimationManager
     ) {
-        if !appManager.sessionStarted {
-            appManager.sendToLoginWindow(pointerButton: button, pressed: pressed, x: Float(x), y: Float(y))
-            return
-        }
-
         if button == 0 {
             if pressed {
                 mouseDown = true
 
-                // Check resize edges first
-                for window in windowManager.windows.reversed() where window.isVisible && !window.isMinimized {
+                // Check resize edges first (windows only)
+                for window in windowManager.windows.reversed() where window.isVisible && !window.isMinimized && window.role == .window {
                     if let edge = windowManager.hitTestResizeEdge(windowId: window.id, x: x, y: y) {
                         windowManager.beginResize(windowId: window.id, edge: edge, mouseX: x, mouseY: y)
                         return
@@ -95,68 +88,67 @@ struct InputRouter {
                 if let focusedId = windowManager.focusedWindowId,
                    let window = windowManager.windows.first(where: { $0.id == focusedId }),
                    let sheetSize = appManager.sheetSize(for: focusedId) {
-                    // Check if click is within parent window bounds
                     let parentX = window.x
                     let parentY = window.y
                     let parentW = window.width
                     let parentH = window.height
                     if x >= parentX && x < parentX + parentW && y >= parentY && y < parentY + parentH {
-                        // Sheet is centered in the parent
                         let sheetW = CGFloat(sheetSize.width)
                         let sheetH = CGFloat(sheetSize.height)
                         let sheetX = parentX + (parentW - sheetW) / 2
                         let sheetY = parentY + (parentH - sheetH) / 3
                         if x >= sheetX && x < sheetX + sheetW && y >= sheetY && y < sheetY + sheetH {
-                            // Click inside sheet — send sheet-local coordinates
                             let localX = x - sheetX
                             let localY = y - sheetY
                             appManager.sendSheetPointerButton(wmWindowId: focusedId, button: button, pressed: true, x: Float(localX), y: Float(localY))
                         } else {
-                            // Click on backdrop — dismiss sheet
                             appManager.sendSheetBackdropTapped(wmWindowId: focusedId)
                         }
                         return
                     }
                 }
 
+                // Unified hit test — windows and overlays
                 if let window = windowManager.windowAt(x: x, y: y) {
-                    // Traffic light buttons
-                    if let trafficLight = windowManager.hitTestTrafficLight(windowId: window.id, x: x, y: y) {
-                        switch trafficLight {
-                        case .close:
-                            windowManager.close(id: window.id)
-                        case .minimize:
-                            animateMinimize(windowId: window.id, windowManager: windowManager, appManager: appManager, animationManager: animationManager)
-                        case .zoom:
-                            windowManager.zoom(id: window.id)
-                            if let w = windowManager.windows.first(where: { $0.id == window.id }) {
-                                appManager.notifyResize(wmWindowId: window.id, window: w)
+                    if window.role == .window {
+                        // Traffic light buttons
+                        if let trafficLight = windowManager.hitTestTrafficLight(windowId: window.id, x: x, y: y) {
+                            switch trafficLight {
+                            case .close:
+                                windowManager.close(id: window.id)
+                            case .minimize:
+                                animateMinimize(windowId: window.id, windowManager: windowManager, appManager: appManager, animationManager: animationManager)
+                            case .zoom:
+                                windowManager.zoom(id: window.id)
+                                if let w = windowManager.windows.first(where: { $0.id == window.id }) {
+                                    appManager.notifyResize(wmWindowId: window.id, window: w)
+                                }
                             }
+                            return
                         }
-                        appManager.updateFocusedAppName(windowManager: windowManager)
-                        return
-                    }
 
-                    // Title bar drag
-                    if window.titleBarContains(px: x, py: y) {
-                        let wasMaximized = windowManager.windows.first(where: { $0.id == window.id })?.isMaximized ?? false
-                        windowManager.beginDrag(windowId: window.id, mouseX: x, mouseY: y)
-                        if wasMaximized {
-                            if let w = windowManager.windows.first(where: { $0.id == window.id }) {
-                                appManager.notifyResize(wmWindowId: window.id, window: w)
+                        // Title bar drag
+                        if window.titleBarContains(px: x, py: y) {
+                            let wasMaximized = windowManager.windows.first(where: { $0.id == window.id })?.isMaximized ?? false
+                            windowManager.beginDrag(windowId: window.id, mouseX: x, mouseY: y)
+                            if wasMaximized {
+                                if let w = windowManager.windows.first(where: { $0.id == window.id }) {
+                                    appManager.notifyResize(wmWindowId: window.id, window: w)
+                                }
                             }
+                        } else {
+                            let localX = x - window.x
+                            let localY = y - window.y
+                            appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
                         }
+
+                        windowManager.focus(id: window.id)
                     } else {
+                        // Overlay (dock, menubar, loginWindow) — forward click in local coords
                         let localX = x - window.x
                         let localY = y - window.y
                         appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(localX), y: Float(localY))
                     }
-
-                    windowManager.focus(id: window.id)
-                    appManager.updateFocusedAppName(windowManager: windowManager)
-                } else {
-                    // No window hit — forward to overlays
-                    appManager.sendPointerButtonToOverlays(button: button, pressed: true, x: Float(x), y: Float(y))
                 }
             } else {
                 mouseDown = false
@@ -198,11 +190,6 @@ struct InputRouter {
         appManager: AppConnectionManager,
         animationManager: AnimationManager
     ) {
-        if !appManager.sessionStarted {
-            appManager.sendToLoginWindow(key: keycode, pressed: pressed)
-            return
-        }
-
         guard pressed else { return }
 
         // Compositor-level shortcuts — intercepted before forwarding to apps
@@ -214,10 +201,11 @@ struct InputRouter {
             break
         }
 
-        // Forward to focused external app
-        if let focusedId = windowManager.focusedWindowId {
-            appManager.sendKey(wmWindowId: focusedId, keycode: keycode, pressed: pressed)
-            return
+        // Forward to focused window, or loginWindow pre-session
+        let targetId = windowManager.focusedWindowId
+            ?? windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+        if let id = targetId {
+            appManager.sendKey(wmWindowId: id, keycode: keycode, pressed: pressed)
         }
     }
 
@@ -226,13 +214,10 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
-        if !appManager.sessionStarted {
-            appManager.sendToLoginWindow(keyChar: character)
-            return
-        }
-
-        if let focusedId = windowManager.focusedWindowId {
-            appManager.sendKeyChar(wmWindowId: focusedId, character: character)
+        let targetId = windowManager.focusedWindowId
+            ?? windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+        if let id = targetId {
+            appManager.sendKeyChar(wmWindowId: id, character: character)
         }
     }
 

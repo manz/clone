@@ -1,9 +1,11 @@
 import Foundation
+import CloneProtocol
 
 /// A managed window on the desktop.
 public struct ManagedWindow: Equatable, Sendable {
     public let id: UInt64
     public let appId: String
+    public let role: SurfaceRole
     public var title: String
     public var x: CGFloat
     public var y: CGFloat
@@ -19,9 +21,13 @@ public struct ManagedWindow: Equatable, Sendable {
     public var restoreWidth: CGFloat
     public var restoreHeight: CGFloat
 
-    public init(id: UInt64, appId: String, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
+    /// Whether this is an overlay (dock, menubar, loginWindow) — not focusable/draggable.
+    public var isOverlay: Bool { role != .window }
+
+    public init(id: UInt64, appId: String, role: SurfaceRole = .window, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {
         self.id = id
         self.appId = appId
+        self.role = role
         self.title = title
         self.x = x
         self.y = y
@@ -131,12 +137,19 @@ public final class WindowManager {
     // MARK: - Lifecycle
 
     @discardableResult
-    public func open(appId: String, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> UInt64 {
+    public func open(appId: String, role: SurfaceRole = .window, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> UInt64 {
         let id = nextWindowId
         nextWindowId += 1
-        let window = ManagedWindow(id: id, appId: appId, title: title, x: x, y: y, width: width, height: height)
-        windows.append(window)
-        focusedWindowId = id
+        let window = ManagedWindow(id: id, appId: appId, role: role, title: title, x: x, y: y, width: width, height: height)
+        if role == .window {
+            // Insert before overlays to keep overlays on top
+            let insertIdx = windows.firstIndex(where: { $0.isOverlay }) ?? windows.endIndex
+            windows.insert(window, at: insertIdx)
+            focusedWindowId = id
+        } else {
+            // Overlays go on top, don't take focus
+            windows.append(window)
+        }
         return id
     }
 
@@ -198,9 +211,13 @@ public final class WindowManager {
 
     public func focus(id: UInt64) {
         guard let idx = windows.firstIndex(where: { $0.id == id }) else { return }
-        let window = windows.remove(at: idx)
-        windows.append(window)
-        focusedWindowId = id  // didSet fires onFocusChanged if value changed
+        let window = windows[idx]
+        guard window.role == .window else { return }  // overlays can't be focused
+        windows.remove(at: idx)
+        // Insert before overlays to keep them on top
+        let insertIdx = windows.firstIndex(where: { $0.isOverlay }) ?? windows.endIndex
+        windows.insert(window, at: insertIdx)
+        focusedWindowId = id
     }
 
     // MARK: - Hit testing
@@ -413,7 +430,7 @@ public final class WindowManager {
     }
 
     private func enterExpose(animationManager: AnimationManager) {
-        let visible = windows.filter { $0.isVisible && !$0.isMinimized }
+        let visible = windows.filter { $0.isVisible && !$0.isMinimized && $0.role == .window }
         guard !visible.isEmpty else { return }
         isExposeActive = true
 

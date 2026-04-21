@@ -53,8 +53,6 @@ final class AppConnectionManager {
     var pendingOpenFiles: [String] = []
     var pendingThumbnailRequests: [(dockWindowId: UInt64, windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)] = []
     private var focusedAppName: String = "Finder"
-    private var lastDockMouseX: Float = 0
-    private var lastDockMouseY: Float = 0
     private var lastMinimizedWindows: [MinimizedWindowInfo] = []
     private var lastMenubarAppName: String = ""
     private var lastMenubarMenus: [AppMenu] = []
@@ -232,23 +230,44 @@ final class AppConnectionManager {
         }
     }
 
-    /// Create WindowManager windows for newly connected window-role apps.
+    /// Register newly connected apps in the window manager (all roles).
     func syncNewApps(windowManager: WindowManager) {
         for app in server.connectedApps {
             if app.appId == "pending" { continue }
-            if app.role != .window { continue }  // skip dock, menubar, loginWindow
+            if app.role == .service { continue }
             if externalWindows[app.windowId] != nil { continue }
+
+            let x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat
+            switch app.role {
+            case .window:
+                x = 150 + CGFloat.random(in: 0...200)
+                y = 50 + CGFloat.random(in: 0...150)
+                w = CGFloat(app.width)
+                h = CGFloat(app.height)
+            case .dock:
+                // Full screen width, bottom strip for hit testing
+                x = 0; y = windowManager.screenHeight - 80
+                w = windowManager.screenWidth; h = 80
+            case .menubar:
+                x = 0; y = 0
+                w = windowManager.screenWidth; h = WindowChrome.menuBarHeight
+            case .loginWindow:
+                x = 0; y = 0
+                w = windowManager.screenWidth; h = windowManager.screenHeight
+            case .service:
+                continue
+            }
 
             let wmId = windowManager.open(
                 appId: app.appId,
+                role: app.role,
                 title: app.title,
-                x: 150 + CGFloat.random(in: 0...200),
-                y: 50 + CGFloat.random(in: 0...150),
-                width: CGFloat(app.width),
-                height: CGFloat(app.height)
+                x: x, y: y, width: w, height: h
             )
             externalWindows[app.windowId] = wmId
-            updateFocusedAppName(windowManager: windowManager)
+            if app.role == .window {
+                updateFocusedAppName(windowManager: windowManager)
+            }
         }
 
         // Sync titles from window-role apps
@@ -454,37 +473,6 @@ final class AppConnectionManager {
         server.sendPointerButton(windowId: serverWid, button: button, pressed: pressed, x: x, y: y)
     }
 
-    func sendPointerButtonToOverlays(button: UInt32, pressed: Bool, x: Float, y: Float) {
-        for app in server.connectedApps where app.role == .dock || app.role == .menubar {
-            server.sendPointerButton(windowId: app.windowId, button: button, pressed: pressed, x: x, y: y)
-        }
-    }
-
-    /// Send input to the LoginWindow (pre-session).
-    func sendToLoginWindow(pointerMove x: Float, y: Float) {
-        for app in server.connectedApps where app.role == .loginWindow {
-            server.sendPointerMove(windowId: app.windowId, x: x, y: y)
-        }
-    }
-
-    func sendToLoginWindow(pointerButton button: UInt32, pressed: Bool, x: Float, y: Float) {
-        for app in server.connectedApps where app.role == .loginWindow {
-            server.sendPointerButton(windowId: app.windowId, button: button, pressed: pressed, x: x, y: y)
-        }
-    }
-
-    func sendToLoginWindow(key keycode: UInt32, pressed: Bool) {
-        for app in server.connectedApps where app.role == .loginWindow {
-            server.sendKey(windowId: app.windowId, keycode: keycode, pressed: pressed)
-        }
-    }
-
-    func sendToLoginWindow(keyChar character: String) {
-        for app in server.connectedApps where app.role == .loginWindow {
-            server.sendKeyChar(windowId: app.windowId, character: character)
-        }
-    }
-
     func sendKey(wmWindowId: UInt64, keycode: UInt32, pressed: Bool) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
         server.sendKey(windowId: serverWid, keycode: keycode, pressed: pressed)
@@ -576,15 +564,7 @@ final class AppConnectionManager {
                     lastRunningApps = running
                     app.send(.runningApps(apps: running))
                 }
-                // Always send pointer position — the dock's onContinuousHover
-                // handles its own hit testing and needs moves to detect mouse-out.
-                let mx = Float(mouseX)
-                let my = Float(mouseY)
-                if mx != lastDockMouseX || my != lastDockMouseY {
-                    lastDockMouseX = mx
-                    lastDockMouseY = my
-                    app.send(.pointerMove(x: mx, y: my))
-                }
+                break // Dock receives pointer moves through normal InputRouter path
             case .menubar:
                 if focusedAppName != lastMenubarAppName {
                     lastMenubarAppName = focusedAppName
@@ -642,64 +622,6 @@ final class AppConnectionManager {
     }
 
     /// Returns overlay surfaces (dock + menubar + loginWindow) for compositing.
-    func overlaySurfaces(screenWidth: CGFloat, screenHeight: CGFloat, windowSurfaceBase: UInt64) -> [SurfaceFrame] {
-        var frames: [SurfaceFrame] = []
-        for app in server.connectedApps {
-            if app.role == .loginWindow && sessionStarted { continue }
-            guard app.role == .dock || app.role == .menubar || app.role == .loginWindow else { continue }
-            let surfaceId = windowSurfaceBase + app.windowId + 10000
-
-            // Determine surface dimensions — IOSurface apps use their content size,
-            // compositor-rendered overlays use full screen (they render at absolute coords)
-            let surfaceW: Float
-            let surfaceH: Float
-            if app.iosurfaceId != 0 {
-                surfaceW = app.width
-                surfaceH = app.height
-            } else {
-                surfaceW = Float(screenWidth)
-                surfaceH = Float(screenHeight)
-            }
-
-            // GPU-shared surface: IOSurface on macOS, DMA-BUF fd on Linux
-            if app.iosurfaceId != 0 || app.dmabufFd >= 0 {
-                frames.append(SurfaceFrame(
-                    desc: SurfaceDesc(
-                        surfaceId: surfaceId,
-                        x: 0, y: 0,
-                        width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
-                        contentWidth: 0, contentHeight: 0
-                    ),
-                    commands: [],
-                    pixelData: nil,
-                    iosurfaceId: app.iosurfaceId, dmabufFd: app.dmabufFd
-                ))
-                continue
-            }
-
-            let ipcCommands = app.getCommands()
-            if !ipcCommands.isEmpty {
-                let engineCommands = ipcCommands.map { Bridge.offsetIpcCommand($0, dy: 0) }
-                frames.append(SurfaceFrame(
-                    desc: SurfaceDesc(
-                        surfaceId: surfaceId,
-                        x: 0, y: 0,
-                        width: surfaceW, height: surfaceH,
-                        cornerRadius: 0, opacity: 1,
-                        genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0,
-                        contentWidth: 0, contentHeight: 0
-                    ),
-                    commands: engineCommands,
-                    pixelData: nil,
-                    iosurfaceId: 0, dmabufFd: -1
-                ))
-            }
-        }
-        return frames
-    }
-
     /// Resolve a file dialog by sending the result to the requesting app and clearing the dialog.
     func resolveFileDialog(path: String?) {
         guard let dialog = pendingFileDialog else { return }

@@ -49,15 +49,35 @@ public final class WindowServer {
             iosurfaceId: 0, dmabufFd: -1
         ))
 
-        // Pre-session: only wallpaper + LoginWindow overlay
+        // Always sync new apps (including loginWindow pre-session)
+        appManager.syncNewApps(windowManager: windowManager)
+
+        // Pre-session: wallpaper + loginWindow only (skip window management)
         if !appManager.sessionStarted {
-            frames.append(contentsOf: appManager.overlaySurfaces(
-                screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,             ))
+            // Render loginWindow as full-screen overlay
+            for window in windowManager.windows where window.role == .loginWindow {
+                let surfaceId = windowSurfaceBase + window.id
+                let iosurfaceId = appManager.iosurfaceId(for: window.id)
+                if iosurfaceId != 0 {
+                    frames.append(SurfaceFrame(
+                        desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                        commands: [], pixelData: nil,
+                        iosurfaceId: iosurfaceId, dmabufFd: -1
+                    ))
+                } else {
+                    let cmds = appManager.commands(for: window.id)
+                    if !cmds.isEmpty {
+                        frames.append(SurfaceFrame(
+                            desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                            commands: cmds.map { Bridge.offsetIpcCommand($0, dy: 0) },
+                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1
+                        ))
+                    }
+                }
+            }
             appManager.requestFrames()
             return frames
         }
-
-        appManager.syncNewApps(windowManager: windowManager)
         appManager.syncResizingDimensions(windowManager: windowManager)
 
         // Tick animations — complete minimize by actually hiding the window
@@ -74,6 +94,32 @@ public final class WindowServer {
         }
         for window in visibleWindows {
             let surfaceId = windowSurfaceBase + window.id
+
+            // Overlays (dock, menubar, loginWindow) — simple surface, no chrome/expose/genie
+            if window.isOverlay {
+                let iosurfaceId = appManager.iosurfaceId(for: window.id)
+                // Overlays render at full screen for absolute positioning
+                let ow = Float(windowManager.screenWidth)
+                let oh = Float(windowManager.screenHeight)
+                if iosurfaceId != 0 {
+                    frames.append(SurfaceFrame(
+                        desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: ow, height: oh, cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                        commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: -1
+                    ))
+                } else {
+                    let cmds = appManager.commands(for: window.id)
+                    if !cmds.isEmpty {
+                        frames.append(SurfaceFrame(
+                            desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: ow, height: oh, cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                            commands: cmds.map { Bridge.offsetIpcCommand($0, dy: 0) },
+                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1
+                        ))
+                    }
+                }
+                continue
+            }
+
+            // Regular windows
             let isFocused = window.id == windowManager.focusedWindowId
             let showSymbols = windowManager.hoveredWindowId == window.id && windowManager.hoveringTrafficLights
             let radius: CGFloat = window.isMaximized ? 0 : WindowChrome.cornerRadius
@@ -228,10 +274,6 @@ public final class WindowServer {
                 ))
             }
         }
-
-        // 3. Overlay surfaces (dock, menubar)
-        frames.append(contentsOf: appManager.overlaySurfaces(
-            screenWidth: width, screenHeight: height, windowSurfaceBase: windowSurfaceBase,         ))
 
         // Send state updates to dock and menubar
         let minimizedInfos = windowManager.minimizedWindows.map {
