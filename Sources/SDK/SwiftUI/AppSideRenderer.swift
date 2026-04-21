@@ -145,8 +145,6 @@ final class AppSideRenderer: NSObject {
         }
         #endif
         currentIOSurfaceId = iosurfaceId
-
-        client.send(.surfaceUpdated)
     }
 }
 

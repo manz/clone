@@ -21,7 +21,6 @@ public final class ConnectedApp {
     public var iosurfaceId: UInt32 = 0
     public var surfaceWidth: UInt32 = 0
     public var surfaceHeight: UInt32 = 0
-    public var surfaceDirty: Bool = false
     /// DMA-BUF fd received from app (Linux). -1 = none.
     public var dmabufFd: Int32 = -1
 
@@ -381,7 +380,7 @@ public final class CompositorServer {
             app.send(.surfaceReady(surfaceId: app.windowId))
 
         case .surfaceUpdated:
-            app.surfaceDirty = true
+            break // Compositor reads the surface directly each frame — no dirty flag needed
 
         case .surfaceResized(let iosurfaceId, let width, let height):
             app.iosurfaceId = iosurfaceId

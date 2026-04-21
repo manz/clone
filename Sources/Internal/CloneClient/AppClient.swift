@@ -18,8 +18,10 @@ public final class AppClient {
     public private(set) var mouseX: Float = 0
     public private(set) var mouseY: Float = 0
 
-    /// Callback when the compositor requests a frame.
+    /// Callback when the compositor requests a frame (compositor-rendered apps only).
     public var onFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
+    /// Callback when the window is resized (IOSurface apps use this instead of onFrameRequest).
+    public var onResize: (@MainActor (Float, Float) -> Void)?
     /// Callback for pointer movement (local coords).
     public var onPointerMove: (@MainActor (Float, Float) -> Void)?
     /// Callback for pointer button.
@@ -188,14 +190,16 @@ public final class AppClient {
         case .resize(let w, let h):
             width = w
             height = h
-            if let commands = onFrameRequest?(w, h) {
+            if let handler = onResize {
+                handler(w, h)
+            } else if let commands = onFrameRequest?(w, h), !commands.isEmpty {
                 send(.frame(commands: commands))
             }
 
         case .requestFrame(let w, let h):
             width = w
             height = h
-            if let commands = onFrameRequest?(w, h) {
+            if let commands = onFrameRequest?(w, h), !commands.isEmpty {
                 send(.frame(commands: commands))
             }
 

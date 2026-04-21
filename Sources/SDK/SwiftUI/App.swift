@@ -355,10 +355,10 @@ extension App {
             appRenderer.transparentBackground = isOverlay
             // Start immediately — windowCreated was already received during connect()
             appRenderer.start(width: CGFloat(app.client.width), height: CGFloat(app.client.height))
-            // Respond to requestFrame — update size if changed (resize), mark dirty
-            app.client.onFrameRequest = { w, h in
+            // Respond to resize — IOSurface apps don't use requestFrame/frame IPC,
+            // the compositor reads the shared surface directly each frame.
+            app.client.onResize = { w, h in
                 appRenderer.resize(width: CGFloat(w), height: CGFloat(h))
-                return []
             }
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
