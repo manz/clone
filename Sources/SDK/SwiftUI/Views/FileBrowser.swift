@@ -3,26 +3,53 @@ import CloneProtocol
 
 // MARK: - File Entry Model
 
+/// Known bundle extensions — directories with these extensions are treated as opaque packages.
+private let bundleExtensions: Set<String> = [
+    // Applications
+    "app",
+    // Frameworks & plugins
+    "framework", "bundle", "plugin", "kext", "xpc",
+    // System
+    "prefpane", "qlgenerator", "screensaver",
+    // Installer
+    "pkg", "mpkg",
+    // Xcode
+    "xcodeproj", "xcworkspace", "playground", "swiftpm",
+    // Document bundles
+    "rtfd", "pages", "key", "numbers", "band",
+]
+
 /// A file or directory entry for display in file browsers and open panels.
 public struct FileEntry: Identifiable, Sendable {
     public let id: String  // full path
     public let name: String
     public let isDirectory: Bool
-    public let isAppBundle: Bool
+    public let isBundle: Bool
     public let size: UInt64
     public let ext: String
 
-    public init(id: String, name: String, isDirectory: Bool, isAppBundle: Bool = false, size: UInt64, ext: String) {
-        self.id = id; self.name = name; self.isDirectory = isDirectory; self.isAppBundle = isAppBundle; self.size = size; self.ext = ext
+    public init(id: String, name: String, isDirectory: Bool, isBundle: Bool = false, size: UInt64, ext: String) {
+        self.id = id; self.name = name; self.isDirectory = isDirectory; self.isBundle = isBundle; self.size = size; self.ext = ext
     }
 
-    /// Display name — strips .app extension for bundles.
+    public var isAppBundle: Bool { isBundle && ext == "app" }
+
+    /// Display name — strips extension for bundles.
     public var displayName: String {
-        isAppBundle ? String(name.dropLast(4)) : name
+        isBundle ? (name as NSString).deletingPathExtension : name
     }
 
     public var icon: String {
-        if isAppBundle { return "app" }
+        if isBundle {
+            switch ext {
+            case "app": return "app"
+            case "framework": return "building.columns"
+            case "xcodeproj", "xcworkspace": return "hammer"
+            case "playground": return "swift"
+            case "pkg", "mpkg": return "package"
+            default: return "cube.box"
+            }
+        }
         if isDirectory { return "folder.fill" }
         switch ext {
         case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb": return "file.code"
@@ -34,7 +61,7 @@ public struct FileEntry: Identifiable, Sendable {
     }
 
     public var iconColor: Color {
-        if isAppBundle { return .blue }
+        if isBundle { return ext == "app" ? .blue : .purple }
         if isDirectory { return .blue }
         switch ext {
         case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb": return .orange
@@ -44,7 +71,7 @@ public struct FileEntry: Identifiable, Sendable {
     }
 
     public var formattedSize: String {
-        if isDirectory { return "--" }
+        if isDirectory || isBundle { return "--" }
         if size < 1024 { return "\(size) B" }
         if size < 1024 * 1024 { return "\(size / 1024) KB" }
         return String(format: "%.1f MB", Double(size) / (1024 * 1024))
@@ -76,14 +103,14 @@ public enum FileScanner {
             let fullPath = (path as NSString).appendingPathComponent(name)
             var isDir: ObjCBool = false
             fm.fileExists(atPath: fullPath, isDirectory: &isDir)
-            let isApp = isDir.boolValue && name.hasSuffix(".app")
+            let ext = (name as NSString).pathExtension.lowercased()
+            let isBundle = isDir.boolValue && bundleExtensions.contains(ext)
             var size: UInt64 = 0
             if !isDir.boolValue {
                 size = (try? fm.attributesOfItem(atPath: fullPath)[.size] as? UInt64) ?? 0
             }
-            let ext = (name as NSString).pathExtension.lowercased()
-            // App bundles look like files (not navigable directories)
-            return FileEntry(id: fullPath, name: name, isDirectory: isDir.boolValue && !isApp, isAppBundle: isApp, size: size, ext: ext)
+            // Bundles appear as files (not navigable directories)
+            return FileEntry(id: fullPath, name: name, isDirectory: isDir.boolValue && !isBundle, isBundle: isBundle, size: size, ext: ext)
         }.sorted { a, b in
             if a.isDirectory != b.isDirectory { return a.isDirectory }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
