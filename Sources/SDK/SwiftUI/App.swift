@@ -920,7 +920,7 @@ extension FlatRenderCommand {
     nonisolated(unsafe) private static var registeredTextures: Set<UInt64> = []
 
     /// Convert to IPC commands — may return multiple (e.g. RegisterTexture + Image).
-    func toIPCCommands() -> [IPCRenderCommand] {
+    public func toIPCCommands() -> [IPCRenderCommand] {
         switch kind {
         case .rasterImage(let textureId, let imgW, let imgH, let rgbaData):
             let fx = Float(x), fy = Float(y), fw = Float(width), fh = Float(height)

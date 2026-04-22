@@ -60,7 +60,7 @@ extension Color: _PrimitiveView {
 
 /// Resolves any View to its terminal ViewNode.
 /// Checks _PrimitiveView first to avoid calling body on Never-bodied types.
-func _resolve<V: View>(_ view: V) -> ViewNode {
+public func _resolve<V: View>(_ view: V) -> ViewNode {
     if let primitive = view as? _PrimitiveView { return primitive._nodeRepresentation }
     if let node = view as? ViewNode { return node }
     return _resolve(view.body)

@@ -8,9 +8,13 @@ final class MenuBarState {
     var focusedAppName = "Finder"
     var nowPlaying: NowPlayingInfo?
     var appMenus: [AppMenu] = []
-    var openMenuIndex: Int? = nil
+    var openMenuIndex: Int? = nil {
+        didSet { if openMenuIndex != oldValue { onMenuIndexChanged?() } }
+    }
     var mouseX: CGFloat = 0
     var mouseY: CGFloat = 0
+    /// Called when openMenuIndex changes — used to create/destroy popup sub-surfaces.
+    var onMenuIndexChanged: (() -> Void)?
 }
 
 /// Default menus when apps don't register their own.
@@ -211,18 +215,7 @@ final class MenuBarActionRegistry: @unchecked Sendable {
         }
         .frame(width: width, height: barHeight)
 
-        // Dropdown overlay
-        if let openIdx = state.openMenuIndex, openIdx == -1 {
-            // Avocado system menu
-            let systemMenu = AppMenu(title: "Clone", items: [
-                AppMenuItem(id: "about", title: "About Clone"),
-                AppMenuItem.separator(),
-                AppMenuItem(id: "quit.desktop", title: "Quit CloneDesktop", shortcut: "⌃⌘Q"),
-            ])
-            dropdownView(state: state, menu: systemMenu, menuIndex: -1, menus: menus)
-        } else if let openIdx = state.openMenuIndex, openIdx >= 0, openIdx < menus.count {
-            dropdownView(state: state, menu: menus[openIdx], menuIndex: openIdx, menus: menus)
-        }
+        // Dropdowns are rendered as popup sub-surfaces (separate windows)
     }
     .frame(width: width, height: height)
 }
@@ -280,6 +273,24 @@ final class MenuBarActionRegistry: @unchecked Sendable {
     }
 }
 
+/// Dropdown content without positioning — used for popup sub-surface rendering.
+@MainActor func dropdownContentView(state: MenuBarState, menu: AppMenu) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+        ForEach(Array(menu.items.enumerated()), id: \.offset) { _, item in
+            if item.isSeparator {
+                Rectangle()
+                    .fill(Color(red: 0, green: 0, blue: 0, opacity: 0.08))
+                    .frame(height: 1)
+                    .padding(.horizontal, 8)
+                    .frame(height: dropdownRowH)
+            } else {
+                dropdownItemView(state: state, item: item)
+            }
+        }
+    }
+}
+
+/// Legacy inline dropdown (kept for non-Clone builds).
 @MainActor func dropdownView(state: MenuBarState, menu: AppMenu, menuIndex: Int, menus: [AppMenu]) -> some View {
     // Compute x position for the dropdown
     let dropdownX = computeDropdownX(state: state, menuIndex: menuIndex, menus: menus)
@@ -359,23 +370,66 @@ struct MenuBarApp: App {
             state.nowPlaying = info
         }
         daemonClient.connect()
-        // Wire menu action to send immediately via IPC
         #if canImport(CloneClient)
+        // Wire menu action to send immediately via IPC
         MenuBarActionRegistry.shared.sendAction = { [self] itemId in
             client.send(.menuAction(itemId: itemId))
+            // Close the dropdown after action
+            state.openMenuIndex = nil
+        }
+        // Create/destroy dropdown popup sub-surface on menu open/close
+        let dropdownTag: UInt32 = 1
+        state.onMenuIndexChanged = { [self] in
+            if let openIdx = state.openMenuIndex {
+                let menus = state.appMenus.isEmpty ? defaultMenus : state.appMenus
+                let menu: AppMenu
+                if openIdx == -1 {
+                    menu = AppMenu(title: "Clone", items: [
+                        AppMenuItem(id: "about", title: "About Clone"),
+                        AppMenuItem.separator(),
+                        AppMenuItem(id: "quit.desktop", title: "Quit CloneDesktop", shortcut: "⌃⌘Q"),
+                    ])
+                } else if openIdx >= 0 && openIdx < menus.count {
+                    menu = menus[openIdx]
+                } else {
+                    return
+                }
+                let dropX = computeDropdownX(state: state, menuIndex: openIdx, menus: menus)
+                let dropH = CGFloat(menu.items.count) * dropdownRowH + 8
+                // Build dropdown view, flatten to render commands
+                let dropdownNode = _resolve(
+                    dropdownContentView(state: state, menu: menu)
+                        .frame(width: dropdownW, height: dropH)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(dropdownBg))
+                )
+                let layout = Layout.layout(dropdownNode, in: LayoutFrame(x: 0, y: 0, width: dropdownW, height: dropH))
+                let cmds = CommandFlattener.flatten(layout).flatMap { $0.toIPCCommands() }
+                // Destroy previous popup if any, then create new one
+                client.send(.destroySurface(surfaceTag: dropdownTag))
+                client.send(.createSurface(surfaceTag: dropdownTag, role: .popup,
+                    width: Float(dropdownW), height: Float(dropH),
+                    x: Float(dropX), y: Float(barHeight)))
+                client.send(.surfaceFrame(surfaceTag: dropdownTag, commands: cmds))
+            } else {
+                client.send(.destroySurface(surfaceTag: dropdownTag))
+            }
+        }
+        // Handle compositor-initiated dismiss (click outside)
+        client.onSurfaceDestroyed = { [state] _ in
+            state.openMenuIndex = nil
         }
         #endif
     }
 
     var body: some Scene {
         WindowGroup("MenuBar") {
-            menuBarView(state: state, width: 1280, height: 400)
+            menuBarView(state: state, width: 1280, height: barHeight)
         }
     }
 
     #if canImport(CloneClient)
     var configuration: WindowConfiguration {
-        WindowConfiguration(title: "MenuBar", width: 1280, height: 400, role: .menubar)
+        WindowConfiguration(title: "MenuBar", width: 1280, height: barHeight, role: .menubar)
     }
 
     func onFocusedApp(name: String) {
