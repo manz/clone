@@ -96,7 +96,6 @@ public final class FileBrowserState: ObservableObject {
     @Published public var currentPath: String
     @Published public var entries: [FileEntry] = []
     @Published public var selectedEntryId: String?
-    @Published public var selectedSidebarPath: String?
 
     private var history: [String]
     private var historyIndex: Int
@@ -106,7 +105,6 @@ public final class FileBrowserState: ObservableObject {
 
     public init(path: String = NSHomeDirectory()) {
         self.currentPath = path
-        self.selectedSidebarPath = path
         self.history = [path]
         self.historyIndex = 0
         reload()
@@ -143,7 +141,6 @@ public final class FileBrowserState: ObservableObject {
         guard isDir.boolValue else { return }
 
         currentPath = path
-        selectedSidebarPath = path
         selectedEntryId = nil
         if historyIndex < history.count - 1 {
             history = Array(history.prefix(historyIndex + 1))
@@ -157,7 +154,6 @@ public final class FileBrowserState: ObservableObject {
         guard canGoBack else { return }
         historyIndex -= 1
         currentPath = history[historyIndex]
-        selectedSidebarPath = currentPath
         selectedEntryId = nil
         reload()
     }
@@ -166,7 +162,6 @@ public final class FileBrowserState: ObservableObject {
         guard canGoForward else { return }
         historyIndex += 1
         currentPath = history[historyIndex]
-        selectedSidebarPath = currentPath
         selectedEntryId = nil
         reload()
     }
@@ -273,28 +268,40 @@ public struct FileBrowserSidebar: View {
     public init(state: FileBrowserState) { self.state = state }
 
     public static let defaultFavorites: [SidebarFavorite] = [
-        SidebarFavorite(name: "Home", icon: "house", path: NSHomeDirectory()),
-        SidebarFavorite(name: "Desktop", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Desktop")),
-        SidebarFavorite(name: "Documents", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents")),
-        SidebarFavorite(name: "Downloads", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads")),
-        SidebarFavorite(name: "Applications", icon: "folder", path: "/Applications"),
+        SidebarFavorite(name: "Desktop", icon: "menubar.dock.rectangle", path: (NSHomeDirectory() as NSString).appendingPathComponent("Desktop")),
+        SidebarFavorite(name: "Documents", icon: "folder.fill", path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents")),
+        SidebarFavorite(name: "Downloads", icon: "arrow-line-down", path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads")),
+        SidebarFavorite(name: "Applications", icon: "squares-four", path: "/Applications"),
+    ]
+
+    public static let locationFavorites: [SidebarFavorite] = [
+        SidebarFavorite(name: "Home", icon: "house.fill", path: NSHomeDirectory()),
+        SidebarFavorite(name: "Computer", icon: "desktop", path: "/"),
     ]
 
     public var body: some View {
-        List(selection: $state.selectedSidebarPath) {
+        List {
             Section("Favorites") {
                 ForEach(Self.defaultFavorites) { fav in
-                    Label(fav.name, systemImage: fav.icon)
-                        .tag(fav.id)
+                    sidebarRow(fav)
+                }
+            }
+            Section("Locations") {
+                ForEach(Self.locationFavorites) { fav in
+                    sidebarRow(fav)
                 }
             }
         }
         .listStyle(.sidebar)
-        .onChange(of: state.selectedSidebarPath) {
-            if let path = state.selectedSidebarPath {
-                state.navigateTo(path)
+    }
+
+    private func sidebarRow(_ fav: SidebarFavorite) -> some View {
+        Label(fav.name, systemImage: fav.icon)
+            .foregroundStyle(state.currentPath == fav.id ? .accentColor : .primary)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                state.navigateTo(fav.id)
             }
-        }
     }
 }
 
