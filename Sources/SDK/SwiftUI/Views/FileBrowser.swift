@@ -42,6 +42,19 @@ public struct FileEntry: Identifiable, Sendable {
     }
 }
 
+// MARK: - Sidebar Favorite
+
+/// A sidebar favorite entry for file browsers.
+public struct SidebarFavorite: Identifiable, Sendable {
+    public let id: String  // path
+    public let name: String
+    public let icon: String
+
+    public init(name: String, icon: String, path: String) {
+        self.id = path; self.name = name; self.icon = icon
+    }
+}
+
 // MARK: - File System Scanner
 
 /// Scans a directory and returns sorted FileEntry items.
@@ -83,6 +96,7 @@ public final class FileBrowserState: ObservableObject {
     @Published public var currentPath: String
     @Published public var entries: [FileEntry] = []
     @Published public var selectedEntryId: String?
+    @Published public var selectedSidebarPath: String?
 
     private var history: [String]
     private var historyIndex: Int
@@ -92,6 +106,7 @@ public final class FileBrowserState: ObservableObject {
 
     public init(path: String = NSHomeDirectory()) {
         self.currentPath = path
+        self.selectedSidebarPath = path
         self.history = [path]
         self.historyIndex = 0
         reload()
@@ -128,6 +143,7 @@ public final class FileBrowserState: ObservableObject {
         guard isDir.boolValue else { return }
 
         currentPath = path
+        selectedSidebarPath = path
         selectedEntryId = nil
         if historyIndex < history.count - 1 {
             history = Array(history.prefix(historyIndex + 1))
@@ -141,6 +157,7 @@ public final class FileBrowserState: ObservableObject {
         guard canGoBack else { return }
         historyIndex -= 1
         currentPath = history[historyIndex]
+        selectedSidebarPath = currentPath
         selectedEntryId = nil
         reload()
     }
@@ -149,6 +166,7 @@ public final class FileBrowserState: ObservableObject {
         guard canGoForward else { return }
         historyIndex += 1
         currentPath = history[historyIndex]
+        selectedSidebarPath = currentPath
         selectedEntryId = nil
         reload()
     }
@@ -168,14 +186,14 @@ public struct FileRowView: View {
     public var body: some View {
         HStack(spacing: 8) {
             Image(systemName: entry.icon)
-                .foregroundColor(entry.iconColor)
+                .foregroundStyle(entry.iconColor)
                 .frame(width: 20, height: 20)
             Text(entry.name)
                 .font(.system(size: 13))
             Spacer()
             Text(entry.formattedSize)
                 .font(.system(size: 11))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -204,12 +222,12 @@ public struct FileListView: View {
             HStack(spacing: 0) {
                 Text("Name")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.leading, 36)
                 Spacer()
                 Text("Size")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.trailing, 16)
             }
             .padding(.vertical, 4)
@@ -236,7 +254,7 @@ public struct FileListView: View {
             HStack {
                 Text(state.itemCountLabel)
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .padding(.leading, 12)
                 Spacer()
             }
@@ -254,27 +272,29 @@ public struct FileBrowserSidebar: View {
 
     public init(state: FileBrowserState) { self.state = state }
 
-    public static let defaultFavorites: [(name: String, icon: String, path: String)] = [
-        ("Home", "house", NSHomeDirectory()),
-        ("Desktop", "folder", (NSHomeDirectory() as NSString).appendingPathComponent("Desktop")),
-        ("Documents", "folder", (NSHomeDirectory() as NSString).appendingPathComponent("Documents")),
-        ("Downloads", "folder", (NSHomeDirectory() as NSString).appendingPathComponent("Downloads")),
-        ("Applications", "folder", "/Applications"),
+    public static let defaultFavorites: [SidebarFavorite] = [
+        SidebarFavorite(name: "Home", icon: "house", path: NSHomeDirectory()),
+        SidebarFavorite(name: "Desktop", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Desktop")),
+        SidebarFavorite(name: "Documents", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents")),
+        SidebarFavorite(name: "Downloads", icon: "folder", path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads")),
+        SidebarFavorite(name: "Applications", icon: "folder", path: "/Applications"),
     ]
 
     public var body: some View {
-        List(selection: Binding<String?>(
-            get: { state.currentPath },
-            set: { if let path = $0 { state.navigateTo(path) } }
-        )) {
+        List(selection: $state.selectedSidebarPath) {
             Section("Favorites") {
-                ForEach(Self.defaultFavorites, id: \.path) { fav in
+                ForEach(Self.defaultFavorites) { fav in
                     Label(fav.name, systemImage: fav.icon)
-                        .tag(fav.path)
+                        .tag(fav.id)
                 }
             }
         }
         .listStyle(.sidebar)
+        .onChange(of: state.selectedSidebarPath) {
+            if let path = state.selectedSidebarPath {
+                state.navigateTo(path)
+            }
+        }
     }
 }
 
@@ -288,17 +308,15 @@ public struct FileBrowserNavButtons: View {
 
     public var body: some View {
         HStack(spacing: 0) {
-            Button(action: { state.goBack() }) {
-                Image(systemName: "chevron.left")
-                    .frame(width: 28, height: 22)
-            }
-            .foregroundColor(state.canGoBack ? .primary : .gray)
+            Button("Back", systemImage: "chevron.left", action: state.goBack)
+                .labelStyle(.iconOnly)
+                .frame(width: 36, height: 36)
+                .disabled(!state.canGoBack)
             Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1, height: 16)
-            Button(action: { state.goForward() }) {
-                Image(systemName: "chevron.right")
-                    .frame(width: 28, height: 22)
-            }
-            .foregroundColor(state.canGoForward ? .primary : .gray)
+            Button("Forward", systemImage: "chevron.right", action: state.goForward)
+                .labelStyle(.iconOnly)
+                .frame(width: 36, height: 36)
+                .disabled(!state.canGoForward)
         }
         .background(
             RoundedRectangle(cornerRadius: 6)

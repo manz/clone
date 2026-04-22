@@ -31,7 +31,7 @@ struct FinderApp: App {
                 ToolbarItem(placement: .principal) {
                     Text(browser.shortPath)
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Finder — \(browser.shortPath)")

@@ -694,7 +694,7 @@ extension App {
     guard let iconName else { return _resolve(dot) }
     let icon = Image(systemName: iconName)
         .font(.system(size: size * 0.6, weight: .bold))
-        .foregroundColor(iconColor)
+        .foregroundStyle(iconColor)
     return _resolve(ZStack { dot; icon })
 }
 
@@ -726,7 +726,7 @@ extension App {
     let titleView = _resolve(
         HStack {
             Spacer()
-            Text(title).font(.system(size: 13)).foregroundColor(titleColor)
+            Text(title).font(.system(size: 13)).foregroundStyle(titleColor)
             Spacer()
         }
     )
