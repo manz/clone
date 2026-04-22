@@ -16,6 +16,10 @@ pub struct WindowSurface {
     /// Used for stretching: UV mapping samples (0,0)-(content_width/width, content_height/height).
     pub content_width: u32,
     pub content_height: u32,
+    /// Raw IOSurface pointer for imported surfaces — released on Drop.
+    /// into_texture() skips SharedTexture::drop, so we track it here.
+    #[cfg(target_os = "macos")]
+    iosurface_ref: wgpu_shared_surface::IOSurfaceRef,
 }
 
 impl WindowSurface {
@@ -50,9 +54,24 @@ impl WindowSurface {
             view_formats: &[],
         });
         let depth_view = depth_texture.create_view(&Default::default());
-        Self { texture, view, depth_texture, depth_view, width, height, content_width: width, content_height: height }
+        Self { texture, view, depth_texture, depth_view, width, height, content_width: width, content_height: height,
+            #[cfg(target_os = "macos")]
+            iosurface_ref: std::ptr::null_mut(),
+        }
     }
 
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for WindowSurface {
+    fn drop(&mut self) {
+        if !self.iosurface_ref.is_null() {
+            wgpu_shared_surface::iosurface_release(self.iosurface_ref);
+        }
+    }
+}
+
+impl WindowSurface {
     pub fn resize(&mut self, device: &wgpu::Device, format: wgpu::TextureFormat, width: u32, height: u32) {
         if self.width == width && self.height == height {
             return;
@@ -311,17 +330,10 @@ impl SurfaceCompositor {
 
             match SharedTexture::from_id(device, platform_id, width, height, self.offscreen_format) {
                 Ok(shared) => {
-                    // Release the previous IOSurface for this surface slot.
-                    // SharedTexture::into_texture() uses mem::forget (skips Drop), so
-                    // the IOSurface ref from the previous import is leaked unless we
-                    // explicitly release it here.
-                    if let Some(old_id) = self.imported_iosurfaces.remove(&surface_id) {
-                        let old_raw = wgpu_shared_surface::iosurface_lookup(old_id);
-                        if !old_raw.is_null() {
-                            wgpu_shared_surface::iosurface_release(old_raw); // release our lookup
-                            wgpu_shared_surface::iosurface_release(old_raw); // release the leaked import
-                        }
-                    }
+                    // Save the raw IOSurface pointer before into_texture() consumes the SharedTexture.
+                    // into_texture() uses mem::forget (skips Drop), so WindowSurface::drop
+                    // releases it when the surface entry is replaced or removed.
+                    let iosurface_ptr = shared.iosurface_ptr();
                     let view = shared.texture().create_view(&Default::default());
                     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
                         label: Some("imported_depth"),
@@ -334,6 +346,7 @@ impl SurfaceCompositor {
                         view_formats: &[],
                     });
                     let depth_view = depth_texture.create_view(&Default::default());
+                    // Replacing the old entry drops it, which releases the old IOSurface via Drop.
                     self.surfaces.insert(surface_id, WindowSurface {
                         texture: shared.into_texture(),
                         view,
@@ -343,6 +356,8 @@ impl SurfaceCompositor {
                         height,
                         content_width: width,
                         content_height: height,
+                        #[cfg(target_os = "macos")]
+                        iosurface_ref: iosurface_ptr,
                     });
                     self.imported_iosurfaces.insert(surface_id, platform_id);
                     true

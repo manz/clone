@@ -22,6 +22,7 @@ pub use linux::SharedTexture;
 // Re-export raw IOSurface functions for compositor-level use (macOS only)
 #[cfg(target_os = "macos")]
 pub use iosurface::{
+    IOSurfaceRef,
     create as iosurface_create, get_id as iosurface_get_id,
     lookup as iosurface_lookup, release as iosurface_release,
     create_mach_port as iosurface_create_mach_port,

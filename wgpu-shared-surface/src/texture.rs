@@ -137,6 +137,9 @@ impl SharedTexture {
     pub fn width(&self) -> u32 { self.width }
     pub fn height(&self) -> u32 { self.height }
 
+    /// Raw IOSurface pointer — for tracking ownership when using into_texture().
+    pub fn iosurface_ptr(&self) -> crate::iosurface::IOSurfaceRef { self.iosurface }
+
     /// Consume the SharedTexture and return the underlying wgpu::Texture.
     /// The IOSurface is kept alive by the texture's Metal backend.
     pub fn into_texture(self) -> wgpu::Texture {
