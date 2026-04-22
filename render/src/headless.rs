@@ -68,26 +68,37 @@ impl HeadlessDevice {
         })
     }
 
-    /// Ensure textures match the requested size.
-    /// Reallocates when the size changes in either direction.
+    /// Round up to the next multiple of ALLOC_GRANULARITY.
+    /// Reduces reallocation frequency during resize — only reallocates when
+    /// crossing a bucket boundary, not on every pixel change.
+    const ALLOC_GRANULARITY: u32 = 128;
+
+    fn round_up(n: u32) -> u32 {
+        ((n + Self::ALLOC_GRANULARITY - 1) / Self::ALLOC_GRANULARITY) * Self::ALLOC_GRANULARITY
+    }
+
+    /// Ensure textures are appropriately sized.
+    /// Allocations are rounded up to ALLOC_GRANULARITY boundaries to reduce churn.
     fn ensure_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         let width = width.max(1);
         let height = height.max(1);
         self.width = width;
         self.height = height;
 
-        if self.textures[0].is_none() || width != self.alloc_width || height != self.alloc_height {
-            self.alloc_width = width;
-            self.alloc_height = height;
+        let target_w = Self::round_up(width);
+        let target_h = Self::round_up(height);
+        if self.textures[0].is_none() || target_w != self.alloc_width || target_h != self.alloc_height {
+            self.alloc_width = target_w;
+            self.alloc_height = target_h;
 
-            self.textures[0] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
-            self.textures[1] = Some(SharedTexture::new(&self.device, width, height, self.format)?);
+            self.textures[0] = Some(SharedTexture::new(&self.device, target_w, target_h, self.format)?);
+            self.textures[1] = Some(SharedTexture::new(&self.device, target_w, target_h, self.format)?);
             self.front = 0;
             self.textures_changed = true;
 
             let depth = self.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("headless_depth"),
-                size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+                size: wgpu::Extent3d { width: target_w, height: target_h, depth_or_array_layers: 1 },
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,

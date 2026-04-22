@@ -311,6 +311,17 @@ impl SurfaceCompositor {
 
             match SharedTexture::from_id(device, platform_id, width, height, self.offscreen_format) {
                 Ok(shared) => {
+                    // Release the previous IOSurface for this surface slot.
+                    // SharedTexture::into_texture() uses mem::forget (skips Drop), so
+                    // the IOSurface ref from the previous import is leaked unless we
+                    // explicitly release it here.
+                    if let Some(old_id) = self.imported_iosurfaces.remove(&surface_id) {
+                        let old_raw = wgpu_shared_surface::iosurface_lookup(old_id);
+                        if !old_raw.is_null() {
+                            wgpu_shared_surface::iosurface_release(old_raw); // release our lookup
+                            wgpu_shared_surface::iosurface_release(old_raw); // release the leaked import
+                        }
+                    }
                     let view = shared.texture().create_view(&Default::default());
                     let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
                         label: Some("imported_depth"),
