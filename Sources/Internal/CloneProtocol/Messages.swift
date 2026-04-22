@@ -53,6 +53,8 @@ public enum SurfaceRole: String, Codable, Sendable {
     case loginWindow
     /// Background service — no surface, connected only for event routing.
     case service
+    /// Popup (context menu, dropdown, tooltip) — no chrome, above everything, transient.
+    case popup
 }
 
 // MARK: - AvocadoEvents (Clone's Apple Events equivalent)
@@ -165,6 +167,16 @@ public enum AppMessage: Codable, Sendable {
     case surfaceUpdated
     /// App resized its shared texture (new IOSurface ID).
     case surfaceResized(iosurfaceId: UInt32, width: UInt32, height: UInt32)
+
+    // MARK: - Multi-surface (popups, secondary windows)
+
+    /// App creates an additional surface (menu, popover, secondary window).
+    /// Coordinates are relative to the parent window origin.
+    case createSurface(surfaceTag: UInt32, role: SurfaceRole, width: Float, height: Float, x: Float, y: Float)
+    /// App destroys a previously created surface.
+    case destroySurface(surfaceTag: UInt32)
+    /// App sends render commands for a sub-surface.
+    case surfaceFrame(surfaceTag: UInt32, commands: [IPCRenderCommand])
 }
 
 // MARK: - Messages: Compositor → App
@@ -224,6 +236,13 @@ public enum CompositorMessage: Codable, Sendable {
     case focusChanged(isFocused: Bool)
     /// Compositor tells the app whether the pointer is over its traffic lights.
     case trafficLightHover(isHovered: Bool)
+
+    // MARK: - Multi-surface responses
+
+    /// Compositor acknowledges a sub-surface creation.
+    case surfaceCreatedAck(surfaceTag: UInt32, windowId: UInt64)
+    /// Compositor destroyed a popup (e.g. click outside).
+    case surfaceDestroyed(surfaceTag: UInt32)
 }
 
 // MARK: - Daemon (now-playing service)

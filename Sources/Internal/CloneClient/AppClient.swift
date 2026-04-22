@@ -57,6 +57,8 @@ public final class AppClient {
     public var onFocusChanged: (@MainActor (Bool) -> Void)?
     /// Callback when traffic light hover state changes.
     public var onTrafficLightHover: (@MainActor (Bool) -> Void)?
+    /// Callback when compositor destroys a sub-surface (e.g. click outside popup).
+    public var onSurfaceDestroyed: (@MainActor (UInt32) -> Void)?
     /// Callback when compositor requests sheet content at the given size.
     public var onSheetFrameRequest: (@MainActor (Float, Float) -> [IPCRenderCommand])?
     /// Callback when user clicks the sheet backdrop.
@@ -278,6 +280,11 @@ public final class AppClient {
 
         case .trafficLightHover(let hovered):
             onTrafficLightHover?(hovered)
+
+        case .surfaceCreatedAck:
+            break // app can track if needed
+        case .surfaceDestroyed(let tag):
+            onSurfaceDestroyed?(tag)
         }
     }
 

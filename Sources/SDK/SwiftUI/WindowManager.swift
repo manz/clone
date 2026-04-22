@@ -21,7 +21,7 @@ public struct ManagedWindow: Equatable, Sendable {
     public var restoreWidth: CGFloat
     public var restoreHeight: CGFloat
 
-    /// Whether this is an overlay (dock, menubar, loginWindow) — not focusable/draggable.
+    /// Whether this is an overlay (dock, menubar, loginWindow, popup) — not focusable/draggable.
     public var isOverlay: Bool { role != .window }
 
     public init(id: UInt64, appId: String, role: SurfaceRole = .window, title: String, x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) {

@@ -52,6 +52,8 @@ final class AppConnectionManager {
     var pendingOpenPanels: [(windowId: UInt64, types: [String])] = []
     var pendingOpenFiles: [String] = []
     var pendingThumbnailRequests: [(dockWindowId: UInt64, windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)] = []
+    var pendingSubSurfaceCreates: [(appWindowId: UInt64, sub: ConnectedApp.SubSurface)] = []
+    var pendingSubSurfaceDestroys: [UInt64] = []
     private var focusedAppName: String = "Finder"
     private var lastMinimizedWindows: [MinimizedWindowInfo] = []
     private var lastMenubarAppName: String = ""
@@ -159,6 +161,12 @@ final class AppConnectionManager {
             logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
             self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
         }
+        server.onSubSurfaceCreated = { [weak self] app, sub in
+            self?.pendingSubSurfaceCreates.append((appWindowId: app.windowId, sub: sub))
+        }
+        server.onSubSurfaceDestroyed = { [weak self] _, sub in
+            self?.pendingSubSurfaceDestroys.append(sub.windowId)
+        }
 
         guard !noApps else {
             // --no-apps: skip all launches, start session immediately so
@@ -259,8 +267,8 @@ final class AppConnectionManager {
             case .loginWindow:
                 x = 0; y = 0
                 w = windowManager.screenWidth; h = windowManager.screenHeight
-            case .service:
-                continue
+            case .service, .popup:
+                continue  // popups are created via sub-surface IPC, not app registration
             }
 
             let wmId = windowManager.open(
@@ -291,6 +299,11 @@ final class AppConnectionManager {
     func commands(for wmWindowId: UInt64) -> [IPCRenderCommand] {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return [] }
         return server.commands(for: serverWid)
+    }
+
+    func subSurfaceCommands(for wmWindowId: UInt64) -> [IPCRenderCommand] {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return [] }
+        return server.subSurfaceCommands(for: serverWid)
     }
 
     /// Returns the IOSurface ID if the app uses app-side rendering (0 = not using).
@@ -391,6 +404,33 @@ final class AppConnectionManager {
             openFileWithDefaultApp(path)
         }
         pendingOpenFiles.removeAll()
+
+        // Create sub-surfaces (popups, menus)
+        for create in pendingSubSurfaceCreates {
+            if let parentWmId = wmWindowId(for: create.appWindowId),
+               let parentWindow = windowManager.windows.first(where: { $0.id == parentWmId }) {
+                let screenX = parentWindow.x + CGFloat(create.sub.x)
+                let screenY = parentWindow.y + CGFloat(create.sub.y)
+                let wmId = windowManager.open(
+                    appId: parentWindow.appId,
+                    role: create.sub.role,
+                    title: "",
+                    x: screenX, y: screenY,
+                    width: CGFloat(create.sub.width), height: CGFloat(create.sub.height)
+                )
+                externalWindows[create.sub.windowId] = wmId
+            }
+        }
+        pendingSubSurfaceCreates.removeAll()
+
+        // Destroy sub-surfaces
+        for subWindowId in pendingSubSurfaceDestroys {
+            if let wmId = wmWindowId(for: subWindowId) {
+                windowManager.windows.removeAll { $0.id == wmId }
+                externalWindows.removeValue(forKey: subWindowId)
+            }
+        }
+        pendingSubSurfaceDestroys.removeAll()
 
         // Process thumbnail requests — IOSurface capture is macOS-only
         #if canImport(IOSurface)
@@ -585,7 +625,7 @@ final class AppConnectionManager {
                     lastMenubarMenus = focusedMenus
                     app.send(.appMenus(appName: focusedAppName, menus: focusedMenus))
                 }
-            case .window, .loginWindow, .service:
+            case .window, .loginWindow, .service, .popup:
                 break
             }
         }

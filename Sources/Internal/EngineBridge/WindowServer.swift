@@ -95,23 +95,34 @@ public final class WindowServer {
         for window in visibleWindows {
             let surfaceId = windowSurfaceBase + window.id
 
-            // Overlays (dock, menubar, loginWindow) — simple surface, no chrome/expose/genie
+            // Overlays (dock, menubar, loginWindow, popup) — simple surface, no chrome/expose/genie
             if window.isOverlay {
-                let iosurfaceId = appManager.iosurfaceId(for: window.id)
-                // Use the app's registered dimensions for the surface
-                let dims = appManager.appDimensions(for: window.id)
-                let ow = dims?.width ?? Float(window.width)
-                let oh = dims?.height ?? Float(window.height)
+                let isPopup = window.role == .popup
+                let iosurfaceId = isPopup ? UInt32(0) : appManager.iosurfaceId(for: window.id)
+                // Popups use their ManagedWindow position; other overlays render fullscreen
+                let ox = isPopup ? Float(window.x) : Float(0)
+                let oy = isPopup ? Float(window.y) : Float(0)
+                let ow: Float, oh: Float
+                if isPopup {
+                    ow = Float(window.width); oh = Float(window.height)
+                } else {
+                    let dims = appManager.appDimensions(for: window.id)
+                    ow = dims?.width ?? Float(window.width)
+                    oh = dims?.height ?? Float(window.height)
+                }
+                let cornerRadius: Float = isPopup ? 8 : 0
                 if iosurfaceId != 0 {
                     frames.append(SurfaceFrame(
-                        desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: ow, height: oh, cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                        desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
                         commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: -1
                     ))
                 } else {
-                    let cmds = appManager.commands(for: window.id)
+                    // Try main app commands first, then sub-surface commands (popups)
+                    var cmds = appManager.commands(for: window.id)
+                    if cmds.isEmpty { cmds = appManager.subSurfaceCommands(for: window.id) }
                     if !cmds.isEmpty {
                         frames.append(SurfaceFrame(
-                            desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: ow, height: oh, cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                            desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
                             commands: cmds.map { Bridge.offsetIpcCommand($0, dy: 0) },
                             pixelData: nil, iosurfaceId: 0, dmabufFd: -1
                         ))

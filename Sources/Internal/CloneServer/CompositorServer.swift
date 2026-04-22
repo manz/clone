@@ -24,6 +24,21 @@ public final class ConnectedApp {
     /// DMA-BUF fd received from app (Linux). -1 = none.
     public var dmabufFd: Int32 = -1
 
+    /// Sub-surfaces (popups, menus, secondary windows) owned by this app.
+    public var subSurfaces: [UInt32: SubSurface] = [:]
+
+    /// A secondary surface created by an app (menu, popover, etc).
+    public struct SubSurface {
+        public let surfaceTag: UInt32
+        public let windowId: UInt64
+        public var role: SurfaceRole
+        public var width: Float
+        public var height: Float
+        public var x: Float  // relative to parent window
+        public var y: Float
+        public var commands: [IPCRenderCommand] = []
+    }
+
     let fd: Int32
     var readBuffer = Data()
     var readSource: DispatchSourceRead?
@@ -168,6 +183,10 @@ public final class CompositorServer {
     public var onAppConnected: ((ConnectedApp) -> Void)?
     /// Callback when an app disconnects.
     public var onAppDisconnected: ((UInt64) -> Void)?
+    /// Callback when an app creates a sub-surface (popup, menu, etc).
+    public var onSubSurfaceCreated: ((ConnectedApp, ConnectedApp.SubSurface) -> Void)?
+    /// Callback when an app destroys a sub-surface.
+    public var onSubSurfaceDestroyed: ((ConnectedApp, ConnectedApp.SubSurface) -> Void)?
 
     public var connectedApps: [ConnectedApp] {
         lock.lock()
@@ -386,6 +405,27 @@ public final class CompositorServer {
             app.iosurfaceId = iosurfaceId
             app.surfaceWidth = width
             app.surfaceHeight = height
+
+        // MARK: Multi-surface
+
+        case .createSurface(let tag, let role, let w, let h, let x, let y):
+            let subWindowId = nextWindowId
+            nextWindowId += 1
+            let sub = ConnectedApp.SubSurface(
+                surfaceTag: tag, windowId: subWindowId, role: role,
+                width: w, height: h, x: x, y: y
+            )
+            app.subSurfaces[tag] = sub
+            app.send(.surfaceCreatedAck(surfaceTag: tag, windowId: subWindowId))
+            onSubSurfaceCreated?(app, sub)
+
+        case .destroySurface(let tag):
+            if let sub = app.subSurfaces.removeValue(forKey: tag) {
+                onSubSurfaceDestroyed?(app, sub)
+            }
+
+        case .surfaceFrame(let tag, let commands):
+            app.subSurfaces[tag]?.commands = commands
         }
     }
 
@@ -404,10 +444,16 @@ public final class CompositorServer {
 
     public func handleDisconnect(windowId: UInt64) {
         lock.lock()
-        if let app = apps.removeValue(forKey: windowId) {
-            app.stop()
-        }
+        let app = apps.removeValue(forKey: windowId)
+        let subs = app?.subSurfaces.values.map { $0 } ?? []
+        app?.stop()
         lock.unlock()
+        // Clean up sub-surfaces
+        if let app {
+            for sub in subs {
+                onSubSurfaceDestroyed?(app, sub)
+            }
+        }
         onAppDisconnected?(windowId)
     }
 
@@ -559,6 +605,20 @@ public final class CompositorServer {
         let app = apps[windowId]
         lock.unlock()
         return app?.getCommands() ?? []
+    }
+
+    /// Get render commands for a sub-surface by its compositor-assigned windowId.
+    public func subSurfaceCommands(for subWindowId: UInt64) -> [IPCRenderCommand] {
+        lock.lock()
+        defer { lock.unlock() }
+        for app in apps.values {
+            for (_, sub) in app.subSurfaces {
+                if sub.windowId == subWindowId {
+                    return sub.commands
+                }
+            }
+        }
+        return []
     }
 
     public func app(for windowId: UInt64) -> ConnectedApp? {
