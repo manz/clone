@@ -18,7 +18,7 @@ pub struct HeadlessDevice {
     /// Current render dimensions (may be smaller than alloc dimensions).
     width: u32,
     height: u32,
-    /// Allocated texture dimensions (only grows, never shrinks).
+    /// Allocated texture dimensions.
     alloc_width: u32,
     alloc_height: u32,
     format: wgpu::TextureFormat,
@@ -68,16 +68,15 @@ impl HeadlessDevice {
         })
     }
 
-    /// Ensure textures are large enough for the requested size.
-    /// Only reallocates when the new size EXCEEDS current allocation.
-    /// Shrinking reuses existing surfaces — no new Mach ports needed.
+    /// Ensure textures match the requested size.
+    /// Reallocates when the size changes in either direction.
     fn ensure_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         let width = width.max(1);
         let height = height.max(1);
         self.width = width;
         self.height = height;
 
-        if self.textures[0].is_none() || width > self.alloc_width || height > self.alloc_height {
+        if self.textures[0].is_none() || width != self.alloc_width || height != self.alloc_height {
             self.alloc_width = width;
             self.alloc_height = height;
 
