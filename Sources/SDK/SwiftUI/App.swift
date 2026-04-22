@@ -244,6 +244,10 @@ extension App {
             var _wasSheetActive = false
             // Cache the sheet dismiss action for backdrop taps
             var _sheetDismissAction: (() -> Void)?
+            // Context menu sub-surface state
+            let _contextMenuTag: UInt32 = 1
+            var _wasContextMenuOpen = false
+
             // Double-click detection state
             var _lastClickTime: CFAbsoluteTime = 0
             var _lastClickPos: (CGFloat, CGFloat) = (0, 0)
@@ -320,15 +324,25 @@ extension App {
                     }
                 }
                 _cachedViewTree = viewTree
-                if ContextMenuRegistry.shared.isOpen {
-                    let menuOverlay = buildContextMenuOverlay(
-                        items: ContextMenuRegistry.shared.menuItems,
-                        x: ContextMenuRegistry.shared.position.x,
-                        y: ContextMenuRegistry.shared.position.y,
-                        width: width, height: height
-                    )
-                    viewTree = .zstack(children: [viewTree, menuOverlay])
+
+                // Context menu — render as a separate popup surface
+                let menuOpen = ContextMenuRegistry.shared.isOpen
+                if menuOpen && !_wasContextMenuOpen {
+                    let items = ContextMenuRegistry.shared.menuItems
+                    let mx = ContextMenuRegistry.shared.position.x
+                    let my = ContextMenuRegistry.shared.position.y
+                    let menuNode = buildContextMenuContent(items: items)
+                    let menuWidth: CGFloat = 200
+                    let itemHeight: CGFloat = 28
+                    let menuHeight = CGFloat(items.count) * itemHeight + 12
+                    let menuLayout = Layout.layout(menuNode, in: LayoutFrame(x: 0, y: 0, width: menuWidth, height: menuHeight))
+                    let menuCmds = CommandFlattener.flatten(menuLayout).flatMap { $0.toIPCCommands() }
+                    client.send(.createSurface(surfaceTag: _contextMenuTag, role: .popup, width: Float(menuWidth), height: Float(menuHeight), x: Float(mx), y: Float(my)))
+                    client.send(.surfaceFrame(surfaceTag: _contextMenuTag, commands: menuCmds))
+                } else if !menuOpen && _wasContextMenuOpen {
+                    client.send(.destroySurface(surfaceTag: _contextMenuTag))
                 }
+                _wasContextMenuOpen = menuOpen
                 if let panelOverlay = buildOpenPanelOverlay(width: width, height: height) {
                     viewTree = .zstack(children: [viewTree, panelOverlay])
                 }
@@ -568,6 +582,11 @@ extension App {
             WindowState.shared.isTrafficLightHovered = hovered
             appRenderer.setNeedsDisplay()
         }
+        app.client.onSurfaceDestroyed = { _ in
+            // Compositor dismissed a popup (click outside) — sync app state
+            ContextMenuRegistry.shared.close()
+            appRenderer.setNeedsDisplay()
+        }
         app.client.onMenuAction = { itemId in
             // Fire declarative .commands action if registered
             if let action = MenuRegistry.shared.actions[itemId] {
@@ -624,7 +643,46 @@ extension App {
     }
 }
 
-/// Build a context menu overlay at the given position.
+/// Build context menu content as a ViewNode (for sub-surface rendering).
+@MainActor func buildContextMenuContent(items: [ViewNode]) -> ViewNode {
+    let menuWidth: CGFloat = 200
+    let itemHeight: CGFloat = 28
+
+    let rows: [ViewNode] = items.enumerated().map { (_, item) in
+        let label: ViewNode
+        if case .onTap(_, let child) = item {
+            label = child
+        } else {
+            label = item
+        }
+        if case .rect(_, let h, _) = label, h == 1 {
+            return ViewNode.rect(width: menuWidth - 16, height: 1, fill: Color(white: 0.85))
+                .padding(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+        }
+        let tapId = TapRegistry.shared.register {
+            if case .onTap(let origId, _) = item {
+                TapRegistry.shared.fire(id: origId)
+            }
+            ContextMenuRegistry.shared.close()
+        }
+        return ViewNode.onTap(id: tapId, child:
+            ViewNode.frame(width: menuWidth, height: itemHeight, child:
+                label.foregroundColor(.primary)
+                    .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)))
+        )
+    }
+
+    let menuContent = ViewNode.vstack(alignment: .leading, spacing: 0, children: rows)
+        .padding(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+
+    let menuHeight = CGFloat(items.count) * itemHeight + 12
+    return ViewNode.zstack(children: [
+        ViewNode.roundedRect(width: menuWidth, height: menuHeight, radius: 8, fill: Color(white: 0.98)),
+        menuContent,
+    ])
+}
+
+/// Build a context menu overlay at the given position (legacy inline path).
 @MainActor func buildContextMenuOverlay(items: [ViewNode], x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat) -> ViewNode {
     let menuWidth: CGFloat = 200
     let itemHeight: CGFloat = 28

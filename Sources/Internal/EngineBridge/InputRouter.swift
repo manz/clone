@@ -112,8 +112,14 @@ struct InputRouter {
                     }
                 }
 
+                // Dismiss popups on any click outside them
+                let hitWindow = windowManager.windowAt(x: x, y: y)
+                if hitWindow?.role != .popup {
+                    appManager.dismissAllPopups(windowManager: windowManager)
+                }
+
                 // Unified hit test — windows and overlays
-                if let window = windowManager.windowAt(x: x, y: y) {
+                if let window = hitWindow {
                     if window.role == .window {
                         // Traffic light buttons
                         if let trafficLight = windowManager.hitTestTrafficLight(windowId: window.id, x: x, y: y) {

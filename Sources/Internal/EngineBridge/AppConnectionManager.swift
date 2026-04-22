@@ -524,6 +524,27 @@ final class AppConnectionManager {
         return (width: app.width, height: app.height)
     }
 
+    /// Dismiss all popup sub-surfaces — called on click-outside.
+    func dismissAllPopups(windowManager: WindowManager) {
+        let popups = windowManager.windows.filter { $0.role == .popup }
+        guard !popups.isEmpty else { return }
+        for popup in popups {
+            // Notify the owning app that the surface was destroyed
+            if let serverWid = externalWindowId(for: popup.id) {
+                // Find the parent app and the surfaceTag
+                for app in server.connectedApps {
+                    if let (tag, _) = app.subSurfaces.first(where: { $0.value.windowId == serverWid }) {
+                        app.subSurfaces.removeValue(forKey: tag)
+                        app.send(.surfaceDestroyed(surfaceTag: tag))
+                        break
+                    }
+                }
+                externalWindows.removeValue(forKey: serverWid)
+            }
+            windowManager.windows.removeAll { $0.id == popup.id }
+        }
+    }
+
     func sendKey(wmWindowId: UInt64, keycode: UInt32, pressed: Bool) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
         server.sendKey(windowId: serverWid, keycode: keycode, pressed: pressed)
