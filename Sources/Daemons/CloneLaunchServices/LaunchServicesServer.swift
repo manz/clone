@@ -186,6 +186,17 @@ public final class LaunchServicesServer {
             }
 
         case .openFile(let path, let withApp):
+            // .app bundles are launched directly — they ARE apps, not documents
+            if path.hasSuffix(".app") {
+                if let reg = parseBundle(at: path) {
+                    registerApp(reg)
+                    launchProcess(reg: reg)
+                    client.send(.launched(reg))
+                } else {
+                    client.send(.error("Failed to parse bundle at \(path)"))
+                }
+                return
+            }
             // Resolve the app — explicit override or default for extension
             let reg: AppRegistration?
             if let appId = withApp {
@@ -199,8 +210,6 @@ public final class LaunchServicesServer {
                 client.send(.error("No app for \(path)"))
                 return
             }
-            // Launch the app — the caller (open command) will route the file
-            // to the app via the compositor's openFile IPC.
             launchProcess(reg: app)
             client.send(.launched(app))
         }
