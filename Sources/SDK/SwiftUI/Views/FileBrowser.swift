@@ -8,14 +8,21 @@ public struct FileEntry: Identifiable, Sendable {
     public let id: String  // full path
     public let name: String
     public let isDirectory: Bool
+    public let isAppBundle: Bool
     public let size: UInt64
     public let ext: String
 
-    public init(id: String, name: String, isDirectory: Bool, size: UInt64, ext: String) {
-        self.id = id; self.name = name; self.isDirectory = isDirectory; self.size = size; self.ext = ext
+    public init(id: String, name: String, isDirectory: Bool, isAppBundle: Bool = false, size: UInt64, ext: String) {
+        self.id = id; self.name = name; self.isDirectory = isDirectory; self.isAppBundle = isAppBundle; self.size = size; self.ext = ext
+    }
+
+    /// Display name — strips .app extension for bundles.
+    public var displayName: String {
+        isAppBundle ? String(name.dropLast(4)) : name
     }
 
     public var icon: String {
+        if isAppBundle { return "app" }
         if isDirectory { return "folder.fill" }
         switch ext {
         case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb": return "file.code"
@@ -27,6 +34,7 @@ public struct FileEntry: Identifiable, Sendable {
     }
 
     public var iconColor: Color {
+        if isAppBundle { return .blue }
         if isDirectory { return .blue }
         switch ext {
         case "swift", "py", "rs", "go", "ts", "js", "c", "cpp", "h", "m", "java", "rb": return .orange
@@ -68,12 +76,14 @@ public enum FileScanner {
             let fullPath = (path as NSString).appendingPathComponent(name)
             var isDir: ObjCBool = false
             fm.fileExists(atPath: fullPath, isDirectory: &isDir)
+            let isApp = isDir.boolValue && name.hasSuffix(".app")
             var size: UInt64 = 0
             if !isDir.boolValue {
                 size = (try? fm.attributesOfItem(atPath: fullPath)[.size] as? UInt64) ?? 0
             }
             let ext = (name as NSString).pathExtension.lowercased()
-            return FileEntry(id: fullPath, name: name, isDirectory: isDir.boolValue, size: size, ext: ext)
+            // App bundles look like files (not navigable directories)
+            return FileEntry(id: fullPath, name: name, isDirectory: isDir.boolValue && !isApp, isAppBundle: isApp, size: size, ext: ext)
         }.sorted { a, b in
             if a.isDirectory != b.isDirectory { return a.isDirectory }
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
@@ -184,7 +194,7 @@ public struct FileRowView: View {
             Image(systemName: entry.icon)
                 .foregroundStyle(entry.iconColor)
                 .frame(width: 20, height: 20)
-            Text(entry.name)
+            Text(entry.displayName)
                 .font(.system(size: 13))
             Spacer()
             Text(entry.formattedSize)

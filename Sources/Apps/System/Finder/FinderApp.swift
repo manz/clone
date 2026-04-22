@@ -14,7 +14,9 @@ struct FinderApp: App {
                 FileBrowserSidebar(state: browser)
             } detail: {
                 FileListView(state: browser, onOpen: { entry in
-                    if entry.isDirectory {
+                    if entry.isAppBundle {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: entry.id))
+                    } else if entry.isDirectory {
                         browser.navigateTo(entry.id)
                     } else {
                         NSWorkspace.shared.open(URL(fileURLWithPath: entry.id))
