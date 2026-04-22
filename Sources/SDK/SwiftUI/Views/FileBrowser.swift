@@ -1,4 +1,5 @@
 import Foundation
+import CloneProtocol
 
 // MARK: - File Entry Model
 
@@ -271,7 +272,7 @@ public struct FileBrowserSidebar: View {
         SidebarFavorite(name: "Desktop", icon: "menubar.dock.rectangle", path: (NSHomeDirectory() as NSString).appendingPathComponent("Desktop")),
         SidebarFavorite(name: "Documents", icon: "folder.fill", path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents")),
         SidebarFavorite(name: "Downloads", icon: "arrow-line-down", path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads")),
-        SidebarFavorite(name: "Applications", icon: "squares-four", path: "/Applications"),
+        SidebarFavorite(name: "Applications", icon: "squares-four", path: cloneApplicationsPath),
     ]
 
     public static let locationFavorites: [SidebarFavorite] = [
