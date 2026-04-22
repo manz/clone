@@ -324,10 +324,9 @@ final class AppConnectionManager {
         guard let wmId = windowManager.resizingWindowId,
               let serverWid = externalWindowId(for: wmId),
               let window = windowManager.windows.first(where: { $0.id == wmId }) else { return }
-        server.updateAppDimensions(windowId: serverWid, width: Float(window.width), height: Float(window.height))
-        // Send requestFrame directly to the resizing app so it knows the new size,
-        // even if it uses IOSurface rendering (skipped by bulk requestFrames).
-        server.sendRequestFrame(windowId: serverWid)
+        // Send resize — the app owns its texture allocation and resizes when ready.
+        // The compositor scales the old content to fit in the meantime.
+        server.sendResize(windowId: serverWid, width: Float(window.width), height: Float(window.height))
     }
 
     func processLaunchQueue(windowManager: WindowManager, animationManager: AnimationManager) {

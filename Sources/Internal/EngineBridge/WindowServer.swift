@@ -186,7 +186,12 @@ public final class WindowServer {
             }
 
             if hasIOSurface {
-                // App renders chrome + content into a single IOSurface
+                // App owns its texture — use actual surface dimensions for UV mapping.
+                // During resize, this scales the old content to fit the new frame.
+                // During exposé, srcW/srcH override to the original window size.
+                let surfDims = appManager.surfaceDimensions(for: window.id)
+                let cw = srcW > 0 ? srcW : Float(surfDims?.width ?? 0)
+                let ch = srcH > 0 ? srcH : Float(surfDims?.height ?? 0)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -198,7 +203,7 @@ public final class WindowServer {
                         genieTargetX: genieTargetX,
                         genieTargetY: genieTargetY,
                         genieTargetW: genieTargetW,
-                        contentWidth: srcW, contentHeight: srcH
+                        contentWidth: cw, contentHeight: ch
                     ),
                     commands: [],
                     pixelData: nil,
