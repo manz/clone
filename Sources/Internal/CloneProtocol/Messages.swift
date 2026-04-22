@@ -175,8 +175,12 @@ public enum AppMessage: Codable, Sendable {
     case createSurface(surfaceTag: UInt32, role: SurfaceRole, width: Float, height: Float, x: Float, y: Float)
     /// App destroys a previously created surface.
     case destroySurface(surfaceTag: UInt32)
-    /// App sends render commands for a sub-surface.
+    /// App sends render commands for a sub-surface (compositor-rendered).
     case surfaceFrame(surfaceTag: UInt32, commands: [IPCRenderCommand])
+    /// App created an IOSurface for a sub-surface (app-rendered).
+    case surfaceCreatedForTag(surfaceTag: UInt32, iosurfaceId: UInt32, width: UInt32, height: UInt32)
+    /// App resized a sub-surface's IOSurface.
+    case surfaceResizedForTag(surfaceTag: UInt32, iosurfaceId: UInt32, width: UInt32, height: UInt32)
 }
 
 // MARK: - Messages: Compositor → App

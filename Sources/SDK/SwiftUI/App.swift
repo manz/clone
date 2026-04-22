@@ -247,6 +247,7 @@ extension App {
             // Context menu sub-surface state
             let _contextMenuTag: UInt32 = 1
             var _wasContextMenuOpen = false
+            var _popupRenderer: PopupSurfaceRenderer?
 
             // Double-click detection state
             var _lastClickTime: CFAbsoluteTime = 0
@@ -325,21 +326,35 @@ extension App {
                 }
                 _cachedViewTree = viewTree
 
-                // Context menu — render as a separate popup surface
+                // Context menu — app-rendered popup surface with its own IOSurface
                 let menuOpen = ContextMenuRegistry.shared.isOpen
                 if menuOpen && !_wasContextMenuOpen {
                     let items = ContextMenuRegistry.shared.menuItems
                     let mx = ContextMenuRegistry.shared.position.x
                     let my = ContextMenuRegistry.shared.position.y
-                    let menuNode = buildContextMenuContent(items: items)
                     let menuWidth: CGFloat = 200
                     let itemHeight: CGFloat = 28
                     let menuHeight = CGFloat(items.count) * itemHeight + 12
-                    let menuLayout = Layout.layout(menuNode, in: LayoutFrame(x: 0, y: 0, width: menuWidth, height: menuHeight))
-                    let menuCmds = CommandFlattener.flatten(menuLayout).flatMap { $0.toIPCCommands() }
-                    client.send(.createSurface(surfaceTag: _contextMenuTag, role: .popup, width: Float(menuWidth), height: Float(menuHeight), x: Float(mx), y: Float(my)))
-                    client.send(.surfaceFrame(surfaceTag: _contextMenuTag, commands: menuCmds))
+                    // Create the popup surface
+                    client.send(.createSurface(surfaceTag: _contextMenuTag, role: .popup,
+                        width: Float(menuWidth), height: Float(menuHeight), x: Float(mx), y: Float(my)))
+                    // Create a popup renderer — renders menu view tree into its own IOSurface
+                    _popupRenderer = PopupSurfaceRenderer(
+                        client: client, surfaceTag: _contextMenuTag,
+                        width: menuWidth, height: menuHeight
+                    ) {
+                        buildContextMenuContent(
+                            items: items,
+                            hoveredIndex: ContextMenuRegistry.shared.hoveredIndex
+                        )
+                    }
+                    _popupRenderer?.render()
+                } else if menuOpen, let popup = _popupRenderer {
+                    // Re-render on each frame if hover changed
+                    popup.render()
                 } else if !menuOpen && _wasContextMenuOpen {
+                    _popupRenderer?.destroy()
+                    _popupRenderer = nil
                     client.send(.destroySurface(surfaceTag: _contextMenuTag))
                 }
                 _wasContextMenuOpen = menuOpen
@@ -477,6 +492,19 @@ extension App {
                 guard let layoutNode = _cachedLayoutNode else { return }
                 let hitPositions = layoutNode.hitTestHover(x: CGFloat(px), y: CGFloat(py))
                 HoverRegistry.shared.update(positions: hitPositions)
+                // Update context menu hover index from pointer position
+                if ContextMenuRegistry.shared.isOpen {
+                    let menuPos = ContextMenuRegistry.shared.position
+                    let localY = CGFloat(py) - menuPos.y
+                    let itemHeight: CGFloat = 28
+                    let padding: CGFloat = 6
+                    let idx = Int((localY - padding) / itemHeight)
+                    let items = ContextMenuRegistry.shared.menuItems
+                    let newIdx = (localY >= 0 && idx >= 0 && idx < items.count) ? idx : -1
+                    if newIdx != ContextMenuRegistry.shared.hoveredIndex {
+                        ContextMenuRegistry.shared.hoveredIndex = newIdx
+                    }
+                }
                 appRenderer.setNeedsDisplay()
             }
             // Sheet frame request — compositor asks for sheet render commands
@@ -643,12 +671,12 @@ extension App {
     }
 }
 
-/// Build context menu content as a ViewNode (for sub-surface rendering).
-@MainActor func buildContextMenuContent(items: [ViewNode]) -> ViewNode {
+/// Build context menu content as a ViewNode.
+@MainActor func buildContextMenuContent(items: [ViewNode], hoveredIndex: Int = -1) -> ViewNode {
     let menuWidth: CGFloat = 200
     let itemHeight: CGFloat = 28
 
-    let rows: [ViewNode] = items.enumerated().map { (_, item) in
+    let rows: [ViewNode] = items.enumerated().map { (idx, item) in
         let label: ViewNode
         if case .onTap(_, let child) = item {
             label = child
@@ -659,16 +687,20 @@ extension App {
             return ViewNode.rect(width: menuWidth - 16, height: 1, fill: Color(white: 0.85))
                 .padding(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
         }
+        let isHovered = idx == hoveredIndex
         let tapId = TapRegistry.shared.register {
             if case .onTap(let origId, _) = item {
                 TapRegistry.shared.fire(id: origId)
             }
             ContextMenuRegistry.shared.close()
         }
+        let textColor: Color = isHovered ? .white : .primary
+        let rowBg: Color = isHovered ? Color(red: 0.2, green: 0.47, blue: 0.96) : .clear
         return ViewNode.onTap(id: tapId, child:
             ViewNode.frame(width: menuWidth, height: itemHeight, child:
-                label.foregroundColor(.primary)
+                label.foregroundColor(textColor)
                     .padding(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)))
+                .background(RoundedRectangle(cornerRadius: 4).fill(rowBg))
         )
     }
 

@@ -306,6 +306,11 @@ final class AppConnectionManager {
         return server.subSurfaceCommands(for: serverWid)
     }
 
+    func subSurfaceIOSurfaceId(for wmWindowId: UInt64) -> UInt32 {
+        guard let serverWid = externalWindowId(for: wmWindowId) else { return 0 }
+        return server.subSurfaceIOSurfaceId(for: serverWid)
+    }
+
     /// Returns the IOSurface ID if the app uses app-side rendering (0 = not using).
     func iosurfaceId(for wmWindowId: UInt64) -> UInt32 {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return 0 }

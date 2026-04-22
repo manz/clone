@@ -13,6 +13,9 @@ public final class ContextMenuRegistry: @unchecked Sendable {
     /// Position where the menu was opened (in content coordinates).
     public private(set) var position: CGPoint = .zero
 
+    /// Currently hovered item index (-1 = none).
+    public var hoveredIndex: Int = -1
+
     /// Tap handlers for menu items (registered when menu opens).
     public private(set) var itemActions: [UInt64] = []
 

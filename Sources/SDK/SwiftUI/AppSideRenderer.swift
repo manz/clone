@@ -148,6 +148,67 @@ final class AppSideRenderer: NSObject {
     }
 }
 
+// MARK: - Popup Surface Renderer
+
+/// Lightweight renderer for a popup sub-surface (context menu, dropdown).
+/// Owns its own AppRenderer (HeadlessDevice) and IOSurface.
+@MainActor
+public final class PopupSurfaceRenderer: NSObject {
+    private let client: AppClient
+    private let surfaceTag: UInt32
+    private let width: CGFloat
+    private let height: CGFloat
+    private let buildContent: () -> ViewNode
+    private var renderer: AppRenderer?
+    private var currentIOSurfaceId: UInt32 = 0
+
+    public init(client: AppClient, surfaceTag: UInt32, width: CGFloat, height: CGFloat, buildContent: @escaping () -> ViewNode) {
+        self.client = client
+        self.surfaceTag = surfaceTag
+        self.width = width
+        self.height = height
+        self.buildContent = buildContent
+        super.init()
+        self.renderer = try? AppRenderer()
+    }
+
+    public func render() {
+        guard let renderer else { return }
+        let viewNode = buildContent()
+        let layoutNode = Layout.layout(viewNode, in: LayoutFrame(x: 0, y: 0, width: width, height: height))
+        let ipcCmds = CommandFlattener.flatten(layoutNode).flatMap { $0.toIPCCommands() }
+        let cmds = ipcCmds.map { $0.toRenderCommand() }
+        let scale: Float = 2.0
+        guard let iosurfaceId = try? renderer.render(
+            commands: cmds,
+            width: UInt32(width), height: UInt32(height),
+            scale: scale, transparent: false
+        ) else { return }
+
+        #if canImport(Darwin)
+        if renderer.takeTexturesChanged() {
+            for i: UInt32 in 0..<2 {
+                let port = renderer.machPortAt(index: i)
+                if port != 0 { client.sendIOSurfaceMachPort(port) }
+            }
+            usleep(1000)
+        }
+        if currentIOSurfaceId == 0 {
+            client.send(.surfaceCreatedForTag(surfaceTag: surfaceTag, iosurfaceId: iosurfaceId,
+                width: UInt32(width) * UInt32(scale), height: UInt32(height) * UInt32(scale)))
+        } else if iosurfaceId != currentIOSurfaceId {
+            client.send(.surfaceResizedForTag(surfaceTag: surfaceTag, iosurfaceId: iosurfaceId,
+                width: UInt32(width) * UInt32(scale), height: UInt32(height) * UInt32(scale)))
+        }
+        #endif
+        currentIOSurfaceId = iosurfaceId
+    }
+
+    public func destroy() {
+        renderer = nil
+    }
+}
+
 // MARK: - IPCRenderCommand → RenderCommand conversion
 
 extension IPCRenderCommand {

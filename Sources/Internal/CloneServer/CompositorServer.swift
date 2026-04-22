@@ -37,6 +37,9 @@ public final class ConnectedApp {
         public var x: Float  // relative to parent window
         public var y: Float
         public var commands: [IPCRenderCommand] = []
+        public var iosurfaceId: UInt32 = 0
+        public var surfaceWidth: UInt32 = 0
+        public var surfaceHeight: UInt32 = 0
     }
 
     let fd: Int32
@@ -426,6 +429,16 @@ public final class CompositorServer {
 
         case .surfaceFrame(let tag, let commands):
             app.subSurfaces[tag]?.commands = commands
+
+        case .surfaceCreatedForTag(let tag, let iosurfaceId, let w, let h):
+            app.subSurfaces[tag]?.iosurfaceId = iosurfaceId
+            app.subSurfaces[tag]?.surfaceWidth = w
+            app.subSurfaces[tag]?.surfaceHeight = h
+
+        case .surfaceResizedForTag(let tag, let iosurfaceId, let w, let h):
+            app.subSurfaces[tag]?.iosurfaceId = iosurfaceId
+            app.subSurfaces[tag]?.surfaceWidth = w
+            app.subSurfaces[tag]?.surfaceHeight = h
         }
     }
 
@@ -613,12 +626,22 @@ public final class CompositorServer {
         defer { lock.unlock() }
         for app in apps.values {
             for (_, sub) in app.subSurfaces {
-                if sub.windowId == subWindowId {
-                    return sub.commands
-                }
+                if sub.windowId == subWindowId { return sub.commands }
             }
         }
         return []
+    }
+
+    /// Get IOSurface ID for a sub-surface (0 = not using IOSurface).
+    public func subSurfaceIOSurfaceId(for subWindowId: UInt64) -> UInt32 {
+        lock.lock()
+        defer { lock.unlock() }
+        for app in apps.values {
+            for (_, sub) in app.subSurfaces {
+                if sub.windowId == subWindowId { return sub.iosurfaceId }
+            }
+        }
+        return 0
     }
 
     public func app(for windowId: UInt64) -> ConnectedApp? {

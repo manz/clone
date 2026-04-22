@@ -98,7 +98,11 @@ public final class WindowServer {
             // Overlays (dock, menubar, loginWindow, popup) — simple surface, no chrome/expose/genie
             if window.isOverlay {
                 let isPopup = window.role == .popup
-                let iosurfaceId = isPopup ? UInt32(0) : appManager.iosurfaceId(for: window.id)
+                // Check both main app and sub-surface IOSurface IDs
+                var iosurfaceId = appManager.iosurfaceId(for: window.id)
+                if iosurfaceId == 0 && isPopup {
+                    iosurfaceId = appManager.subSurfaceIOSurfaceId(for: window.id)
+                }
                 // Popups use their ManagedWindow position; other overlays render fullscreen
                 let ox = isPopup ? Float(window.x) : Float(0)
                 let oy = isPopup ? Float(window.y) : Float(0)
@@ -117,7 +121,7 @@ public final class WindowServer {
                         commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: -1
                     ))
                 } else {
-                    // Try main app commands first, then sub-surface commands (popups)
+                    // Compositor-rendered fallback (IPC commands)
                     var cmds = appManager.commands(for: window.id)
                     if cmds.isEmpty { cmds = appManager.subSurfaceCommands(for: window.id) }
                     if !cmds.isEmpty {
