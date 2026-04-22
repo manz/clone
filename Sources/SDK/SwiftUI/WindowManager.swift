@@ -156,7 +156,7 @@ public final class WindowManager {
     public func close(id: UInt64) {
         windows.removeAll { $0.id == id }
         if focusedWindowId == id {
-            focusedWindowId = windows.last(where: { !$0.isMinimized })?.id
+            focusedWindowId = windows.last(where: { $0.role == .window && !$0.isMinimized })?.id
         }
         onWindowClosed?(id)
     }
@@ -167,7 +167,7 @@ public final class WindowManager {
         windows[idx].isMinimized = true
         windows[idx].isVisible = false
         if focusedWindowId == id {
-            focusedWindowId = windows.last(where: { !$0.isMinimized && $0.isVisible })?.id
+            focusedWindowId = windows.last(where: { $0.role == .window && !$0.isMinimized && $0.isVisible })?.id
         }
     }
 
