@@ -88,6 +88,21 @@ import Testing
     #expect(!miss)
 }
 
+/// Regression: the topLeft corner resize zone (20×20) overlaps the traffic-light
+/// buttons. Both hit-tests must return truthy at the traffic-light center so
+/// InputRouter can prefer the traffic light over the resize edge.
+@Test @MainActor func trafficLightAndResizeCornerOverlap() {
+    let wm = WindowManager()
+    let id = wm.open(appId: "test", title: "Test", x: 100, y: 100, width: 400, height: 300)
+    // Close button center: window.x + buttonInsetX + buttonSize/2
+    let closeCenterX = 100 + WindowChrome.buttonInsetX + WindowChrome.buttonSize / 2
+    let closeCenterY = 100 + WindowChrome.buttonInsetY + WindowChrome.buttonSize / 2
+    #expect(wm.hitTestTrafficLight(windowId: id, x: closeCenterX, y: closeCenterY) == .close)
+    // Same point also falls inside the topLeft resize corner zone — that's the bug.
+    #expect(wm.hitTestResizeEdge(windowId: id, x: closeCenterX, y: closeCenterY) != nil,
+            "Sanity: resize corner zone overlaps traffic lights; InputRouter must check traffic lights first")
+}
+
 // MARK: - Minimize
 
 @Test @MainActor func minimizeHidesWindow() {

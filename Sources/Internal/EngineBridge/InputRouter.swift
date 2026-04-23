@@ -149,9 +149,14 @@ struct InputRouter {
         appManager: AppConnectionManager,
         animationManager: AnimationManager
     ) -> PressTarget {
-        // Left-button resize edges (windows only).
+        // Left-button resize edges (windows only). Traffic lights sit inside the
+        // topLeft corner resize zone, so check traffic-light hits first on the
+        // topmost window before falling through to resize.
         if button == 0 {
             for window in windowManager.windows.reversed() where window.isVisible && !window.isMinimized && window.role == .window {
+                if windowManager.hitTestTrafficLight(windowId: window.id, x: x, y: y) != nil {
+                    break
+                }
                 if let edge = windowManager.hitTestResizeEdge(windowId: window.id, x: x, y: y) {
                     windowManager.beginResize(windowId: window.id, edge: edge, mouseX: x, mouseY: y)
                     return .chrome
