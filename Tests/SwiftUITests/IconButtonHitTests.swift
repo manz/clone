@@ -7,6 +7,32 @@ import Foundation
 /// These tests pin down that hitTestTap and hitTestHover resolve the same
 /// region for the same content, and that the tap target covers the full
 /// visual bounds of the button (icon + label).
+@MainActor private func containsText(_ node: ViewNode) -> Bool {
+    switch node {
+    case .text: return true
+    case .hstack(_, _, let c), .vstack(_, _, let c), .zstack(_, let c):
+        return c.contains(where: containsText)
+    case .padding(_, let c), .frame(_, _, let c), .opacity(_, let c),
+         .shadow(_, _, _, _, _, let c), .onTap(_, let c), .onHover(_, let c),
+         .clipped(_, let c), .tagged(_, let c), .lineLimit(_, let c):
+        return containsText(c)
+    default: return false
+    }
+}
+
+@MainActor private func containsImage(_ node: ViewNode) -> Bool {
+    switch node {
+    case .image, .rasterImage: return true
+    case .hstack(_, _, let c), .vstack(_, _, let c), .zstack(_, let c):
+        return c.contains(where: containsImage)
+    case .padding(_, let c), .frame(_, _, let c), .opacity(_, let c),
+         .shadow(_, _, _, _, _, let c), .onTap(_, let c), .onHover(_, let c),
+         .clipped(_, let c), .tagged(_, let c), .lineLimit(_, let c):
+        return containsImage(c)
+    default: return false
+    }
+}
+
 @Suite("Icon Button Hit Testing")
 struct IconButtonHitTests {
 
@@ -178,6 +204,34 @@ struct IconButtonHitTests {
         default:
             break
         }
+    }
+
+    /// `.labelStyle(.iconOnly)` must strip the text label. Otherwise an icon
+    /// Button inside a narrow explicit .frame (e.g. 36x36 toolbar button) wraps
+    /// its "Back" label into a vertical letter column and the tap frame collapses.
+    @Test @MainActor func labelStyleIconOnlyStripsText() {
+        TapRegistry.shared.clear()
+        TapRegistry.shared.resetCounter()
+        _ = TapRegistry.shared.register { }
+
+        let labeled = ViewNode.hstack(alignment: .center, spacing: 4, children: [
+            .image(name: "chevron.left", width: 17, height: 17),
+            .text("Back", fontSize: 13, color: .primary),
+        ])
+        let stripped = labeled.labelStyle(.iconOnly)
+        // Text node must be gone; image must remain.
+        #expect(!containsText(stripped), "iconOnly must remove text leaves")
+        #expect(containsImage(stripped), "iconOnly must keep image leaves")
+    }
+
+    @Test @MainActor func labelStyleTitleOnlyStripsImage() {
+        let labeled = ViewNode.hstack(alignment: .center, spacing: 4, children: [
+            .image(name: "chevron.left", width: 17, height: 17),
+            .text("Back", fontSize: 13, color: .primary),
+        ])
+        let stripped = labeled.labelStyle(.titleOnly)
+        #expect(containsText(stripped))
+        #expect(!containsImage(stripped))
     }
 
     /// VStack of icon buttons — each must hit at its own row, never neighbours.

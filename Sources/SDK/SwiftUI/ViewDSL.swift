@@ -850,11 +850,62 @@ extension ViewNode {
     /// `.rotation3DEffect(_:axis:anchor:anchorZ:perspective:)` — no-op on Clone.
     func rotation3DEffect(_ angle: Angle, axis: (x: CGFloat, y: CGFloat, z: CGFloat), anchor: UnitPoint = .center, anchorZ: CGFloat = 0, perspective: CGFloat = 1) -> ViewNode { self }
 
-    /// `.labelStyle(_:)` — no-op on Clone.
-    func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode { self }
+    /// `.labelStyle(_:)` — filters the label's contents. `.iconOnly` strips
+    /// text descendants; `.titleOnly` strips image descendants. `.titleAndIcon`
+    /// and `.automatic`/default leave the tree untouched.
+    func labelStyle<S: LabelStyle>(_ style: S) -> ViewNode {
+        if style is IconOnlyLabelStyle {
+            return labelStyleStripNodes(self, dropText: true, dropImage: false)
+        }
+        if style is TitleOnlyLabelStyle {
+            return labelStyleStripNodes(self, dropText: false, dropImage: true)
+        }
+        return self
+    }
 
     /// `.listRowBackground(_:)` — no-op for view variant on Clone.
     func listRowBackground<V: View>(_ view: V?) -> ViewNode { self }
+
+    /// Recursively strip `.text` and/or `.image` leaves. Used by `labelStyle(.iconOnly)`
+    /// and `labelStyle(.titleOnly)` so `Button("Back", systemImage: "chevron.left")`
+    /// collapses to just the chevron (or just the word) instead of both.
+    private func labelStyleStripNodes(_ node: ViewNode, dropText: Bool, dropImage: Bool) -> ViewNode {
+        switch node {
+        case .text where dropText:
+            return .empty
+        case .image where dropImage, .rasterImage where dropImage:
+            return .empty
+
+        case .hstack(let a, let s, let children):
+            return .hstack(alignment: a, spacing: s, children: children.map { labelStyleStripNodes($0, dropText: dropText, dropImage: dropImage) })
+        case .vstack(let a, let s, let children):
+            return .vstack(alignment: a, spacing: s, children: children.map { labelStyleStripNodes($0, dropText: dropText, dropImage: dropImage) })
+        case .zstack(let a, let children):
+            return .zstack(alignment: a, children: children.map { labelStyleStripNodes($0, dropText: dropText, dropImage: dropImage) })
+
+        case .padding(let i, let child):
+            return .padding(i, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .frame(let w, let h, let child):
+            return .frame(width: w, height: h, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .opacity(let o, let child):
+            return .opacity(o, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .shadow(let r, let b, let c, let ox, let oy, let child):
+            return .shadow(radius: r, blur: b, color: c, offsetX: ox, offsetY: oy, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .onTap(let id, let child):
+            return .onTap(id: id, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .onHover(let id, let child):
+            return .onHover(id: id, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .clipped(let r, let child):
+            return .clipped(radius: r, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .tagged(let tag, let child):
+            return .tagged(tag: tag, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+        case .lineLimit(let limit, let child):
+            return .lineLimit(limit: limit, child: labelStyleStripNodes(child, dropText: dropText, dropImage: dropImage))
+
+        default:
+            return node
+        }
+    }
 
     /// `.toolbar(_:)` — toolbar with ToolbarContent.
     func toolbar<C: ToolbarContent>(@ToolbarContentBuilder _ content: () -> C) -> ViewNode { self }
