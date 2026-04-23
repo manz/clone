@@ -54,6 +54,12 @@ final class AppConnectionManager {
     var pendingThumbnailRequests: [(dockWindowId: UInt64, windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)] = []
     var pendingSubSurfaceCreates: [(appWindowId: UInt64, sub: ConnectedApp.SubSurface)] = []
     var pendingSubSurfaceDestroys: [UInt64] = []
+    /// Server windowIds to register (app just connected).
+    private var pendingAppConnects: [UInt64] = []
+    /// Server windowIds to forget (app disconnected).
+    private var pendingAppDisconnects: [UInt64] = []
+    /// Title updates pushed from setTitle IPC.
+    private var pendingTitleUpdates: [(UInt64, String)] = []
     private var focusedAppName: String = "Finder"
     private var lastMinimizedWindows: [MinimizedWindowInfo] = []
     private var lastMenubarAppName: String = ""
@@ -157,6 +163,16 @@ final class AppConnectionManager {
         server.onOpenFile = { [weak self] path in
             self?.pendingOpenFiles.append(path)
         }
+        server.onAppConnected = { [weak self] app in
+            let wid = app.windowId
+            Task { @MainActor in self?.pendingAppConnects.append(wid) }
+        }
+        server.onAppDisconnected = { [weak self] wid in
+            Task { @MainActor in self?.pendingAppDisconnects.append(wid) }
+        }
+        server.onSetTitle = { [weak self] wid, title in
+            Task { @MainActor in self?.pendingTitleUpdates.append((wid, title)) }
+        }
         server.onRequestThumbnail = { [weak self] dockWindowId, windowId, maxW, maxH in
             logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
             self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
@@ -243,12 +259,14 @@ final class AppConnectionManager {
         }
     }
 
-    /// Register newly connected apps in the window manager (all roles).
+    /// Drain pending connect/disconnect/title events and apply to window manager.
+    /// Called once per frame; each app is registered exactly once (on connect).
     func syncNewApps(windowManager: WindowManager) {
-        for app in server.connectedApps {
+        for serverWid in pendingAppConnects {
+            guard let app = server.app(for: serverWid) else { continue }
             if app.appId == "pending" { continue }
             if app.role == .service { continue }
-            if externalWindows[app.windowId] != nil { continue }
+            if externalWindows[serverWid] != nil { continue }
 
             let x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat
             switch app.role {
@@ -258,7 +276,6 @@ final class AppConnectionManager {
                 w = CGFloat(app.width)
                 h = CGFloat(app.height)
             case .dock:
-                // Full screen width, bottom strip for hit testing
                 x = 0; y = windowManager.screenHeight - 80
                 w = windowManager.screenWidth; h = 80
             case .menubar:
@@ -268,7 +285,7 @@ final class AppConnectionManager {
                 x = 0; y = 0
                 w = windowManager.screenWidth; h = windowManager.screenHeight
             case .service, .popup:
-                continue  // popups are created via sub-surface IPC, not app registration
+                continue
             }
 
             let wmId = windowManager.open(
@@ -277,19 +294,27 @@ final class AppConnectionManager {
                 title: app.title,
                 x: x, y: y, width: w, height: h
             )
-            externalWindows[app.windowId] = wmId
+            externalWindows[serverWid] = wmId
             if app.role == .window {
                 updateFocusedAppName(windowManager: windowManager)
             }
         }
+        pendingAppConnects.removeAll()
 
-        // Sync titles from window-role apps
-        for app in server.connectedApps where app.role == .window {
-            if let wmId = externalWindows[app.windowId],
+        for (serverWid, title) in pendingTitleUpdates {
+            if let wmId = externalWindows[serverWid],
                let idx = windowManager.windows.firstIndex(where: { $0.id == wmId }) {
-                windowManager.windows[idx].title = app.title
+                windowManager.windows[idx].title = title
             }
         }
+        pendingTitleUpdates.removeAll()
+
+        for serverWid in pendingAppDisconnects {
+            if let wmId = externalWindows.removeValue(forKey: serverWid) {
+                windowManager.windows.removeAll { $0.id == wmId }
+            }
+        }
+        pendingAppDisconnects.removeAll()
     }
 
     func requestFrames() {

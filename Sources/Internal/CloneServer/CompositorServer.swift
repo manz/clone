@@ -186,6 +186,8 @@ public final class CompositorServer {
     public var onAppConnected: ((ConnectedApp) -> Void)?
     /// Callback when an app disconnects.
     public var onAppDisconnected: ((UInt64) -> Void)?
+    /// Callback when an app updates its window title.
+    public var onSetTitle: ((UInt64, String) -> Void)?
     /// Callback when an app creates a sub-surface (popup, menu, etc).
     public var onSubSurfaceCreated: ((ConnectedApp, ConnectedApp.SubSurface) -> Void)?
     /// Callback when an app destroys a sub-surface.
@@ -347,6 +349,7 @@ public final class CompositorServer {
 
         case .setTitle(let title):
             app.title = title
+            onSetTitle?(app.windowId, title)
 
         case .close:
             handleDisconnect(windowId: app.windowId)

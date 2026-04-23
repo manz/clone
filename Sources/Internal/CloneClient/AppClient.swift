@@ -251,6 +251,7 @@ public final class AppClient {
 
         case .terminate:
             isConnected = false
+            exit(0)
 
         case .requestSheetFrame(let w, let h):
             if let commands = onSheetFrameRequest?(w, h) {
