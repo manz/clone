@@ -45,11 +45,57 @@ public enum CommandFlattener {
     public static func flatten(_ layoutNode: LayoutNode) -> [FlatRenderCommand] {
         var commands: [FlatRenderCommand] = []
         flattenNode(layoutNode, into: &commands, opacity: 1.0)
+        appendDebugOutlines(layoutNode, into: &commands)
         // Filter invalid and zero-size commands (but keep popClip which has zero size)
         return commands.filter { cmd in
             if case .popClip = cmd.kind { return true }
             return cmd.x.isFinite && cmd.y.isFinite && cmd.width.isFinite && cmd.height.isFinite
                 && cmd.width > 0 && cmd.height > 0
+        }
+    }
+
+    /// Emit a rectangular outline (4 edge rects) at the given frame.
+    private static func appendOutline(
+        _ frame: LayoutFrame, color: Color, thickness: CGFloat,
+        into commands: inout [FlatRenderCommand]
+    ) {
+        let t = thickness
+        // top
+        commands.append(FlatRenderCommand(x: frame.x, y: frame.y, width: frame.width, height: t, kind: .rect(color: color)))
+        // bottom
+        commands.append(FlatRenderCommand(x: frame.x, y: frame.y + frame.height - t, width: frame.width, height: t, kind: .rect(color: color)))
+        // left
+        commands.append(FlatRenderCommand(x: frame.x, y: frame.y, width: t, height: frame.height, kind: .rect(color: color)))
+        // right
+        commands.append(FlatRenderCommand(x: frame.x + frame.width - t, y: frame.y, width: t, height: frame.height, kind: .rect(color: color)))
+    }
+
+    private static func appendDebugOutlines(_ root: LayoutNode, into commands: inout [FlatRenderCommand]) {
+        switch LayoutDebug.shared.mode {
+        case .off:
+            return
+        case .all:
+            walkOutlineAll(root, into: &commands)
+        case .taps:
+            walkOutlineTaps(root, into: &commands)
+        }
+    }
+
+    private static func walkOutlineAll(_ node: LayoutNode, into commands: inout [FlatRenderCommand]) {
+        let red = Color(r: 1, g: 0, b: 0, a: 0.7)
+        appendOutline(node.frame, color: red, thickness: 1, into: &commands)
+        for child in node.children {
+            walkOutlineAll(child, into: &commands)
+        }
+    }
+
+    private static func walkOutlineTaps(_ node: LayoutNode, into commands: inout [FlatRenderCommand]) {
+        if case .onTap = node.node {
+            let green = Color(r: 0, g: 0.8, b: 0, a: 0.8)
+            appendOutline(node.frame, color: green, thickness: 2, into: &commands)
+        }
+        for child in node.children {
+            walkOutlineTaps(child, into: &commands)
         }
     }
 
