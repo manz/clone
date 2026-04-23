@@ -12,6 +12,7 @@ public final class WindowServer {
     private var mouseX: Double = 0
     private var mouseY: Double = 0
     private var mouseDown = false
+    private var activePress: [UInt32: PressTarget] = [:]
 
 
     /// Surface IDs: 0 = desktop, 1 = dock, 2 = menubar, 100+ = windows
@@ -322,7 +323,9 @@ public final class WindowServer {
     func handlePointerButton(button: UInt32, pressed: Bool) {
         InputRouter.routePointerButton(
             button: button, pressed: pressed,
-            x: CGFloat(mouseX), y: CGFloat(mouseY), mouseDown: &mouseDown,
+            x: CGFloat(mouseX), y: CGFloat(mouseY),
+            mouseDown: &mouseDown,
+            activePress: &activePress,
             windowManager: windowManager,
             appManager: appManager,
             animationManager: animationManager
