@@ -266,8 +266,11 @@ public enum Layout {
             // ScrollView fills the proposed size (content scrolls within)
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
-        case .list(let children, _):
-            return measureVStack(alignment: .leading, spacing: 0, children: children, constraint: constraint)
+        case .list:
+            // List fills the proposed size like ScrollView — content scrolls inside.
+            // Measuring as sum-of-children would push siblings (status bars, toolbars)
+            // off-screen when the list is taller than the viewport.
+            return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
 
         case .lazyList(_, _):
             return MeasuredSize(width: constraint.maxWidth, height: constraint.maxHeight)
