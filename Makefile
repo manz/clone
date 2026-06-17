@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -208,7 +208,27 @@ vm-build:
 vm-run:
 	limactl shell clone -- bash -c 'cd /mnt/clone && sudo nixos-rebuild switch --flake .#clone'
 
+# --- OS image pipeline (run inside the aarch64-linux NixOS VM) ---
+
+# Stage a self-contained macOS-layout tree for baking into the image.
+# Reuses the install target with a staging CLONE_ROOT instead of ~/.clone.
+CLONE_ROOT_STAGE = $(PWD)/.build/clone-root
+os-stage:
+	@test "$(UNAME)" = "Linux" || { echo "os-stage must run on Linux (in the VM)"; exit 1; }
+	$(MAKE) all CLONE_ROOT=$(CLONE_ROOT_STAGE)
+	@echo "Staged Clone root at $(CLONE_ROOT_STAGE)"
+
+# Pack the staged tree into a UTM-bootable qcow2 (EFI). --impure: reads the
+# gitignored .build/clone-root via CLONE_ROOT_STAGE.
+os-image: os-stage
+	CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure .#image -o .build/clone-image
+	@echo "Image at .build/clone-image. Copy the qcow2 to the Mac and import in UTM"
+
+# Mac-side convenience: dispatch the whole stage+pack into the NixOS VM.
+vm-image:
+	limactl shell clone -- bash -c 'cd /mnt/clone && make os-image'
+
 clean:
 	cargo clean
 	swift package clean
-	rm -rf .build/sdk .build/apps
+	rm -rf .build/sdk .build/apps .build/clone-root
