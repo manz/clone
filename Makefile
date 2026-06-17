@@ -157,6 +157,15 @@ install: install-sdk
 	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/Library/CoreServices/keychaind 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/Library/CoreServices/launchservicesd 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/Library/CoreServices/avocadoeventsd 2>/dev/null || true
+ifeq ($(UNAME),Linux)
+	@echo "Bundling Swift runtime (from the toolchain CloneDesktop links against)..."
+	@RT=$$(ldd $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null | grep -m1 libswiftCore | awk '{print $$3}' | xargs -r dirname); \
+	if [ -n "$$RT" ] && [ -d "$$RT" ]; then \
+		mkdir -p $(CLONE_ROOT)/System/Library/swift-linux; \
+		cp -aL "$$RT"/*.so* $(CLONE_ROOT)/System/Library/swift-linux/ 2>/dev/null; \
+		echo "  Swift runtime from $$RT"; \
+	else echo "  WARN: could not locate Swift runtime via ldd"; fi
+endif
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
 
 # Alias

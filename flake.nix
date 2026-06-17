@@ -3,11 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # Swift toolchain for Linux
-    swift-nix = {
-      url = "github:stevapple/swift-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     # Image builder (qcow-efi for UTM, etc.)
     nixos-generators = {
       url = "github:nix-community/nixos-generators";
@@ -15,19 +10,18 @@
     };
   };
 
-  outputs = { self, nixpkgs, swift-nix, nixos-generators }: let
+  # Swift is NOT a nix dependency: Clone binaries are built by swiftly's
+  # toolchain in the VM, and Swift has no ABI stability on Linux, so the image
+  # bundles that exact runtime (see Makefile install + nix/appliance.nix)
+  # rather than a (mismatched) nixpkgs Swift.
+  outputs = { self, nixpkgs, nixos-generators }: let
     system = "aarch64-linux";
-    overlayModule = { nixpkgs.overlays = [ swift-nix.overlays.default ]; };
-    pkgs = import nixpkgs {
-      inherit system;
-      overlays = [ swift-nix.overlays.default ];
-    };
+    pkgs = import nixpkgs { inherit system; };
   in {
     # NixOS dev VM: builds Clone from the /mnt/clone virtiofs mount.
     nixosConfigurations.clone = nixpkgs.lib.nixosSystem {
       inherit system;
       modules = [
-        overlayModule
         ./nix/configuration.nix
         ./nix/clone-desktop.nix
       ];
@@ -36,7 +30,7 @@
     # Appliance: self-contained, boots straight to Clone (artifacts baked in).
     nixosConfigurations.appliance = nixpkgs.lib.nixosSystem {
       inherit system;
-      modules = [ overlayModule ./nix/appliance.nix ];
+      modules = [ ./nix/appliance.nix ];
     };
 
     # Bootable disk image for UTM (qcow2 + EFI). Build with --impure because the
@@ -45,16 +39,14 @@
     packages.${system}.image = nixos-generators.nixosGenerate {
       inherit system;
       format = "qcow-efi";
-      modules = [ overlayModule ./nix/appliance.nix ];
+      modules = [ ./nix/appliance.nix ];
     };
 
     # Dev shell for building Clone inside the VM
     devShells.${system}.default = pkgs.mkShell {
       name = "clone-dev";
       packages = with pkgs; [
-        # Swift
-        swift
-        swiftPackageManager
+        # Swift comes from swiftly (not nix); see flake comment above.
         # Rust
         rustc
         cargo

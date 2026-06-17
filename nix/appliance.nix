@@ -20,9 +20,11 @@ let
 
   compositor = "/System/Library/CoreServices/CloneDesktop";
 
-  # Swift runtime + GPU libs the baked binaries dlopen at runtime.
+  # GPU + C libs the baked binaries dlopen at runtime (ABI-stable, fine from nix).
+  # The Swift runtime is NOT here: it's bundled from swiftly into
+  # /System/Library/swift-linux by `make install` (Swift has no Linux ABI
+  # stability, so it must match the toolchain that built the binaries).
   runtimeLibs = lib.makeLibraryPath [
-    pkgs.swift            # libswiftCore.so etc (swift-nix overlay)
     pkgs.vulkan-loader
     pkgs.mesa             # lavapipe (lvp) software Vulkan
     pkgs.libxkbcommon
@@ -30,11 +32,13 @@ let
     pkgs.fontconfig
     pkgs.freetype
     pkgs.sqlite
+    pkgs.curl             # FoundationNetworking
+    pkgs.libxml2          # Foundation
     pkgs.stdenv.cc.cc.lib # libstdc++
   ];
 
   sessionEnv = {
-    LD_LIBRARY_PATH = runtimeLibs;
+    LD_LIBRARY_PATH = "/System/Library/swift-linux:" + runtimeLibs;
     # Software Vulkan via Mesa lavapipe (no GPU accel needed).
     WGPU_BACKEND = "vulkan";
     VK_ICD_FILENAMES = "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.aarch64.json";
