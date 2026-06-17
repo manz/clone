@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import AppKit
 import CloneClient
 import CloneProtocol

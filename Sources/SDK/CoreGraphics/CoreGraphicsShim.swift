@@ -17,6 +17,7 @@
 #if !canImport(Darwin)
 
 public typealias CFTimeInterval = Double
+public typealias CFAbsoluteTime = Double
 public typealias CFIndex = Int
 public typealias CFString = NSString
 public typealias CFMutableData = NSMutableData
@@ -33,6 +34,11 @@ public struct CFRange: Sendable {
 
 public func CFRangeMake(_ location: CFIndex, _ length: CFIndex) -> CFRange {
     CFRange(location: location, length: length)
+}
+
+/// Seconds since the reference date (2001-01-01), matching CoreFoundation.
+public func CFAbsoluteTimeGetCurrent() -> CFAbsoluteTime {
+    Date().timeIntervalSinceReferenceDate
 }
 
 // MARK: - ObjC runtime
