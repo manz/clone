@@ -59,8 +59,11 @@ impl HeadlessDevice {
         // Capture EGL handles for cross-process dma_buf export (Linux GL path).
         wgpu_shared_surface::init_egl(&adapter);
 
+        // Adapter's own limits: GLES 3.0 (virgl) lacks the compute the defaults want.
+        let mut device_desc = wgpu::DeviceDescriptor::default();
+        device_desc.required_limits = adapter.limits();
         let (device, queue) =
-            pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+            pollster::block_on(adapter.request_device(&device_desc))
                 .map_err(|e| format!("Failed to get GPU device: {e}"))?;
 
         let format = wgpu::TextureFormat::Bgra8Unorm;

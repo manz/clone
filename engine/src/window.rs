@@ -98,8 +98,12 @@ impl App {
         // Capture EGL handles for cross-process dma_buf import (Linux GL path).
         wgpu_shared_surface::init_egl(&adapter);
 
+        // Use the adapter's own limits: GLES 3.0 (virgl) has no compute, so the
+        // compute-requiring defaults would fail request_device.
+        let mut device_desc = wgpu::DeviceDescriptor::default();
+        device_desc.required_limits = adapter.limits();
         let (device, queue) =
-            pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+            pollster::block_on(adapter.request_device(&device_desc))
                 .map_err(|e| EngineError::GpuInitFailed {
                     reason: e.to_string(),
                 })?;

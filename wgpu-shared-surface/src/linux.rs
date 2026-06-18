@@ -48,6 +48,8 @@ type PfnExportQuery =
 type PfnExport =
     unsafe extern "system" fn(EglDisplay, EglImage, *mut i32, *mut i32, *mut i32) -> u32;
 type PfnImageTargetTexture = unsafe extern "system" fn(u32, EglImage);
+type PfnMakeCurrent =
+    unsafe extern "system" fn(EglDisplay, EglImage, EglImage, EglContext) -> u32;
 
 /// Process-global EGL handles + extension entry points captured from the adapter.
 struct EglShared {
@@ -59,6 +61,15 @@ struct EglShared {
     export_query: PfnExportQuery,
     export: PfnExport,
     image_target_texture: PfnImageTargetTexture,
+    make_current: PfnMakeCurrent,
+}
+
+impl EglShared {
+    /// Make our (wgpu's) EGL context current on this thread (surfaceless) so the
+    /// GL/EGL calls below operate on it. wgpu re-binds it on its next op.
+    unsafe fn make_current(&self) {
+        (self.make_current)(self.display, std::ptr::null_mut(), std::ptr::null_mut(), self.context);
+    }
 }
 // SAFETY: the GL/EGL handles are only touched on the render thread where the
 // context is current; access is effectively single-threaded per device.
@@ -109,12 +120,18 @@ pub fn init_egl(adapter: &wgpu::Adapter) {
         let export = load!("eglExportDMABUFImageMESA", PfnExport);
         let image_target_texture =
             load!("glEGLImageTargetTexture2DOES", PfnImageTargetTexture);
+        let make_current = load!("eglMakeCurrent", PfnMakeCurrent);
 
         // A glow context bound to the same loader, used for compositor-side
-        // glGenTextures/glBindTexture during import.
-        let glow = glow::Context::from_loader_function(|s| {
-            egl.get_proc_address(s).map_or(std::ptr::null(), |f| f as *const c_void)
-        });
+        // glGenTextures/glBindTexture during import. from_loader_function reads
+        // GL_VERSION immediately, so the EGL context must be current; hold the
+        // adapter context lock (which makes it current) while building it.
+        let glow = {
+            let _current = ctx.lock();
+            glow::Context::from_loader_function(|s| {
+                egl.get_proc_address(s).map_or(std::ptr::null(), |f| f as *const c_void)
+            })
+        };
 
         let _ = EGL.set(EglShared {
             display,
@@ -125,6 +142,7 @@ pub fn init_egl(adapter: &wgpu::Adapter) {
             export_query,
             export,
             image_target_texture,
+            make_current,
         });
         log::info!("init_egl: EGL dma_buf sharing ready");
     }
@@ -200,9 +218,45 @@ impl SharedTexture {
         height: u32,
         format: wgpu::TextureFormat,
     ) -> Result<Self, String> {
+        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC;
+        Self::import_with_usage(device, fd, stride, offset, fourcc, modifier, width, height, format, usage)
+    }
+
+    /// Import a DMA-BUF as a RENDER TARGET (for KMS scanout: render into a gbm bo).
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_dmabuf_render(
+        device: &wgpu::Device,
+        fd: i32,
+        stride: u32,
+        offset: u32,
+        fourcc: u32,
+        modifier: u64,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+    ) -> Result<Self, String> {
+        let usage = wgpu::TextureUsages::RENDER_ATTACHMENT
+            | wgpu::TextureUsages::TEXTURE_BINDING
+            | wgpu::TextureUsages::COPY_DST;
+        Self::import_with_usage(device, fd, stride, offset, fourcc, modifier, width, height, format, usage)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn import_with_usage(
+        device: &wgpu::Device,
+        fd: i32,
+        stride: u32,
+        offset: u32,
+        fourcc: u32,
+        modifier: u64,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat,
+        usage: wgpu::TextureUsages,
+    ) -> Result<Self, String> {
         let surface_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
         let (texture, egl_image) =
-            import_dmabuf(device, fd, stride, offset, fourcc, modifier, width, height, format)?;
+            import_dmabuf(device, fd, stride, offset, fourcc, modifier, width, height, format, usage)?;
         let view = texture.create_view(&Default::default());
         Ok(Self {
             texture, view, surface_id, width, height,
@@ -282,6 +336,7 @@ fn export_texture(texture: &wgpu::Texture) -> Result<(OwnedFd, u32, u32, u32, u6
     let egl = EGL.get().ok_or("EGL not initialized (init_egl not called)")?;
     let name = gl_texture_name(texture)?;
     unsafe {
+        egl.make_current();
         // Flush so the rendered contents are visible through the DMA-BUF.
         egl.glow.flush();
 
@@ -327,6 +382,7 @@ fn export_texture(texture: &wgpu::Texture) -> Result<(OwnedFd, u32, u32, u32, u6
 
 /// Import a DMA-BUF fd as a GL texture wrapped into a wgpu texture.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn import_dmabuf(
     device: &wgpu::Device,
     fd: i32,
@@ -337,9 +393,11 @@ fn import_dmabuf(
     width: u32,
     height: u32,
     format: wgpu::TextureFormat,
+    usage: wgpu::TextureUsages,
 ) -> Result<(wgpu::Texture, EglImage), String> {
     let egl = EGL.get().ok_or("EGL not initialized (init_egl not called)")?;
     unsafe {
+        egl.make_current();
         let attribs = [
             EGL_WIDTH, width as i32,
             EGL_HEIGHT, height as i32,
@@ -376,7 +434,6 @@ fn import_dmabuf(
         gl.bind_texture(GL_TEXTURE_2D, None);
 
         // Wrap the GL texture name into a wgpu texture via the gles HAL.
-        let usage = wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC;
         let hal_desc = wgpu_hal::TextureDescriptor {
             label: Some("dmabuf_import"),
             size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
@@ -419,6 +476,12 @@ fn to_hal_usage(usage: wgpu::TextureUsages) -> wgpu_types::TextureUses {
     }
     if usage.contains(wgpu::TextureUsages::COPY_SRC) {
         flags |= wgpu_types::TextureUses::COPY_SRC;
+    }
+    if usage.contains(wgpu::TextureUsages::COPY_DST) {
+        flags |= wgpu_types::TextureUses::COPY_DST;
+    }
+    if usage.contains(wgpu::TextureUsages::RENDER_ATTACHMENT) {
+        flags |= wgpu_types::TextureUses::COLOR_TARGET;
     }
     flags
 }

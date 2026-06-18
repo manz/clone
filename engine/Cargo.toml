@@ -29,6 +29,7 @@ wgpu-shared-surface = { path = "../wgpu-shared-surface" }
 # Direct DRM/KMS server backend (Linux): own the display without a wayland host.
 [target.'cfg(target_os = "linux")'.dependencies]
 drm = "0.14"
+gbm = "0.18"
 
 [dev-dependencies]
 pollster = "0.4"
@@ -36,6 +37,10 @@ pollster = "0.4"
 [[bin]]
 name = "drm-smoke"
 path = "src/bin/drm_smoke.rs"
+
+[[bin]]
+name = "drm-gpu-smoke"
+path = "src/bin/drm_gpu_smoke.rs"
 
 [[bin]]
 name = "uniffi-bindgen"
