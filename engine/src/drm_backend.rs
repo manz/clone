@@ -194,37 +194,33 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
         .map_err(|e| err(format!("set_crtc: {e}")))?;
 
     log::info!("DRM: entering render loop");
+    // Render continuously, paced by a poll timeout. NOT gated on the page-flip
+    // event (virtio-gpu doesn't deliver it reliably, which made the loop only
+    // advance on input -> "appears on hover"). page_flip self-throttles via
+    // EBUSY while a flip is in flight; we just skip that frame.
     loop {
-        let back = front ^ 1;
-        render_compositor(&mut render_server, &device, &queue, &buffers[back].shared, w, h, scale, &*delegate);
-        gbm.page_flip(crtc, buffers[back].fb, drm::control::PageFlipFlags::EVENT, None)
-            .map_err(|e| err(format!("page_flip: {e}")))?;
-
-        // Wait for the flip, servicing input meanwhile.
-        let mut flipped = false;
-        while !flipped {
-            let mut fds = [
-                libc::pollfd { fd: drm_fd, events: libc::POLLIN, revents: 0 },
-                libc::pollfd { fd: li_fd, events: libc::POLLIN, revents: 0 },
-            ];
-            unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) };
-            if fds[1].revents & libc::POLLIN != 0 {
-                let _ = libinput.dispatch();
-                while let Some(ev) = libinput.next() {
-                    handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, scale, &gbm, crtc);
-                }
-            }
-            if fds[0].revents & libc::POLLIN != 0 {
-                if let Ok(events) = gbm.receive_events() {
-                    for ev in events {
-                        if let drm::control::Event::PageFlip(_) = ev {
-                            flipped = true;
-                        }
-                    }
-                }
+        // Pace ~60fps + wake immediately on input; drain input + any flip events.
+        let mut fds = [
+            libc::pollfd { fd: drm_fd, events: libc::POLLIN, revents: 0 },
+            libc::pollfd { fd: li_fd, events: libc::POLLIN, revents: 0 },
+        ];
+        unsafe { libc::poll(fds.as_mut_ptr(), 2, 16) };
+        if fds[1].revents & libc::POLLIN != 0 {
+            let _ = libinput.dispatch();
+            while let Some(ev) = libinput.next() {
+                handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, scale, &gbm, crtc);
             }
         }
-        front = back;
+        if fds[0].revents & libc::POLLIN != 0 {
+            let _ = gbm.receive_events().map(|evs| evs.count());
+        }
+
+        let back = front ^ 1;
+        render_compositor(&mut render_server, &device, &queue, &buffers[back].shared, w, h, scale, &*delegate);
+        // EBUSY while the previous flip is pending -> skip (don't swap front).
+        if gbm.page_flip(crtc, buffers[back].fb, drm::control::PageFlipFlags::EVENT, None).is_ok() {
+            front = back;
+        }
     }
 }
 
