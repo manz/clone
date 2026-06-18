@@ -30,6 +30,8 @@ wgpu-shared-surface = { path = "../wgpu-shared-surface" }
 [target.'cfg(target_os = "linux")'.dependencies]
 drm = "0.14"
 gbm = "0.18"
+input = "0.9"
+libc = "0.2"
 
 [dev-dependencies]
 pollster = "0.4"

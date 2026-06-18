@@ -3,15 +3,75 @@
 //! vblank. No wayland host, no GL window surface (sidesteps virgl's pbuffer-only
 //! configs). Used instead of winit when no WAYLAND_DISPLAY/DISPLAY is set.
 
-use std::fs::OpenOptions;
-use std::os::fd::{AsFd, AsRawFd, BorrowedFd};
+use std::fs::{File, OpenOptions};
+use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
 
 use drm::control::{connector, Device as ControlDevice};
 use drm::Device as BasicDevice;
 use gbm::{BufferObject, BufferObjectFlags, Format as GbmFormat};
+use input::event::{
+    keyboard::KeyboardEventTrait, pointer::ButtonState, Event as InputEvent, KeyboardEvent,
+    PointerEvent,
+};
+use input::{Libinput, LibinputInterface};
 
 use crate::ffi::{DesktopDelegate, EngineError};
 use crate::render_server::RenderServer;
+
+/// libinput device-open hook. dev is in the `input` group, so plain O_RDWR works.
+struct Input;
+impl LibinputInterface for Input {
+    fn open_restricted(&mut self, path: &Path, flags: i32) -> Result<OwnedFd, i32> {
+        OpenOptions::new()
+            .custom_flags(flags)
+            .read(true)
+            .write((flags & libc::O_RDWR != 0) || (flags & libc::O_WRONLY != 0))
+            .open(path)
+            .map(|f| f.into())
+            .map_err(|e| e.raw_os_error().unwrap_or(libc::EIO))
+    }
+    fn close_restricted(&mut self, fd: OwnedFd) {
+        drop(File::from(fd));
+    }
+}
+
+/// Classic arrow cursor (X = black outline, W = white fill, space = transparent).
+const ARROW: [&str; 16] = [
+    "X               ",
+    "XX              ",
+    "XWX             ",
+    "XWWX            ",
+    "XWWWX           ",
+    "XWWWWX          ",
+    "XWWWWWX         ",
+    "XWWWWWWX        ",
+    "XWWWWWWWX       ",
+    "XWWWWWWWWX      ",
+    "XWWWWWXXXXX     ",
+    "XWWXWWX         ",
+    "XWX XWWX        ",
+    "XX  XWWX        ",
+    "X    XWWX       ",
+    "     XXX        ",
+];
+
+/// 64x64 ARGB8888 (B,G,R,A bytes) cursor image with the arrow at the top-left.
+fn cursor_pixels() -> Vec<u8> {
+    let mut px = vec![0u8; 64 * 64 * 4];
+    for (row, line) in ARROW.iter().enumerate() {
+        for (col, ch) in line.bytes().enumerate() {
+            let i = (row * 64 + col) * 4;
+            match ch {
+                b'X' => px[i..i + 4].copy_from_slice(&[255, 255, 255, 255]), // white border
+                b'W' => px[i..i + 4].copy_from_slice(&[0, 0, 0, 255]),       // black fill
+                _ => {}
+            }
+        }
+    }
+    px
+}
 
 struct Card(std::fs::File);
 impl AsFd for Card {
@@ -101,8 +161,29 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
         render_server.load_wallpaper(&device, &queue, &wp);
     }
 
-    // First frame on buffer 0, then set_crtc to start scanout.
+    // KMS cursor plane: a small ARGB bo with the arrow.
     let scale = 1.0_f32;
+    let mut cx = (w / 2) as f64;
+    let mut cy = (h / 2) as f64;
+    if let Ok(mut cbo) = gbm.create_buffer_object::<()>(
+        64, 64, GbmFormat::Argb8888,
+        BufferObjectFlags::CURSOR | BufferObjectFlags::WRITE,
+    ) {
+        let _ = cbo.write(&cursor_pixels());
+        let _ = gbm.set_cursor(crtc, Some(&cbo));
+        let _ = gbm.move_cursor(crtc, (cx as i32, cy as i32));
+        std::mem::forget(cbo); // keep the cursor bo alive for the session
+    }
+
+    // libinput from the seat's devices.
+    let mut libinput = Libinput::new_with_udev(Input);
+    if libinput.udev_assign_seat("seat0").is_err() {
+        log::warn!("DRM: libinput udev_assign_seat failed; no input");
+    }
+    let li_fd = libinput.as_raw_fd();
+    let drm_fd = gbm.as_fd().as_raw_fd();
+
+    // First frame on buffer 0, then set_crtc to start scanout.
     let mut front = 0usize;
     render_compositor(&mut render_server, &device, &queue, &buffers[front].shared, w, h, scale, &*delegate);
     gbm.set_crtc(crtc, Some(buffers[front].fb), (0, 0), &[conn.handle()], Some(mode))
@@ -112,27 +193,85 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     loop {
         let back = front ^ 1;
         render_compositor(&mut render_server, &device, &queue, &buffers[back].shared, w, h, scale, &*delegate);
-
-        // Schedule the flip on the next vblank and wait for completion.
         gbm.page_flip(crtc, buffers[back].fb, drm::control::PageFlipFlags::EVENT, None)
             .map_err(|e| err(format!("page_flip: {e}")))?;
-        // Block until the page-flip-complete event arrives.
-        'wait: loop {
-            match gbm.receive_events() {
-                Ok(events) => {
+
+        // Wait for the flip, servicing input meanwhile.
+        let mut flipped = false;
+        while !flipped {
+            let mut fds = [
+                libc::pollfd { fd: drm_fd, events: libc::POLLIN, revents: 0 },
+                libc::pollfd { fd: li_fd, events: libc::POLLIN, revents: 0 },
+            ];
+            unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) };
+            if fds[1].revents & libc::POLLIN != 0 {
+                let _ = libinput.dispatch();
+                while let Some(ev) = libinput.next() {
+                    handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, &gbm, crtc);
+                }
+            }
+            if fds[0].revents & libc::POLLIN != 0 {
+                if let Ok(events) = gbm.receive_events() {
                     for ev in events {
                         if let drm::control::Event::PageFlip(_) = ev {
-                            break 'wait;
+                            flipped = true;
                         }
                     }
-                }
-                Err(e) => {
-                    log::warn!("DRM receive_events: {e}");
-                    break 'wait;
                 }
             }
         }
         front = back;
+    }
+}
+
+/// Map a libinput event to a delegate callback; move the KMS cursor.
+#[allow(clippy::too_many_arguments)]
+fn handle_input(
+    ev: InputEvent,
+    delegate: &dyn DesktopDelegate,
+    cx: &mut f64,
+    cy: &mut f64,
+    w: u32,
+    h: u32,
+    gbm: &gbm::Device<Card>,
+    crtc: drm::control::crtc::Handle,
+) {
+    match ev {
+        InputEvent::Pointer(PointerEvent::Motion(m)) => {
+            *cx = (*cx + m.dx()).clamp(0.0, (w - 1) as f64);
+            *cy = (*cy + m.dy()).clamp(0.0, (h - 1) as f64);
+            let _ = gbm.move_cursor(crtc, (*cx as i32, *cy as i32));
+            delegate.on_pointer_move(0, *cx, *cy);
+        }
+        // VMs expose an absolute pointing device (tablet); handle those too.
+        InputEvent::Pointer(PointerEvent::MotionAbsolute(m)) => {
+            *cx = m.absolute_x_transformed(w).clamp(0.0, (w - 1) as f64);
+            *cy = m.absolute_y_transformed(h).clamp(0.0, (h - 1) as f64);
+            let _ = gbm.move_cursor(crtc, (*cx as i32, *cy as i32));
+            delegate.on_pointer_move(0, *cx, *cy);
+        }
+        InputEvent::Pointer(PointerEvent::Button(b)) => {
+            let btn = match b.button() {
+                0x110 => 0, // BTN_LEFT
+                0x111 => 1, // BTN_RIGHT
+                0x112 => 2, // BTN_MIDDLE
+                _ => 3,
+            };
+            let pressed = b.button_state() == ButtonState::Pressed;
+            log::info!("input button={} pressed={} at ({:.0},{:.0})", b.button(), pressed, *cx, *cy);
+            delegate.on_pointer_button(0, btn, pressed);
+        }
+        InputEvent::Pointer(PointerEvent::ScrollWheel(s)) => {
+            use input::event::pointer::{Axis, PointerScrollEvent};
+            let dx = if s.has_axis(Axis::Horizontal) { s.scroll_value(Axis::Horizontal) } else { 0.0 };
+            let dy = if s.has_axis(Axis::Vertical) { s.scroll_value(Axis::Vertical) } else { 0.0 };
+            delegate.on_scroll(0, dx, dy);
+        }
+        InputEvent::Keyboard(KeyboardEvent::Key(k)) => {
+            let pressed = k.key_state() == input::event::keyboard::KeyState::Pressed;
+            delegate.on_key(0, k.key(), 0, pressed);
+        }
+        _ => {}
     }
 }
 
