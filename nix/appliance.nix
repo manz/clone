@@ -38,16 +38,22 @@ let
   ];
 
   sessionEnv = {
-    LD_LIBRARY_PATH = "/System/Library/swift-linux:" + runtimeLibs;
+    # /System/Library holds the Rust engine .so's; swift-linux the Swift runtime.
+    LD_LIBRARY_PATH = "/System/Library:/System/Library/swift-linux:" + runtimeLibs;
+    # Empty CLONE_ROOT => paths resolve at the FS root (/System, /Applications),
+    # matching the baked layout (default would be ~/.clone).
+    CLONE_ROOT = "";
     # Software Vulkan via Mesa lavapipe (no GPU accel needed).
     WGPU_BACKEND = "vulkan";
     VK_ICD_FILENAMES = "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.aarch64.json";
     LIBGL_ALWAYS_SOFTWARE = "1";
+    # vz's virtio-gpu has no 3D, so wlroots (cage) can't make a GLES/EGL
+    # context. Force its software (pixman) renderer, no HW cursor plane.
+    WLR_RENDERER = "pixman";
+    WLR_NO_HARDWARE_CURSORS = "1";
     # winit runs as a Wayland client of cage until the direct-KMS backend lands.
     WINIT_UNIX_BACKEND = "wayland";
     FONTCONFIG_PATH = "/etc/fonts";
-    CLONE_FRAMEWORKS_PATH = "/System/Library/Frameworks";
-    CLONE_APPLICATIONS_PATH = "/Applications";
   };
 in
 {
@@ -59,6 +65,9 @@ in
   boot.initrd.availableKernelModules = [
     "virtio_pci" "virtio_blk" "virtio_net" "virtio_scsi" "virtio_gpu"
   ];
+  # Serial console (aarch64 virt = ttyAMA0): boot log + a login on UTM's serial
+  # terminal, which is copy-pasteable (unlike the graphical VT).
+  boot.kernelParams = [ "console=tty0" "console=ttyAMA0,115200" ];
 
   networking.hostName = "clone";
   time.timeZone = "Europe/Paris";
@@ -76,13 +85,36 @@ in
     extraPackages = with pkgs; [ mesa vulkan-loader ];
   };
 
+  # Clone binaries are generic Ubuntu-built ELFs (interp /lib/ld-linux-aarch64.so.1),
+  # which NixOS lacks. nix-ld provides that loader + the base C libraries so the
+  # foreign binaries run. The Swift runtime stays on LD_LIBRARY_PATH (sessionEnv).
+  programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = with pkgs; [
+    stdenv.cc.cc.lib   # libstdc++, libgcc_s
+    zlib               # compress2 (PNG encoder)
+    vulkan-loader mesa libxkbcommon wayland
+    fontconfig freetype sqlite curl libxml2
+    alsa-lib           # libasound.so.2 (cpal audio)
+  ];
+
   # --- Bake the artifact tree into the image at /System, /Applications, /Library ---
   # Symlink from the read-only store copy so the layout matches the runtime's
-  # absolute paths (CLONE_FRAMEWORKS_PATH=/System/Library/Frameworks, etc).
+  # absolute paths (/System/Library/Frameworks, etc).
   systemd.tmpfiles.rules = [
     "L+ /System          - - - - ${cloneRoot}/System"
     "L+ /Applications     - - - - ${cloneRoot}/Applications"
     "L+ /Library          - - - - ${cloneRoot}/Library"
+    # App binaries (ycodebuild) embed the absolute build-staging framework path
+    # as a DT_NEEDED with no SONAME, so the loader uses it verbatim. Point that
+    # staging path at / so it resolves. TODO: fix ycodebuild to emit SONAME/rpath
+    # and drop this shim.
+    "d /mnt               0755 root root -"
+    "d /mnt/clone         0755 root root -"
+    "d /mnt/clone/.build  0755 root root -"
+    # clone-root = install staging; sdk = ycodebuild's prebuilt framework dir.
+    # App binaries embed both as absolute DT_NEEDED paths.
+    "L+ /mnt/clone/.build/clone-root - - - - /"
+    "L+ /mnt/clone/.build/sdk        - - - - /"
   ];
 
   # --- Session: cage launches the compositor fullscreen on TTY1 ---
@@ -97,7 +129,7 @@ in
   # --- Fonts ---
   fonts = {
     packages = with pkgs; [
-      liberation_ttf noto-fonts noto-fonts-emoji iosevka
+      liberation_ttf noto-fonts iosevka
     ];
     fontconfig.defaultFonts = {
       sansSerif = [ "Liberation Sans" "Noto Sans" ];
@@ -106,9 +138,13 @@ in
   };
 
   # Debug access: drop for a sealed release image. cage owns the seat/TTY.
-  services.openssh.enable = true;
+  services.openssh = {
+    enable = true;
+    settings.PasswordAuthentication = true;
+    settings.PermitRootLogin = "yes";
+  };
 
-  environment.systemPackages = with pkgs; [ vim vulkan-tools mesa-demos ];
+  environment.systemPackages = with pkgs; [ vim ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 }
