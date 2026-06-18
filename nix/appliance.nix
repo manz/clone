@@ -47,9 +47,8 @@ let
     CLONE_ROOT = "";
     # Accelerated OpenGL via virgl (real GPU through Metal); see flake/engine.
     WGPU_BACKEND = "gl";
-    # vz's virtio-gpu has no 3D for wlroots itself, so cage uses its software
-    # (pixman) renderer; CloneDesktop (a cage client) still gets accelerated GL.
-    WLR_RENDERER = "pixman";
+    # cage uses its GLES renderer on virgl (confirmed: it modesets fine). No
+    # hardware cursor plane under vz.
     WLR_NO_HARDWARE_CURSORS = "1";
     # winit runs as a Wayland client of cage until the direct-KMS backend lands.
     WINIT_UNIX_BACKEND = "wayland";
