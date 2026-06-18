@@ -34,10 +34,16 @@ impl HeadlessDevice {
         #[cfg(not(target_os = "linux"))]
         let backends = wgpu::Backends::VULKAN | wgpu::Backends::METAL;
 
+        // No DEBUG/VALIDATION: virgl/ANGLE rejects a debug GL context.
+        #[cfg(target_os = "linux")]
+        let flags = wgpu::InstanceFlags::empty();
+        #[cfg(not(target_os = "linux"))]
+        let flags = wgpu::InstanceFlags::default();
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
             backend_options: wgpu::BackendOptions::default(),
-            flags: wgpu::InstanceFlags::default(),
+            flags,
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
             display: None,
         });
