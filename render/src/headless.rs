@@ -50,6 +50,8 @@ impl HeadlessDevice {
         .map_err(|e| format!("Failed to get GPU adapter: {e}"))?;
         let _info = adapter.get_info();
         log::info!("headless adapter: {} ({:?})", _info.name, _info.backend);
+        // Capture EGL handles for cross-process dma_buf export (Linux GL path).
+        wgpu_shared_surface::init_egl(&adapter);
 
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))

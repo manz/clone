@@ -23,6 +23,11 @@ public final class ConnectedApp {
     public var surfaceHeight: UInt32 = 0
     /// DMA-BUF fd received from app (Linux). -1 = none.
     public var dmabufFd: Int32 = -1
+    /// EGL dma_buf import layout (Linux GL); set on surfaceCreated/Resized.
+    public var dmabufStride: UInt32 = 0
+    public var dmabufOffset: UInt32 = 0
+    public var dmabufFourcc: UInt32 = 0
+    public var dmabufModifier: UInt64 = 0
 
     /// Sub-surfaces (popups, menus, secondary windows) owned by this app.
     public var subSurfaces: [UInt32: SubSurface] = [:]
@@ -398,19 +403,27 @@ public final class CompositorServer {
         case .avocadoEvent(let targetAppId, let event):
             routeAvocadoEvent(targetAppId: targetAppId, event: event)
 
-        case .surfaceCreated(let iosurfaceId, let width, let height):
+        case .surfaceCreated(let iosurfaceId, let width, let height, let stride, let offset, let fourcc, let modifier):
             app.iosurfaceId = iosurfaceId
             app.surfaceWidth = width
             app.surfaceHeight = height
+            app.dmabufStride = stride
+            app.dmabufOffset = offset
+            app.dmabufFourcc = fourcc
+            app.dmabufModifier = modifier
             app.send(.surfaceReady(surfaceId: app.windowId))
 
         case .surfaceUpdated:
             break // Compositor reads the surface directly each frame — no dirty flag needed
 
-        case .surfaceResized(let iosurfaceId, let width, let height):
+        case .surfaceResized(let iosurfaceId, let width, let height, let stride, let offset, let fourcc, let modifier):
             app.iosurfaceId = iosurfaceId
             app.surfaceWidth = width
             app.surfaceHeight = height
+            app.dmabufStride = stride
+            app.dmabufOffset = offset
+            app.dmabufFourcc = fourcc
+            app.dmabufModifier = modifier
 
         // MARK: Multi-surface
 

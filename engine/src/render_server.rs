@@ -69,7 +69,9 @@ impl RenderServer {
                 let phys_w = (sf.desc.width * scale) as u32;
                 let phys_h = (sf.desc.height * scale) as u32;
                 self.compositor.import_shared_surface_fd(
-                    device, sf.desc.surface_id, sf.dmabuf_fd, phys_w, phys_h,
+                    device, sf.desc.surface_id, sf.dmabuf_fd,
+                    sf.dmabuf_stride, sf.dmabuf_offset, sf.dmabuf_fourcc, sf.dmabuf_modifier,
+                    phys_w, phys_h,
                 );
                 continue;
             }

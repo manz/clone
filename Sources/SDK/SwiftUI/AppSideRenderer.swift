@@ -122,18 +122,23 @@ final class AppSideRenderer: NSObject {
             client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))
         }
         #else
-        // Linux: send DMA-BUF fd via SCM_RIGHTS alongside the surface message
-        let fd = renderer.exportFd()
+        // Linux: export the DMA-BUF fd + EGL layout, send via SCM_RIGHTS.
+        let dmabuf = renderer.exportDmabuf()
+        let fd = dmabuf.fd
         if currentIOSurfaceId == 0 {
             if fd >= 0 {
-                client.sendWithFd(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
+                client.sendWithFd(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH,
+                    dmabufStride: dmabuf.stride, dmabufOffset: dmabuf.offset,
+                    dmabufFourcc: dmabuf.fourcc, dmabufModifier: dmabuf.modifier), fd: fd)
                 posix_close(fd)
             } else {
                 client.send(.surfaceCreated(iosurfaceId: iosurfaceId, width: physW, height: physH))
             }
         } else if iosurfaceId != currentIOSurfaceId {
             if fd >= 0 {
-                client.sendWithFd(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH), fd: fd)
+                client.sendWithFd(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH,
+                    dmabufStride: dmabuf.stride, dmabufOffset: dmabuf.offset,
+                    dmabufFourcc: dmabuf.fourcc, dmabufModifier: dmabuf.modifier), fd: fd)
                 posix_close(fd)
             } else {
                 client.send(.surfaceResized(iosurfaceId: iosurfaceId, width: physW, height: physH))

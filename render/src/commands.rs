@@ -38,8 +38,13 @@ pub struct SurfaceFrame {
     /// no pixel upload or command rendering needed.
     pub iosurface_id: u32,
     /// DMA-BUF file descriptor for zero-copy GPU texture sharing (Linux).
-    /// When >= 0, the compositor imports this fd as a Vulkan texture.
+    /// When >= 0, the compositor imports this fd as a GL texture via EGL.
     pub dmabuf_fd: i32,
+    /// EGL dma_buf layout for import (Linux GL path).
+    pub dmabuf_stride: u32,
+    pub dmabuf_offset: u32,
+    pub dmabuf_fourcc: u32,
+    pub dmabuf_modifier: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]

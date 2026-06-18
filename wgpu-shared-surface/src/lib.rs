@@ -17,7 +17,11 @@ mod linux;
 #[cfg(target_os = "macos")]
 pub use texture::SharedTexture;
 #[cfg(target_os = "linux")]
-pub use linux::SharedTexture;
+pub use linux::{SharedTexture, init_egl};
+
+/// Capture EGL handles from a GL adapter (Linux GL sharing). No-op elsewhere.
+#[cfg(not(target_os = "linux"))]
+pub fn init_egl(_adapter: &wgpu::Adapter) {}
 
 // Re-export raw IOSurface functions for compositor-level use (macOS only)
 #[cfg(target_os = "macos")]

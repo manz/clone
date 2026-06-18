@@ -136,6 +136,10 @@ pub struct SurfaceCompositor {
     /// Tracks which surface_id → iosurface_id mapping is active, to avoid reimporting.
     #[cfg(target_os = "macos")]
     imported_iosurfaces: HashMap<u64, u32>,
+    /// Linux: surface_id → (width, height) already imported, to avoid reimporting
+    /// the same dma_buf each frame (the texture updates in place).
+    #[cfg(not(target_os = "macos"))]
+    imported_dmabuf: HashMap<u64, (u32, u32)>,
     pipeline: wgpu::RenderPipeline,
     genie_pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
@@ -278,6 +282,8 @@ impl SurfaceCompositor {
             surfaces: HashMap::new(),
             #[cfg(target_os = "macos")]
             imported_iosurfaces: HashMap::new(),
+            #[cfg(not(target_os = "macos"))]
+            imported_dmabuf: HashMap::new(),
             pipeline,
             genie_pipeline,
             bind_group_layout,
@@ -379,16 +385,30 @@ impl SurfaceCompositor {
     /// Import a shared surface from a DMA-BUF file descriptor (Linux).
     /// The fd is dup'd internally — caller keeps ownership.
     #[cfg(not(target_os = "macos"))]
+    #[allow(clippy::too_many_arguments)]
     pub fn import_shared_surface_fd(
         &mut self,
         device: &wgpu::Device,
         surface_id: u64,
         fd: i32,
+        stride: u32,
+        offset: u32,
+        fourcc: u32,
+        modifier: u64,
         width: u32,
         height: u32,
     ) -> bool {
-        match SharedTexture::from_fd(device, fd, width, height, self.offscreen_format) {
+        // The dma_buf texture updates in place; only (re)import on first sight or
+        // a resize. Otherwise close the freshly-dup'd incoming fd and reuse.
+        if self.imported_dmabuf.get(&surface_id) == Some(&(width, height)) {
+            unsafe { libc::close(fd) };
+            return true;
+        }
+        match SharedTexture::from_dmabuf(device, fd, stride, offset, fourcc, modifier, width, height, self.offscreen_format) {
             Ok(shared) => {
+                // EGL import dups the fd internally; release ours.
+                unsafe { libc::close(fd) };
+                self.imported_dmabuf.insert(surface_id, (width, height));
                 let view = shared.texture().create_view(&Default::default());
                 let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
                     label: Some("imported_depth"),
@@ -414,6 +434,7 @@ impl SurfaceCompositor {
                 true
             }
             Err(e) => {
+                unsafe { libc::close(fd) };
                 log::error!("Failed to import DMA-BUF fd {fd} for surface {surface_id}: {e}");
                 false
             }

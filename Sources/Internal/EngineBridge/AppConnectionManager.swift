@@ -342,6 +342,17 @@ final class AppConnectionManager {
         return server.app(for: serverWid)?.iosurfaceId ?? 0
     }
 
+    /// Linux GL sharing: take a pending DMA-BUF fd + EGL layout for this window,
+    /// consuming it (resets the stored fd to -1) so it's handed to the engine
+    /// exactly once. The engine closes the fd; the imported texture persists.
+    func takeDmabuf(for wmWindowId: UInt64) -> (fd: Int32, stride: UInt32, offset: UInt32, fourcc: UInt32, modifier: UInt64)? {
+        guard let serverWid = externalWindowId(for: wmWindowId),
+              let app = server.app(for: serverWid), app.dmabufFd >= 0 else { return nil }
+        let info = (app.dmabufFd, app.dmabufStride, app.dmabufOffset, app.dmabufFourcc, app.dmabufModifier)
+        app.dmabufFd = -1
+        return info
+    }
+
     /// Returns the shared texture dimensions (physical pixels).
     func surfaceDimensions(for wmWindowId: UInt64) -> (width: UInt32, height: UInt32)? {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return nil }

@@ -162,11 +162,16 @@ public enum AppMessage: Codable, Sendable {
     /// Dock requests a thumbnail of a minimized window.
     case requestThumbnail(windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)
     /// App created an IOSurface-backed GPU texture for app-side rendering.
-    case surfaceCreated(iosurfaceId: UInt32, width: UInt32, height: UInt32)
+    /// On Linux the dmabuf* fields carry the EGL import layout (0 on macOS).
+    case surfaceCreated(iosurfaceId: UInt32, width: UInt32, height: UInt32,
+                        dmabufStride: UInt32 = 0, dmabufOffset: UInt32 = 0,
+                        dmabufFourcc: UInt32 = 0, dmabufModifier: UInt64 = 0)
     /// App rendered a new frame into the shared texture.
     case surfaceUpdated
     /// App resized its shared texture (new IOSurface ID).
-    case surfaceResized(iosurfaceId: UInt32, width: UInt32, height: UInt32)
+    case surfaceResized(iosurfaceId: UInt32, width: UInt32, height: UInt32,
+                        dmabufStride: UInt32 = 0, dmabufOffset: UInt32 = 0,
+                        dmabufFourcc: UInt32 = 0, dmabufModifier: UInt64 = 0)
 
     // MARK: - Multi-surface (popups, secondary windows)
 

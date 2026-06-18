@@ -73,6 +73,9 @@ impl App {
         let info = adapter.get_info();
         log::info!("compositor adapter: {} ({:?}, {:?})", info.name, info.backend, info.device_type);
 
+        // Capture EGL handles for cross-process dma_buf import (Linux GL path).
+        wgpu_shared_surface::init_egl(&adapter);
+
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
                 .map_err(|e| EngineError::GpuInitFailed {

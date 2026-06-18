@@ -25,10 +25,10 @@ let
   # /System/Library/swift-linux by `make install` (Swift has no Linux ABI
   # stability, so it must match the toolchain that built the binaries).
   runtimeLibs = lib.makeLibraryPath [
-    pkgs.vulkan-loader
-    pkgs.mesa             # lavapipe (lvp) software Vulkan
+    pkgs.libglvnd         # libEGL.so.1 / libGLESv2.so.2 dispatcher wgpu loads
+    pkgs.mesa             # GL/EGL vendor driver (virgl) + libgbm + dri
     pkgs.libxkbcommon
-    pkgs.wayland
+    pkgs.wayland          # libwayland-egl for the windowed GL surface
     pkgs.fontconfig
     pkgs.freetype
     pkgs.sqlite
@@ -38,17 +38,17 @@ let
   ];
 
   sessionEnv = {
-    # /System/Library holds the Rust engine .so's; swift-linux the Swift runtime.
-    LD_LIBRARY_PATH = "/System/Library:/System/Library/swift-linux:" + runtimeLibs;
+    # /run/opengl-driver/lib: NixOS GL driver dir (virgl vendor + dri). Then the
+    # engine .so's, the Swift runtime, and the client GL/EGL stack.
+    LD_LIBRARY_PATH =
+      "/run/opengl-driver/lib:/System/Library:/System/Library/swift-linux:" + runtimeLibs;
     # Empty CLONE_ROOT => paths resolve at the FS root (/System, /Applications),
     # matching the baked layout (default would be ~/.clone).
     CLONE_ROOT = "";
-    # Software Vulkan via Mesa lavapipe (no GPU accel needed).
-    WGPU_BACKEND = "vulkan";
-    VK_ICD_FILENAMES = "${pkgs.mesa}/share/vulkan/icd.d/lvp_icd.aarch64.json";
-    LIBGL_ALWAYS_SOFTWARE = "1";
-    # vz's virtio-gpu has no 3D, so wlroots (cage) can't make a GLES/EGL
-    # context. Force its software (pixman) renderer, no HW cursor plane.
+    # Accelerated OpenGL via virgl (real GPU through Metal); see flake/engine.
+    WGPU_BACKEND = "gl";
+    # vz's virtio-gpu has no 3D for wlroots itself, so cage uses its software
+    # (pixman) renderer; CloneDesktop (a cage client) still gets accelerated GL.
     WLR_RENDERER = "pixman";
     WLR_NO_HARDWARE_CURSORS = "1";
     # winit runs as a Wayland client of cage until the direct-KMS backend lands.
@@ -92,7 +92,7 @@ in
   programs.nix-ld.libraries = with pkgs; [
     stdenv.cc.cc.lib   # libstdc++, libgcc_s
     zlib               # compress2 (PNG encoder)
-    vulkan-loader mesa libxkbcommon wayland
+    libglvnd mesa libxkbcommon wayland
     fontconfig freetype sqlite curl libxml2
     alsa-lib           # libasound.so.2 (cpal audio)
   ];

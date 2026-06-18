@@ -31,6 +31,19 @@ public final class WindowServer {
         }
     }
 
+    /// Pending DMA-BUF fd + EGL layout for a window's shared surface (Linux GL).
+    /// Returns (-1, 0,0,0,0) on macOS or when nothing new arrived. Consumes the fd.
+    private func dmabuf(_ windowId: UInt64) -> (Int32, UInt32, UInt32, UInt32, UInt64) {
+        #if canImport(Darwin)
+        return (-1, 0, 0, 0, 0)
+        #else
+        if let d = appManager.takeDmabuf(for: windowId) {
+            return (d.fd, d.stride, d.offset, d.fourcc, d.modifier)
+        }
+        return (-1, 0, 0, 0, 0)
+        #endif
+    }
+
     func compositeFrame(width: CGFloat, height: CGFloat) -> [SurfaceFrame] {
         GeometryReaderRegistry.shared.clear()
         TapRegistry.shared.clear()
@@ -47,7 +60,7 @@ public final class WindowServer {
             desc: SurfaceDesc(surfaceId: desktopSurfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
             commands: [.wallpaper(x: 0, y: 0, w: Float(width), h: Float(height))],
             pixelData: nil,
-            iosurfaceId: 0, dmabufFd: -1
+            iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
         ))
 
         // Always sync new apps (including loginWindow pre-session)
@@ -60,10 +73,12 @@ public final class WindowServer {
                 let surfaceId = windowSurfaceBase + window.id
                 let iosurfaceId = appManager.iosurfaceId(for: window.id)
                 if iosurfaceId != 0 {
+                    let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
                     frames.append(SurfaceFrame(
                         desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
                         commands: [], pixelData: nil,
-                        iosurfaceId: iosurfaceId, dmabufFd: -1
+                        iosurfaceId: iosurfaceId, dmabufFd: dfd,
+                        dmabufStride: ds, dmabufOffset: dofs, dmabufFourcc: dfcc, dmabufModifier: dmod
                     ))
                 } else {
                     let cmds = appManager.commands(for: window.id)
@@ -71,7 +86,7 @@ public final class WindowServer {
                         frames.append(SurfaceFrame(
                             desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
                             commands: cmds.map { Bridge.offsetIpcCommand($0, dy: 0) },
-                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1
+                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
                         ))
                     }
                 }
@@ -117,9 +132,11 @@ public final class WindowServer {
                 }
                 let cornerRadius: Float = isPopup ? 8 : 0
                 if iosurfaceId != 0 {
+                    let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
                     frames.append(SurfaceFrame(
                         desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
-                        commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: -1
+                        commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: dfd,
+                        dmabufStride: ds, dmabufOffset: dofs, dmabufFourcc: dfcc, dmabufModifier: dmod
                     ))
                 } else {
                     // Compositor-rendered fallback (IPC commands)
@@ -129,7 +146,7 @@ public final class WindowServer {
                         frames.append(SurfaceFrame(
                             desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
                             commands: cmds.map { Bridge.offsetIpcCommand($0, dy: 0) },
-                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1
+                            pixelData: nil, iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
                         ))
                     }
                 }
@@ -208,6 +225,7 @@ public final class WindowServer {
                 let surfDims = appManager.surfaceDimensions(for: window.id)
                 let cw = srcW > 0 ? srcW : Float(surfDims?.width ?? 0)
                 let ch = srcH > 0 ? srcH : Float(surfDims?.height ?? 0)
+                let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
                         surfaceId: surfaceId,
@@ -223,7 +241,8 @@ public final class WindowServer {
                     ),
                     commands: [],
                     pixelData: nil,
-                    iosurfaceId: iosurfaceId, dmabufFd: -1
+                    iosurfaceId: iosurfaceId, dmabufFd: dfd,
+                    dmabufStride: ds, dmabufOffset: dofs, dmabufFourcc: dfcc, dmabufModifier: dmod
                 ))
             } else {
                 // Compositor-rendered: single surface with chrome + content
@@ -242,7 +261,7 @@ public final class WindowServer {
                     ),
                     commands: windowCommands,
                     pixelData: nil,
-                    iosurfaceId: 0, dmabufFd: -1
+                    iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
                 ))
             }
 
@@ -270,7 +289,7 @@ public final class WindowServer {
                     ),
                     commands: backdropCommands,
                     pixelData: nil,
-                    iosurfaceId: 0, dmabufFd: -1
+                    iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
                 ))
 
                 // Sheet surface — centered over parent
@@ -292,7 +311,7 @@ public final class WindowServer {
                     ),
                     commands: sheetEngineCommands,
                     pixelData: nil,
-                    iosurfaceId: 0, dmabufFd: -1
+                    iosurfaceId: 0, dmabufFd: -1, dmabufStride: 0, dmabufOffset: 0, dmabufFourcc: 0, dmabufModifier: 0
                 ))
             }
         }

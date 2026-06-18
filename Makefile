@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image utm-deploy utm-redeploy
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -230,12 +230,31 @@ os-stage:
 # Pack the staged tree into a UTM-bootable qcow2 (EFI). --impure: reads the
 # gitignored .build/clone-root via CLONE_ROOT_STAGE.
 os-image: os-stage
-	CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure .#image -o .build/clone-image
-	@echo "Image at .build/clone-image. Copy the qcow2 to the Mac and import in UTM"
+	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure .#image -o .build/clone-image'
+	cp -L --no-preserve=mode,ownership .build/clone-image/nixos.qcow2 .build/clone.qcow2
+	@echo "Image at .build/clone.qcow2"
 
-# Mac-side convenience: dispatch the whole stage+pack into the NixOS VM.
+# Mac-side convenience: dispatch the whole stage+pack into the build VM.
+VM ?= clone-dev
 vm-image:
-	limactl shell clone -- bash -c 'cd /mnt/clone && make os-image'
+	limactl shell $(VM) -- bash -lc 'cd /mnt/clone && export PATH=/usr/bin:$$PATH && make os-image'
+
+# --- UTM deploy (Mac-side): push a fresh image into the UTM VM ---
+# UTM keeps its own copy of the disk in the .utm bundle, so a plain restart
+# does NOT pick up a new build; we stop, overwrite that copy, and start.
+UTM_VM ?= Clone
+UTMCTL = /Applications/UTM.app/Contents/MacOS/utmctl
+UTM_DISK = $(HOME)/Library/Containers/com.utmapp.UTM/Data/Documents/$(UTM_VM).utm/Data/clone.qcow2
+utm-deploy:
+	@test "$(UNAME)" = "Darwin" || { echo "utm-deploy runs on macOS (the UTM host)"; exit 1; }
+	@test -f .build/clone.qcow2 || { echo ".build/clone.qcow2 missing; run 'make vm-image' first"; exit 1; }
+	-$(UTMCTL) stop $(UTM_VM)
+	cp .build/clone.qcow2 "$(UTM_DISK)"
+	$(UTMCTL) start $(UTM_VM)
+	@echo "$(UTM_VM) restarted with fresh image"
+
+# Full Mac-side cycle: build image in the VM, then redeploy to UTM.
+utm-redeploy: vm-image utm-deploy
 
 clean:
 	cargo clean

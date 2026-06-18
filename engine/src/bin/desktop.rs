@@ -62,6 +62,10 @@ impl DesktopDelegate for DemoDelegate {
             pixel_data: None,
             iosurface_id: 0,
             dmabuf_fd: -1,
+            dmabuf_stride: 0,
+            dmabuf_offset: 0,
+            dmabuf_fourcc: 0,
+            dmabuf_modifier: 0,
         }]
     }
 

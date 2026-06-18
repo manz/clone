@@ -19,10 +19,14 @@ objc2-metal = { version = "0.3", features = ["MTLDevice", "MTLTexture", "MTLPixe
 cc = "1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-wgpu-hal = { version = "29", features = ["vulkan"] }
+# gles for the EGL dma_buf sharing path (virgl); vulkan kept for completeness.
+wgpu-hal = { version = "29", features = ["gles", "vulkan"] }
 wgpu-types = "29"
 ash = "0.38"
 libc = "0.2"
+# Must match wgpu-hal's versions so the EGL Display / glow texture types line up.
+khronos-egl = { version = "6", features = ["dynamic"] }
+glow = "0.17"
 
 [dev-dependencies]
 pollster = "0.4"

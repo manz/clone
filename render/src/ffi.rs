@@ -13,6 +13,24 @@ pub enum RenderError {
     RenderFailed { reason: String },
 }
 
+/// DMA-BUF export result: fd + EGL import layout (Linux GL sharing).
+/// fd is -1 when unavailable. Caller closes fd after sendmsg.
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct DmabufExport {
+    pub fd: i32,
+    pub stride: u32,
+    pub offset: u32,
+    pub fourcc: u32,
+    pub modifier: u64,
+}
+
+impl DmabufExport {
+    fn none() -> Self {
+        Self { fd: -1, stride: 0, offset: 0, fourcc: 0, modifier: 0 }
+    }
+}
+
 /// UniFFI-exported headless renderer for app-side rendering.
 /// Thread-safe wrapper around HeadlessDevice.
 #[cfg_attr(feature = "uniffi", derive(uniffi::Object))]
@@ -81,6 +99,24 @@ impl AppRenderer {
     pub fn export_fd_at(&self, index: u32) -> i32 {
         let device = self.inner.lock().unwrap();
         device.shared_texture_at(index as usize).and_then(|t| t.export_fd().ok()).unwrap_or(-1)
+    }
+
+    /// Export the current front surface as a DMA-BUF + EGL layout (Linux GL).
+    pub fn export_dmabuf(&self) -> DmabufExport {
+        let device = self.inner.lock().unwrap();
+        let Some(t) = device.shared_texture() else { return DmabufExport::none() };
+        #[cfg(target_os = "linux")]
+        {
+            match t.export_dmabuf() {
+                Ok((fd, stride, offset, fourcc, modifier)) =>
+                    DmabufExport { fd, stride, offset, fourcc, modifier },
+                Err(_) => DmabufExport::none(),
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            DmabufExport { fd: t.export_fd().unwrap_or(-1), stride: 0, offset: 0, fourcc: 0, modifier: 0 }
+        }
     }
 
     /// True if textures were reallocated since the last call.
