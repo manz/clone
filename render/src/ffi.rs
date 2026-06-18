@@ -108,18 +108,15 @@ impl AppRenderer {
     pub fn export_dmabuf(&self) -> DmabufExport {
         let device = self.inner.lock().unwrap();
         let Some(t) = device.shared_texture() else {
-            log::info!("export_dmabuf: no shared_texture");
             return DmabufExport::none();
         };
         #[cfg(target_os = "linux")]
         {
             match t.export_dmabuf() {
-                Ok((fd, stride, offset, fourcc, modifier)) => {
-                    log::info!("export_dmabuf: fd={fd} {stride}x stride fourcc={fourcc:#x}");
-                    DmabufExport { fd, stride, offset, fourcc, modifier }
-                }
+                Ok((fd, stride, offset, fourcc, modifier)) =>
+                    DmabufExport { fd, stride, offset, fourcc, modifier },
                 Err(e) => {
-                    log::info!("export_dmabuf: err {e}");
+                    log::warn!("export_dmabuf: {e}");
                     DmabufExport::none()
                 }
             }

@@ -162,6 +162,10 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     }
 
     // KMS cursor plane: a small ARGB bo with the arrow.
+    // scale=1.0: logical == physical (1280x800). Apps render at 2x and the
+    // surface downscales via UV (works, click coords line up). A true HiDPI
+    // scale needs the whole model (apps/hit-test/menubar-width) made consistent;
+    // until then 1.0 keeps the desktop usable (menubar looks half = known issue).
     let scale = 1.0_f32;
     let mut cx = (w / 2) as f64;
     let mut cy = (h / 2) as f64;
@@ -207,7 +211,7 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
             if fds[1].revents & libc::POLLIN != 0 {
                 let _ = libinput.dispatch();
                 while let Some(ev) = libinput.next() {
-                    handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, &gbm, crtc);
+                    handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, scale, &gbm, crtc);
                 }
             }
             if fds[0].revents & libc::POLLIN != 0 {
@@ -233,22 +237,26 @@ fn handle_input(
     cy: &mut f64,
     w: u32,
     h: u32,
+    scale: f32,
     gbm: &gbm::Device<Card>,
     crtc: drm::control::crtc::Handle,
 ) {
+    // cx/cy are PHYSICAL screen coords (cursor plane); the delegate hit-tests in
+    // LOGICAL coords, so divide by scale for on_pointer_move (matches winit path).
+    let s = scale as f64;
     match ev {
         InputEvent::Pointer(PointerEvent::Motion(m)) => {
             *cx = (*cx + m.dx()).clamp(0.0, (w - 1) as f64);
             *cy = (*cy + m.dy()).clamp(0.0, (h - 1) as f64);
             let _ = gbm.move_cursor(crtc, (*cx as i32, *cy as i32));
-            delegate.on_pointer_move(0, *cx, *cy);
+            delegate.on_pointer_move(0, *cx / s, *cy / s);
         }
         // VMs expose an absolute pointing device (tablet); handle those too.
         InputEvent::Pointer(PointerEvent::MotionAbsolute(m)) => {
             *cx = m.absolute_x_transformed(w).clamp(0.0, (w - 1) as f64);
             *cy = m.absolute_y_transformed(h).clamp(0.0, (h - 1) as f64);
             let _ = gbm.move_cursor(crtc, (*cx as i32, *cy as i32));
-            delegate.on_pointer_move(0, *cx, *cy);
+            delegate.on_pointer_move(0, *cx / s, *cy / s);
         }
         InputEvent::Pointer(PointerEvent::Button(b)) => {
             let btn = match b.button() {
@@ -258,7 +266,6 @@ fn handle_input(
                 _ => 3,
             };
             let pressed = b.button_state() == ButtonState::Pressed;
-            log::info!("input button={} pressed={} at ({:.0},{:.0})", b.button(), pressed, *cx, *cy);
             delegate.on_pointer_button(0, btn, pressed);
         }
         InputEvent::Pointer(PointerEvent::ScrollWheel(s)) => {

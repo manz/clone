@@ -404,10 +404,9 @@ impl SurfaceCompositor {
             unsafe { libc::close(fd) };
             return true;
         }
-        log::info!("import dma_buf surface {surface_id}: {width}x{height} fd={fd} stride={stride} fourcc={fourcc:#x}");
+        log::debug!("import dma_buf surface {surface_id}: {width}x{height} fd={fd} stride={stride} fourcc={fourcc:#x}");
         match SharedTexture::from_dmabuf(device, fd, stride, offset, fourcc, modifier, width, height, self.offscreen_format) {
             Ok(shared) => {
-                log::info!("import dma_buf surface {surface_id}: OK");
                 // EGL import dups the fd internally; release ours.
                 unsafe { libc::close(fd) };
                 self.imported_dmabuf.insert(surface_id, (width, height));
