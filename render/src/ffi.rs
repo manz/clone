@@ -107,13 +107,21 @@ impl AppRenderer {
     /// Export the current front surface as a DMA-BUF + EGL layout (Linux GL).
     pub fn export_dmabuf(&self) -> DmabufExport {
         let device = self.inner.lock().unwrap();
-        let Some(t) = device.shared_texture() else { return DmabufExport::none() };
+        let Some(t) = device.shared_texture() else {
+            log::info!("export_dmabuf: no shared_texture");
+            return DmabufExport::none();
+        };
         #[cfg(target_os = "linux")]
         {
             match t.export_dmabuf() {
-                Ok((fd, stride, offset, fourcc, modifier)) =>
-                    DmabufExport { fd, stride, offset, fourcc, modifier },
-                Err(_) => DmabufExport::none(),
+                Ok((fd, stride, offset, fourcc, modifier)) => {
+                    log::info!("export_dmabuf: fd={fd} {stride}x stride fourcc={fourcc:#x}");
+                    DmabufExport { fd, stride, offset, fourcc, modifier }
+                }
+                Err(e) => {
+                    log::info!("export_dmabuf: err {e}");
+                    DmabufExport::none()
+                }
             }
         }
         #[cfg(not(target_os = "linux"))]
