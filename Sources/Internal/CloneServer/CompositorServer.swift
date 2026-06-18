@@ -87,6 +87,7 @@ public final class ConnectedApp {
         let (bytesRead32, receivedFd) = posix_recvmsg_fd(fd, &buf, buf.count)
         let bytesRead = Int(bytesRead32)
         #endif
+        FileHandle.standardError.write("[recv] win=\(windowId) bytes=\(bytesRead) fd=\(receivedFd)\n".data(using: .utf8)!)
         guard bytesRead > 0 else {
             // Disconnected
             readSource?.cancel()
@@ -404,6 +405,7 @@ public final class CompositorServer {
             routeAvocadoEvent(targetAppId: targetAppId, event: event)
 
         case .surfaceCreated(let iosurfaceId, let width, let height, let stride, let offset, let fourcc, let modifier):
+            FileHandle.standardError.write("[server] surfaceCreated app.windowId=\(app.windowId) iosurfaceId=\(iosurfaceId) \(width)x\(height) fd=\(app.dmabufFd)\n".data(using: .utf8)!)
             app.iosurfaceId = iosurfaceId
             app.surfaceWidth = width
             app.surfaceHeight = height

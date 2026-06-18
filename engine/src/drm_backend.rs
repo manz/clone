@@ -146,6 +146,32 @@ fn render_compositor(
     scale: f32,
     delegate: &dyn DesktopDelegate,
 ) {
+    // Debug: clear to magenta instead of compositing, to verify the render-loop
+    // + page-flip path displays at all (CLONE_DRM_DEBUG_CLEAR=1).
+    if std::env::var_os("CLONE_DRM_DEBUG_CLEAR").is_some() {
+        let mut enc = device.create_command_encoder(&Default::default());
+        {
+            let _pass = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("debug_clear"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: target.view(),
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.8, g: 0.0, b: 0.8, a: 1.0 }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+        }
+        queue.submit([enc.finish()]);
+        device.poll(wgpu::PollType::wait_indefinitely()).ok();
+        return;
+    }
     let logical_w = (w as f32 / scale) as u32;
     let logical_h = (h as f32 / scale) as u32;
     let frames = delegate.on_composite_frame(logical_w, logical_h);

@@ -47,6 +47,9 @@ impl AppRenderer {
     /// Create a new headless GPU renderer.
     #[cfg_attr(feature = "uniffi", uniffi::constructor)]
     pub fn new() -> Result<Self, RenderError> {
+        // App-side processes don't otherwise init logging; honor RUST_LOG so the
+        // dma_buf export path is visible.
+        let _ = env_logger::try_init();
         let device = HeadlessDevice::new().map_err(|e| RenderError::GpuInitFailed {
             reason: e,
         })?;

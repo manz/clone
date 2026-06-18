@@ -190,11 +190,14 @@ impl SharedTexture {
         let view = texture.create_view(&Default::default());
 
         match export_texture(&texture) {
-            Ok((fd, stride, offset, fourcc, modifier)) => Ok(Self {
-                texture, view, surface_id, width, height,
-                dmabuf_fd: Some(fd), stride, offset, fourcc, modifier,
-                egl_image: std::ptr::null_mut(),
-            }),
+            Ok((fd, stride, offset, fourcc, modifier)) => {
+                log::info!("dma_buf export OK: {width}x{height} stride={stride} fourcc={fourcc:#x} mod={modifier:#x}");
+                Ok(Self {
+                    texture, view, surface_id, width, height,
+                    dmabuf_fd: Some(fd), stride, offset, fourcc, modifier,
+                    egl_image: std::ptr::null_mut(),
+                })
+            }
             Err(e) => {
                 log::warn!("EGL dma_buf export failed ({e}); surface won't be shared");
                 Ok(Self {

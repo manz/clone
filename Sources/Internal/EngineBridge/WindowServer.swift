@@ -38,8 +38,10 @@ public final class WindowServer {
         return (-1, 0, 0, 0, 0)
         #else
         if let d = appManager.takeDmabuf(for: windowId) {
+            FileHandle.standardError.write("[dmabuf] window \(windowId): fd=\(d.fd) \(d.fourcc)\n".data(using: .utf8)!)
             return (d.fd, d.stride, d.offset, d.fourcc, d.modifier)
         }
+        FileHandle.standardError.write("[dmabuf] window \(windowId): none\n".data(using: .utf8)!)
         return (-1, 0, 0, 0, 0)
         #endif
     }
@@ -68,10 +70,12 @@ public final class WindowServer {
 
         // Pre-session: wallpaper + loginWindow only (skip window management)
         if !appManager.sessionStarted {
+            FileHandle.standardError.write("[pre-session] windows=\(windowManager.windows.count) login=\(windowManager.windows.filter { $0.role == .loginWindow }.count)\n".data(using: .utf8)!)
             // Render loginWindow as full-screen overlay
             for window in windowManager.windows where window.role == .loginWindow {
                 let surfaceId = windowSurfaceBase + window.id
                 let iosurfaceId = appManager.iosurfaceId(for: window.id)
+                FileHandle.standardError.write("[pre-session] loginWindow \(window.id) iosurfaceId=\(iosurfaceId)\n".data(using: .utf8)!)
                 if iosurfaceId != 0 {
                     let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
                     frames.append(SurfaceFrame(

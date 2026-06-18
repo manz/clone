@@ -163,15 +163,16 @@ final class AppConnectionManager {
         server.onOpenFile = { [weak self] path in
             self?.pendingOpenFiles.append(path)
         }
+        // Append synchronously (like the other callbacks): the DRM server loop
+        // blocks the main thread, so a Task { @MainActor } would never run.
         server.onAppConnected = { [weak self] app in
-            let wid = app.windowId
-            Task { @MainActor in self?.pendingAppConnects.append(wid) }
+            self?.pendingAppConnects.append(app.windowId)
         }
         server.onAppDisconnected = { [weak self] wid in
-            Task { @MainActor in self?.pendingAppDisconnects.append(wid) }
+            self?.pendingAppDisconnects.append(wid)
         }
         server.onSetTitle = { [weak self] wid, title in
-            Task { @MainActor in self?.pendingTitleUpdates.append((wid, title)) }
+            self?.pendingTitleUpdates.append((wid, title))
         }
         server.onRequestThumbnail = { [weak self] dockWindowId, windowId, maxW, maxH in
             logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
