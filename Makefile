@@ -93,6 +93,7 @@ swift:
 	swift build $(SWIFT_FLAGS) --product cloned
 	swift build $(SWIFT_FLAGS) --product launchservicesd
 	swift build $(SWIFT_FLAGS) --product avocadoeventsd
+	swift build $(SWIFT_FLAGS) --product open
 
 # SDK frameworks
 sdk:
@@ -157,6 +158,9 @@ install: install-sdk
 	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/Library/CoreServices/keychaind 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/Library/CoreServices/launchservicesd 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/Library/CoreServices/avocadoeventsd 2>/dev/null || true
+	@# `open` CLI: macOS ships it at /usr/bin/open. Stage there for parity.
+	@mkdir -p $(CLONE_ROOT)/usr/bin
+	@cp -f $(SWIFT_BUILD_DIR)/open $(CLONE_ROOT)/usr/bin/open 2>/dev/null || true
 ifeq ($(UNAME),Linux)
 	@echo "Bundling Swift runtime (from the toolchain CloneDesktop links against)..."
 	@RT=$$(ldd $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null | grep -m1 libswiftCore | awk '{print $$3}' | xargs -r dirname); \
@@ -164,6 +168,9 @@ ifeq ($(UNAME),Linux)
 		mkdir -p $(CLONE_ROOT)/System/Library/swift-linux; \
 		cp -aL "$$RT"/*.so* $(CLONE_ROOT)/System/Library/swift-linux/ 2>/dev/null; \
 		echo "  Swift runtime from $$RT"; \
+		BT=$$(find "$$RT/../../.." -name swift-backtrace -type f 2>/dev/null | head -1); \
+		if [ -n "$$BT" ]; then cp -f "$$BT" $(CLONE_ROOT)/System/Library/swift-linux/swift-backtrace && echo "  swift-backtrace from $$BT"; \
+		else echo "  WARN: swift-backtrace not found near runtime"; fi; \
 	else echo "  WARN: could not locate Swift runtime via ldd"; fi
 endif
 	@echo "Installed to $(CLONE_ROOT) ($(CONFIG))"
@@ -230,7 +237,7 @@ os-stage:
 # Pack the staged tree into a UTM-bootable qcow2 (EFI). --impure: reads the
 # gitignored .build/clone-root via CLONE_ROOT_STAGE.
 os-image: os-stage
-	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure .#image -o .build/clone-image'
+	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure --fallback .#image -o .build/clone-image'
 	cp -L --no-preserve=mode,ownership .build/clone-image/nixos.qcow2 .build/clone.qcow2
 	@echo "Image at .build/clone.qcow2"
 

@@ -41,11 +41,14 @@ let
     pkgs.stdenv.cc.cc.lib # libstdc++
   ];
 
+  # /run/opengl-driver/lib: NixOS GL driver dir (virgl vendor + dri). Then the
+  # engine .so's, the Swift runtime, and the client GL/EGL stack. Shared by the
+  # cage session AND every login shell (so `open` and other foreign CLIs find
+  # the Swift runtime without setting LD_LIBRARY_PATH by hand).
+  ldPath = "/run/opengl-driver/lib:/System/Library:/System/Library/swift-linux:" + runtimeLibs;
+
   sessionEnv = {
-    # /run/opengl-driver/lib: NixOS GL driver dir (virgl vendor + dri). Then the
-    # engine .so's, the Swift runtime, and the client GL/EGL stack.
-    LD_LIBRARY_PATH =
-      "/run/opengl-driver/lib:/System/Library:/System/Library/swift-linux:" + runtimeLibs;
+    LD_LIBRARY_PATH = ldPath;
     # Empty CLONE_ROOT => paths resolve at the FS root (/System, /Applications),
     # matching the baked layout (default would be ~/.clone).
     CLONE_ROOT = "";
@@ -57,6 +60,9 @@ let
     # winit runs as a Wayland client of cage until the direct-KMS backend lands.
     WINIT_UNIX_BACKEND = "wayland";
     FONTCONFIG_PATH = "/etc/fonts";
+    # Symbolicated crash traces: point the Swift runtime at the bundled
+    # swift-backtrace (otherwise it logs "unable to locate swift-backtrace").
+    SWIFT_BACKTRACE = "enable=yes,symbolicate=full,swift-backtrace=/System/Library/swift-linux/swift-backtrace";
   };
 in
 {
@@ -119,7 +125,18 @@ in
     # App binaries embed both as absolute DT_NEEDED paths.
     "L+ /mnt/clone/.build/clone-root - - - - /"
     "L+ /mnt/clone/.build/sdk        - - - - /"
+    # `open` CLI at the macOS path. Baked tree stages it at /usr/bin/open.
+    "L+ /usr/bin/open    - - - - ${cloneRoot}/usr/bin/open"
   ];
+
+  # /usr/bin on PATH so `open` resolves as a bare command (macOS parity);
+  # CLONE_ROOT so the CLI's launchservicesd socket path matches the session;
+  # LD_LIBRARY_PATH so foreign Clone binaries find the Swift runtime in any shell.
+  environment.variables.CLONE_ROOT = "";
+  environment.variables.LD_LIBRARY_PATH = ldPath;
+  environment.extraInit = ''
+    export PATH="/usr/bin:$PATH"
+  '';
 
   # --- Session: cage launches the compositor fullscreen on TTY1 ---
   # services.cage owns autologin + seat (libseat) + the Wayland host.
