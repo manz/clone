@@ -36,6 +36,8 @@ let
     pkgs.libxml2          # Foundation
     pkgs.libdrm           # direct DRM/KMS server backend
     pkgs.libgbm           # gbm scanout buffers (split from mesa)
+    pkgs.libinput         # input (pointer/keyboard) for the server backend
+    pkgs.systemdLibs      # libudev (libinput device enumeration)
     pkgs.stdenv.cc.cc.lib # libstdc++
   ];
 
