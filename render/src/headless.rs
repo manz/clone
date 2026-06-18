@@ -28,6 +28,33 @@ pub struct HeadlessDevice {
 
 impl HeadlessDevice {
     pub fn new() -> Result<Self, String> {
+        // GL adapter bring-up on virgl is flaky: wgpu-hal's gles backend builds
+        // glow during request_adapter and panics ("Reading GL_VERSION failed, no
+        // valid GL context") when the host EGL context creation races/fails. It's
+        // transient (one app gets a context, the next sometimes doesn't), so catch
+        // the panic and retry instead of letting it abort the whole app process.
+        let mut last = String::from("no attempt");
+        for attempt in 0..5u32 {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(Self::bring_up_gpu)) {
+                Ok(Ok(dq)) => return Self::finish(dq),
+                Ok(Err(e)) => last = e,
+                Err(p) => {
+                    last = p
+                        .downcast_ref::<&str>()
+                        .map(|s| s.to_string())
+                        .or_else(|| p.downcast_ref::<String>().cloned())
+                        .unwrap_or_else(|| "panic".into());
+                    log::warn!("GPU bring-up panicked (attempt {}): {last}", attempt + 1);
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(150));
+        }
+        Err(format!("GPU init failed after retries: {last}"))
+    }
+
+    /// The panic-prone part: instance -> adapter -> device. Captures EGL handles
+    /// for cross-process dma_buf export before the adapter drops.
+    fn bring_up_gpu() -> Result<(wgpu::Device, wgpu::Queue), String> {
         // Linux: GL/virgl (see engine/src/window.rs for rationale).
         #[cfg(target_os = "linux")]
         let backends = wgpu::Backends::GL;
@@ -65,7 +92,10 @@ impl HeadlessDevice {
         let (device, queue) =
             pollster::block_on(adapter.request_device(&device_desc))
                 .map_err(|e| format!("Failed to get GPU device: {e}"))?;
+        Ok((device, queue))
+    }
 
+    fn finish((device, queue): (wgpu::Device, wgpu::Queue)) -> Result<Self, String> {
         let format = wgpu::TextureFormat::Bgra8Unorm;
         let mut renderer = DesktopRenderer::new(format);
         renderer.init_pipelines(&device, &queue);
