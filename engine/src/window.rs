@@ -37,7 +37,11 @@ impl App {
         }
     }
 
-    fn init_gpu(&mut self, window: Arc<Window>) -> Result<(), EngineError> {
+    fn init_gpu(
+        &mut self,
+        window: Arc<Window>,
+        display_handle: winit::event_loop::OwnedDisplayHandle,
+    ) -> Result<(), EngineError> {
         // On Linux the only working accelerated path under UTM is OpenGL via
         // virgl (Vulkan there is software-only lavapipe with no DMA-BUF). Use GL
         // so cross-process surface sharing can go through EGL dma_buf.
@@ -53,12 +57,21 @@ impl App {
         #[cfg(not(target_os = "linux"))]
         let flags = wgpu::InstanceFlags::default();
 
+        // Pass the Wayland display handle so the GL backend opens the wayland
+        // EGL platform (which has window-renderable configs); the default
+        // surfaceless platform only exposes pbuffer configs, so no window
+        // surface could be created. macOS keeps the default (None).
+        #[cfg(target_os = "linux")]
+        let display: Option<Box<dyn wgpu::WgpuHasDisplayHandle>> = Some(Box::new(display_handle));
+        #[cfg(not(target_os = "linux"))]
+        let display: Option<Box<dyn wgpu::WgpuHasDisplayHandle>> = { let _ = display_handle; None };
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends,
             backend_options: wgpu::BackendOptions::default(),
             flags,
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
-            display: None,
+            display,
         });
 
         let surface = instance
@@ -234,7 +247,7 @@ impl ApplicationHandler for App {
 
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
 
-        if let Err(e) = self.init_gpu(window) {
+        if let Err(e) = self.init_gpu(window, event_loop.owned_display_handle()) {
             log::error!("GPU init failed: {e}");
             event_loop.exit();
         }
