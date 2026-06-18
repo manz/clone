@@ -28,8 +28,14 @@ pub struct HeadlessDevice {
 
 impl HeadlessDevice {
     pub fn new() -> Result<Self, String> {
+        // Linux: GL/virgl (see engine/src/window.rs for rationale).
+        #[cfg(target_os = "linux")]
+        let backends = wgpu::Backends::GL;
+        #[cfg(not(target_os = "linux"))]
+        let backends = wgpu::Backends::VULKAN | wgpu::Backends::METAL;
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
+            backends,
             backend_options: wgpu::BackendOptions::default(),
             flags: wgpu::InstanceFlags::default(),
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
@@ -42,6 +48,8 @@ impl HeadlessDevice {
             force_fallback_adapter: false,
         }))
         .map_err(|e| format!("Failed to get GPU adapter: {e}"))?;
+        let _info = adapter.get_info();
+        log::info!("headless adapter: {} ({:?})", _info.name, _info.backend);
 
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))

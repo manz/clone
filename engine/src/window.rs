@@ -38,8 +38,16 @@ impl App {
     }
 
     fn init_gpu(&mut self, window: Arc<Window>) -> Result<(), EngineError> {
+        // On Linux the only working accelerated path under UTM is OpenGL via
+        // virgl (Vulkan there is software-only lavapipe with no DMA-BUF). Use GL
+        // so cross-process surface sharing can go through EGL dma_buf.
+        #[cfg(target_os = "linux")]
+        let backends = wgpu::Backends::GL;
+        #[cfg(not(target_os = "linux"))]
+        let backends = wgpu::Backends::VULKAN | wgpu::Backends::METAL;
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::METAL,
+            backends,
             backend_options: wgpu::BackendOptions::default(),
             flags: wgpu::InstanceFlags::default(),
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
@@ -61,6 +69,9 @@ impl App {
             .map_err(|e| EngineError::GpuInitFailed {
                 reason: e.to_string(),
             })?;
+
+        let info = adapter.get_info();
+        log::info!("compositor adapter: {} ({:?}, {:?})", info.name, info.backend, info.device_type);
 
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
