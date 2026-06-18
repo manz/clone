@@ -34,6 +34,7 @@ let
     pkgs.sqlite
     pkgs.curl             # FoundationNetworking
     pkgs.libxml2          # Foundation
+    pkgs.libdrm           # direct DRM/KMS server backend
     pkgs.stdenv.cc.cc.lib # libstdc++
   ];
 
@@ -94,6 +95,7 @@ in
     libglvnd mesa libxkbcommon wayland
     fontconfig freetype sqlite curl libxml2
     alsa-lib           # libasound.so.2 (cpal audio)
+    libdrm             # direct DRM/KMS server backend
   ];
 
   # --- Bake the artifact tree into the image at /System, /Applications, /Library ---

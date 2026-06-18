@@ -57,22 +57,24 @@ impl App {
         #[cfg(not(target_os = "linux"))]
         let flags = wgpu::InstanceFlags::default();
 
-        // Pass the Wayland display handle so the GL backend opens the wayland
-        // EGL platform (which has window-renderable configs); the default
-        // surfaceless platform only exposes pbuffer configs, so no window
-        // surface could be created. macOS keeps the default (None).
-        #[cfg(target_os = "linux")]
-        let display: Option<Box<dyn wgpu::WgpuHasDisplayHandle>> = Some(Box::new(display_handle));
-        #[cfg(not(target_os = "linux"))]
-        let display: Option<Box<dyn wgpu::WgpuHasDisplayHandle>> = { let _ = display_handle; None };
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        let mut desc = wgpu::InstanceDescriptor {
             backends,
             backend_options: wgpu::BackendOptions::default(),
             flags,
             memory_budget_thresholds: wgpu::MemoryBudgetThresholds::default(),
-            display,
-        });
+            display: None,
+        };
+        // Pass the Wayland display handle so the GL backend opens the wayland
+        // EGL platform rather than the default surfaceless platform. (The box
+        // coerces to the descriptor's trait-object field via inference.)
+        #[cfg(target_os = "linux")]
+        {
+            desc.display = Some(Box::new(display_handle));
+        }
+        #[cfg(not(target_os = "linux"))]
+        let _ = &display_handle;
+
+        let instance = wgpu::Instance::new(desc);
 
         let surface = instance
             .create_surface(window.clone())
