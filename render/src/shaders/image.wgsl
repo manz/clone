@@ -2,6 +2,8 @@
 
 struct Uniforms {
     screen_size: vec2<f32>,
+    // Pad to 16 bytes: GLES (virgl) requires 16-byte-aligned uniform bindings.
+    _pad: vec2<f32>,
 }
 
 struct VertexOutput {

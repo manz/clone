@@ -363,6 +363,12 @@ fn modifiers_to_ns_flags(state: winit::keyboard::ModifiersState) -> u32 {
 pub fn run(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     env_logger::try_init().ok();
 
+    // Server mode: no wayland/x11 host present, own the display via DRM/KMS.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WAYLAND_DISPLAY").is_none() && std::env::var_os("DISPLAY").is_none() {
+        return crate::drm_backend::run_drm(delegate);
+    }
+
     let event_loop = EventLoop::new().map_err(|e| EngineError::GpuInitFailed {
         reason: e.to_string(),
     })?;
