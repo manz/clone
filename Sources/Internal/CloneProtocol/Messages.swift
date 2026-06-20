@@ -1,10 +1,20 @@
 import Foundation
 @_exported import PosixShim
 
-/// Socket path for the compositor (XDG_RUNTIME_DIR on Linux, /tmp fallback on macOS).
+/// Base dir for sockets that cross the user boundary: the compositor (run by the
+/// _windowserver user) and launchservicesd (reached by the compositor). On the
+/// appliance this is /run/clone (CLONE_RUNTIME_DIR, group-`clone` shared). On
+/// macOS / single-user dev it falls back to the per-user runtime dir, preserving
+/// the old behavior.
+private let crossUserSocketBase: String = {
+    ProcessInfo.processInfo.environment["CLONE_RUNTIME_DIR"]
+        ?? ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"]
+        ?? "/tmp"
+}()
+
+/// Socket path for the compositor (cross-user: /run/clone on the appliance).
 public let compositorSocketPath: String = {
-    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
-    return "\(base)/clone-compositor.sock"
+    "\(crossUserSocketBase)/clone-compositor.sock"
 }()
 
 // MARK: - Render command (Codable, shared between processes)
@@ -201,8 +211,9 @@ public enum CompositorMessage: Codable, Sendable {
     case pointerMove(x: Float, y: Float)
     /// Pointer button event.
     case pointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
-    /// Key event.
-    case key(keycode: UInt32, pressed: Bool)
+    /// Key event. `modifiers` is NSEvent.ModifierFlags bits (shift 1<<17,
+    /// control 1<<18, option 1<<19, command 1<<20).
+    case key(keycode: UInt32, modifiers: UInt32, pressed: Bool)
     /// Compositor tells the app which app is focused (for menubar display).
     case focusedApp(name: String)
     /// Compositor tells the dock which windows are minimized.
@@ -421,18 +432,21 @@ public enum KeychainErrorCode: Int32, Codable, Sendable {
 
 // MARK: - Launch Services daemon
 
-/// Socket path for the launch services daemon.
+/// Socket path for the launch services daemon. Cross-user: the compositor
+/// (_windowserver) connects to it while it runs as the logged-in user, so it
+/// lives in the shared /run/clone (CLONE_RUNTIME_DIR) on the appliance.
 public let launchservicesdSocketPath: String = {
-    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
-    return "\(base)/clone-launchservicesd.sock"
+    "\(crossUserSocketBase)/clone-launchservicesd.sock"
 }()
 
 // MARK: - AvocadoEvents daemon
 
-/// Socket path for avocadoeventsd.
+/// Socket path for avocadoeventsd. Cross-user: LoginWindow (root) and the desktop
+/// apps (the logged-in user) both connect to it, so it lives in the shared
+/// /run/clone (CLONE_RUNTIME_DIR) like the compositor + launchservicesd, not the
+/// per-user runtime dir, which root and the user don't share.
 public let avocadoeventsdSocketPath: String = {
-    let base = ProcessInfo.processInfo.environment["XDG_RUNTIME_DIR"] ?? "/tmp"
-    return "\(base)/clone-avocadoevents.sock"
+    "\(crossUserSocketBase)/clone-avocadoevents.sock"
 }()
 
 /// Client → avocadoeventsd
