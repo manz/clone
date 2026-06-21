@@ -55,7 +55,7 @@ struct YCodeBuild {
             try FileManager.default.removeItem(at: stubsDir)
         }
 
-        // SDK stubs are now proper targets in Clone — only generate stubs for truly unknown modules
+        // SDK stubs are now proper targets in Clone - only generate stubs for truly unknown modules
         let unknownStubs = classified.unknown
         if !unknownStubs.isEmpty {
             try StubGenerator.generate(modules: unknownStubs, outputDir: stubsDir.path)
@@ -122,7 +122,7 @@ struct YCodeBuild {
         }
         try currentMode.write(to: modeMarker, atomically: true, encoding: .utf8)
 
-        // In prebuilt mode, nuke SPM's build.db — that's the manifest SPM uses to decide
+        // In prebuilt mode, nuke SPM's build.db - that's the manifest SPM uses to decide
         // what's up-to-date. It doesn't track external -F framework changes, so without
         // this SPM skips recompilation even when our SDK dylibs changed.
         // Removing just build.db forces a full re-evaluation while keeping resolved
@@ -244,7 +244,7 @@ func assembleBundle(target: String, binaryPath: String, sourceDir: String, outpu
         print("ycodebuild: copied \(items.count) resource(s)")
     }
 
-    // Ad-hoc code sign — macOS requires valid signatures for .app bundles
+    // Ad-hoc code sign - macOS requires valid signatures for .app bundles
     #if os(macOS)
     let codesign = Process()
     codesign.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
@@ -304,7 +304,11 @@ struct SDKManifest: Codable {
         var stubs = Set<String>()
         var unknown = Set<String>()
 
-        let systemSet = Set(self.system)
+        // Platform libc + core runtime modules are always real on the target OS, so
+        // they pass through, never stubbed. Glibc/Musl on Linux, Darwin on macOS; the
+        // app's own `#if canImport(...)` picks the right one per platform.
+        let alwaysSystem: Set<String> = ["Glibc", "Musl", "Darwin", "Dispatch", "ObjectiveC", "_Concurrency"]
+        let systemSet = Set(self.system).union(alwaysSystem)
         let stubSet = Set(self.stubs)
 
         for imp in imports {
