@@ -3,9 +3,9 @@ import Foundation
 /// Persistent state storage across frame rebuilds.
 ///
 /// Keys combine three components:
-/// 1. **Scope path** — pushed by ForEach with item IDs (e.g. "track-42/")
-/// 2. **Source location** — file:line from #fileID:#line
-/// 3. **Call index** — disambiguates multiple @State at same file:line outside ForEach
+/// 1. **Scope path** - pushed by ForEach with item IDs (e.g. "track-42/")
+/// 2. **Source location** - file:line from #fileID:#line
+/// 3. **Call index** - disambiguates multiple @State at same file:line outside ForEach
 ///
 /// Example key: "track-42/TrackRow.swift:8:0"
 ///
@@ -17,7 +17,12 @@ public final class StateGraph: @unchecked Sendable {
     public static let shared = StateGraph()
 
     public final class Slot {
-        public var value: Any
+        /// Any write (a @State mutation, async or not) flags the renderer so the
+        /// frame repaints without waiting for an input event. didSet does not fire
+        /// for the init assignment, so creating a slot doesn't spuriously invalidate.
+        public var value: Any {
+            didSet { StateGraph.shared.needsAsyncRender = true }
+        }
         /// Holds the Combine subscription for @StateObject → objectWillChange.
         public var subscription: AnyCancellable?
         public init(_ value: Any) { self.value = value }
@@ -26,7 +31,7 @@ public final class StateGraph: @unchecked Sendable {
     private var slots: [String: Slot] = [:]
     /// Tracks how many times each scoped file:line has been called this frame.
     private var callCounts: [String: Int] = [:]
-    /// Scope stack — ForEach pushes item IDs, producing "id1/id2/" prefixes.
+    /// Scope stack - ForEach pushes item IDs, producing "id1/id2/" prefixes.
     private var scopeStack: [String] = []
     /// Cached scope prefix, rebuilt on push/pop.
     private var scopePrefix: String = ""
@@ -88,7 +93,7 @@ public final class StateGraph: @unchecked Sendable {
         scopePrefix = ""
     }
 
-    /// No-op — view scoping handled by pushScope/popScope.
+    /// No-op - view scoping handled by pushScope/popScope.
     public func pushView(_ type: String) {}
     public func popView() {}
 
