@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image utm-deploy utm-redeploy os-dev-image dev-image dev-deploy
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release docker-build docker-sdk docker-apps os-stage mkosi-image
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -16,7 +16,7 @@ else
   SED_INPLACE = sed -i
 endif
 
-# Build everything: engine → bindings → render → audio → audio-bindings → compositor → SDK → install-sdk → apps → install
+# Build everything: engine -> bindings -> render -> audio -> audio-bindings -> compositor -> SDK -> install-sdk -> apps -> install
 all: bindings render-bindings text-bindings audio-bindings swift sdk install-sdk apps install
 
 # Release shorthand
@@ -149,9 +149,9 @@ install: install-sdk
 			[ -d "$$app" ] || continue; \
 			name=$$(basename "$$app" .app); \
 			if echo " $(SYSTEM_APPS) " | grep -q " $$name "; then \
-				cp -a "$$app" "$(CLONE_ROOT)/System/Library/CoreServices/$$(basename $$app)" && echo "  $$(basename $$app) → CoreServices"; \
+				cp -a "$$app" "$(CLONE_ROOT)/System/Library/CoreServices/$$(basename $$app)" && echo "  $$(basename $$app) -> CoreServices"; \
 			else \
-				cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app) → Applications"; \
+				cp -a "$$app" "$(CLONE_ROOT)/Applications/$$(basename $$app)" && echo "  $$(basename $$app) -> Applications"; \
 			fi; \
 		done; \
 	done
@@ -210,30 +210,10 @@ docker-sdk: docker-build
 docker-apps: docker-build
 	docker run --rm -v $(PWD):/clone clone-sdk make apps
 
-# --- VM (NixOS via Lima) ---
+# --- Appliance image (mkosi / Debian) ---
 
-vm-create:
-	limactl create --name clone nix/lima.yaml
-
-vm-start:
-	limactl start clone
-
-vm-stop:
-	limactl stop clone
-
-vm-ssh:
-	limactl shell clone
-
-vm-build:
-	limactl shell clone -- bash -c 'cd /mnt/clone && make all && make sdk'
-
-vm-run:
-	limactl shell clone -- bash -c 'cd /mnt/clone && sudo nixos-rebuild switch --flake .#clone'
-
-# --- OS image pipeline (run inside the aarch64-linux NixOS VM) ---
-
-# Stage a self-contained macOS-layout tree for baking into the image.
-# Reuses the install target with a staging CLONE_ROOT instead of ~/.clone.
+# Stage a self-contained macOS-layout tree (binaries + bundled Swift runtime +
+# wallpapers) that mkosi copies into the image via ExtraTrees. Run on Linux.
 CLONE_ROOT_STAGE = $(PWD)/.build/clone-root
 os-stage:
 	@test "$(UNAME)" = "Linux" || { echo "os-stage must run on Linux (in the VM)"; exit 1; }
@@ -242,59 +222,12 @@ os-stage:
 	@cp -f nix/wallpapers/*.jpg "$(CLONE_ROOT_STAGE)/Library/Desktop Pictures/" 2>/dev/null || true
 	@echo "Staged Clone root at $(CLONE_ROOT_STAGE)"
 
-# Pack the staged tree into a UTM-bootable qcow2 (EFI). --impure: reads the
-# gitignored .build/clone-root via CLONE_ROOT_STAGE.
-os-image: os-stage
-	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure --fallback .#image -o .build/clone-image'
-	cp -L --no-preserve=mode,ownership .build/clone-image/nixos.qcow2 .build/clone.qcow2
-	@echo "Image at .build/clone.qcow2"
-
-# Mac-side convenience: dispatch the whole stage+pack into the build VM.
-VM ?= clone-dev
-vm-image:
-	limactl shell $(VM) -- bash -lc 'cd /mnt/clone && export PATH=/usr/bin:$$PATH && make os-image'
-
-# --- UTM deploy (Mac-side): push a fresh image into the UTM VM ---
-# UTM keeps its own copy of the disk in the .utm bundle, so a plain restart
-# does NOT pick up a new build; we stop, overwrite that copy, and start.
-UTM_VM ?= Clone
-UTMCTL = /Applications/UTM.app/Contents/MacOS/utmctl
-UTM_DISK = $(HOME)/Library/Containers/com.utmapp.UTM/Data/Documents/$(UTM_VM).utm/Data/clone.qcow2
-utm-deploy:
-	@test "$(UNAME)" = "Darwin" || { echo "utm-deploy runs on macOS (the UTM host)"; exit 1; }
-	@test -f .build/clone.qcow2 || { echo ".build/clone.qcow2 missing; run 'make vm-image' first"; exit 1; }
-	-$(UTMCTL) stop $(UTM_VM)
-	cp .build/clone.qcow2 "$(UTM_DISK)"
-	$(UTMCTL) start $(UTM_VM)
-	@echo "$(UTM_VM) restarted with fresh image"
-
-# --- Dev image: ONE UTM VM that builds + runs Clone, repo mounted at /Clone,
-# Claude over SSH. Built once; afterward iterate entirely in-VM (no rebake). ---
-# In-VM: stage the baked fallback tree, then pack the dev-image flake output.
-os-dev-image: os-stage
-	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure --fallback .#dev-image -o .build/clone-dev-image'
-	cp -L --no-preserve=mode,ownership .build/clone-dev-image/nixos.qcow2 .build/clone-dev.qcow2
-	@echo "Dev image at .build/clone-dev.qcow2"
-
-# Mac-side: dispatch the dev-image build into the build VM.
-dev-image:
-	limactl shell $(VM) -- bash -lc 'cd /mnt/clone && export PATH=/usr/bin:$$PATH && make os-dev-image'
-
-# Push the dev image into the UTM dev VM. Create CloneDev.utm once (import the
-# qcow, store it on the external drive, add a virtiofs share tagged "clone" →
-# ~/Projects/clone). Override UTM_DEV_DISK if the .utm bundle lives elsewhere.
-UTM_DEV_VM ?= CloneDev
-UTM_DEV_DISK ?= $(HOME)/Library/Containers/com.utmapp.UTM/Data/Documents/$(UTM_DEV_VM).utm/Data/clone.qcow2
-dev-deploy:
-	@test "$(UNAME)" = "Darwin" || { echo "dev-deploy runs on macOS (the UTM host)"; exit 1; }
-	@test -f .build/clone-dev.qcow2 || { echo ".build/clone-dev.qcow2 missing; run 'make dev-image' first"; exit 1; }
-	-$(UTMCTL) stop $(UTM_DEV_VM)
-	cp .build/clone-dev.qcow2 "$(UTM_DEV_DISK)"
-	$(UTMCTL) start $(UTM_DEV_VM)
-	@echo "$(UTM_DEV_VM) restarted with fresh dev image"
-
-# Full Mac-side cycle: build image in the VM, then redeploy to UTM.
-utm-redeploy: vm-image utm-deploy
+# Build the bootable Debian appliance image: stage the tree, then run mkosi (config
+# in mkosi/, which copies .build/clone-root in via ExtraTrees). Run on Linux with
+# mkosi installed.
+mkosi-image: os-stage
+	cd mkosi && mkosi --force build
+	@echo "Appliance image built under mkosi/"
 
 clean:
 	cargo clean
