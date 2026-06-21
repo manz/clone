@@ -16,14 +16,14 @@ struct ModifierFlags {
     static let command: UInt32 = 1 << 20
 }
 
-/// Where a press was routed — determines where the matching release goes.
+/// Where a press was routed - determines where the matching release goes.
 @MainActor
 enum PressTarget {
     /// Press went to a window's content surface. Local coords recorded on press.
     case window(wmId: UInt64)
     /// Press went to a sheet surface of the given parent window.
     case sheet(parentWmId: UInt64)
-    /// Press went to an overlay (dock, menubar, loginWindow) — screen coords.
+    /// Press went to an overlay (dock, menubar, loginWindow) - screen coords.
     case overlay(wmId: UInt64)
     /// Press consumed by compositor chrome (traffic light, title drag, resize,
     /// sheet backdrop, empty desktop). App must NOT receive a release for it.
@@ -48,7 +48,7 @@ struct InputRouter {
             return
         }
 
-        // Hit test all surfaces (windows + overlays) — unified path
+        // Hit test all surfaces (windows + overlays) - unified path
         guard let window = windowManager.windowAt(x: x, y: y) else {
             windowManager.hoveredWindowId = nil
             if windowManager.hoveringTrafficLights {
@@ -73,7 +73,7 @@ struct InputRouter {
             }
         }
 
-        // Overlays render fullscreen — send screen coords. Windows get local coords.
+        // Overlays render fullscreen - send screen coords. Windows get local coords.
         let sendX: CGFloat, sendY: CGFloat
         if window.isOverlay {
             sendX = x; sendY = y
@@ -164,7 +164,7 @@ struct InputRouter {
             }
         }
 
-        // Sheet interception — only if focused window has an active sheet and
+        // Sheet interception - only if focused window has an active sheet and
         // the click is inside the parent window bounds.
         if let focusedId = windowManager.focusedWindowId,
            let window = windowManager.windows.first(where: { $0.id == focusedId }),
@@ -228,7 +228,7 @@ struct InputRouter {
             return .window(wmId: window.id)
         }
 
-        // Overlay (dock, menubar, loginWindow) — fullscreen surface, screen coords.
+        // Overlay (dock, menubar, loginWindow) - fullscreen surface, screen coords.
         appManager.sendPointerButton(wmWindowId: window.id, button: button, pressed: true, x: Float(x), y: Float(y))
         return .overlay(wmId: window.id)
     }
@@ -241,7 +241,7 @@ struct InputRouter {
     ) {
         guard pressed else { return }
 
-        // Compositor-level shortcuts — intercepted before forwarding to apps
+        // Compositor-level shortcuts - intercepted before forwarding to apps
         switch keycode {
         case KeyCode.f3:
             windowManager.toggleExpose(animationManager: animationManager)
@@ -250,11 +250,15 @@ struct InputRouter {
             break
         }
 
-        // Forward to focused window, or loginWindow pre-session
-        let targetId = windowManager.focusedWindowId
-            ?? windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+        // LoginWindow is a modal gate: while its surface exists (it's removed on
+        // auth in startUserSession), it captures all keyboard even if a reconnected
+        // session app holds focus - the bad state after a compositor restart, where
+        // LoginWindow re-shows over the live session. Otherwise route to the focused
+        // window.
+        let targetId = windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+            ?? windowManager.focusedWindowId
         if let id = targetId {
-            appManager.sendKey(wmWindowId: id, keycode: keycode, pressed: pressed)
+            appManager.sendKey(wmWindowId: id, keycode: keycode, modifiers: modifiers, pressed: pressed)
         }
     }
 
@@ -263,8 +267,9 @@ struct InputRouter {
         windowManager: WindowManager,
         appManager: AppConnectionManager
     ) {
-        let targetId = windowManager.focusedWindowId
-            ?? windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+        // LoginWindow gate captures keyboard while shown (see routeKey).
+        let targetId = windowManager.windows.first(where: { $0.role == .loginWindow })?.id
+            ?? windowManager.focusedWindowId
         if let id = targetId {
             appManager.sendKeyChar(wmWindowId: id, character: character)
         }
