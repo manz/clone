@@ -240,7 +240,8 @@ impl SharedTexture {
     ) -> Result<Self, String> {
         let usage = wgpu::TextureUsages::RENDER_ATTACHMENT
             | wgpu::TextureUsages::TEXTURE_BINDING
-            | wgpu::TextureUsages::COPY_DST;
+            | wgpu::TextureUsages::COPY_DST
+            | wgpu::TextureUsages::COPY_SRC; // readback for SIGUSR1 screen dump
         Self::import_with_usage(device, fd, stride, offset, fourcc, modifier, width, height, format, usage)
     }
 

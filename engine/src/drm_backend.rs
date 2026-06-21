@@ -17,8 +17,35 @@ use input::event::{
 };
 use input::{Libinput, LibinputInterface};
 
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+
 use crate::ffi::{DesktopDelegate, EngineError};
 use crate::render_server::RenderServer;
+
+/// Set by SIGUSR1; the render loop dumps every app surface + the composited screen
+/// to /tmp on the next frame. The graphical equivalent of F12 for the DRM backend -
+/// triggerable over SSH (`kill -USR1 <compositor-pid>`) where no keyboard reaches us.
+static DUMP_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+extern "C" fn on_sigusr1(_: libc::c_int) {
+    DUMP_REQUESTED.store(true, Ordering::Relaxed);
+}
+
+/// Diagnostic: the compositor exits cleanly (exit 0) ~60s in and systemd restarts
+/// it, bouncing back to LoginWindow. Nothing in our code exits the loop, so some
+/// external SIGTERM/SIGINT is the trigger. Record the signal + SENDER pid (SA_SIGINFO)
+/// so the next restart names the killer in the journal. Handler is async-signal-safe
+/// (atomic stores only); the loop logs + breaks.
+static TERM_REQUESTED: AtomicBool = AtomicBool::new(false);
+static TERM_SIGNAL: AtomicI32 = AtomicI32::new(0);
+static TERM_SENDER: AtomicI32 = AtomicI32::new(0);
+
+extern "C" fn on_term(sig: libc::c_int, info: *mut libc::siginfo_t, _: *mut libc::c_void) {
+    TERM_SIGNAL.store(sig, Ordering::Relaxed);
+    let sender = if info.is_null() { -1 } else { unsafe { (*info).si_pid() } };
+    TERM_SENDER.store(sender, Ordering::Relaxed);
+    TERM_REQUESTED.store(true, Ordering::Relaxed);
+}
 
 /// libinput device-open hook. dev is in the `input` group, so plain O_RDWR works.
 struct Input;
@@ -34,6 +61,61 @@ impl LibinputInterface for Input {
     }
     fn close_restricted(&mut self, fd: OwnedFd) {
         drop(File::from(fd));
+    }
+}
+
+/// xkbcommon keyboard state: turns raw evdev keycodes from libinput into typed
+/// text (UTF-8), the way winit's `event.text` does on the windowed path. Without
+/// this the DRM backend can feed `on_key` (raw scancodes) but never `on_key_char`,
+/// so text fields (e.g. the LoginWindow password) get nothing typed.
+struct Keyboard {
+    state: xkbcommon::xkb::State,
+}
+
+impl Keyboard {
+    /// Build from the system default rules/model/layout (env-overridable via the
+    /// standard XKB_DEFAULT_* vars). Returns None if the keymap won't compile.
+    fn new() -> Option<Self> {
+        use xkbcommon::xkb;
+        let ctx = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let keymap = xkb::Keymap::new_from_names(
+            &ctx, "", "", "", "", None, xkb::KEYMAP_COMPILE_NO_FLAGS,
+        )?;
+        Some(Self { state: xkb::State::new(&keymap) })
+    }
+
+    /// Update modifier state for a key and, on press, return the composed text.
+    /// `evdev_key` is libinput's keycode (evdev space); xkb keycodes are +8.
+    /// Control keys come back as their C0 byte (Return = "\r", Backspace = "\u{8}"),
+    /// which LoginWindow's `onKeyChar` already understands.
+    fn process(&mut self, evdev_key: u32, pressed: bool) -> Option<String> {
+        use xkbcommon::xkb::{KeyDirection, Keycode};
+        let keycode = Keycode::new(evdev_key + 8);
+        let text = if pressed {
+            let s = self.state.key_get_utf8(keycode);
+            (!s.is_empty()).then_some(s)
+        } else {
+            None
+        };
+        self.state.update_key(
+            keycode,
+            if pressed { KeyDirection::Down } else { KeyDirection::Up },
+        );
+        text
+    }
+
+    /// Active modifiers as NSEvent.ModifierFlags bits (matches the winit path in
+    /// window.rs: shift 1<<17, control 1<<18, option/alt 1<<19, command/super 1<<20).
+    /// Queried after `process` updates the state, so Ctrl-<key> is reflected.
+    fn ns_modifiers(&self) -> u32 {
+        use xkbcommon::xkb;
+        let active = |name: &str| self.state.mod_name_is_active(name, xkb::STATE_MODS_EFFECTIVE);
+        let mut flags: u32 = 0;
+        if active(xkb::MOD_NAME_SHIFT) { flags |= 1 << 17; }
+        if active(xkb::MOD_NAME_CTRL)  { flags |= 1 << 18; }
+        if active(xkb::MOD_NAME_ALT)   { flags |= 1 << 19; }
+        if active(xkb::MOD_NAME_LOGO)  { flags |= 1 << 20; }
+        flags
     }
 }
 
@@ -94,6 +176,18 @@ struct Buffer {
 }
 
 pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
+    // SIGUSR1 -> dump surfaces + composited screen on the next frame (debug capture
+    // over SSH). Safe: the handler only flips an atomic.
+    unsafe { libc::signal(libc::SIGUSR1, on_sigusr1 as *const () as libc::sighandler_t); }
+    // SIGTERM/SIGINT -> record the sender pid so we learn who is killing us.
+    unsafe {
+        let mut sa: libc::sigaction = std::mem::zeroed();
+        sa.sa_sigaction = on_term as usize;
+        sa.sa_flags = libc::SA_SIGINFO;
+        libc::sigemptyset(&mut sa.sa_mask);
+        libc::sigaction(libc::SIGTERM, &sa, std::ptr::null_mut());
+        libc::sigaction(libc::SIGINT, &sa, std::ptr::null_mut());
+    }
     let path = std::env::var("CLONE_DRM_CARD").unwrap_or_else(|_| "/dev/dri/card0".into());
     let file = OpenOptions::new().read(true).write(true).open(&path)
         .map_err(|e| err(format!("open {path}: {e}")))?;
@@ -187,6 +281,12 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     let li_fd = libinput.as_raw_fd();
     let drm_fd = gbm.as_fd().as_raw_fd();
 
+    // xkb keymap for translating evdev keycodes -> typed text (on_key_char).
+    let mut keyboard = Keyboard::new();
+    if keyboard.is_none() {
+        log::warn!("DRM: xkb keymap failed to compile; no text input");
+    }
+
     // First frame on buffer 0, then set_crtc to start scanout.
     let mut front = 0usize;
     render_compositor(&mut render_server, &device, &queue, &buffers[front].shared, w, h, scale, &*delegate);
@@ -199,6 +299,14 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     // advance on input -> "appears on hover"). page_flip self-throttles via
     // EBUSY while a flip is in flight; we just skip that frame.
     loop {
+        if TERM_REQUESTED.load(Ordering::Relaxed) {
+            log::warn!(
+                "compositor: caught signal {} from pid {} - exiting render loop",
+                TERM_SIGNAL.load(Ordering::Relaxed),
+                TERM_SENDER.load(Ordering::Relaxed)
+            );
+            break;
+        }
         // Pace ~60fps + wake immediately on input; drain input + any flip events.
         let mut fds = [
             libc::pollfd { fd: drm_fd, events: libc::POLLIN, revents: 0 },
@@ -208,7 +316,7 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
         if fds[1].revents & libc::POLLIN != 0 {
             let _ = libinput.dispatch();
             while let Some(ev) = libinput.next() {
-                handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, scale, &gbm, crtc);
+                handle_input(ev, &*delegate, &mut cx, &mut cy, w, h, scale, &gbm, crtc, &mut keyboard);
             }
         }
         if fds[0].revents & libc::POLLIN != 0 {
@@ -222,6 +330,7 @@ pub fn run_drm(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
             front = back;
         }
     }
+    Ok(())
 }
 
 /// Map a libinput event to a delegate callback; move the KMS cursor.
@@ -236,6 +345,7 @@ fn handle_input(
     scale: f32,
     gbm: &gbm::Device<Card>,
     crtc: drm::control::crtc::Handle,
+    keyboard: &mut Option<Keyboard>,
 ) {
     // cx/cy are PHYSICAL screen coords (cursor plane); the delegate hit-tests in
     // LOGICAL coords, so divide by scale for on_pointer_move (matches winit path).
@@ -272,7 +382,17 @@ fn handle_input(
         }
         InputEvent::Keyboard(KeyboardEvent::Key(k)) => {
             let pressed = k.key_state() == input::event::keyboard::KeyState::Pressed;
-            delegate.on_key(0, k.key(), 0, pressed);
+            if let Some(kbd) = keyboard.as_mut() {
+                // process() updates xkb state first, so the modifiers we report to
+                // on_key reflect this key (e.g. Ctrl-<key>). Then feed typed text.
+                let text = kbd.process(k.key(), pressed);
+                delegate.on_key(0, k.key(), kbd.ns_modifiers(), pressed);
+                if let Some(text) = text {
+                    delegate.on_key_char(0, text);
+                }
+            } else {
+                delegate.on_key(0, k.key(), 0, pressed);
+            }
         }
         _ => {}
     }
@@ -318,5 +438,94 @@ fn render_compositor(
     let logical_h = (h as f32 / scale) as u32;
     let frames = delegate.on_composite_frame(logical_w, logical_h);
     render_server.render_frame(device, queue, target.view(), w, h, scale, &frames);
+
+    if DUMP_REQUESTED.swap(false, Ordering::Relaxed) {
+        let mut out = format!(
+            "Frame: {logical_w}x{logical_h} (physical {w}x{h}, scale {scale})\nSurfaces: {}\n\n",
+            frames.len()
+        );
+        for sf in &frames {
+            out.push_str(&format!(
+                "Surface {} @ ({}, {}) {}x{} content {}x{} r={} a={} - {} commands\n",
+                sf.desc.surface_id, sf.desc.x, sf.desc.y, sf.desc.width, sf.desc.height,
+                sf.desc.content_width, sf.desc.content_height,
+                sf.desc.corner_radius, sf.desc.opacity, sf.commands.len()
+            ));
+        }
+        let _ = std::fs::write("/tmp/clone-frame-dump.txt", &out);
+        for sf in &frames {
+            let path = format!("/tmp/clone-surface-{}.png", sf.desc.surface_id);
+            render_server.compositor.dump_surface(sf.desc.surface_id, device, queue, &path);
+        }
+        dump_texture(target.texture(), device, queue, w, h, "/tmp/clone-screen.png");
+        log::info!("SIGUSR1: dumped {} surfaces + screen to /tmp", frames.len());
+    }
+
     device.poll(wgpu::PollType::wait_indefinitely()).ok();
+}
+
+/// Read back a COPY_SRC texture (BGRA8) and write it as an RGBA PNG. Used for the
+/// SIGUSR1 composited-screen capture.
+fn dump_texture(
+    texture: &wgpu::Texture,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    width: u32,
+    height: u32,
+    path: &str,
+) {
+    let bytes_per_row = (width * 4 + 255) & !255;
+    let staging = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("screen_readback"),
+        size: (bytes_per_row * height) as u64,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let mut encoder = device.create_command_encoder(&Default::default());
+    encoder.copy_texture_to_buffer(
+        wgpu::TexelCopyTextureInfo {
+            texture,
+            mip_level: 0,
+            origin: wgpu::Origin3d::ZERO,
+            aspect: wgpu::TextureAspect::All,
+        },
+        wgpu::TexelCopyBufferInfo {
+            buffer: &staging,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes_per_row),
+                rows_per_image: Some(height),
+            },
+        },
+        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+    );
+    queue.submit([encoder.finish()]);
+
+    let slice = staging.slice(..);
+    let (tx, rx) = std::sync::mpsc::channel();
+    slice.map_async(wgpu::MapMode::Read, move |r| { let _ = tx.send(r); });
+    device.poll(wgpu::PollType::wait_indefinitely()).ok();
+    let _ = rx.recv();
+
+    let data = slice.get_mapped_range();
+    let mut rgba = Vec::with_capacity((width * height * 4) as usize);
+    for row in 0..height {
+        let start = (row * bytes_per_row) as usize;
+        for col in 0..width {
+            let i = start + (col * 4) as usize;
+            rgba.push(data[i + 2]);
+            rgba.push(data[i + 1]);
+            rgba.push(data[i]);
+            rgba.push(data[i + 3]);
+        }
+    }
+    drop(data);
+    staging.unmap();
+
+    if let Ok(file) = std::fs::File::create(path) {
+        let w = std::io::BufWriter::new(file);
+        let mut encoder = image::codecs::png::PngEncoder::new(w);
+        use image::ImageEncoder;
+        let _ = encoder.write_image(&rgba, width, height, image::ExtendedColorType::Rgba8);
+    }
 }
