@@ -1,0 +1,5 @@
+#!/bin/sh
+# Intentionally minimal. All Clone config (users via sysusers.d, service
+# enables/masks, passwords, ldconfig) runs in mkosi.finalize, where /etc and
+# /System are fully populated. (postinst runs too early - /etc/passwd absent.)
+exit 0

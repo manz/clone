@@ -1,0 +1,16 @@
+[Unit]
+Description=Clone cloned
+PartOf=clone-session.target
+
+[Service]
+ExecStart=/System/Library/CoreServices/cloned
+Restart=on-failure
+RestartSec=2
+UMask=0002
+Environment=CLONE_ROOT=
+Environment=CLONE_RUNTIME_DIR=/run/clone
+Environment=FONTCONFIG_PATH=/etc/fonts
+Environment=SWIFT_BACKTRACE=enable=yes,symbolicate=full,swift-backtrace=/System/Library/swift-linux/swift-backtrace
+
+[Install]
+WantedBy=clone-session.target

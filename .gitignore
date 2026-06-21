@@ -19,23 +19,34 @@ DerivedData/
 .vscode/
 .idea/
 
-# Generated UniFFI bindings — engine
+# Generated UniFFI bindings - engine
 Sources/FFI/CEngine/include/clone_engineFFI.h
 Sources/Internal/EngineBridge/clone_engine.swift
 Sources/Internal/EngineBridge/clone_engineFFI.h
 Sources/Internal/EngineBridge/clone_render.swift
 
-# Generated UniFFI bindings — render
+# Generated UniFFI bindings - render
 Sources/FFI/CRender/include/clone_renderFFI.h
 Sources/Internal/CloneRender/clone_render.swift
 
-# Generated UniFFI bindings — text
+# Generated UniFFI bindings - text
 Sources/FFI/CText/include/clone_textFFI.h
 Sources/Internal/CloneText/clone_text.swift
 Sources/Internal/CloneText/clone_textFFI.h
 
-# Generated UniFFI bindings — audio
+# Generated UniFFI bindings - audio
 Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Claude
 .claude/
+
+# Secrets - SSH keypair for the dev appliance (never commit the private key)
+id_voldemort
+id_voldemort.pub
+
+# mkosi build artifacts (images, caches, build trees) - config is tracked, output is not
+mkosi.output/
+mkosi.cache/
+mkosi.builddir/
+*.raw
+*.img

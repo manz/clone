@@ -1,0 +1,40 @@
+[Unit]
+Description=Clone WindowServer (compositor)
+After=systemd-user-sessions.service systemd-udevd.service
+Conflicts=getty@tty1.service
+
+[Service]
+ExecStart=/System/Library/CoreServices/CloneDesktop
+User=_windowserver
+Group=clone
+SupplementaryGroups=video render input tty
+TTYPath=/dev/tty1
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+Restart=always
+RestartSec=2
+# NOTE: /run/clone is owned by tmpfiles.d (d /run/clone 2775 _windowserver clone),
+# NOT RuntimeDirectory=. RuntimeDirectory would make systemd wipe /run/clone on every
+# compositor restart, deleting the session daemons' sockets (launchservicesd,
+# avocadoeventsd) and breaking app launches until they restart. tmpfiles keeps it
+# across restarts, so a compositor bounce no longer takes the session down with it.
+UMask=0002
+AmbientCapabilities=CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_TTY_CONFIG
+
+# Env (ports sessionEnv; FHS -> no nix-ld/ldPath, ldconfig resolves /System/Library).
+Environment=CLONE_ROOT=
+Environment=WGPU_BACKEND=gl
+Environment=FONTCONFIG_PATH=/etc/fonts
+Environment=XKB_DEFAULT_LAYOUT=fr
+Environment=XKB_DEFAULT_VARIANT=mac
+Environment=XKB_DEFAULT_MODEL=apple
+Environment=CLONE_DAEMONS_EXTERNAL=1
+Environment=CLONE_SESSION_EXTERNAL=1
+Environment=CLONE_RUNTIME_DIR=/run/clone
+Environment="CLONE_WALLPAPER=/Library/Desktop Pictures/peakpx.jpg"
+Environment=SWIFT_BACKTRACE=enable=yes,symbolicate=full,swift-backtrace=/System/Library/swift-linux/swift-backtrace
+
+[Install]
+WantedBy=multi-user.target

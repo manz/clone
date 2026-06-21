@@ -1,0 +1,21 @@
+[Unit]
+Description=Clone Dock
+PartOf=clone-session.target
+
+[Service]
+ExecStart=/System/Library/CoreServices/Dock.app/Contents/Linux/Dock
+Restart=on-failure
+RestartSec=2
+UMask=0002
+Environment=CLONE_ROOT=
+Environment=CLONE_RUNTIME_DIR=/run/clone
+Environment=FONTCONFIG_PATH=/etc/fonts
+Environment=SWIFT_BACKTRACE=enable=yes,symbolicate=full,swift-backtrace=/System/Library/swift-linux/swift-backtrace
+Environment=WGPU_BACKEND=gl
+Environment=XKB_DEFAULT_LAYOUT=fr
+Environment=XKB_DEFAULT_VARIANT=mac
+Environment=XKB_DEFAULT_MODEL=apple
+Environment="CLONE_WALLPAPER=/Library/Desktop Pictures/peakpx.jpg"
+
+[Install]
+WantedBy=clone-session.target

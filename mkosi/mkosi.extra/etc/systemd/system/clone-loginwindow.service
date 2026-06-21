@@ -1,0 +1,23 @@
+[Unit]
+Description=Clone LoginWindow (login gate)
+After=clone-windowserver.service
+Requires=clone-windowserver.service
+
+[Service]
+ExecStart=/System/Library/CoreServices/LoginWindow.app/Contents/Linux/LoginWindow
+User=root
+Restart=always
+RestartSec=1
+Environment=CLONE_ROOT=
+Environment=WGPU_BACKEND=gl
+Environment=FONTCONFIG_PATH=/etc/fonts
+Environment=XKB_DEFAULT_LAYOUT=fr
+Environment=XKB_DEFAULT_VARIANT=mac
+Environment=XKB_DEFAULT_MODEL=apple
+Environment=CLONE_RUNTIME_DIR=/run/clone
+Environment=CLONE_SESSION_EXTERNAL=1
+Environment="CLONE_WALLPAPER=/Library/Desktop Pictures/peakpx.jpg"
+Environment=SWIFT_BACKTRACE=enable=yes,symbolicate=full,swift-backtrace=/System/Library/swift-linux/swift-backtrace
+
+[Install]
+WantedBy=multi-user.target

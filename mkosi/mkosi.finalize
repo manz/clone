@@ -1,0 +1,55 @@
+#!/bin/sh
+# Runs LAST on the assembled rootfs at $BUILDROOT (host file ops). /etc is fully
+# populated here (sysusers ran, packages configured) and /System exists (ExtraTrees
+# applied) - unlike postinst which runs too early. All /etc + /System config lives
+# here so it persists. Users come from sysusers.d (/usr/lib/sysusers.d/clone.conf).
+set -eu
+R="${BUILDROOT:?}"
+SYS="$R/etc/systemd/system"
+USR="$R/etc/systemd/user"
+mkdir -p "$SYS/multi-user.target.wants" "$USR/clone-session.target.wants" "$R/var/lib/systemd/linger"
+
+# App dylibs (LoginWindow/Dock/Finder frameworks) embed an absolute build-time
+# RUNPATH /mnt/clone/.build/clone-root/System/... - shim it to / so they resolve
+# the ExtraTrees-copied frameworks at /System (same as appliance.nix:228-229).
+mkdir -p "$R/mnt/clone/.build"
+ln -sf / "$R/mnt/clone/.build/clone-root"
+ln -sf / "$R/mnt/clone/.build/sdk"
+
+# Mask the interactive firstboot wizard (blocks headless boot) + gettys (the
+# compositor owns tty1; serial-getty on ttyAMA0 just times out).
+for m in systemd-firstboot.service getty@tty1.service; do
+    ln -sf /dev/null "$SYS/$m"
+done
+
+# Enable system services - link to wherever the unit lives (clone-* in /etc,
+# distro units in /usr/lib or /lib). Target paths are image-absolute.
+enable_sys() {
+    for d in /etc/systemd/system /usr/lib/systemd/system /lib/systemd/system; do
+        if [ -e "$R$d/$1" ]; then ln -sf "$d/$1" "$SYS/multi-user.target.wants/$1"; return; fi
+    done
+}
+for s in systemd-networkd.service systemd-resolved.service \
+         clone-windowserver.service clone-loginwindow.service ssh.service; do
+    enable_sys "$s"
+done
+
+# Enable the per-user session units (LoginWindow starts clone-session.target post-auth).
+for u in cloned keychaind launchservicesd avocadoeventsd dock menubar finder; do
+    ln -sf "/etc/systemd/user/$u.service" "$USR/clone-session.target.wants/$u.service"
+done
+
+# Boot to multi-user (Clone is the desktop). Linger manz so LoginWindow (root)
+# can start the user session.
+ln -sf /lib/systemd/system/multi-user.target "$SYS/default.target"
+touch "$R/var/lib/systemd/linger/manz"
+
+# Passwords (dev + manz = "clone"): /etc/shadow exists now; edit directly.
+H='$6$b6CySgUc1hpsz7T/$rcQrAuAlQq4n3tt4P0P36rk0.CFkusbTVJgMh4o/L9ZWxiSlKoWXCpbRHQEyuf6rx7QkjFj8NWt1cMtysU7ee.'
+for u in dev manz; do
+    if grep -q "^$u:" "$R/etc/shadow"; then sed -i "s|^$u:[^:]*:|$u:$H:|" "$R/etc/shadow"; fi
+done
+
+# Rebuild the dynamic-linker cache with /System/Library + swift-linux present
+# (ExtraTrees added them after postinst's ldconfig ran -> it was stale).
+ldconfig -r "$R" || true
