@@ -114,6 +114,7 @@ apps:
 	$(call APPBUILD,FontBook,FontBook)
 	$(call APPBUILD,Console,Console)
 	$(call APPBUILD,Terminal,Terminal)
+	$(call APPBUILD,ActivityMonitor,ActivityMonitor)
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
