@@ -18,14 +18,14 @@ pub enum EngineError {
 }
 
 // ---------------------------------------------------------------------------
-// Callback interface — Swift implements this
+// Callback interface - Swift implements this
 // ---------------------------------------------------------------------------
 
 #[uniffi::export(callback_interface)]
 pub trait DesktopDelegate: Send + Sync {
-    /// Old flat API — still used for backwards compat, returns ALL commands.
+    /// Old flat API - still used for backwards compat, returns ALL commands.
     fn on_frame(&self, surface_id: u64, width: u32, height: u32) -> Vec<RenderCommand>;
-    /// New compositor API — returns per-surface commands for the compositor.
+    /// New compositor API - returns per-surface commands for the compositor.
     fn on_composite_frame(&self, width: u32, height: u32) -> Vec<SurfaceFrame>;
     fn on_pointer_move(&self, surface_id: u64, x: f64, y: f64);
     fn on_pointer_button(&self, surface_id: u64, button: u32, pressed: bool);
@@ -56,7 +56,7 @@ unsafe impl Send for EngineInner {}
 unsafe impl Sync for EngineInner {}
 
 // ---------------------------------------------------------------------------
-// DesktopEngine — the UniFFI Object
+// DesktopEngine - the UniFFI Object
 // ---------------------------------------------------------------------------
 
 #[derive(uniffi::Object)]
@@ -149,4 +149,15 @@ impl DesktopEngine {
 #[uniffi::export]
 pub fn run_desktop(delegate: Box<dyn DesktopDelegate>) -> Result<(), EngineError> {
     crate::window::run(delegate)
+}
+
+/// Capture the composited screen to `path` (PNG) on the next frame. The compositor
+/// holds the framebuffer, so the `screencapture` tool reaches this over IPC rather
+/// than reading the screen itself.
+#[uniffi::export]
+pub fn capture_screen(path: String) {
+    #[cfg(not(target_os = "macos"))]
+    crate::drm_backend::request_capture(path);
+    #[cfg(target_os = "macos")]
+    { let _ = path; }
 }

@@ -15,15 +15,29 @@ let cargoTargetDir: String = {
     return "./target/debug"
 }()
 
+// libghostty-vt (vendored submodule, built by `zig build` → zig-out/lib).
+let packageRootDir: String = {
+    let path = #filePath
+    if let lastSlash = path.lastIndex(of: "/") {
+        return String(path[path.startIndex..<lastSlash])
+    }
+    return "."
+}()
+let ghosttyIncludeDir = packageRootDir + "/vendor/ghostty/include"
+let ghosttyLibDir = packageRootDir + "/vendor/ghostty/zig-out/lib"
+
 let package = Package(
     name: "Clone",
     defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
-        // Public SDK products — external apps depend on these
+        // Public SDK products - external apps depend on these
         // AppKit is exposed transitively via SwiftUI (not listed here to avoid
         // shadowing macOS's real AppKit in the dependency resolver)
         .library(name: "QuartzCore", targets: ["QuartzCore"]),
+        // Terminal engine (libghostty-vt + pty). Product so the SDK build compiles
+        // it; links libghostty-vt.a → Linux-only (built on clone-dev).
+        .library(name: "CloneTerminalVT", targets: ["CloneTerminalVT"]),
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
         // Stub modules for Apple frameworks Clone doesn't implement
@@ -36,7 +50,7 @@ let package = Package(
         // can't name our target "Security" without a circular dep. On Linux
         // (where there is no system Security) this will be renamed to "Security".
         .library(name: "KeychainServices", targets: ["KeychainServices"]),
-        // Internal shared library — promoted to framework for transitive linking
+        // Internal shared library - promoted to framework for transitive linking
         .library(name: "PosixShim", targets: ["PosixShim"]),
     ],
     dependencies: [
@@ -70,6 +84,40 @@ let package = Package(
             name: "CPosixShim",
             path: "Sources/FFI/CPosixShim",
             publicHeadersPath: "include"
+        ),
+
+        .target(
+            name: "CPty",
+            path: "Sources/FFI/CPty",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                // forkpty is in libutil on Linux; part of libc on macOS/BSD.
+                .linkedLibrary("util", .when(platforms: [.linux])),
+            ]
+        ),
+
+        // libghostty-vt C module (vendored). Header resolves via -I (below);
+        // the static lib comes from vendor/ghostty/zig-out/lib.
+        .systemLibrary(
+            name: "CGhosttyVt",
+            path: "Sources/FFI/CGhosttyVt"
+        ),
+
+        // Swift bridge over libghostty-vt - VT parsing + grid state for Terminal.
+        // Owns the PTY (CPty) + read loop too, so the Terminal app stays thin.
+        .target(
+            name: "CloneTerminalVT",
+            dependencies: ["CGhosttyVt", "CPty"],
+            path: "Sources/Internal/CloneTerminalVT",
+            swiftSettings: [
+                .unsafeFlags(["-Xcc", "-I" + ghosttyIncludeDir]),
+            ],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-L", ghosttyLibDir, "-lghostty-vt",
+                    "-Xlinker", "-rpath", "-Xlinker", ghosttyLibDir,
+                ]),
+            ]
         ),
 
         // ── Internal ────────────────────────────────────────────
@@ -319,6 +367,11 @@ let package = Package(
             name: "open",
             dependencies: ["CloneProtocol", "CloneLaunchServices", "AvocadoEvents"],
             path: "Sources/Tools/open"
+        ),
+        .executableTarget(
+            name: "screencapture",
+            dependencies: ["CloneProtocol", "CloneClient"],
+            path: "Sources/Tools/screencapture"
         ),
 
         // ── Tests ────────────────────────────────────────────────

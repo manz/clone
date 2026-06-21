@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image utm-deploy utm-redeploy
+.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release vm-create vm-start vm-stop vm-ssh vm-build vm-run docker-build docker-sdk docker-apps os-stage os-image vm-image utm-deploy utm-redeploy os-dev-image dev-image dev-deploy
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -86,7 +86,7 @@ audio-bindings: audio
 	mkdir -p Sources/FFI/CAudio/include
 	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
 
-# Swift package — compositor + daemons only (not apps)
+# Swift package - compositor + daemons only (not apps)
 swift:
 	swift build $(SWIFT_FLAGS) --product CloneDesktop
 	swift build $(SWIFT_FLAGS) --product keychaind
@@ -94,12 +94,13 @@ swift:
 	swift build $(SWIFT_FLAGS) --product launchservicesd
 	swift build $(SWIFT_FLAGS) --product avocadoeventsd
 	swift build $(SWIFT_FLAGS) --product open
+	swift build $(SWIFT_FLAGS) --product screencapture
 
 # SDK frameworks
 sdk:
 	./scripts/build-sdk.sh $(CONFIG)
 
-# App processes — built against prebuilt SDK frameworks
+# App processes - built against prebuilt SDK frameworks
 APPBUILD = swift run ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
 	$(call APPBUILD,Finder,System/Finder)
@@ -111,6 +112,8 @@ apps:
 	$(call APPBUILD,TextEdit,TextEdit)
 	$(call APPBUILD,Preview,Preview)
 	$(call APPBUILD,FontBook,FontBook)
+	$(call APPBUILD,Console,Console)
+	$(call APPBUILD,Terminal,Terminal)
 
 # Install to $CLONE_ROOT (~/.clone by default)
 CLONE_ROOT ?= $(HOME)/.clone
@@ -158,9 +161,11 @@ install: install-sdk
 	@cp -f $(SWIFT_BUILD_DIR)/keychaind $(CLONE_ROOT)/System/Library/CoreServices/keychaind 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/launchservicesd $(CLONE_ROOT)/System/Library/CoreServices/launchservicesd 2>/dev/null || true
 	@cp -f $(SWIFT_BUILD_DIR)/avocadoeventsd $(CLONE_ROOT)/System/Library/CoreServices/avocadoeventsd 2>/dev/null || true
-	@# `open` CLI: macOS ships it at /usr/bin/open. Stage there for parity.
+	@# `open` + `screencapture` CLIs: macOS ships them under the system path. Stage
+	@# them on PATH for parity.
 	@mkdir -p $(CLONE_ROOT)/usr/bin
 	@cp -f $(SWIFT_BUILD_DIR)/open $(CLONE_ROOT)/usr/bin/open 2>/dev/null || true
+	@cp -f $(SWIFT_BUILD_DIR)/screencapture $(CLONE_ROOT)/usr/bin/screencapture 2>/dev/null || true
 ifeq ($(UNAME),Linux)
 	@echo "Bundling Swift runtime (from the toolchain CloneDesktop links against)..."
 	@RT=$$(ldd $(CLONE_ROOT)/System/Library/CoreServices/CloneDesktop 2>/dev/null | grep -m1 libswiftCore | awk '{print $$3}' | xargs -r dirname); \
@@ -232,6 +237,8 @@ CLONE_ROOT_STAGE = $(PWD)/.build/clone-root
 os-stage:
 	@test "$(UNAME)" = "Linux" || { echo "os-stage must run on Linux (in the VM)"; exit 1; }
 	$(MAKE) all CLONE_ROOT=$(CLONE_ROOT_STAGE)
+	@mkdir -p "$(CLONE_ROOT_STAGE)/Library/Desktop Pictures"
+	@cp -f nix/wallpapers/*.jpg "$(CLONE_ROOT_STAGE)/Library/Desktop Pictures/" 2>/dev/null || true
 	@echo "Staged Clone root at $(CLONE_ROOT_STAGE)"
 
 # Pack the staged tree into a UTM-bootable qcow2 (EFI). --impure: reads the
@@ -259,6 +266,31 @@ utm-deploy:
 	cp .build/clone.qcow2 "$(UTM_DISK)"
 	$(UTMCTL) start $(UTM_VM)
 	@echo "$(UTM_VM) restarted with fresh image"
+
+# --- Dev image: ONE UTM VM that builds + runs Clone, repo mounted at /Clone,
+# Claude over SSH. Built once; afterward iterate entirely in-VM (no rebake). ---
+# In-VM: stage the baked fallback tree, then pack the dev-image flake output.
+os-dev-image: os-stage
+	sg nix-users -c 'CLONE_ROOT_STAGE=$(CLONE_ROOT_STAGE) nix build --impure --fallback .#dev-image -o .build/clone-dev-image'
+	cp -L --no-preserve=mode,ownership .build/clone-dev-image/nixos.qcow2 .build/clone-dev.qcow2
+	@echo "Dev image at .build/clone-dev.qcow2"
+
+# Mac-side: dispatch the dev-image build into the build VM.
+dev-image:
+	limactl shell $(VM) -- bash -lc 'cd /mnt/clone && export PATH=/usr/bin:$$PATH && make os-dev-image'
+
+# Push the dev image into the UTM dev VM. Create CloneDev.utm once (import the
+# qcow, store it on the external drive, add a virtiofs share tagged "clone" →
+# ~/Projects/clone). Override UTM_DEV_DISK if the .utm bundle lives elsewhere.
+UTM_DEV_VM ?= CloneDev
+UTM_DEV_DISK ?= $(HOME)/Library/Containers/com.utmapp.UTM/Data/Documents/$(UTM_DEV_VM).utm/Data/clone.qcow2
+dev-deploy:
+	@test "$(UNAME)" = "Darwin" || { echo "dev-deploy runs on macOS (the UTM host)"; exit 1; }
+	@test -f .build/clone-dev.qcow2 || { echo ".build/clone-dev.qcow2 missing; run 'make dev-image' first"; exit 1; }
+	-$(UTMCTL) stop $(UTM_DEV_VM)
+	cp .build/clone-dev.qcow2 "$(UTM_DEV_DISK)"
+	$(UTMCTL) start $(UTM_DEV_VM)
+	@echo "$(UTM_DEV_VM) restarted with fresh dev image"
 
 # Full Mac-side cycle: build image in the VM, then redeploy to UTM.
 utm-redeploy: vm-image utm-deploy

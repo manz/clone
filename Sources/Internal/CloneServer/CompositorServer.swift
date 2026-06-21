@@ -13,11 +13,11 @@ public final class ConnectedApp {
     public var menus: [AppMenu] = []
     public private(set) var lastCommands: [IPCRenderCommand] = []
 
-    /// Sheet surface state — nil means no sheet active.
+    /// Sheet surface state - nil means no sheet active.
     public var sheetSize: (width: Float, height: Float)?
     private var sheetCommands: [IPCRenderCommand] = []
 
-    /// IOSurface texture sharing state — non-zero when app uses app-side rendering.
+    /// IOSurface texture sharing state - non-zero when app uses app-side rendering.
     public var iosurfaceId: UInt32 = 0
     public var surfaceWidth: UInt32 = 0
     public var surfaceHeight: UInt32 = 0
@@ -113,7 +113,7 @@ public final class ConnectedApp {
         lock.unlock()
     }
 
-    /// Serial queue for writes — ensures message bytes never interleave.
+    /// Serial queue for writes - ensures message bytes never interleave.
     /// Writes are blocking on this queue's thread, never on the caller's.
     private let sendQueue = DispatchQueue(label: "clone.app.send")
 
@@ -208,7 +208,7 @@ public final class CompositorServer {
         self.socketPath = socketPath
     }
 
-    /// Start listening. Returns immediately — I/O is async via GCD.
+    /// Start listening. Returns immediately - I/O is async via GCD.
     public func start() throws {
         unlink(socketPath)
 
@@ -273,7 +273,7 @@ public final class CompositorServer {
             while true {
                 let (ok, port) = posix_mach_recv_port(recvPort: recvPort)
                 guard ok, port != 0 else { continue }
-                // Import the IOSurface into this process — makes IOSurfaceLookup work
+                // Import the IOSurface into this process - makes IOSurfaceLookup work
                 let surfaceId = clone_import_iosurface_port(port)
                 if surfaceId != 0 {
                     logErr("[compositor] Imported IOSurface via Mach port: id=\(surfaceId)\n")
@@ -295,7 +295,7 @@ public final class CompositorServer {
             }
             guard clientFd >= 0 else { break }
 
-            // Prevent SIGPIPE on write to closed socket — return EPIPE instead
+            // Prevent SIGPIPE on write to closed socket - return EPIPE instead
             #if canImport(Darwin)
             var on: Int32 = 1
             setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
@@ -328,6 +328,8 @@ public final class CompositorServer {
     public var onRestoreWindow: ((UInt64) -> Void)?
     /// Callback when dock requests a window thumbnail.
     public var onRequestThumbnail: ((UInt64, UInt64, UInt32, UInt32) -> Void)?
+    /// screencapture tool asked for a full-screen PNG at the given path.
+    public var onCaptureScreen: ((String) -> Void)?
     /// Callback when a menubar sends a menu action for the focused app.
     public var onMenuAction: ((String) -> Void)?
     /// Callback when an app requests an open-file dialog.
@@ -370,6 +372,9 @@ public final class CompositorServer {
 
         case .requestThumbnail(let windowId, let maxWidth, let maxHeight):
             onRequestThumbnail?(app.windowId, windowId, maxWidth, maxHeight)
+
+        case .captureScreen(let path):
+            onCaptureScreen?(path)
 
         case .registerMenus(let menus):
             app.menus = menus
@@ -414,7 +419,7 @@ public final class CompositorServer {
             app.send(.surfaceReady(surfaceId: app.windowId))
 
         case .surfaceUpdated:
-            break // Compositor reads the surface directly each frame — no dirty flag needed
+            break // Compositor reads the surface directly each frame - no dirty flag needed
 
         case .surfaceResized(let iosurfaceId, let width, let height, let stride, let offset, let fourcc, let modifier):
             app.iosurfaceId = iosurfaceId
@@ -493,7 +498,7 @@ public final class CompositorServer {
         lock.unlock()
         for app in snapshot {
             if app.role == .service { continue }
-            // Apps with IOSurface rendering drive their own frame loop —
+            // Apps with IOSurface rendering drive their own frame loop -
             // don't spam them with requestFrame every compositor frame.
             if app.iosurfaceId != 0 { continue }
             app.send(.requestFrame(width: app.width, height: app.height))
@@ -544,11 +549,11 @@ public final class CompositorServer {
         app?.send(.pointerButton(button: button, pressed: pressed, x: x, y: y))
     }
 
-    public func sendKey(windowId: UInt64, keycode: UInt32, pressed: Bool) {
+    public func sendKey(windowId: UInt64, keycode: UInt32, modifiers: UInt32, pressed: Bool) {
         lock.lock()
         let app = apps[windowId]
         lock.unlock()
-        app?.send(.key(keycode: keycode, pressed: pressed))
+        app?.send(.key(keycode: keycode, modifiers: modifiers, pressed: pressed))
     }
 
     public func sendKeyChar(windowId: UInt64, character: String) {

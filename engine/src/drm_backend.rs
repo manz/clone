@@ -31,6 +31,18 @@ extern "C" fn on_sigusr1(_: libc::c_int) {
     DUMP_REQUESTED.store(true, Ordering::Relaxed);
 }
 
+/// Screenshot: a path set here (via the exported `capture_screen`, reached over IPC
+/// by the `screencapture` tool) makes the render loop write the composited screen to
+/// that file on the next frame. Like macOS `screencapture`, but through the compositor
+/// since only it holds the framebuffer.
+static CAPTURE_PATH: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+pub fn request_capture(path: String) {
+    if let Ok(mut p) = CAPTURE_PATH.lock() {
+        *p = Some(path);
+    }
+}
+
 /// Diagnostic: the compositor exits cleanly (exit 0) ~60s in and systemd restarts
 /// it, bouncing back to LoginWindow. Nothing in our code exits the loop, so some
 /// external SIGTERM/SIGINT is the trigger. Record the signal + SENDER pid (SA_SIGINFO)
@@ -459,6 +471,11 @@ fn render_compositor(
         }
         dump_texture(target.texture(), device, queue, w, h, "/tmp/clone-screen.png");
         log::info!("SIGUSR1: dumped {} surfaces + screen to /tmp", frames.len());
+    }
+
+    if let Some(path) = CAPTURE_PATH.lock().ok().and_then(|mut p| p.take()) {
+        dump_texture(target.texture(), device, queue, w, h, &path);
+        log::info!("screencapture: wrote composited screen to {path}");
     }
 
     device.poll(wgpu::PollType::wait_indefinitely()).ok();

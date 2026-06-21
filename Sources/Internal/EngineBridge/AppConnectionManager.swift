@@ -120,9 +120,9 @@ final class AppConnectionManager {
     }
 
     func start() {
-        // Register cleanup handler — kills all spawned daemons and apps on exit.
+        // Register cleanup handler - kills all spawned daemons and apps on exit.
         atexit { AppConnectionManager.killAllChildren() }
-        // Catch SIGINT (Ctrl+C) and SIGTERM — atexit doesn't run on signals.
+        // Catch SIGINT (Ctrl+C) and SIGTERM - atexit doesn't run on signals.
         signal(SIGINT) { _ in
             AppConnectionManager.killAllChildren()
             // Re-raise with default handler so the shell sees the correct exit status.
@@ -178,6 +178,10 @@ final class AppConnectionManager {
             logErr("[Thumbnail] Request received: dock=\(dockWindowId) window=\(windowId)\n")
             self?.pendingThumbnailRequests.append((dockWindowId: dockWindowId, windowId: windowId, maxWidth: maxW, maxHeight: maxH))
         }
+        server.onCaptureScreen = { path in
+            // The compositor holds the framebuffer; ask the engine to write it.
+            captureScreen(path: path)
+        }
         server.onSubSurfaceCreated = { [weak self] app, sub in
             self?.pendingSubSurfaceCreates.append((appWindowId: app.windowId, sub: sub))
         }
@@ -193,37 +197,72 @@ final class AppConnectionManager {
             return
         }
 
-        // Launch pre-session daemons and LoginWindow
-        launchApp("cloned")
-        launchApp("keychaind")
-        launchApp("launchservicesd")
-        launchApp("avocadoeventsd")
-        // Connect to launchservicesd after a short delay to let it start
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        // Daemons are launchd/systemd's job, not the compositor's. When an
+        // external init manages them (CLONE_DAEMONS_EXTERNAL set - the appliance
+        // runs them as systemd user services), the compositor must not spawn
+        // them. On macOS dev there is no init for these, so self-spawn.
+        if ProcessInfo.processInfo.environment["CLONE_DAEMONS_EXTERNAL"] == nil {
+            launchApp("cloned")
+            launchApp("keychaind")
+            launchApp("launchservicesd")
+            launchApp("avocadoeventsd")
+        }
+        // Connect to launchservicesd, retrying until it's up. When systemd owns
+        // the daemon (CLONE_DAEMONS_EXTERNAL) its user service races the
+        // compositor's startup, so a single attempt can lose; without a retry the
+        // compositor never gets an lsClient and on-demand launches (Dock clicks)
+        // stay broken. Bounded so a genuinely-dead daemon doesn't loop forever.
+        connectLaunchServices()
+
+        // LoginWindow is the session gate - launchd/systemd's job, like loginwindow
+        // on macOS. When init runs it (CLONE_SESSION_EXTERNAL - the appliance runs
+        // it as a systemd user service), the compositor must not spawn it. On macOS
+        // dev there is no init for it, so self-spawn.
+        if ProcessInfo.processInfo.environment["CLONE_SESSION_EXTERNAL"] == nil {
+            launchApp("LoginWindow")
+        }
+    }
+
+    /// Connect to launchservicesd, retrying on a background queue until it
+    /// answers (or the attempt budget is exhausted). Independent of who started
+    /// the daemon - the compositor or systemd.
+    private nonisolated func connectLaunchServices(attempt: Int = 0) {
+        // The compositor is persistent and starts before any user logs in, but
+        // launchservicesd is a per-user session daemon that only appears after
+        // login. So never give up - retry forever (fast at first, then every few
+        // seconds) until it shows up, and reconnect if it restarts.
+        let delay = attempt < 20 ? 0.5 : 3.0
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
             let client = LaunchServicesClient()
             do {
                 try client.connect()
                 DispatchQueue.main.async { self?.lsClient = client }
                 logErr("Connected to launchservicesd\n")
             } catch {
-                logErr("Could not connect to launchservicesd: \(error)\n")
+                self?.connectLaunchServices(attempt: attempt + 1)
             }
         }
-        launchApp("LoginWindow")
     }
 
-    /// Start the user session — launched after LoginWindow signals sessionReady.
+    /// Start the user session - launched after LoginWindow signals sessionReady.
     private func startUserSession(windowManager: WindowManager) {
         guard !sessionStarted else { return }
         sessionStarted = true
-        // Close loginWindow's window but keep the process alive — like macOS,
+        // Close loginWindow's window but keep the process alive - like macOS,
         // loginwindow owns the session and respawns its UI on lock screen.
         if let idx = windowManager.windows.firstIndex(where: { $0.role == .loginWindow }) {
             windowManager.windows.remove(at: idx)
         }
-        launchApp("Dock")
-        launchApp("MenuBar")
-        launchApp("Finder")
+        // The session apps (Dock/MenuBar/Finder) are the Aqua-session LaunchAgents.
+        // When init owns the session (CLONE_SESSION_EXTERNAL - the appliance runs
+        // them under clone-session.target, started by LoginWindow via systemctl on
+        // auth), the compositor only flips its own pre-session→session state here
+        // and does NOT spawn them. On macOS dev there is no init, so self-spawn.
+        if ProcessInfo.processInfo.environment["CLONE_SESSION_EXTERNAL"] == nil {
+            launchApp("Dock")
+            launchApp("MenuBar")
+            launchApp("Finder")
+        }
     }
 
     func launchApp(_ name: String, isFullPath: Bool = false) {
@@ -371,7 +410,7 @@ final class AppConnectionManager {
 
     func notifyResize(wmWindowId: UInt64, window: ManagedWindow) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
-        // Send full window dimensions — the app subtracts titleBarHeight internally
+        // Send full window dimensions - the app subtracts titleBarHeight internally
         server.sendResize(windowId: serverWid, width: Float(window.width), height: Float(window.height))
     }
 
@@ -379,7 +418,7 @@ final class AppConnectionManager {
         guard let wmId = windowManager.resizingWindowId,
               let serverWid = externalWindowId(for: wmId),
               let window = windowManager.windows.first(where: { $0.id == wmId }) else { return }
-        // Send resize — the app owns its texture allocation and resizes when ready.
+        // Send resize - the app owns its texture allocation and resizes when ready.
         // The compositor scales the old content to fit in the meantime.
         server.sendResize(windowId: serverWid, width: Float(window.width), height: Float(window.height))
     }
@@ -474,7 +513,7 @@ final class AppConnectionManager {
         }
         pendingSubSurfaceDestroys.removeAll()
 
-        // Process thumbnail requests — IOSurface capture is macOS-only
+        // Process thumbnail requests - IOSurface capture is macOS-only
         #if canImport(IOSurface)
         for req in pendingThumbnailRequests {
             let serverWid = externalWindowId(for: req.windowId)
@@ -566,7 +605,7 @@ final class AppConnectionManager {
         return (width: app.width, height: app.height)
     }
 
-    /// Dismiss all popup sub-surfaces — called on click-outside.
+    /// Dismiss all popup sub-surfaces - called on click-outside.
     func dismissAllPopups(windowManager: WindowManager) {
         let popups = windowManager.windows.filter { $0.role == .popup }
         guard !popups.isEmpty else { return }
@@ -587,9 +626,9 @@ final class AppConnectionManager {
         }
     }
 
-    func sendKey(wmWindowId: UInt64, keycode: UInt32, pressed: Bool) {
+    func sendKey(wmWindowId: UInt64, keycode: UInt32, modifiers: UInt32, pressed: Bool) {
         guard let serverWid = externalWindowId(for: wmWindowId) else { return }
-        server.sendKey(windowId: serverWid, keycode: keycode, pressed: pressed)
+        server.sendKey(windowId: serverWid, keycode: keycode, modifiers: modifiers, pressed: pressed)
     }
 
     func sendKeyChar(wmWindowId: UInt64, character: String) {

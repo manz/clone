@@ -39,7 +39,7 @@ public enum IPCRenderCommand: Codable, Sendable {
     case rect(x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case roundedRect(x: Float, y: Float, w: Float, h: Float, radius: Float, color: IPCColor)
     case text(x: Float, y: Float, content: String, fontSize: Float, color: IPCColor, weight: IPCFontWeight, maxWidth: Float? = nil, family: String? = nil)
-    /// Phosphor SVG icon — rendered by the compositor.
+    /// Phosphor SVG icon - rendered by the compositor.
     case icon(name: String, style: IPCIconStyle, x: Float, y: Float, w: Float, h: Float, color: IPCColor)
     case shadow(x: Float, y: Float, w: Float, h: Float, radius: Float, blur: Float, color: IPCColor, ox: Float, oy: Float)
     case pushClip(x: Float, y: Float, w: Float, h: Float, radius: Float)
@@ -53,17 +53,17 @@ public enum IPCRenderCommand: Codable, Sendable {
 
 /// How the compositor treats a surface.
 public enum SurfaceRole: String, Codable, Sendable {
-    /// Normal app window — gets chrome (title bar, traffic lights, shadow), draggable, resizable.
+    /// Normal app window - gets chrome (title bar, traffic lights, shadow), draggable, resizable.
     case window
-    /// Dock — pinned to bottom, above all windows, no chrome.
+    /// Dock - pinned to bottom, above all windows, no chrome.
     case dock
-    /// Menu bar — pinned to top, topmost, no chrome.
+    /// Menu bar - pinned to top, topmost, no chrome.
     case menubar
-    /// Login window — fullscreen, no chrome, gates user session.
+    /// Login window - fullscreen, no chrome, gates user session.
     case loginWindow
-    /// Background service — no surface, connected only for event routing.
+    /// Background service - no surface, connected only for event routing.
     case service
-    /// Popup (context menu, dropdown, tooltip) — no chrome, above everything, transient.
+    /// Popup (context menu, dropdown, tooltip) - no chrome, above everything, transient.
     case popup
 }
 
@@ -156,9 +156,9 @@ public enum AppMessage: Codable, Sendable {
     case menuAction(itemId: String)
     /// App (Settings) requests color scheme change.
     case setColorScheme(dark: Bool)
-    /// LoginWindow tells compositor authentication succeeded — start user session.
+    /// LoginWindow tells compositor authentication succeeded - start user session.
     case sessionReady
-    /// App presents a sheet — compositor creates a separate surface.
+    /// App presents a sheet - compositor creates a separate surface.
     case showSheet(width: Float, height: Float)
     /// App sends render commands for its sheet surface.
     case sheetFrame(commands: [IPCRenderCommand])
@@ -171,6 +171,8 @@ public enum AppMessage: Codable, Sendable {
     case avocadoEvent(targetAppId: String, event: AvocadoEvent)
     /// Dock requests a thumbnail of a minimized window.
     case requestThumbnail(windowId: UInt64, maxWidth: UInt32, maxHeight: UInt32)
+    /// screencapture tool: write the whole composited screen to a PNG at `path`.
+    case captureScreen(path: String)
     /// App created an IOSurface-backed GPU texture for app-side rendering.
     /// On Linux the dmabuf* fields carry the EGL import layout (0 on macOS).
     case surfaceCreated(iosurfaceId: UInt32, width: UInt32, height: UInt32,
@@ -205,7 +207,7 @@ public enum CompositorMessage: Codable, Sendable {
     case windowCreated(windowId: UInt64, width: Float, height: Float)
     /// Surface was resized.
     case resize(width: Float, height: Float)
-    /// Request a frame render — app should respond with .frame
+    /// Request a frame render - app should respond with .frame
     case requestFrame(width: Float, height: Float)
     /// Pointer moved (local coordinates for windows, screen coordinates for dock/menubar).
     case pointerMove(x: Float, y: Float)
@@ -240,7 +242,7 @@ public enum CompositorMessage: Codable, Sendable {
     case terminate
     /// Compositor requests sheet content at the given size.
     case requestSheetFrame(width: Float, height: Float)
-    /// User clicked the sheet backdrop — app should dismiss.
+    /// User clicked the sheet backdrop - app should dismiss.
     case sheetBackdropTapped
     /// Pointer button event within sheet bounds (sheet-local coordinates).
     case sheetPointerButton(button: UInt32, pressed: Bool, x: Float, y: Float)
