@@ -53,6 +53,14 @@ final class AppSideRenderer: NSObject {
         needsRender = true
     }
 
+    /// After a compositor reconnect: forget the old shared surface so the next
+    /// frame re-exports a fresh dmabuf (the old fd is dead in the new EGL
+    /// context) and repaints immediately.
+    public func resetSurface() {
+        currentIOSurfaceId = 0
+        needsRender = true
+    }
+
     func resize(width: CGFloat, height: CGFloat) {
         guard width != self.width || height != self.height else {
             return

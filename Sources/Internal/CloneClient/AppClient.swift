@@ -15,6 +15,19 @@ public final class AppClient {
     public private(set) var width: Float = 0
     public private(set) var height: Float = 0
     public internal(set) var isConnected = false
+
+    // Connection params stored so the read loop can re-register on a compositor restart.
+    private var connectAppId = ""
+    private var connectTitle = ""
+    private var connectWidth: Float = 0
+    private var connectHeight: Float = 0
+    private var connectRole: SurfaceRole = .window
+    private var shouldReconnect = true
+
+    /// Called on the main thread after the socket reconnects to a restarted
+    /// compositor. The app must reset its surface state (re-export a fresh
+    /// dmabuf, since the old fd is dead in the new EGL context) and redraw.
+    public var onReconnect: (@MainActor () -> Void)?
     public private(set) var mouseX: Float = 0
     public private(set) var mouseY: Float = 0
 
@@ -73,6 +86,8 @@ public final class AppClient {
     public init() {}
 
     public func connect(appId: String, title: String, width: Float, height: Float, role: SurfaceRole = .window) throws {
+        connectAppId = appId; connectTitle = title
+        connectWidth = width; connectHeight = height; connectRole = role
         let path = compositorSocketPath
         #if canImport(Darwin)
         socketFd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -298,66 +313,96 @@ public final class AppClient {
     /// message handling dispatched to MainActor. Main thread stays free
     /// for URLSession, async/await, timers.
     public func runLoop() {
-        let fd = socketFd
-
-        // Blocking read loop on background thread
-        Thread.detachNewThread {
-            // Set blocking
-            let flags = fcntl(fd, F_GETFL)
-            fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
-
-            var readBuf = Data()
-            var buf = [UInt8](repeating: 0, count: 65536)
-            while true {
-                let n = posix_read(fd, &buf, buf.count)
-                if n <= 0 { break }
-                readBuf.append(contentsOf: buf[0..<n])
-
-                // Decode all complete messages
-                var batch: [CompositorMessage] = []
-                while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
-                    readBuf = readBuf.subdata(in: consumed..<readBuf.count)
-                    batch.append(msg)
-                }
-
-                // If there's an incomplete message at the tail, keep reading until it's whole.
-                // This prevents large messages (e.g. thumbnails) from stalling behind tiny
-                // per-frame messages that trickle in one at a time.
-                while readBuf.count >= 4 {
-                    let needed = Int(readBuf.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }) + 4
-                    if readBuf.count >= needed { break }
-                    let more = posix_read(fd, &buf, buf.count)
-                    if more <= 0 { break }
-                    readBuf.append(contentsOf: buf[0..<more])
-                    // Decode any messages that became complete
-                    while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
-                        readBuf = readBuf.subdata(in: consumed..<readBuf.count)
-                        batch.append(msg)
-                    }
-                }
-
-                if !batch.isEmpty {
-                    DispatchQueue.main.async {
-                        MainActor.assumeIsolated {
-                            for message in batch {
-                                self.handle(message)
-                            }
-                        }
-                    }
-                }
-            }
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    self.isConnected = false
-                }
-            }
-        }
-
+        startReadThread()
         // Keep main thread alive for GCD callbacks
         dispatchMain()
     }
 
+    /// Spawn the background read thread for the current socket. On disconnect it
+    /// hops back to the main actor (onReadLoopEnded) to drive reconnection.
+    private func startReadThread() {
+        let fd = socketFd
+        Thread.detachNewThread {
+            self.readUntilDisconnect(fd)
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self.onReadLoopEnded() }
+            }
+        }
+    }
+
+    /// Compositor disconnected. Re-register with backoff (off the read thread,
+    /// on the main actor via asyncAfter so the main thread never blocks).
+    private func onReadLoopEnded() {
+        isConnected = false
+        guard shouldReconnect else { return }
+        attemptReconnect(delay: 0.2)
+    }
+
+    private func attemptReconnect(delay: Double) {
+        if socketFd >= 0 { posix_close(socketFd); socketFd = -1 }
+        windowId = 0
+        do {
+            try connect(appId: connectAppId, title: connectTitle,
+                        width: connectWidth, height: connectHeight, role: connectRole)
+            if isConnected {
+                onReconnect?()        // app re-exports a fresh surface + redraws
+                startReadThread()     // resume reading the new fd
+                return
+            }
+        } catch {}
+        guard shouldReconnect else { return }
+        let next = min(delay * 2, 2.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            MainActor.assumeIsolated { self.attemptReconnect(delay: next) }
+        }
+    }
+
+    /// Blocking read loop on `fd`. Returns when the socket disconnects (EOF/error).
+    nonisolated private func readUntilDisconnect(_ fd: Int32) {
+        let flags = fcntl(fd, F_GETFL)
+        _ = fcntl(fd, F_SETFL, flags & ~O_NONBLOCK)
+
+        var readBuf = Data()
+        var buf = [UInt8](repeating: 0, count: 65536)
+        while true {
+            let n = posix_read(fd, &buf, buf.count)
+            if n <= 0 { break }
+            readBuf.append(contentsOf: buf[0..<n])
+
+            // Decode all complete messages
+            var batch: [CompositorMessage] = []
+            while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
+                readBuf = readBuf.subdata(in: consumed..<readBuf.count)
+                batch.append(msg)
+            }
+
+            // If there's an incomplete message at the tail, keep reading until it's whole.
+            // This prevents large messages (e.g. thumbnails) from stalling behind tiny
+            // per-frame messages that trickle in one at a time.
+            while readBuf.count >= 4 {
+                let needed = Int(readBuf.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }) + 4
+                if readBuf.count >= needed { break }
+                let more = posix_read(fd, &buf, buf.count)
+                if more <= 0 { break }
+                readBuf.append(contentsOf: buf[0..<more])
+                while let (msg, consumed) = WireProtocol.decode(CompositorMessage.self, from: readBuf) {
+                    readBuf = readBuf.subdata(in: consumed..<readBuf.count)
+                    batch.append(msg)
+                }
+            }
+
+            if !batch.isEmpty {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated {
+                        for message in batch { self.handle(message) }
+                    }
+                }
+            }
+        }
+    }
+
     public func disconnect() {
+        shouldReconnect = false
         if isConnected {
             send(.close)
         }

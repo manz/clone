@@ -403,6 +403,11 @@ extension App {
             app.client.onResize = { w, h in
                 appRenderer.resize(width: CGFloat(w), height: CGFloat(h))
             }
+            // Compositor restarted + we reconnected: drop the stale shared surface
+            // and re-export a fresh one (old dmabuf fd is dead in the new EGL ctx).
+            app.client.onReconnect = {
+                appRenderer.resetSurface()
+            }
             app.client.onPointerButton = { button, pressed, px, py in
                 let x = CGFloat(px)
                 let y = CGFloat(py)
