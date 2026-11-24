@@ -1,0 +1,4 @@
+module CPty {
+    header "include/clone_pty.h"
+    export *
+}

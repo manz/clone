@@ -40,6 +40,7 @@ FRAMEWORKS=(
     AVKit
     KeychainServices
     CloneClient
+    CloneTerminalVT
     CloneLaunchServices
     AvocadoEvents
     MediaPlayer
@@ -153,6 +154,15 @@ for MOD in "${FRAMEWORKS[@]}"; do
     # CloneRender needs Rust render lib
     if [ "$MOD" = "CloneRender" ]; then
         FWFLAGS+=(-lclone_render)
+    fi
+    # CloneTerminalVT bundles CPty .o + the static libghostty-vt (so the framework
+    # is self-contained) + libutil (forkpty).
+    if [ "$MOD" = "CloneTerminalVT" ] && [ -d "$BUILD_DIR/CPty.build" ]; then
+        for co in "$BUILD_DIR/CPty.build"/*.c.o; do
+            [ -f "$co" ] && OBJ_FILES+=("$co")
+        done
+        FWFLAGS+=("$ROOT/vendor/ghostty/zig-out/lib/libghostty-vt.a")
+        FWFLAGS+=(-lutil)
     fi
     # CoreGraphics uses zlib compress2 for PNG encoding
     if [ "$MOD" = "CoreGraphics" ]; then

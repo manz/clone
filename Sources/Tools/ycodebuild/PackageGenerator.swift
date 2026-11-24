@@ -103,9 +103,10 @@ enum PackageGenerator {
         let macroPlugin = "\(sdk)/.build/arm64-apple-macosx/debug/SwiftDataMacros-tool#SwiftDataMacros"
         let rustLib = "\(cloneRoot)/System/Library"
 
-        let cMapFlags = ["CText", "CAudio", "CSQLite", "CEngine", "CRender", "CPosixShim"].flatMap { dir in
+        let cMapFlags = (["CText", "CAudio", "CSQLite", "CEngine", "CRender", "CPosixShim", "CGhosttyVt", "CPty"].flatMap { dir in
             ["\"-Xcc\"", "\"-fmodule-map-file=\(sdk)/Sources/FFI/\(dir)/module.modulemap\""]
-        }.joined(separator: ", ")
+        // CGhosttyVt's umbrella pulls <ghostty/vt/*.h> via angle includes.
+        } + ["\"-Xcc\"", "\"-I\(sdk)/vendor/ghostty/include\""]).joined(separator: ", ")
 
         #if os(macOS)
         let linkerFwSearch = "\"-F\", \"\(fw)\","
@@ -123,6 +124,9 @@ enum PackageGenerator {
         let sdkModules = [
             "CoreGraphics", "CloneProtocol", "CoreText", "AppKit", "UniformTypeIdentifiers", "AVKit", "KeychainServices",
             "CloneClient", "CloneRender", "SharedSurface", "MediaPlayer", "SwiftData", "SwiftUI", "Charts", "AVFoundation",
+            // Terminal engine framework (libghostty-vt + pty baked in). Only apps
+            // that import it pull it in; harmless to link for others on Linux.
+            "CloneTerminalVT",
         ]
 
         #if os(macOS)

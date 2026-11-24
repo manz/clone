@@ -1,0 +1,4 @@
+module CGhosttyVt {
+    umbrella header "../../../vendor/ghostty/include/ghostty/vt.h"
+    export *
+}
