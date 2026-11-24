@@ -7,14 +7,26 @@ import CloneClient
 // MARK: - State
 
 class LoginState {
+    let users: [String]
+    var selected: Int = 0
     var password: String = ""
     var showError: Bool = false
+
+    init() {
+        var u = RealUsers.list()
+        // Dev / macOS fallback when there's no realusers dir: a single account.
+        if u.isEmpty { u = [ProcessInfo.processInfo.environment["USER"] ?? "user"] }
+        users = u
+    }
+
+    var selectedUser: String { users[min(selected, users.count - 1)] }
 }
 
 // MARK: - Login View
 
 @MainActor func loginView(state: LoginState, width: CGFloat, height: CGFloat) -> some View {
-    let cardHeight: CGFloat = 320
+    let multiUser = state.users.count > 1
+    let cardHeight: CGFloat = multiUser ? 380 : 320
     let cardY = (height - cardHeight) / 2
 
     return ZStack {
@@ -23,26 +35,46 @@ class LoginState {
             .fill(Color(red: 0, green: 0, blue: 0, opacity: 0.3))
             .frame(width: width, height: height)
 
-        // Login card
         VStack(spacing: 0) {
             Spacer()
                 .frame(height: cardY)
 
-            VStack(spacing: 20) {
-                // User avatar circle
+            VStack(spacing: 18) {
+                // User avatar circle (initial of the selected user)
                 ZStack {
                     RoundedRectangle(cornerRadius: 48)
                         .fill(Color(red: 0.55, green: 0.55, blue: 0.6, opacity: 1))
                         .frame(width: 96, height: 96)
-                    Text("U")
+                    Text(state.selectedUser.prefix(1).uppercased())
                         .font(.system(size: 36, weight: .semibold))
                         .foregroundColor(.white)
                 }
 
-                // Username
-                Text("User")
+                // Selected user name
+                Text(state.selectedUser)
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(.white)
+
+                // User picker (only when more than one real user)
+                if multiUser {
+                    VStack(spacing: 4) {
+                        ForEach(Array(state.users.enumerated()), id: \.offset) { idx, name in
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(red: 1, green: 1, blue: 1, opacity: idx == state.selected ? 0.25 : 0.08))
+                                    .frame(width: 220, height: 28)
+                                Text(name)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.white)
+                            }
+                            .onTapGesture {
+                                state.selected = idx
+                                state.password = ""
+                                state.showError = false
+                            }
+                        }
+                    }
+                }
 
                 // Password field
                 ZStack {
@@ -71,7 +103,7 @@ class LoginState {
                 }
                 .onTapGesture {
                     #if canImport(CloneClient)
-                    SystemActions.shared.sessionReady()
+                    LoginWindowApp.submit(state: state)
                     #endif
                 }
 
@@ -108,13 +140,26 @@ struct LoginWindowApp: App {
 
     func onKeyChar(character: String) {
         if character == "\r" || character == "\n" {
-            SystemActions.shared.sessionReady()
+            LoginWindowApp.submit(state: state)
         } else if character == "\u{7f}" || character == "\u{08}" {
-            if !state.password.isEmpty {
-                state.password.removeLast()
-            }
+            if !state.password.isEmpty { state.password.removeLast() }
         } else if character.count == 1, let scalar = character.unicodeScalars.first, scalar.value >= 32 {
+            state.showError = false
             state.password.append(character)
+        }
+    }
+
+    // Authenticate the SELECTED real user against PAM (LoginWindow runs as root,
+    // so it can verify any account), then hand off: tell the compositor the
+    // session is ready and start that user's clone-session.target.
+    static func submit(state: LoginState) {
+        let user = state.selectedUser
+        if LoginAuth.authenticate(user: user, password: state.password) {
+            SystemActions.shared.sessionReady()
+            SessionLauncher.startSession(user: user)
+        } else {
+            state.password = ""
+            state.showError = true
         }
     }
     #endif
