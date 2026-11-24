@@ -50,3 +50,10 @@ mkosi.cache/
 mkosi.builddir/
 *.raw
 *.img
+
+# Generated UniFFI bindings
+Sources/Internal/AudioBridge/clone_audio.swift
+Sources/Internal/AudioBridge/clone_audioFFI.h
+Sources/Internal/AudioBridge/clone_audioFFI.modulemap
+Sources/Internal/CloneText/clone_textFFI.modulemap
+Sources/Internal/EngineBridge/clone_engineFFI.modulemap
