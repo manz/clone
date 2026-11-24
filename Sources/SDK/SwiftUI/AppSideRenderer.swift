@@ -47,6 +47,9 @@ final class AppSideRenderer: NSObject {
         #endif
         link.add(to: .main, forMode: .default)
         displayLink = link
+        // Paint the first frame on the next tick. Without this, every app starts
+        // blank until some event (e.g. a hover) sets needsRender.
+        needsRender = true
     }
 
     func setNeedsDisplay() {
