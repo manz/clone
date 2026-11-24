@@ -399,10 +399,17 @@ public final class WindowServer {
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let candidates = [
+        // CLONE_WALLPAPER env wins (the appliance sets it to the baked image);
+        // then the macOS-layout path; then the dev-tree asset.
+        var candidates: [String] = []
+        if let env = ProcessInfo.processInfo.environment["CLONE_WALLPAPER"], !env.isEmpty {
+            candidates.append(env)
+        }
+        candidates.append(contentsOf: [
+            "/Library/Desktop Pictures/Wallpaper.jpg",
             projectRoot.appendingPathComponent("engine/assets/wallpaper.jpg").path,
             fm.currentDirectoryPath + "/engine/assets/wallpaper.jpg",
-        ]
+        ])
         let result = candidates.first(where: { fm.fileExists(atPath: $0) }) ?? ""
         logErr("Wallpaper path: \(result.isEmpty ? "(none)" : result)\n")
         return result
