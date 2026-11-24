@@ -193,8 +193,10 @@ test-rust:
 	cargo test --lib
 
 # Run Swift tests
+# --no-parallel: the SDK's singletons (LayoutCache, StateGraph, registries) are
+# main-thread-only like in a real app; parallel tests race on them (SIGSEGV).
 test-swift:
-	swift test $(SWIFT_BUILD_SYSTEM)
+	swift test $(SWIFT_BUILD_SYSTEM) --no-parallel
 
 # Run all tests
 test: test-rust test-swift
