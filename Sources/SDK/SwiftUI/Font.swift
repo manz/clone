@@ -42,7 +42,16 @@ public struct Font: Equatable, Sendable {
 
     /// `Font.system(size: 14, weight: .semibold)`
     public static func system(size: CGFloat, weight: Weight = .regular, design: Design = .default) -> Font {
-        Font(size: size, weight: weight)
+        Font(size: size, weight: weight, familyName: familyName(for: design))
+    }
+
+    /// Map a Design to a concrete font family the renderer/measurer resolve.
+    /// Iosevka is the bundled monospace face (used for the terminal grid, code, etc.).
+    static func familyName(for design: Design) -> String? {
+        switch design {
+        case .monospaced: return "Iosevka"
+        default: return nil
+        }
     }
 
     // MARK: - Preset text styles (macOS sizes)
@@ -136,12 +145,12 @@ extension Font {
 
     /// `Font.system(_ style:design:)` — semantic text style.
     public static func system(_ style: TextStyle, design: Design = .default, weight: Weight = .regular) -> Font {
-        Font(size: style.size, weight: weight)
+        Font(size: style.size, weight: weight, familyName: familyName(for: design))
     }
 
     /// A monospaced font of the given size.
     public static func system(size: CGFloat, design: Design) -> Font {
-        Font(size: size, weight: .regular)
+        Font(size: size, weight: .regular, familyName: familyName(for: design))
     }
 
     /// A custom font with the given name and size.

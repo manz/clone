@@ -174,12 +174,13 @@ public enum Layout {
         case .empty:
             return MeasuredSize()
 
-        case .text(let content, let fontSize, _, let weight, _):
-            // Measure text at natural (single-line) width first
-            let natural = TextMeasurer.measure(content, fontSize: fontSize, weight: weight)
+        case .text(let content, let fontSize, _, let weight, let family):
+            // Measure text at natural (single-line) width first. Pass family so
+            // monospace (and any custom face) measures with its real metrics.
+            let natural = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, family: family)
             // Wrap if text overflows the constraint width
             if natural.width > constraint.maxWidth && constraint.maxWidth > 0 && constraint.maxWidth < 10000 {
-                let wrapped = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, maxWidth: constraint.maxWidth)
+                let wrapped = TextMeasurer.measure(content, fontSize: fontSize, weight: weight, maxWidth: constraint.maxWidth, family: family)
                 return MeasuredSize(width: min(wrapped.width, constraint.maxWidth), height: wrapped.height)
             }
             return MeasuredSize(width: natural.width, height: natural.height)
