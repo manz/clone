@@ -86,12 +86,23 @@ fn build_font_db() -> cosmic_text::fontdb::Database {
     db.load_font_data(include_bytes!("../../engine/assets/Inter-Medium.ttf").to_vec());
     db.load_font_data(include_bytes!("../../engine/assets/Inter-SemiBold.ttf").to_vec());
     db.load_font_data(include_bytes!("../../engine/assets/Inter-Bold.ttf").to_vec());
-    // Clone font directory — only source of runtime fonts beyond bundled Inter.
-    // Users (and `make install`) drop .ttf/.otf files here.
+    // Clone font directory: users (and `make install`) drop .ttf/.otf here.
     if let Some(home) = std::env::var_os("HOME") {
         let clone_fonts = std::path::PathBuf::from(home).join(".clone/Library/Fonts");
         let _ = std::fs::create_dir_all(&clone_fonts);
         db.load_fonts_dir(&clone_fonts);
+    }
+    // System fonts so installed faces (e.g. Iosevka for monospace) are usable and
+    // appear in FontBook. load_system_fonts() misses NixOS's nonstandard layout,
+    // so also load the NixOS + macOS-layout dirs (load_fonts_dir no-ops if absent).
+    db.load_system_fonts();
+    for dir in [
+        "/run/current-system/sw/share/X11/fonts",
+        "/run/current-system/sw/share/fonts",
+        "/Library/Fonts",
+        "/System/Library/Fonts",
+    ] {
+        db.load_fonts_dir(dir);
     }
     db
 }
