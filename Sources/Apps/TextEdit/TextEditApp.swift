@@ -293,7 +293,7 @@ struct TextEditApp: App {
         WindowConfiguration(title: "TextEdit", width: 700, height: 500, role: .window)
     }
 
-    func onKey(keycode: UInt32, pressed: Bool) {
+    func onKey(keycode: UInt32, modifiers: UInt32, pressed: Bool) {
         guard pressed else { return }
         switch keycode {
         case kKeyUp: state.moveUp()

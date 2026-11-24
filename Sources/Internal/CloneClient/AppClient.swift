@@ -26,8 +26,8 @@ public final class AppClient {
     public var onPointerMove: (@MainActor (Float, Float) -> Void)?
     /// Callback for pointer button.
     public var onPointerButton: (@MainActor (UInt32, Bool, Float, Float) -> Void)?
-    /// Callback for key events.
-    public var onKey: (@MainActor (UInt32, Bool) -> Void)?
+    /// Callback for key events (keycode, modifiers, pressed).
+    public var onKey: (@MainActor (UInt32, UInt32, Bool) -> Void)?
     /// Callback for character input (translated from keycode).
     public var onKeyChar: (@MainActor (String) -> Void)?
     /// Callback for scroll wheel events.
@@ -213,8 +213,8 @@ public final class AppClient {
         case .pointerButton(let button, let pressed, let x, let y):
             onPointerButton?(button, pressed, x, y)
 
-        case .key(let keycode, let pressed):
-            onKey?(keycode, pressed)
+        case .key(let keycode, let modifiers, let pressed):
+            onKey?(keycode, modifiers, pressed)
 
         case .keyChar(let character):
             onKeyChar?(character)

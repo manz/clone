@@ -12,6 +12,13 @@ nonisolated(unsafe) var _sharedAEClient: AvocadoEventsClient?
 /// Shared app renderer reference so early callbacks (AvocadoEvents) can trigger redraw.
 @MainActor var _sharedAppRenderer: AppSideRenderer?
 
+/// Request a redraw from app code. Apps with live, non-input-driven content
+/// (Terminal pty output, Console log stream) call this when their state changes
+/// so the frame updates without waiting for a pointer/key event.
+@MainActor public func requestRedraw() {
+    _sharedAppRenderer?.setNeedsDisplay()
+}
+
 // MARK: - Window Configuration
 
 /// Configuration for the app window.
@@ -65,11 +72,16 @@ public protocol App {
     /// Called on pointer button events.
     func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat)
 
-    /// Called on key events.
-    func onKey(keycode: UInt32, pressed: Bool)
+    /// Called on key events. `modifiers` is NSEvent.ModifierFlags bits
+    /// (shift 1<<17, control 1<<18, option 1<<19, command 1<<20).
+    func onKey(keycode: UInt32, modifiers: UInt32, pressed: Bool)
 
     /// Called when a character is typed (translated from keycode).
     func onKeyChar(character: String)
+
+    /// Called on scroll wheel / trackpad scroll (points). Apps that aren't using
+    /// a ScrollView (e.g. Terminal scrollback) can handle it directly.
+    func onScroll(deltaX: CGFloat, deltaY: CGFloat)
 
     /// Called when a menu item is selected from the menu bar.
     func onMenuAction(itemId: String)
@@ -115,8 +127,9 @@ extension App {
     public func render(width: CGFloat, height: CGFloat) -> [IPCRenderCommand]? { nil }
     public func onPointerMove(x: CGFloat, y: CGFloat) {}
     public func onPointerButton(button: UInt32, pressed: Bool, x: CGFloat, y: CGFloat) {}
-    public func onKey(keycode: UInt32, pressed: Bool) {}
+    public func onKey(keycode: UInt32, modifiers: UInt32, pressed: Bool) {}
     public func onKeyChar(character: String) {}
+    public func onScroll(deltaX: CGFloat, deltaY: CGFloat) {}
     public func onMenuAction(itemId: String) {}
     public func onOpenFile(path: String) {}
     public func onOpenPanelResult(path: String?) {}
@@ -571,7 +584,7 @@ extension App {
                 app.onPointerMove(x: CGFloat(px), y: CGFloat(py))
             }
         }
-        app.client.onKey = { keycode, pressed in
+        app.client.onKey = { keycode, modifiers, pressed in
             if pressed && handleOpenPanelKey(keycode: keycode) { return }
             // Text field key handling
             if pressed {
@@ -586,7 +599,7 @@ extension App {
                     break
                 }
             }
-            app.onKey(keycode: keycode, pressed: pressed)
+            app.onKey(keycode: keycode, modifiers: modifiers, pressed: pressed)
             appRenderer.setNeedsDisplay()
         }
         app.client.onKeyChar = { character in
@@ -597,6 +610,7 @@ extension App {
         }
         app.client.onScroll = { dx, dy in
             ScrollRegistry.shared.scroll(deltaX: CGFloat(dx), deltaY: CGFloat(dy), atX: CGFloat(app.client.mouseX), atY: CGFloat(app.client.mouseY))
+            app.onScroll(deltaX: CGFloat(dx), deltaY: CGFloat(dy))
             appRenderer.setNeedsDisplay()
         }
         app.client.onColorScheme = { dark in

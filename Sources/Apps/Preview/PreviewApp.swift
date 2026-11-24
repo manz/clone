@@ -251,7 +251,7 @@ struct PreviewApp: App {
         }
     }
 
-    func onKey(keycode: UInt32, pressed: Bool) {
+    func onKey(keycode: UInt32, modifiers: UInt32, pressed: Bool) {
         guard pressed else { return }
 
         // Register menus on first interaction (lazy — avoids race with connection)
