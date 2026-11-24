@@ -3,7 +3,11 @@
 # Config: debug (default) or release
 CONFIG ?= debug
 CARGO_FLAGS = $(if $(filter release,$(CONFIG)),--release,)
-SWIFT_FLAGS = $(if $(filter release,$(CONFIG)),-c release,)
+# Swift 6.4 defaults to the swiftbuild backend; its explicit-module scan resolves
+# Apple SDK imports to Clone's shadow modules and the paths here assume the
+# native .build layout. Pin native until both are sorted.
+SWIFT_BUILD_SYSTEM = --build-system native
+SWIFT_FLAGS = $(SWIFT_BUILD_SYSTEM) $(if $(filter release,$(CONFIG)),-c release,)
 CARGO_OUT = target/$(CONFIG)
 
 # Platform detection
@@ -101,7 +105,7 @@ sdk:
 	./scripts/build-sdk.sh $(CONFIG)
 
 # App processes - built against prebuilt SDK frameworks
-APPBUILD = swift run ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
+APPBUILD = swift run $(SWIFT_BUILD_SYSTEM) ycodebuild --prebuilt --bundle --output-dir .build/apps/$(1) --source-dir Sources/Apps/$(2) --target $(1)
 apps:
 	$(call APPBUILD,Finder,System/Finder)
 	$(call APPBUILD,Dock,System/Dock)
@@ -190,7 +194,7 @@ test-rust:
 
 # Run Swift tests
 test-swift:
-	swift test
+	swift test $(SWIFT_BUILD_SYSTEM)
 
 # Run all tests
 test: test-rust test-swift

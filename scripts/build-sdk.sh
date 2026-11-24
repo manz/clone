@@ -64,7 +64,7 @@ mkdir -p "$SDK_OUT"
 
 echo "→ Building ($CONFIG)..."
 cd "$ROOT"
-swift build -c "$CONFIG" 2>&1 | tail -5
+swift build --build-system native -c "$CONFIG" 2>&1 | tail -5
 
 # Step 2: Assemble each framework
 for MOD in "${FRAMEWORKS[@]}"; do
