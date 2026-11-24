@@ -508,29 +508,49 @@ public enum Layout {
             let sampleSize = measure(samplePadded, constraint: SizeConstraint(maxWidth: frame.width, maxHeight: .greatestFiniteMagnitude))
             let rowHeight = sampleSize.height
             let totalCount = children.count
-            let totalContentHeight = rowHeight * CGFloat(totalCount)
+            let totalContentHeight = max(0, rowHeight) * CGFloat(totalCount)
 
-            // Visible range with buffer
-            let firstVisible = max(0, Int(offset / rowHeight) - 2)
-            let lastVisible = min(totalCount - 1, Int((offset + frame.height) / rowHeight) + 2)
-
-            // Only style + layout visible rows
+            // Only style + layout visible rows. Guard against an empty list and
+            // against zero/negative rowHeight: dividing by it yields inf/NaN, and
+            // `Int(inf)` is a hard Swift runtime trap (crashed Finder/Settings on
+            // empty or zero-height rows). Clamp indices to a valid range too.
             var visibleLayouts: [LayoutNode] = []
-            for i in firstVisible...max(firstVisible, lastVisible) {
-                let child = children[i]
-                let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
-                let styled: ViewNode
-                if i % 2 == 1 {
-                    styled = ViewNode.zstack(children: [
-                        ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
-                        padded,
-                    ])
+            if totalCount > 0 {
+                let firstVisible: Int
+                let lastVisible: Int
+                if rowHeight > 0 {
+                    // `frame.height` can be unbounded (.greatestFiniteMagnitude when
+                    // the List is in an infinite-height context), so the row index
+                    // can exceed Int.max → `Int(...)` is a hard Swift trap. Convert
+                    // through a clamped Double bounded to the row count.
+                    func rowIndex(_ y: CGFloat) -> Int {
+                        let r = y / rowHeight
+                        guard r.isFinite else { return totalCount }
+                        return Int(min(max(r, 0), CGFloat(totalCount)))
+                    }
+                    firstVisible = max(0, min(totalCount - 1, rowIndex(offset) - 2))
+                    lastVisible = max(firstVisible, min(totalCount - 1, rowIndex(offset + frame.height) + 2))
                 } else {
-                    styled = padded
+                    // Zero-height rows: no meaningful virtualization, lay out all.
+                    firstVisible = 0
+                    lastVisible = totalCount - 1
                 }
-                let rowY = frame.y - offset + CGFloat(i) * rowHeight
-                let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
-                visibleLayouts.append(layout(styled, in: rowFrame))
+                for i in firstVisible...lastVisible {
+                    let child = children[i]
+                    let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                    let styled: ViewNode
+                    if i % 2 == 1 {
+                        styled = ViewNode.zstack(alignment: .topLeading, children: [
+                            ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
+                            padded,
+                        ])
+                    } else {
+                        styled = padded
+                    }
+                    let rowY = frame.y - offset + CGFloat(i) * rowHeight
+                    let rowFrame = LayoutFrame(x: frame.x, y: rowY, width: frame.width, height: rowHeight)
+                    visibleLayouts.append(layout(styled, in: rowFrame))
+                }
             }
 
             ScrollRegistry.shared.registerFrame(frame, contentWidth: frame.width, contentHeight: totalContentHeight, axes: .vertical, key: scrollKey)
@@ -550,8 +570,15 @@ public enum Layout {
             let rowHeight = max(sampleSize.height, 1)
             let totalContentHeight = rowHeight * CGFloat(count)
 
-            let firstVisible = max(0, Int(offset / rowHeight) - 2)
-            let lastVisible = min(count - 1, Int((offset + frame.height) / rowHeight) + 2)
+            // Clamp through a bounded Double, since frame.height can be unbounded, and
+            // Int(huge) is a hard Swift trap. (count is the upper bound.)
+            func lazyRowIndex(_ y: CGFloat) -> Int {
+                let r = y / rowHeight
+                guard r.isFinite else { return count }
+                return Int(min(max(r, 0), CGFloat(count)))
+            }
+            let firstVisible = max(0, lazyRowIndex(offset) - 2)
+            let lastVisible = min(count - 1, lazyRowIndex(offset + frame.height) + 2)
 
             var visibleLayouts: [LayoutNode] = []
             if count > 0 {
@@ -588,8 +615,12 @@ public enum Layout {
             let step = max(itemSize + spacing, 1)
 
             let viewportSize = axis == .vertical ? frame.height : frame.width
-            let firstVisible = max(0, Int(0 / step) - 1)
-            let lastVisible = min(count - 1, Int(viewportSize / step) + 1)
+            // viewportSize can be unbounded → Int(huge) traps; clamp to count.
+            let lastIdx: Int = (viewportSize / step).isFinite
+                ? Int(min(max(viewportSize / step, 0), CGFloat(count)))
+                : count
+            let firstVisible = 0
+            let lastVisible = min(count - 1, lastIdx + 1)
 
             var visibleLayouts: [LayoutNode] = []
             for i in firstVisible...max(firstVisible, lastVisible) {
@@ -915,8 +946,11 @@ public enum Layout {
         guard let first = columns.first else { return 1 }
         switch first.kind {
         case .adaptive(let min, _):
-            // How many columns of minWidth fit?
-            let count = max(1, Int((availableWidth + spacing) / (min + spacing)))
+            // How many columns of minWidth fit? Guard the denominator: a zero
+            // min+spacing would divide by zero → Int(inf) trap.
+            let denom = min + spacing
+            guard denom > 0 else { return 1 }
+            let count = max(1, Int((availableWidth + spacing) / denom))
             return count
         case .fixed:
             return columns.count
