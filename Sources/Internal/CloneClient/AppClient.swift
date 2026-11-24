@@ -314,8 +314,13 @@ public final class AppClient {
     /// for URLSession, async/await, timers.
     public func runLoop() {
         startReadThread()
-        // Keep main thread alive for GCD callbacks
-        dispatchMain()
+        // Drain the main queue ON the main thread. dispatchMain() exits the main
+        // pthread and lets a worker drain the queue, which fails the runtime's
+        // @MainActor executor checks. A run loop with no sources returns at once,
+        // so a far-future timer keeps it alive.
+        let keepAlive = Timer(fire: .distantFuture, interval: 0, repeats: false) { _ in }
+        RunLoop.main.add(keepAlive, forMode: .default)
+        while true { RunLoop.main.run() }
     }
 
     /// Spawn the background read thread for the current socket. On disconnect it
