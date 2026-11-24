@@ -154,13 +154,18 @@ public final class AppClient {
     }
 
     /// Send a message with an attached file descriptor via SCM_RIGHTS (Linux DMA-BUF).
+    /// The fd is dup'd synchronously, so callers may close their fd as soon as this
+    /// returns, without racing the async send on sendQueue.
     public func sendWithFd(_ message: AppMessage, fd attachedFd: Int32) {
         guard let data = try? WireProtocol.encode(message) else { return }
+        let dupFd = dup(attachedFd)
+        guard dupFd >= 0 else { return }
         sendQueue.async { [sockFd = self.socketFd] in
             data.withUnsafeBytes { ptr in
-                guard let base = ptr.baseAddress else { return }
-                _ = posix_sendmsg_fd(sockFd, base, data.count, attachedFd)
+                guard let base = ptr.baseAddress else { posix_close(dupFd); return }
+                _ = posix_sendmsg_fd(sockFd, base, data.count, dupFd)
             }
+            posix_close(dupFd)
         }
     }
 
