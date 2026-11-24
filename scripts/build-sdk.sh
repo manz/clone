@@ -169,12 +169,22 @@ for MOD in "${FRAMEWORKS[@]}"; do
         FWFLAGS+=(-lz)
     fi
 
+    # Linux: stamp the dylib with its INSTALLED path as SONAME (macOS
+    # install_name equivalent). Consumers then record
+    # /System/Library/Frameworks/... instead of the build-tree path, so app
+    # binaries work in the appliance image where the build tree doesn't exist.
+    SONAME_FLAGS=()
+    if [ "$(uname)" = "Linux" ]; then
+        SONAME_FLAGS=(-Xlinker -soname -Xlinker "/System/Library/Frameworks/${MOD}.framework/Versions/A/${MOD}")
+    fi
+
     swiftc \
         -emit-library \
         -module-name "$MOD" \
         -o "$VERSIONS_DIR/$MOD" \
         "${OBJ_FILES[@]}" \
         "${FWFLAGS[@]}" \
+        "${SONAME_FLAGS[@]}" \
         -L "$ROOT/.build/$CONFIG" \
         -L "$ROOT/target/$CONFIG" \
         2>&1 | head -5 || true
