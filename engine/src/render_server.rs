@@ -160,10 +160,11 @@ impl RenderServer {
                     corner_radius: sf.desc.corner_radius * scale,
                     opacity: sf.desc.opacity,
                     shadow: sf.desc.corner_radius > 0.0,
-                    // Use explicit content size if provided (exposé scaling),
-                    // otherwise content matches display size.
-                    content_width: if sf.desc.content_width > 0.0 { sf.desc.content_width * scale } else { phys_w },
-                    content_height: if sf.desc.content_height > 0.0 { sf.desc.content_height * scale } else { phys_h },
+                    // desc.content_* is the surface's PHYSICAL pixel size (same unit
+                    // surface_phys_size imports the texture at) - never re-scale it,
+                    // or UV samples past the texture and the content squishes.
+                    content_width: if sf.desc.content_width > 0.0 { sf.desc.content_width } else { phys_w },
+                    content_height: if sf.desc.content_height > 0.0 { sf.desc.content_height } else { phys_h },
                     genie_progress: sf.desc.genie_progress,
                     genie_target_x: sf.desc.genie_target_x * scale,
                     genie_target_y: sf.desc.genie_target_y * scale,

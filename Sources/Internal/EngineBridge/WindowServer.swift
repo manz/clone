@@ -74,8 +74,11 @@ public final class WindowServer {
                 let iosurfaceId = appManager.iosurfaceId(for: window.id)
                 if iosurfaceId != 0 {
                     let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
+                    // Physical surface size (app renders at 2x) so the import takes the full
+                    // buffer instead of cropping to the logical top-left quarter.
+                    let surfDims = appManager.surfaceDimensions(for: window.id)
                     frames.append(SurfaceFrame(
-                        desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                        desc: SurfaceDesc(surfaceId: surfaceId, x: 0, y: 0, width: Float(width), height: Float(height), cornerRadius: 0, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: Float(surfDims?.width ?? 0), contentHeight: Float(surfDims?.height ?? 0)),
                         commands: [], pixelData: nil,
                         iosurfaceId: iosurfaceId, dmabufFd: dfd,
                         dmabufStride: ds, dmabufOffset: dofs, dmabufFourcc: dfcc, dmabufModifier: dmod
@@ -133,8 +136,13 @@ public final class WindowServer {
                 let cornerRadius: Float = isPopup ? 8 : 0
                 if iosurfaceId != 0 {
                     let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
+                    // The overlay renders at 2x (content is surfaceWidth px, e.g. 2560
+                    // for a 1280pt menubar). Thread the surface size through as the
+                    // content size so the import samples the full surface, not the
+                    // logical top-left quarter (which crops/squishes it 2x).
+                    let surfDims = appManager.surfaceDimensions(for: window.id)
                     frames.append(SurfaceFrame(
-                        desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: 0, contentHeight: 0),
+                        desc: SurfaceDesc(surfaceId: surfaceId, x: ox, y: oy, width: ow, height: oh, cornerRadius: cornerRadius, opacity: 1, genieProgress: 0, genieTargetX: 0, genieTargetY: 0, genieTargetW: 0, contentWidth: Float(surfDims?.width ?? 0), contentHeight: Float(surfDims?.height ?? 0)),
                         commands: [], pixelData: nil, iosurfaceId: iosurfaceId, dmabufFd: dfd,
                         dmabufStride: ds, dmabufOffset: dofs, dmabufFourcc: dfcc, dmabufModifier: dmod
                     ))
@@ -163,13 +171,7 @@ public final class WindowServer {
             var frameY = window.y
             var frameW = window.width
             var frameH = window.height
-            // Content size for UV mapping — when scaling visually, keep original size
-            // so the GPU scales the texture instead of cropping it.
-            var srcW: Float = 0
-            var srcH: Float = 0
             if let exposeRect = windowManager.exposeRect(for: window.id, animationManager: animationManager) {
-                srcW = Float(window.width)
-                srcH = Float(window.height)
                 frameX = exposeRect.x
                 frameY = exposeRect.y
                 frameW = exposeRect.w
@@ -219,12 +221,12 @@ public final class WindowServer {
             }
 
             if hasIOSurface {
-                // App owns its texture — use actual surface dimensions for UV mapping.
-                // During resize, this scales the old content to fit the new frame.
-                // During exposé, srcW/srcH override to the original window size.
+                // App owns its texture: content size is the surface's physical pixel
+                // size, for UV mapping. During resize (and exposé) the old texture
+                // scales to fit the display frame.
                 let surfDims = appManager.surfaceDimensions(for: window.id)
-                let cw = srcW > 0 ? srcW : Float(surfDims?.width ?? 0)
-                let ch = srcH > 0 ? srcH : Float(surfDims?.height ?? 0)
+                let cw = Float(surfDims?.width ?? 0)
+                let ch = Float(surfDims?.height ?? 0)
                 let (dfd, ds, dofs, dfcc, dmod) = dmabuf(window.id)
                 frames.append(SurfaceFrame(
                     desc: SurfaceDesc(
@@ -257,7 +259,7 @@ public final class WindowServer {
                         genieTargetX: genieTargetX,
                         genieTargetY: genieTargetY,
                         genieTargetW: genieTargetW,
-                        contentWidth: srcW, contentHeight: srcH
+                        contentWidth: 0, contentHeight: 0
                     ),
                     commands: windowCommands,
                     pixelData: nil,
