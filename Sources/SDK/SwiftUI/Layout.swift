@@ -587,7 +587,7 @@ public enum Layout {
                     let padded = child.padding(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
                     let styled: ViewNode
                     if i % 2 == 1 {
-                        styled = ViewNode.zstack(children: [
+                        styled = ViewNode.zstack(alignment: .topLeading, children: [
                             ViewNode.rect(width: frame.width, height: nil, fill: Color(white: 0.96)),
                             padded,
                         ])
