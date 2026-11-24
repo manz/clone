@@ -10,10 +10,11 @@ public final class GhosttyTerminalVT {
 
     /// Create a `cols`×`rows` terminal with `scrollback` lines of history.
     public init?(cols: UInt16, rows: UInt16, scrollback: Int = 1000) {
-        let opts = GhosttyTerminalOptions(cols: cols, rows: rows, max_scrollback: scrollback)
-        guard ghostty_terminal_new(nil, &handle, opts) == GHOSTTY_SUCCESS, handle != nil else {
+        guard ghostty_terminal_new(nil, &handle, cols, rows) == GHOSTTY_SUCCESS, let h = handle else {
             return nil
         }
+        var maxLines = scrollback
+        _ = ghostty_terminal_set(h, GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_LINES, &maxLines)
     }
 
     deinit {
@@ -47,7 +48,7 @@ public final class GhosttyTerminalVT {
     public func scrollViewport(lines: Int) {
         guard let h = handle, lines != 0 else { return }
         var b = GhosttyTerminalScrollViewport()
-        b.tag = GHOSTTY_SCROLL_VIEWPORT_DELTA
+        b.tag = GHOSTTY_TERMINAL_SCROLL_VIEWPORT_DELTA
         b.value.delta = lines
         ghostty_terminal_scroll_viewport(h, b)
     }
@@ -72,20 +73,13 @@ public final class GhosttyTerminalVT {
     }
 
     /// The visible screen as plain UTF-8 text (v1 render path, monochrome).
-    /// Uses libghostty-vt's formatter (PLAIN). Per-cell color/attrs come later via
-    /// the grid_ref API. `format_buf` writes into a reused buffer (no per-frame alloc).
+    /// Uses libghostty-vt's formatter (defaults: PLAIN, trimmed). `format_buf`
+    /// writes into a reused buffer (no per-frame alloc).
     private var fmtBuf = [UInt8](repeating: 0, count: 64 * 1024)
     public func screenText() -> String {
         guard let h = handle else { return "" }
-        var opts = GhosttyFormatterTerminalOptions()
-        opts.size = MemoryLayout<GhosttyFormatterTerminalOptions>.stride
-        opts.emit = GHOSTTY_FORMATTER_FORMAT_PLAIN
-        opts.trim = true
-        opts.extra.size = MemoryLayout<GhosttyFormatterTerminalExtra>.stride
-        opts.extra.screen.size = MemoryLayout<GhosttyFormatterScreenExtra>.stride
-
         var fmt: GhosttyFormatter?
-        guard ghostty_formatter_terminal_new(nil, &fmt, h, opts) == GHOSTTY_SUCCESS, let fmt else { return "" }
+        guard ghostty_formatter_terminal_new(nil, &fmt, h) == GHOSTTY_SUCCESS, let fmt else { return "" }
         defer { ghostty_formatter_free(fmt) }
 
         var outLen = 0
@@ -124,7 +118,6 @@ public final class GhosttyTerminalVT {
                 point.tag = GHOSTTY_POINT_TAG_VIEWPORT
                 point.value = GhosttyPointValue(coordinate: coord)
                 var ref = GhosttyGridRef()
-                ref.size = MemoryLayout<GhosttyGridRef>.stride
                 guard ghostty_terminal_grid_ref(h, point, &ref) == GHOSTTY_SUCCESS, ref.node != nil else {
                     rowCells.append(blank); continue
                 }
@@ -144,15 +137,15 @@ public final class GhosttyTerminalVT {
                 }
                 // Style (fg/bg color + attributes).
                 var style = GhosttyStyle()
-                style.size = MemoryLayout<GhosttyStyle>.stride
                 _ = ghostty_grid_ref_style(&ref, &style)
+                let flags = style.flags
                 rowCells.append(TermCell(
                     text: text,
                     fg: Self.resolve(style.fg_color),
                     bg: Self.resolve(style.bg_color),
-                    bold: style.bold,
-                    inverse: style.inverse,
-                    underline: style.underline != 0
+                    bold: flags & StyleFlag.bold != 0,
+                    inverse: flags & StyleFlag.inverse != 0,
+                    underline: flags & StyleFlag.underlineMask != 0
                 ))
             }
             grid.append(rowCells)
@@ -160,12 +153,20 @@ public final class GhosttyTerminalVT {
         return grid
     }
 
+    /// GhosttyStyle.flags bits. style.h defines these as cast macros, which Swift
+    /// doesn't import, so mirror them here.
+    private enum StyleFlag {
+        static let bold: GhosttyStyleFlags = 1 << 0
+        static let inverse: GhosttyStyleFlags = 1 << 4
+        static let underlineMask: GhosttyStyleFlags = 0x7 << 8
+    }
+
     /// Resolve a style color (none / palette index / direct RGB) to concrete RGB.
     private static func resolve(_ c: GhosttyStyleColor) -> TermColor? {
-        switch c.tag {
-        case GHOSTTY_STYLE_COLOR_RGB:
+        switch UInt32(c.tag) {
+        case GHOSTTY_STYLE_COLOR_RGB.rawValue:
             return TermColor(r: c.value.rgb.r, g: c.value.rgb.g, b: c.value.rgb.b)
-        case GHOSTTY_STYLE_COLOR_PALETTE:
+        case GHOSTTY_STYLE_COLOR_PALETTE.rawValue:
             let p = palette256[Int(c.value.palette)]
             return TermColor(r: p.0, g: p.1, b: p.2)
         default:

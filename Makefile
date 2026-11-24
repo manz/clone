@@ -1,4 +1,4 @@
-.PHONY: all all-release engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release docker-build docker-sdk docker-apps os-stage mkosi-image
+.PHONY: all all-release ghostty engine render render-bindings bindings text text-bindings audio audio-bindings swift apps install install-sdk build test clean sdk sdk-release docker-build docker-sdk docker-apps os-stage mkosi-image
 
 # Config: debug (default) or release
 CONFIG ?= debug
@@ -21,7 +21,7 @@ else
 endif
 
 # Build everything: engine -> bindings -> render -> audio -> audio-bindings -> compositor -> SDK -> install-sdk -> apps -> install
-all: bindings render-bindings text-bindings audio-bindings swift sdk install-sdk apps install
+all: bindings render-bindings text-bindings audio-bindings ghostty swift sdk install-sdk apps install
 
 # Release shorthand
 all-release:
@@ -91,6 +91,11 @@ audio-bindings: audio
 	cp Sources/Internal/AudioBridge/clone_audioFFI.h Sources/FFI/CAudio/include/clone_audioFFI.h
 
 # Swift package - compositor + daemons only (not apps)
+# libghostty-vt for Terminal, per OS so a shared checkout serves macOS and Linux.
+GHOSTTY_OUT = $(CURDIR)/.build/ghostty/$(shell uname -s)
+ghostty:
+	cd vendor/ghostty && zig build -Demit-lib-vt=true -Doptimize=ReleaseFast --prefix $(GHOSTTY_OUT)
+
 swift:
 	swift build $(SWIFT_FLAGS) --product CloneDesktop
 	swift build $(SWIFT_FLAGS) --product keychaind

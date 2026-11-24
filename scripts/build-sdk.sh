@@ -161,7 +161,7 @@ for MOD in "${FRAMEWORKS[@]}"; do
         for co in "$BUILD_DIR/CPty.build"/*.c.o; do
             [ -f "$co" ] && OBJ_FILES+=("$co")
         done
-        FWFLAGS+=("$ROOT/vendor/ghostty/zig-out/lib/libghostty-vt.a")
+        FWFLAGS+=("$ROOT/.build/ghostty/$(uname -s)/lib/libghostty-vt.a")
         FWFLAGS+=(-lutil)
     fi
     # CoreGraphics uses zlib compress2 for PNG encoding

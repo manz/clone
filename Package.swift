@@ -15,7 +15,9 @@ let cargoTargetDir: String = {
     return "./target/debug"
 }()
 
-// libghostty-vt (vendored submodule, built by `zig build` → zig-out/lib).
+// libghostty-vt (vendored submodule). `make ghostty` builds it per OS into
+// .build/ghostty/<uname -s> so macOS and Linux builds sharing one checkout
+// (virtiofs) never overwrite each other.
 let packageRootDir: String = {
     let path = #filePath
     if let lastSlash = path.lastIndex(of: "/") {
@@ -24,7 +26,12 @@ let packageRootDir: String = {
     return "."
 }()
 let ghosttyIncludeDir = packageRootDir + "/vendor/ghostty/include"
-let ghosttyLibDir = packageRootDir + "/vendor/ghostty/zig-out/lib"
+#if os(macOS)
+let ghosttyPlatform = "Darwin"
+#else
+let ghosttyPlatform = "Linux"
+#endif
+let ghosttyStaticLib = packageRootDir + "/.build/ghostty/" + ghosttyPlatform + "/lib/libghostty-vt.a"
 
 let package = Package(
     name: "Clone",
@@ -36,7 +43,7 @@ let package = Package(
         // shadowing macOS's real AppKit in the dependency resolver)
         .library(name: "QuartzCore", targets: ["QuartzCore"]),
         // Terminal engine (libghostty-vt + pty). Product so the SDK build compiles
-        // it; links libghostty-vt.a → Linux-only (built on clone-dev).
+        // it; links the static libghostty-vt.a (`make ghostty`).
         .library(name: "CloneTerminalVT", targets: ["CloneTerminalVT"]),
         .library(name: "SwiftUI", targets: ["SwiftUI"]),
         .library(name: "SwiftData", targets: ["SwiftData"]),
@@ -97,7 +104,7 @@ let package = Package(
         ),
 
         // libghostty-vt C module (vendored). Header resolves via -I (below);
-        // the static lib comes from vendor/ghostty/zig-out/lib.
+        // the static lib comes from .build/ghostty/<os>/lib (`make ghostty`).
         .systemLibrary(
             name: "CGhosttyVt",
             path: "Sources/FFI/CGhosttyVt"
@@ -114,8 +121,9 @@ let package = Package(
             ],
             linkerSettings: [
                 .unsafeFlags([
-                    "-L", ghosttyLibDir, "-lghostty-vt",
-                    "-Xlinker", "-rpath", "-Xlinker", ghosttyLibDir,
+                    // Full path, not -l: the prefix also holds the dylib/.so,
+                    // which -l would prefer.
+                    ghosttyStaticLib,
                 ]),
             ]
         ),

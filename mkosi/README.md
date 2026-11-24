@@ -45,7 +45,7 @@ Mac (or over SSH with `claude`), build in-VM, restart one service:
 | compositor | `make swift && make install` | `sudo systemctl restart clone-windowserver` |
 | daemon | `make swift && make install` | `systemctl --user -M manz@ restart <daemon>` |
 | Rust engine | `make bindings && make sdk && make install` | `sudo systemctl restart clone-windowserver` (loads `/Clone/target/debug` via RUNPATH) |
-| libghostty-vt | `cd vendor/ghostty && zig build`, then `make sdk && make install` | restart Terminal/Console |
+| libghostty-vt | `make ghostty` (zig 0.17), then `make sdk && make install` | restart Terminal/Console |
 
 A compositor restart bounces to LoginWindow but the session survives (apps reconnect,
 daemons persist under the lingered user manager).
